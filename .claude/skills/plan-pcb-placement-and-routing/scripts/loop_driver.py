@@ -335,9 +335,28 @@ Next: --stage L1 --board <the adopted arrangement> --ledger {a.ledger}
     # placement-shaped: the expensive one
     rows = _ledger_rows(a.ledger)
     routed = [r for r in rows if (r.get('kind') or '') in ('completion', 'routing')]
-    stale = ('\n'.join(f'    - iteration {r.get("iteration")}: '
-                       f'{(r.get("result_sha") or "")[:12]}' for r in routed[-8:])
-             or '    (none recorded in this ledger)')
+    if routed:
+        stale = '\n'.join(f'    - iteration {r.get("iteration")}: '
+                          f'{(r.get("result_sha") or "")[:12]}'
+                          for r in routed[-8:])
+    else:
+        # An empty list here is not reassurance. Reaching L4 means a route ran
+        # and failed, so a ledger with no routed row means the routing was
+        # never recorded -- and this stage's whole job is naming the boards
+        # that must not be reused. Say that, rather than printing a blank that
+        # reads as "nothing to invalidate".
+        stale = (
+            '    NONE RECORDED -- and that is a problem, not a clean bill.\n'
+            '    You are here because a route failed, so a routed board\n'
+            '    exists somewhere. It is not in this ledger, so nothing can\n'
+            '    tell the next pass which files are now stale. Find every\n'
+            '    board produced from this placement and treat ALL of them as\n'
+            '    stale, then record the routing result before the next\n'
+            '    iteration so this list works next time:\n'
+            '      python3 -X utf8 converge.py record --ledger '
+            f'{a.ledger} \\\n'
+            '          --board <the routed board> --kind completion \\\n'
+            '          --score "$(cat <the score json>)" --argv <the command>')
     return f'''<stage_instructions stage="L4" name="re-enter: placement" of="5">
 This is the expensive one, and the cost is the point: no router setting adds a
 lane, so every routed board produced from this placement is now stale.

@@ -311,6 +311,7 @@ Examples:
                     x, y = cands[ref][k]
                     state.apply_move(ref, x, y, state.parts[ref].rot)
             after = reconstruct.measure(state, edge_bands)
+            before_round = base
             rmoved = []
             if after <= base:
                 # Run-4 F3(b): the gate is one board-wide tuple, so an
@@ -332,6 +333,31 @@ Examples:
                       f"part(s) moved"
                       + (f" ({len(pruned)} pruned back)" if pruned else "")
                       + f"; gate now {reconstruct.format_gate(after)}")
+                # The accept rule is smaller-OR-EQUAL, so a round can move
+                # parts and change nothing the gate can see. That is not
+                # neutral: displacement is unbounded, and a run was measured
+                # taking a mounting hole 26mm and rotating a connector 90 deg
+                # on an equal tuple -- both had been at their correct poses.
+                # The rung above says an unimproving proposal means "the
+                # determinant was not on the board", so at minimum say it out
+                # loud rather than reporting a move as progress.
+                if rmoved and after == before_round:
+                    dists = []
+                    for r in rmoved:
+                        ox, oy, orot = old[r]
+                        p = state.parts[r]
+                        dists.append((r, math.hypot(p.x - ox, p.y - oy),
+                                      (p.rot - orot) % 360.0))
+                    worst = max(dists, key=lambda t: t[1])
+                    print(f"    UNEVIDENCED: the gate did not change, so "
+                          f"nothing measured justifies {len(rmoved)} move(s). "
+                          f"Largest: {worst[0]} {worst[1]:.2f}mm"
+                          + (f", rot {worst[2]:+.0f} deg" if worst[2] else "")
+                          + ". Check these against their input poses before "
+                            "trusting the result.")
+                    report.setdefault('unevidenced_moves', []).extend(
+                        {'ref': r, 'mm': round(d, 4), 'rot': round(ro, 1)}
+                        for r, d, ro in sorted(dists, key=lambda t: -t[1]))
             else:
                 for ref, (x, y, rot) in old.items():
                     state.apply_move(ref, x, y, rot)

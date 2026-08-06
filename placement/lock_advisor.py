@@ -435,6 +435,12 @@ def to_json(adv: LockAdvice) -> Dict:
                       'class_confidence': f.class_confidence,
                       'pose_plausible': f.pose_plausible} for f in adv.findings],
         'advisories': adv.advisories,
+        # The tally goes in the FILE, not only on stdout. The placement
+        # driver's next stage gates on `unlocked_high`, reading it from this
+        # JSON -- and this JSON did not carry it, so the guard read None,
+        # decided there was nothing to object to, and passed. A gate whose key
+        # its own producer omits is a gate that never fires.
+        **adv.tally(),
         'lock_patterns': adv.lock_patterns(),
         'lock_argv': (['--lock'] + adv.lock_patterns()) if adv.lock_patterns() else [],
     }

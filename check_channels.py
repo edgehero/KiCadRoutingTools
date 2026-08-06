@@ -35,6 +35,30 @@ def _starved_faces(ledgers, min_demand):
     return out
 
 
+def lost_last_lane(ledgers, base_ledgers):
+    """(ref, face, demand, was) for faces whose supply fell to ZERO.
+
+    Deliberately NOT filtered by --min-demand. That threshold exists to keep
+    the ABSOLUTE starvation report quiet on healthy boards, where a lightly
+    used face with no spare lane is ordinary and says nothing about a change.
+    Applied to a DELTA it only hides things: the baseline already carries the
+    design's own habits, so a face that had lanes and now has none is new
+    damage whatever its demand. Measured: a repair took one part's north face
+    from supply 4 to supply 0 at demand 6, and the gate passed because 6 < 7.
+    """
+    was = {(ref, r['face']): r['supply_finest_grid']
+           for ref, rows in (base_ledgers or {}).items()
+           for r in rows}
+    out = []
+    for ref, rows in sorted((ledgers or {}).items()):
+        for r in rows:
+            before = was.get((ref, r['face']), 0)
+            if (r['supply_finest_grid'] == 0 and r['demand_nets'] >= 1
+                    and before > 0):
+                out.append((ref, r['face'], r['demand_nets'], before))
+    return out
+
+
 def main():
     p = argparse.ArgumentParser(
         description="Per-face lane ledger + anchor channel widths.")
@@ -141,6 +165,23 @@ def main():
         was = {(r, f) for r, f, _d in _starved_faces(base_ledgers,
                                                      args.min_demand)}
         new_starved = [t for t in starved if (t[0], t[1]) not in was]
+
+        # A face whose supply went from something to NOTHING is new damage
+        # whatever its demand is. --min-demand exists to keep the ABSOLUTE
+        # form quiet on healthy boards, where a lightly-used face with no lane
+        # is ordinary; it has no business filtering a DELTA, because the
+        # baseline already carries the design's own habits. Measured: a repair
+        # took one part's north face from supply 4 to supply 0 with demand 6,
+        # and the gate exited 0 because 6 < 7.
+        seen = {(t[0], t[1]) for t in new_starved}
+        for ref, face, dem, before in lost_last_lane(ledgers, base_ledgers):
+            if (ref, face) in seen:
+                continue
+            new_starved.append((ref, face, dem))
+            seen.add((ref, face))
+            print(f"  NEW (lost its last lane): {ref} {face}: demand {dem}, "
+                  f"supply {before} -> 0. Below --min-demand "
+                  f"{args.min_demand}, so only the delta sees it.")
         print(f"Starved faces (zero supply at the finest grid, demand >= "
               f"{args.min_demand}): {len(starved)} now, {len(was)} on the "
               f"baseline, {len(new_starved)} NEW")
@@ -175,6 +216,16 @@ def main():
         print(f"  JSON -> {args.json}")
     if args.gate and new_starved:
         return 4
+    if args.gate and not ledgers:
+        # A gate that examined nothing must not answer "clean". This board
+        # auto-detected no fine-pitch part, printed one parenthetical note,
+        # and exited 0 -- which a caller reasonably recorded as "no starved
+        # face". A component nothing looked at is UNEXAMINED, never clean.
+        print("  GATE DID NOT RUN: no part had a lane ledger to measure "
+              "(none auto-detected, none passed with --refs). This is not a "
+              "pass. Name the parts whose escape faces matter -- "
+              "--refs U1 U2 -- or record that this board has none.")
+        return 3
     return 0
 
 
