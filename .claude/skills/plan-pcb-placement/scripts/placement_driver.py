@@ -287,6 +287,14 @@ refuses (exit 2) any first token that is not a real file or on PATH, and a
 placeholder like "<all but R12>" inside a quoted string makes the whole thing
 one unrunnable token. Expand the arguments you actually used.
 
+A lap that did NOT clear its finding is recorded too, with --rejected, and then
+stepped back. Keeping it is what makes "two flat laps" detectable -- a loop that
+discards its failures cannot tell a plateau from a fresh start -- and the step
+back is a checkout of the parent board, siblings included, not a reconstruction:
+
+  python3 -X utf8 converge.py step-back --ledger wk/ledger.jsonl \\
+      --out <where to put the restored board>
+
 Two flat laps in a row means the residue is floorplan-shaped, not repairable
 here: stop and go to P5.
 
@@ -370,6 +378,14 @@ Answer with a line beginning VERDICT= and nothing above it.
 4. Placement invalidates every downstream routed board. Say so, and hand the
    board to /plan-pcb-routing -- or to /plan-pcb-placement-and-routing if this
    run also routes.
+5. Render the run. Every other artifact is a snapshot; this is the only one
+   that shows WHICH lap moved what, and it comes straight off the ledger:
+
+       python3 -X utf8 make_film.py --from-ledger wk/ledger.jsonl -o wk/place.mp4
+
+   Rejected laps are in it too, badged -- seeing where the search went is the
+   point. If it comes out one or two beats long, the laps were not recorded and
+   the ledger is the thing to fix, not the film.
 
 STOP conditions, name the one that applies:
   - every gate clean;

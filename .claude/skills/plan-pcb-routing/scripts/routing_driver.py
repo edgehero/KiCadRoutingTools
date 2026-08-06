@@ -631,6 +631,22 @@ inside quotes -- quoted, the whole command becomes one unrunnable token.
 Failing nets go in by NAME. A count forces every later reader to re-derive the
 set, and a truncated re-derivation shipped a wrong close-out.
 
+ON A REJECT: record it ANYWAY, with --rejected, and then step back. Both halves
+of that matter. A rejected iteration is data -- it is what makes "five
+consecutive with no change" detectable at all, and a run that simply discards
+its failures cannot tell a plateau from a fresh start. And stepping back is a
+CHECKOUT, not a reconstruction: the board store has the parent byte-for-byte,
+siblings included.
+
+  python3 -X utf8 converge.py record --ledger wk/ledger.jsonl --board <board> \\
+      --kind completion --rejected --lever "<what and why it did not work>" \\
+      --score "$(cat wk/score.json)" --argv <the real command>
+  python3 -X utf8 converge.py step-back --ledger wk/ledger.jsonl \\
+      --out <where to put the restored board>
+
+With no --to/--iteration it returns to the last ACCEPTED board, which is what
+you want after a failed lever.
+
 Next: --stage V2 (another lever) or --stage V5 (close out)
 </stage_instructions>'''
 
