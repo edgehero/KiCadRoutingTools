@@ -60,6 +60,30 @@ def _load(path, what):
         return None, f'{what}: unreadable ({type(exc).__name__}: {exc})'
 
 
+def _recorded(board, ledger):
+    """Is THIS board in the ledger, by content?
+
+    Not "did the executor say it recorded" -- the same sha256 the board store
+    keys on. A run of the combined skill recorded two placement laps and zero
+    routing ones, and nothing noticed: the film came out two frames long, the
+    staleness list printed "none recorded" at the one moment it mattered, and
+    step-back had nothing to step back to. Recording is the spine of all three,
+    so the stage that depends on them checks it rather than trusting it.
+
+    None when the question cannot be answered (no ledger yet, unreadable
+    board): the caller must not turn "I could not check" into a refusal.
+    """
+    if not os.path.isfile(board) or not os.path.isfile(ledger):
+        return None
+    try:
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file
+        sha = sha256_file(board)
+    except Exception:                                       # noqa: BLE001
+        return None
+    return any(r.get('result_sha') == sha for r in _ledger_rows(ledger))
+
+
 def _ledger_rows(path):
     if not path or not os.path.isfile(path):
         return []
@@ -236,14 +260,36 @@ def l3(a):
             'anything:\n  python3 -X utf8 '
             '.claude/skills/plan-pcb-routing/scripts/board_score.py <board> '
             '--json wk/score.json')
+    if _recorded(a.board, a.ledger) is False:
+        return err(
+            f'This routed board is not in the ledger.\n\n  board:  {a.board}\n'
+            f'  ledger: {a.ledger}\n\nRecord it before classifying. Everything '
+            f'that happens after this point reads the ledger and not the '
+            f'board: L4 names the routed boards a placement change makes '
+            f'stale, L5 decides whether the loop is over from the score '
+            f'history, step-back restores from the board store, and the film '
+            f'is the ledger read out loud. A run that skipped this recorded '
+            f'two placement laps and no routing ones -- the staleness list '
+            f'then printed "none recorded" at the one moment it mattered.\n\n'
+            f'  python3 -X utf8 converge.py record --ledger {a.ledger} \\\n'
+            f'      --board {a.board} --kind completion \\\n'
+            f'      --lever "<what you changed and why>" \\\n'
+            f'      --score "$(cat {a.score})" \\\n'
+            f'      --argv <the real command, as bare tokens>')
     if blocking == 0:
         return f'''<stage_instructions stage="L3" name="classify" note="nothing to classify">
-blocking == 0. There is no failure to classify.
+blocking == 0. There is no failure to classify -- and that is not the same as
+being finished.
 
-Confirm nothing is merely UNGRADED (a component nothing examined is reported
-unexamined, never clean), then close out.
+`blocking` is only the first key of a lexicographic score; `quality`
+(vias, copper_mm, segments) orders the boards that already reached 0. So the
+question now is not "is it done" but "can either half still improve it", and
+L5 answers that from the ledger rather than from an impression.
 
-Next: --stage L5 --board {a.board} --score {a.score}
+Confirm nothing is merely UNGRADED first -- a component nothing examined is
+reported unexamined, never clean.
+
+Next: --stage L5 --board {a.board} --score {a.score} --ledger {a.ledger}
 </stage_instructions>'''
     return f'''<stage_instructions stage="L3" name="classify the failure" of="5">
 blocking = {blocking}. Name the SHAPE before choosing anything.
@@ -381,23 +427,106 @@ Next: --stage L1 --board <the re-placed board> --ledger {a.ledger}
 </stage_instructions>'''
 
 
+def _verdict(a):
+    """Ask converge for the stop verdict. Returns (name, doc, exit) or None."""
+    if not a.score or not os.path.isfile(a.score):
+        return None
+    import subprocess
+    p = subprocess.run(
+        [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'converge.py'),
+         'verdict', '--ledger', a.ledger, '--score', a.score,
+         '--budget', str(a.budget), '--flat', str(a.flat)],
+        capture_output=True, text=True, encoding='utf-8', errors='replace',
+        cwd=ROOT)
+    try:
+        doc = json.loads(p.stdout)
+    except Exception:                                       # noqa: BLE001
+        return None
+    return doc.get('verdict'), doc, p.returncode
+
+
 def l5(a):
-    return f'''<stage_instructions stage="L5" name="close out" of="5">
-The board is done when BOTH halves say so, measured, not when the router stops
-producing failures.
+    """Close out -- but only if the loop is actually finished.
+
+    This stage used to print a checklist and end, which made it the place a run
+    stopped rather than the place a run was MEASURED to be over. Reaching
+    `blocking == 0` is the floor: the score is lexicographic and `quality`
+    orders the boards that already got there, so a solved board whose quality
+    is still improving has to go round again. And a run that stopped because it
+    was finished must not look like one that stopped because it was stuck.
+    """
+    got = _verdict(a)
+    if got is None:
+        return err(
+            'L5 decides whether the loop is OVER, and that is a measurement, '
+            'not a judgement call. Score the board and come back:\n'
+            '  python3 -X utf8 '
+            '.claude/skills/plan-pcb-routing/scripts/board_score.py '
+            f'{a.board} --json wk/score_final.json\n'
+            f'  python3 -X utf8 {sys.argv[0]} --stage L5 --board {a.board} \\\n'
+            f'      --ledger {a.ledger} --score wk/score_final.json\n\n'
+            'Every stop RULE in this toolchain was already written down and '
+            'none of them had a mechanism, so "done" and "stuck" came out '
+            'looking identical. This is that mechanism.')
+    name, doc, _code = got
+    why = doc.get('reason', '')
+
+    if name == 'CONTINUE':
+        halves = ', '.join(doc.get('improving') or ['a half'])
+        return f'''<stage_instructions stage="L5" name="not done yet" of="5">
+The loop is NOT over: {halves} is still improving.
+
+{why}
+
+Go round again. A board that merely routes is the floor -- keep pulling levers
+until neither half can improve either key.
+
+  placement still improving -> --stage L1 --board {a.board} --ledger {a.ledger}
+  routing still improving   -> --stage L3 --board {a.board} \\
+                                   --score {a.score} --ledger {a.ledger}
+
+Record the lap you are about to run, accepted or rejected. A rejected lap is
+data: it is what makes the plateau detectable, and without it this stage cannot
+tell a finished run from a stalled one.
+</stage_instructions>'''
+
+    verdicts = {
+        'DONE-EXHAUSTED': 'the board is done, and measured to be done',
+        'STUCK': 'stopping is legitimate; calling this finished is not',
+        'BUDGET': 'the budget ended this run, not the board',
+        'NO-SCORE': 'the score could not be read',
+    }
+    return f'''<stage_instructions stage="L5" name="close out: {name}" of="5">
+{verdicts.get(name, name)}.
+
+{why}
+
+Confirm with the instruments, and put the numbers in the report beside the
+names of the instruments that produced them:
 
   python3 -X utf8 check_drc.py {a.board} --clearance <floor> --clearance-margin 0.1
   python3 -X utf8 check_connected.py {a.board}
   python3 -X utf8 check_assembly.py {a.board}
-  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/board_score.py \\
-      {a.board} --json wk/score_final.json
 
 Connectivity is orthogonal to DRC: a DRC-clean board can be entirely
 disconnected, because isolated copper has no clearance conflicts.
 
-Then report, per half, with the number and the instrument beside it, and say
-how many times the loop turned and why each turn happened. A chain that
-re-entered placement twice is not a failure -- an unexplained one is.
+Close the ledger with the stop condition NAMED -- converge refuses --final
+without it, deliberately:
+
+  python3 -X utf8 converge.py record --ledger {a.ledger} --board {a.board} \\
+      --kind completion --final --stop-condition "{name}" \\
+      --score "$(cat {a.score})" --argv <the command that produced this board>
+
+Then render the run. It is the only artifact that shows HOW the board got here,
+and because both halves recorded into one ledger it is ONE film, not two:
+
+  python3 -X utf8 make_film.py --from-ledger {a.ledger} -o wk/run.mp4
+
+Report, per half, the number and the instrument beside it; say how many times
+the loop turned and why each turn happened; and name anything UNEXAMINED rather
+than reporting it clean. A chain that re-entered placement twice is not a
+failure -- an unexplained one is.
 
 <subagent_prompt agent="claude" description="verify the finished board">
 Verify this board end to end, independently.
@@ -433,6 +562,12 @@ def _args(argv=None):
     ap.add_argument('--placement-report', default=None)
     ap.add_argument('--score', default=None)
     ap.add_argument('--shape', default=None, choices=SHAPES)
+    ap.add_argument('--budget', type=int, default=100,
+                    help='ledger entries this run may write before L5 calls '
+                         'it (default 100, the figure convergence.md states)')
+    ap.add_argument('--flat', type=int, default=5,
+                    help='accepted laps a half may go without improving '
+                         'before it counts as blocked (default 5, ditto)')
     ap.add_argument('--delegate', action='store_true',
                     help='hand a half to a TEAMMATE (not a plain subagent -- '
                          'each half spawns its own verifiers). A context '
@@ -480,6 +615,34 @@ def main(argv=None):
             print('===== L1 (delegated) =====')
             loose.delegate = True
             print(STAGES['L1'](loose))
+
+            # L5 has FOUR outcomes and the dump above shows one of them. The
+            # other three carry the commands that close a run out -- the
+            # --final record and the film -- so dumping only CONTINUE leaves
+            # them unscanned by anything that reads this output. Drive the
+            # real verdict with real ledgers rather than faking the branch.
+            flat = ([{'kind': 'placement', 'accepted': True,
+                      'score': {'blocking': 0, 'quality': {}}}] * 6
+                    + [{'kind': 'completion', 'accepted': True,
+                        'score': {'blocking': 0, 'quality': {}}}] * 6)
+            stuck = [dict(r, score={'blocking': 4, 'quality': {}})
+                     for r in flat]
+            for label, rows, sc, budget in (
+                    ('DONE-EXHAUSTED', flat, {'blocking': 0}, 100),
+                    ('STUCK', stuck, {'blocking': 4}, 100),
+                    ('BUDGET', stuck, {'blocking': 4}, 1)):
+                lp = os.path.join(tmp, f'l_{label}.jsonl')
+                with open(lp, 'w', encoding='utf-8') as fh:
+                    for i, r in enumerate(rows):
+                        fh.write(json.dumps(dict(r, iteration=i)) + '\n')
+                v = _args(['--board', 'b.kicad_pcb', '--ledger', lp,
+                           '--budget', str(budget),
+                           '--score', wrote(f's_{label}.json', sc)])
+                print(f'===== L5 ({label}) =====')
+                body = STAGES['L5'](v)
+                print(body)
+                if body.startswith('<error>'):
+                    refused.append(f'L5/{label}')
         if refused:
             print(f'\n!! {len(refused)} stage(s) dumped a REFUSAL, not their '
                   f'instructions: {", ".join(refused)}')
@@ -592,6 +755,57 @@ def _self_test():
         want(phrase not in everything.lower(), f'no hedging: {phrase!r}')
     want('copper is not evidence about placement' in everything,
          'the rule that only exists here is stated')
+
+    # L5 is a MEASUREMENT now, not a checklist. Its whole point is that a run
+    # which stopped because it was finished and one that stopped because it was
+    # stuck no longer produce the same artifact.
+    with tempfile.TemporaryDirectory() as tmp:
+        want(STAGES['L5'](_args(base)).startswith('<error>'),
+             'close-out refuses without a score to decide on')
+
+        def ledger_of(rows, name):
+            p = os.path.join(tmp, name)
+            with open(p, 'w', encoding='utf-8') as fh:
+                for i, r in enumerate(rows):
+                    fh.write(json.dumps(dict(r, iteration=i)) + '\n')
+            return p
+
+        def scored(doc, name):
+            p = os.path.join(tmp, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        flat = ([{'kind': 'placement', 'accepted': True,
+                  'score': {'blocking': 0, 'quality': {}}}] * 6
+                + [{'kind': 'completion', 'accepted': True,
+                    'score': {'blocking': 0, 'quality': {}}}] * 6)
+        out = STAGES['L5'](_args(base + [
+            '--ledger', ledger_of([], 'fresh.jsonl'),
+            '--score', scored({'blocking': 0}, 'zero.json')]))
+        want('not done yet' in out,
+             'blocking == 0 with the halves still moving does NOT close out')
+        out = STAGES['L5'](_args(base + [
+            '--ledger', ledger_of(flat, 'flat.jsonl'),
+            '--score', scored({'blocking': 0}, 'z2.json')]))
+        want('DONE-EXHAUSTED' in out and 'make_film' in out,
+             'a plateaued solved board closes out, with the film')
+        out = STAGES['L5'](_args(base + [
+            '--ledger', ledger_of(
+                [dict(r, score={'blocking': 4, 'quality': {}}) for r in flat],
+                'stuck.jsonl'),
+            '--score', scored({'blocking': 4}, 'four.json')]))
+        want('STUCK' in out and 'calling this finished is not' in out,
+             'a plateaued UNSOLVED board says stuck, not done')
+
+        # The staleness list, the film and step-back all read the ledger, so
+        # the stage that feeds them checks the board is in it.
+        board = os.path.join(tmp, 'b.kicad_pcb')
+        open(board, 'w', encoding='utf-8').write('(kicad_pcb)')
+        out = STAGES['L3'](_args(
+            ['--board', board, '--ledger', ledger_of(flat, 'l3.jsonl'),
+             '--score', scored({'blocking': 3}, 'b3.json')]))
+        want(out.startswith('<error>') and 'not in the ledger' in out,
+             'classification refuses a routed board nobody recorded')
 
     print('OK' if not bad else f'FAIL: {len(bad)}')
     return 1 if bad else 0

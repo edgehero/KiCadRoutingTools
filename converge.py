@@ -443,6 +443,142 @@ def cmd_replay(a):
     return subprocess.run(argv, cwd=ROOT).returncode
 
 
+CONTINUE, DONE, STUCK, BUDGET = 4, 0, 5, 6
+
+#: Which half of the loop a ledger row belongs to. `systemic` is neither -- it
+#: changes how the chain measures itself, not the board -- so it can never make
+#: a half look like it is still improving.
+_HALF = {'placement': 'placement', 'completion': 'routing'}
+
+
+def _score_key(score):
+    """(blocking, quality) as a comparable tuple, or None if not gradeable.
+
+    Lexicographic, never a weighted sum: a weighted sum lets a router buy off a
+    disconnected net with a lower via count. `blocking == None` is NOT zero --
+    it means a component that was asked for could not answer -- so it sorts
+    worse than any real number rather than reading as a perfect board.
+    """
+    if not isinstance(score, dict):
+        return None
+    b = score.get('blocking')
+    q = score.get('quality') or {}
+    quality = (q.get('vias'), q.get('copper_mm'), q.get('segments'))
+    if b is None:
+        return (float('inf'), quality)
+    return (b, quality)
+
+
+def _half_is_flat(rows, half, flat):
+    """Has this half failed to improve in its last `flat` accepted laps?
+
+    Only ACCEPTED rows count. A rejected lap is data -- it is what makes a
+    plateau detectable at all -- but it is not evidence that the half can still
+    move, or every rejection would reset the counter and the loop would never
+    stop.
+    """
+    keys = [_score_key(r.get('score')) for r in rows
+            if r.get('accepted') and _HALF.get(r.get('kind')) == half]
+    keys = [k for k in keys if k is not None]
+    if len(keys) <= flat:
+        return False, len(keys)          # not enough laps to call it a plateau
+    best_before = min(keys[:-flat])
+    return min(keys[-flat:]) >= best_before, len(keys)
+
+
+def cmd_verdict(a):
+    """Continue, or stop -- and say WHICH kind of stop it was.
+
+    Every stop RULE in this toolchain is written down (a 5-lap placement cap,
+    four routing stop conditions, a budget of 100, "5 consecutive flat") and
+    not one of them had a MECHANISM: no counter, no budget check, no read of
+    the ledger that gated continuation. `final` and `stop_condition` were
+    written and never read back. So a run that stopped because it was finished
+    and a run that stopped because it was stuck produced the same artifact.
+
+    Reaching `blocking == 0` is the FLOOR, not the finish. The score is
+    lexicographic (blocking, quality) and quality orders the boards that
+    already got there, so the loop keeps pulling levers on the second key and
+    stops only when NEITHER half can improve EITHER key -- which is what
+    "fully blocked in both placement and routing" means, measured.
+    """
+    from board_store import Ledger
+    rows = Ledger(a.ledger).entries()
+    score, err = None, None
+    if a.score:
+        try:
+            with open(a.score, encoding='utf-8') as fh:
+                score = json.load(fh)
+        except Exception as exc:                            # noqa: BLE001
+            err = f'{type(exc).__name__}: {exc}'
+    if score is None:
+        print(json.dumps({'verdict': 'NO-SCORE', 'reason': (
+            err or '--score is required: the verdict is about a board, and '
+            'without its score there is nothing to be blocked or done ABOUT.'
+        )}, indent=1, sort_keys=True))
+        return 2
+
+    scored = [r for r in rows if _score_key(r.get('score')) is not None]
+    key = _score_key(score)
+    blocking = key[0]
+    flat_p, laps_p = _half_is_flat(rows, 'placement', a.flat)
+    flat_r, laps_r = _half_is_flat(rows, 'routing', a.flat)
+
+    doc = {'ledger_rows': len(rows), 'scored_rows': len(scored),
+           'budget': a.budget, 'flat': a.flat,
+           'blocking': None if blocking == float('inf') else blocking,
+           'quality': score.get('quality'),
+           'ungraded': sorted(score.get('ungraded') or []),
+           'unknown': sorted(score.get('unknown') or []),
+           'placement': {'accepted_laps': laps_p, 'flat': flat_p},
+           'routing': {'accepted_laps': laps_r, 'flat': flat_r}}
+
+    if len(rows) >= a.budget:
+        doc.update(verdict='BUDGET', reason=(
+            f'{len(rows)} ledger entries written, budget {a.budget}. Report '
+            f'the best-scoring board AND every remaining blocker, itemised '
+            f'with its measurement.'))
+        code = BUDGET
+    elif not (flat_p and flat_r):
+        still = [h for h, f in (('placement', flat_p), ('routing', flat_r))
+                 if not f]
+        doc.update(verdict='CONTINUE', improving=still, reason=(
+            f'{" and ".join(still)} has not plateaued: it improved within its '
+            f'last {a.flat} accepted lap(s), or has not run that many yet. '
+            f'Reaching blocking == 0 is the floor, not the finish -- keep '
+            f'pulling levers on quality until neither half can improve '
+            f'either key.'))
+        code = CONTINUE
+    elif blocking == 0:
+        doc.update(verdict='DONE-EXHAUSTED', reason=(
+            'blocking == 0 and neither half improved in its last '
+            f'{a.flat} accepted laps. This is the best board these levers '
+            f'found.'))
+        code = DONE
+    else:
+        doc.update(verdict='STUCK', reason=(
+            f'blocking == {doc["blocking"]} and neither half improved in its '
+            f'last {a.flat} accepted laps. Stopping here is legitimate; '
+            f'calling the board finished is not. Itemise every remaining '
+            f'blocker with the measurement that proves it.'))
+        code = STUCK
+
+    if doc['ungraded']:
+        # Not fatal: a board with no spec files has nothing to grade those
+        # components against, and making it fatal would put every corpus board
+        # permanently in STUCK. But it is never silent -- a component nothing
+        # examined is UNEXAMINED, and DONE must say so out loud.
+        doc['reason'] += (' UNEXAMINED, and not passed: '
+                          + ', '.join(doc['ungraded']) + '.')
+    if doc['unknown']:
+        doc['reason'] += (' A component RAN and could not answer: '
+                          + ', '.join(doc['unknown'])
+                          + ' -- fix the instrument before trusting any '
+                            'verdict here.')
+    print(json.dumps(doc, indent=1, sort_keys=True))
+    return code
+
+
 def cmd_status(a):
     from board_store import Ledger
     lg = Ledger(a.ledger)
@@ -531,6 +667,19 @@ def build_parser():
     t = sub.add_parser('status', help='budget spent, completion vs systemic')
     t.add_argument('--ledger', required=True)
     t.set_defaults(fn=cmd_status)
+
+    v = sub.add_parser('verdict',
+                       help='continue, or stop -- and which kind of stop')
+    v.add_argument('--ledger', required=True)
+    v.add_argument('--score', required=True,
+                   help="the current board's score JSON (board_score --json)")
+    v.add_argument('--budget', type=int, default=100,
+                   help='ledger entries this run may write (default 100, the '
+                        'figure convergence.md already states)')
+    v.add_argument('--flat', type=int, default=5,
+                   help='accepted laps a half may go without improving before '
+                        'it counts as blocked (default 5, ditto)')
+    v.set_defaults(fn=cmd_verdict)
     return p
 
 
