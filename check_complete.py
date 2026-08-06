@@ -43,6 +43,7 @@ Exit: 0 done, 2 usage, 3 board state, 4 incomplete, 5 unsound floors.
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -133,7 +134,13 @@ def main(argv=None):
     doc = {'board': os.path.abspath(a.board), 'components': {}}
 
     # ---- 1. board_score, with every spec flag the caller has ---------------
-    score_path = (a.json or a.board) + '.score.json'
+    # The intermediate goes to a temp dir, not next to the board: a checker
+    # that drops files into the directory it is inspecting turns a read-only
+    # question into a write, and on a corpus directory that is somebody's
+    # source tree.
+    import tempfile
+    scratch = tempfile.mkdtemp(prefix='check_complete.')
+    score_path = os.path.join(scratch, 'score.json')
     args = [os.path.join(SKILL_SCRIPTS, 'board_score.py'), a.board,
             '--json', score_path, '--quiet']
     for flag, val in (('--clearance', a.clearance), ('--intent', a.intent),
@@ -222,6 +229,7 @@ def main(argv=None):
     doc['verdict'] = verdict
     doc['reason'] = why
     doc['ungraded'] = ungraded
+    shutil.rmtree(scratch, ignore_errors=True)
     print(f'VERDICT: {verdict} -- {why}')
     if a.json:
         with open(a.json, 'w', encoding='utf-8') as fh:
