@@ -277,14 +277,87 @@ def classify(state, intent=None, anchor_extent='auto') -> Tiers:
 # fit_pattern (propose-only)
 # --------------------------------------------------------------------------
 
+def _slot_on_board(state, x: float, y: float) -> bool:
+    """Is a constructed slot actually on the board?
+
+    Slots are built from the bounding box, and a notched or rounded board has
+    bbox corners that are not on it. Enumerating those offers a hole a seat it
+    could never occupy.
+    """
+    b = state.board
+    if not (b[0] - 1e-6 <= x <= b[2] + 1e-6 and b[1] - 1e-6 <= y <= b[3] + 1e-6):
+        return False
+    gate = getattr(getattr(state, 'legality_ctx', None), 'gate', None)
+    outer = getattr(gate, 'outer', None)
+    if not outer:
+        return True                       # bbox IS the outline; already checked
+    try:
+        from check_drc import _point_on_board
+        return bool(_point_on_board(x, y, outer, gate.cutouts))
+    except Exception:
+        return True
+
+
+def _pattern_slots(state, inset_x: float, inset_y: float, mid_edges: bool):
+    """The seats a hole family at this inset can occupy: 4 corners, +4 mid-edges.
+
+    A slot is (edge-perpendicular inset, along-edge position). A CORNER fixes
+    the along-position to the inset from the adjacent perpendicular edge; a
+    MID-EDGE slot fixes it to that edge's midpoint, at the same perpendicular
+    inset. Both are derived from the one inset the survivors over-determine --
+    a mid-edge slot invents no new parameter.
+    """
+    b = state.board
+    mx, my = (b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0
+    slots = {'SW': (b[0] + inset_x, b[1] + inset_y),
+             'NW': (b[0] + inset_x, b[3] - inset_y),
+             'SE': (b[2] - inset_x, b[1] + inset_y),
+             'NE': (b[2] - inset_x, b[3] - inset_y)}
+    if mid_edges:
+        slots.update({'W': (b[0] + inset_x, my), 'E': (b[2] - inset_x, my),
+                      'S': (mx, b[1] + inset_y), 'N': (mx, b[3] - inset_y)})
+    return {k: (round(x, 4), round(y, 4)) for k, (x, y) in slots.items()
+            if _slot_on_board(state, x, y)}
+
+
 def fit_corner_insets(state, tiers: Tiers) -> Dict[str, List[Tuple[float, float]]]:
-    """Corner-inset fit over zero-net DRILLED parts (mounting holes).
+    """Hole-pattern fit over zero-net DRILLED parts (mounting holes).
 
     Survivors: holes whose (inset_x, inset_y) agree with a common inset within
     GRID_TOL, in DISTINCT corners. >= 2 survivors over-determine a
-    translation; non-conforming holes get every FREE corner at the fitted
-    inset as proposed positions. Propose-only: the assign stage (or its gate)
-    decides."""
+    translation; holes seated by no family get every FREE slot of every fitted
+    family as proposed positions. Propose-only: the assign stage (or its gate)
+    decides.
+
+    Four things this gets right that the corner-only version did not, each
+    measured on a board damaged by a 66mm rigid swap:
+
+    EVERY GROUP, not the largest. A board can carry two legitimate hole
+    families (one corpus board has {3.302, 3.302} and {7.62, 1.27}). Fitting
+    only the largest makes the second family's members read as displaced, and
+    they then compete for the first family's free seat -- which is how two
+    holes that had never moved became claimants.
+
+    MID-EDGE SLOTS. A hole one inset in from an edge, mid-span along it, is an
+    ordinary mounting pattern and the corner model has no hypothesis for it. On
+    the measured board the displaced hole's true home is exactly the north
+    edge's midpoint at the fitted inset; with no slot there its offset agreed
+    with nothing, the support >= 2 rule discarded the one correct offset along
+    with three wrong ones, and the whole ladder produced no vector.
+
+    ...but ONLY WHEN OVER-SUBSCRIBED. Mid-edge slots sit nearer the board
+    centre than the corners, so on a board whose corner model is sufficient
+    they hand DIST_TIEBREAK_PER_MM a closer wrong answer. Enumerate them only
+    when the corner model cannot seat everyone: survivors + unseated unlocked
+    holes > 4. Counting only UNLOCKED holes is load-bearing -- one corpus board
+    carries five locked zero-net through-hole connectors that would otherwise
+    inflate demand on every board it appears with.
+
+    AT SEAT IS GLOBAL. A hole matching any fitted family's inset is at seat: it
+    is not a candidate, and its slot is taken. Scoping that to one family is
+    what let a correct hole be offered another family's corner.
+    """
+    from collections import defaultdict
     b = state.board
     corners = {'SW': (b[0], b[1]), 'NW': (b[0], b[3]),
                'SE': (b[2], b[1]), 'NE': (b[2], b[3])}
@@ -297,7 +370,6 @@ def fit_corner_insets(state, tiers: Tiers) -> Dict[str, List[Tuple[float, float]
                    key=lambda kv: abs(p.x - kv[1][0]) + abs(p.y - kv[1][1]))
         holes.append((ref, best[0], abs(p.x - best[1][0]),
                       abs(p.y - best[1][1])))
-    from collections import defaultdict
     groups = defaultdict(list)
     for ref, corner, ix, iy in holes:
         # PER-AXIS conformance (run-8 A1). This used to demand ix ~= iy, i.e.
@@ -308,39 +380,58 @@ def fit_corner_insets(state, tiers: Tiers) -> Dict[str, List[Tuple[float, float]
         # holes, not with each other.
         groups[(round(ix / GRID_TOL), round(iy / GRID_TOL))].append(
             (ref, corner, (ix, iy)))
-    proposals: Dict[str, List[Tuple[float, float]]] = {}
+
+    fits = []
     for _key, members in sorted(groups.items(), key=lambda kv: -len(kv[1])):
         distinct = {m[1] for m in members}
         if len(members) < 2 or len(distinct) != len(members):
             continue
-        inset_x = sum(m[2][0] for m in members) / len(members)
-        inset_y = sum(m[2][1] for m in members) / len(members)
-        survivors = {m[0] for m in members}
-        free_corners = [c for c in corners if c not in distinct]
-        for ref, _c, ix, iy in holes:
-            if ref in tiers.locked:
-                continue
-            # AT-HOME survivors are not proposals (run-8 A1). A hole already
-            # sitting on the fitted pattern has nothing to be moved to, and
-            # offering it every free corner is how a correct hole gets
-            # swapped into a wrong one -- the degeneracy that cost a earlier
-            # run ~0.16 of recovery. Its conformance is still what
-            # over-determines the fit; it just is not a candidate.
-            if ref in survivors:
-                continue
-            if (abs(ix - inset_x) <= GRID_TOL
-                    and abs(iy - inset_y) <= GRID_TOL):
-                continue
-            cand = []
-            for c in free_corners:
-                cx, cy = corners[c]
-                px = cx + inset_x if cx == b[0] else cx - inset_x
-                py = cy + inset_y if cy == b[1] else cy - inset_y
-                cand.append((round(px, 4), round(py, 4)))
-            if cand:
-                proposals[ref] = cand
-        break
-    return proposals
+        fits.append((sum(m[2][0] for m in members) / len(members),
+                     sum(m[2][1] for m in members) / len(members),
+                     {m[0] for m in members}))
+    if not fits:
+        return {}
+
+    # RECOGNISE GENEROUSLY, OFFER CONSERVATIVELY.
+    #
+    # "At seat" is positional -- is this hole standing on a pattern seat? -- and
+    # is asked against every slot the families could have, mid-edge included,
+    # whether or not those slots are offered to anyone. Asking it about INSETS
+    # instead gets a mid-edge hole wrong: its nearest-corner inset is the
+    # along-edge distance (99.06mm on the measured board), which matches no
+    # family, so a hole standing exactly on its own seat reads as displaced --
+    # and the corpus sweep duly caught this proposing a healthy board's hole a
+    # move to the position it was already in.
+    #
+    # Being generous here is the safe direction: it only ever REMOVES
+    # candidates. Offering a slot is the risky direction, and that stays behind
+    # the pigeonhole gate below.
+    every_slot = []
+    for inset_x, inset_y, _s in fits:
+        every_slot.extend(_pattern_slots(state, inset_x, inset_y, True).values())
+
+    def at_seat(ref) -> bool:
+        p = state.parts[ref]
+        return any(abs(p.x - sx) <= GRID_TOL and abs(p.y - sy) <= GRID_TOL
+                   for sx, sy in every_slot)
+
+    # Demand is board-wide, so a hole seated by family B never inflates family
+    # A's pigeonhole count.
+    candidates = [ref for ref, _c, _ix, _iy in holes
+                  if ref not in tiers.locked and not at_seat(ref)]
+
+    proposals: Dict[str, List[Tuple[float, float]]] = defaultdict(list)
+    for inset_x, inset_y, survivors in fits:
+        over = len(survivors) + len(candidates) > 4
+        slots = _pattern_slots(state, inset_x, inset_y, over)
+        taken = {name for name, (sx, sy) in slots.items()
+                 if any(abs(state.parts[r].x - sx) <= GRID_TOL
+                        and abs(state.parts[r].y - sy) <= GRID_TOL
+                        for r, _c, _ix, _iy in holes)}
+        free = [xy for name, xy in sorted(slots.items()) if name not in taken]
+        for ref in candidates:
+            proposals[ref].extend(free)
+    return {r: sorted(set(c)) for r, c in proposals.items() if c}
 
 
 # --------------------------------------------------------------------------
