@@ -145,6 +145,31 @@ def _cross_group_contact(state, groups, snap):
     return None
 
 
+#: The gate tuple's terms, in order, as ONE definition.
+#:
+#: These names used to be repeated in the f-strings that print the gate. When
+#: `locked_contacts` was prepended to `measure()`, those f-strings kept their
+#: old indices and every term printed under its NEIGHBOUR's name: an executor
+#: reading `oob=0.0` was reading the hole shortfall, on a board carrying a part
+#: 44 mm off the outline. That matters beyond cosmetics -- the reconstruct
+#: ladder's apply rule is "improves the violation count AND does not increase
+#: the off-board amount", so the mislabelled term is a hard conjunct someone
+#: has to compare by eye. Print via `format_gate` and the labels cannot drift
+#: from the tuple again.
+GATE_TERMS = ('locked_contacts', 'pad_pairs', 'hole', 'oob', 'stacks',
+              'hpwl', 'overlap')
+
+
+def format_gate(t) -> str:
+    """One labelled line for a gate tuple, or a loud one if it has changed."""
+    if len(t) != len(GATE_TERMS):
+        return (f'GATE TUPLE CHANGED ({len(t)} terms, {len(GATE_TERMS)} names '
+                f'-- update GATE_TERMS): ' + ' '.join(f'[{i}]={v!r}'
+                                                      for i, v in enumerate(t)))
+    return ' '.join(f'{n}={v:g}' if isinstance(v, (int, float)) else f'{n}={v}'
+                    for n, v in zip(GATE_TERMS, t))
+
+
 def measure(state, edge_bands=None) -> Tuple:
     """The lexicographic gate tuple. Smaller-or-equal is acceptable.
 

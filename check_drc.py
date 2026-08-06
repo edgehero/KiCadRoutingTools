@@ -3159,6 +3159,13 @@ if __name__ == "__main__":
                         help='Also check pad-to-board-edge clearance (issue #236). '
                              'Off by default: pad-edge violations are almost always '
                              'pre-existing edge-connector pads, not router-introduced.')
+    parser.add_argument('--json', metavar='FILE', default=None,
+                        help='also write the result as JSON: the graded floors '
+                             'with their source, the non-accepted violation '
+                             'count, the per-type breakdown and every item. '
+                             'The file is COMPLETE regardless of --max-print, '
+                             'so a consumer never quotes a count off a '
+                             'truncated listing.')
     parser.add_argument('--render', metavar='DIR', default=None,
                         help='write question-scoped crop panels of the violation '
                              'clusters to DIR (one PNG per spatial cluster, red '
@@ -3268,6 +3275,36 @@ if __name__ == "__main__":
                          net_clearances=net_clearances)
     if args.render and any(not v.get('accepted') for v in violations):
         render_violation_panels(args.pcb, violations, args.render)
+    if args.json:
+        # A machine-readable result, because the copper-free placement gate is
+        # consumed by a driver that REFUSES to proceed without it -- and a gate
+        # whose evidence file cannot be produced is satisfiable only by
+        # fabricating it. Count 'accepted' items separately: they are published
+        # for other graders but are not failures, exactly as the exit status
+        # below treats them.
+        import collections as _c
+        import json as _json
+        _real = [v for v in violations if not v.get('accepted')]
+        _doc = {
+            'schema': 1,
+            'tool': 'check_drc.py',
+            'board': os.path.abspath(args.pcb),
+            'graded_at': {
+                'clearance': args.clearance,
+                'clearance_margin': args.clearance_margin,
+                'hole_to_hole_clearance': args.hole_to_hole_clearance,
+                'board_edge_clearance': args.board_edge_clearance,
+                'per_net_clearances': bool(net_clearances),
+                'size_checks': not args.no_size_checks,
+            },
+            'violations': len(_real),
+            'accepted': len(violations) - len(_real),
+            'by_type': dict(_c.Counter(v.get('type') for v in _real)),
+            'items': [{k: v for k, v in item.items()} for item in violations],
+        }
+        with open(args.json, 'w', encoding='utf-8') as _fh:
+            _json.dump(_doc, _fh, indent=1, default=str, sort_keys=True)
+        print(f"  JSON -> {args.json}")
     # 'accepted' items (e.g. a track covered by an edge-exempt pad) are published in
     # the return for other graders but are NOT failures -- exclude from exit status.
     sys.exit(1 if any(not v.get('accepted') for v in violations) else 0)

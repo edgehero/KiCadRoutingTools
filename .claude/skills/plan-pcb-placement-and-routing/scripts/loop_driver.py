@@ -151,6 +151,16 @@ def l2(a):
                 '  python3 -X utf8 check_assembly.py <board> --json '
                 'wk/assembly0.json')
     blocking = rep.get('blocking')
+    if blocking is None:
+        return err(
+            'The placement close-out carries no `blocking` count, so it does '
+            'not say whether the placement is assembly-clean -- and a missing '
+            'measurement is not a passing one. Produce the close-out from the '
+            'instrument that measures it:\n'
+            '  python3 -X utf8 check_assembly.py <board> --json '
+            'wk/assembly_close.json\n\nAn EMPTY or unrelated JSON satisfies a '
+            'file-exists check and tells you nothing; that is the failure this '
+            'refusal exists to stop.')
     if isinstance(blocking, int) and blocking > 0 and not a.accept_residue:
         return err(
             f'The placement close-out reports blocking = {blocking}. A board '
@@ -160,6 +170,26 @@ def l2(a):
             f'this stage with --accept-residue if that residue is measured '
             f'unfixable and NAMED in the close-out -- which is a decision you '
             f'are recording, not a flag that makes it go away.')
+    # blocking == 0 is not the same as routable. A part whose pads lie off the
+    # board carries nets no router can reach, and it produces NO blocking pair
+    # -- there is nothing for it to collide with out there. Measured on a
+    # damaged board that passed this gate at blocking 0 with three parts
+    # sitting wholly off the outline; every net on them would have failed, and
+    # the loop would have spent a routing pass to discover it.
+    oob = rep.get('oob_pad_count')
+    if isinstance(oob, int) and oob > 0 and not a.accept_residue:
+        return err(
+            f'The placement close-out reports blocking = 0, but '
+            f'oob_pad_count = {oob}: {oob} part(s) carry pad copper OFF the '
+            f'board. Those parts are assembly-clean precisely because nothing '
+            f'is out there to collide with, and their nets cannot be routed at '
+            f'all.\n\nThis is placement-shaped damage, and it is cheaper to '
+            f'fix now than to discover it as a routing failure and re-enter. '
+            f'Go back to the placement half.\n\nIf the overhang is BY DESIGN '
+            f'-- a card edge, a switch actuator, a castellated module -- '
+            f'declare it in the floorplan intent (edge_connectors), which '
+            f'exempts it and makes the exemption reviewable, and then re-run '
+            f'with --accept-residue.')
     return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
 FREEZE first. Lock the refs whose poses are decisions -- mechanically fixed
 parts, anything a spec pins, anything the placement half moved deliberately. A
@@ -197,6 +227,15 @@ def l3(a):
                        '.claude/skills/plan-pcb-routing/scripts/board_score.py '
                        '<board> --json wk/score.json')
     blocking = score.get('blocking')
+    if blocking is None:
+        return err(
+            'The score carries no `blocking` count. `blocking == null` is not '
+            'zero -- it means something was not graded, and a component '
+            'nothing examined is reported UNEXAMINED, never clean. Re-score '
+            'the board and read why the count is missing before classifying '
+            'anything:\n  python3 -X utf8 '
+            '.claude/skills/plan-pcb-routing/scripts/board_score.py <board> '
+            '--json wk/score.json')
     if blocking == 0:
         return f'''<stage_instructions stage="L3" name="classify" note="nothing to classify">
 blocking == 0. There is no failure to classify.
@@ -230,7 +269,11 @@ asymmetric.
 Measure it, do not infer it from how the failure feels:
 
   python3 -X utf8 check_channels.py {a.board} --baseline <the pre-route board>
-  python3 -X utf8 check_reachability.py {a.board} --nets <the failing nets>
+  python3 -X utf8 check_reachability.py {a.board} --pad <REF.PAD> --json
+
+check_reachability answers about ONE pad per run -- give it a pad on a failing
+net (or --net <id> --at <x,y>). Run it for each failing net you are
+classifying; a single CAGED verdict is enough to make the shape placement.
 
 Then re-run this stage with the shape you measured:
   --stage L4 --shape <parameter|placement|floorplan> --board {a.board} \\
@@ -258,6 +301,14 @@ is invalidated, and the routed board stands.
 
 Change ONE parameter. An iteration that changes three cannot tell you which one
 worked, and the ledger entry it writes is unusable as evidence for the next.
+
+Write to a FRESH output path -- board_R5_i2, not board_R5 again. The routing
+steps write a sibling .kicad_pro carrying the DRC floor, and re-running to the
+same path reads that floor back in, so the second run is not the first run with
+one parameter changed: it starts from a different floor. The comparison the
+whole iteration exists to make is then between two things that differ in two
+ways. It also keeps the ledger's recorded sha pointing at a file that still
+holds what was recorded.
 
 Record it, then go back to L3 with the new score. If two parameter iterations
 in a row do not move `blocking`, the shape was probably not parameter --
@@ -316,7 +367,7 @@ def l5(a):
 The board is done when BOTH halves say so, measured, not when the router stops
 producing failures.
 
-  python3 -X utf8 check_drc.py {a.board} --clearance <floor> --clearance-margin 0
+  python3 -X utf8 check_drc.py {a.board} --clearance <floor> --clearance-margin 0.1
   python3 -X utf8 check_connected.py {a.board}
   python3 -X utf8 check_assembly.py {a.board}
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/board_score.py \\
@@ -385,14 +436,35 @@ def main(argv=None):
     if a.self_test:
         return _self_test()
     if a.dump_all:
-        loose = _args(['--board', 'b.kicad_pcb', '--score', 's.json',
-                       '--placement-report', 'p.json', '--shape', 'placement'])
-        for k in sorted(STAGES):
-            print(f'===== {k} =====')
-            print(STAGES[k](loose))
-        print('===== L1 (delegated) =====')
-        loose.delegate = True
-        print(STAGES['L1'](loose))
+        # The guards must be SATISFIED here. Dumping with files that do not
+        # exist prints three refusals and no instructions, which is the
+        # opposite of what a dump is for.
+        import tempfile
+        refused = []
+        with tempfile.TemporaryDirectory() as tmp:
+            def wrote(name, doc):
+                p = os.path.join(tmp, name)
+                with open(p, 'w', encoding='utf-8') as fh:
+                    json.dump(doc, fh)
+                return p
+            loose = _args(['--board', 'b.kicad_pcb',
+                           '--score', wrote('s.json', {'blocking': 2}),
+                           '--placement-report', wrote('p.json',
+                                                       {'blocking': 0}),
+                           '--shape', 'placement'])
+            for k in sorted(STAGES):
+                print(f'===== {k} =====')
+                body = STAGES[k](loose)
+                print(body)
+                if body.startswith('<error>'):
+                    refused.append(k)
+            print('===== L1 (delegated) =====')
+            loose.delegate = True
+            print(STAGES['L1'](loose))
+        if refused:
+            print(f'\n!! {len(refused)} stage(s) dumped a REFUSAL, not their '
+                  f'instructions: {", ".join(refused)}')
+            return 1
         return 0
     if not a.stage:
         print('loop_driver: --stage is required (see --list)', file=sys.stderr)
@@ -437,6 +509,32 @@ def _self_test():
                                          '--accept-residue']))
         want(out.startswith('<stage_instructions'),
              '...and proceeds when the residue is explicitly accepted')
+
+        # blocking == 0 with parts off the board: assembly-clean because
+        # nothing is out there to collide with, and unroutable for the same
+        # reason. Caught by running the real loop on a damaged board.
+        oob = os.path.join(tmp, 'oob.json')
+        json.dump({'blocking': 0, 'oob_pad_count': 4},
+                  open(oob, 'w', encoding='utf-8'))
+        out = STAGES['L2'](_args(base + ['--placement-report', oob]))
+        want(out.startswith('<error>') and 'oob_pad_count = 4' in out,
+             'routing refuses a blocking-0 placement with pads off the board')
+        want('edge_connectors' in out,
+             '...and names how a BY-DESIGN overhang is declared instead')
+        out = STAGES['L2'](_args(base + ['--placement-report', oob,
+                                         '--accept-residue']))
+        want(out.startswith('<stage_instructions'),
+             '...and still proceeds when that is explicitly accepted')
+
+        # A report that answers neither question is not a close-out.
+        empty = os.path.join(tmp, 'empty.json')
+        json.dump({}, open(empty, 'w', encoding='utf-8'))
+        want(STAGES['L2'](_args(base + ['--placement-report', empty]))
+             .startswith('<error>'),
+             'an empty JSON does not satisfy the hand-off guard')
+        want(STAGES['L3'](_args(base + ['--score', empty]))
+             .startswith('<error>'),
+             'an empty JSON does not satisfy the classification guard')
 
         s = os.path.join(tmp, 's.json')
         json.dump({'blocking': 0}, open(s, 'w', encoding='utf-8'))

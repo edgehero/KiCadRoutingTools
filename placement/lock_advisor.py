@@ -123,6 +123,47 @@ def _prefix(ref: str) -> str:
     return (m.group(1) if m else '').upper()
 
 
+def _straddles_outline(gate, rect) -> Optional[bool]:
+    """Is any of this rect still ON the board?
+
+    An overhang means two opposite things depending on the answer, and the
+    advisor used to conflate them. A part MOUNTED to the edge -- a connector,
+    a castellated module -- straddles the outline: its pads are on the board,
+    which is how it is soldered, and only its shell hangs past the edge. A part
+    that has been DISPLACED sits wholly outside, touching nothing.
+
+    Both report an overhang, so overhang alone cannot tell them apart, and
+    treating every overhang as an edge-mount promotes the damage itself to a
+    lock recommendation -- which freezes it exactly where it must not stay.
+
+    None when there is no outline to ask.
+
+    A rectangular board has no rings at all -- the gate reports `active=False`
+    because its outline IS its bounding box -- and `_point_on_board` answers
+    True for every point when handed no outer ring. Asking it alone would make
+    this test say "straddles" for a part parked far off the board, which is the
+    answer that costs the most. Fall back to the bounds in that case.
+    """
+    if gate is None or rect is None:
+        return None
+    x0, y0, x1, y1 = rect
+    pts = ((x0, y0), (x1, y0), (x1, y1), (x0, y1),
+           ((x0 + x1) / 2.0, (y0 + y1) / 2.0))
+    outer = getattr(gate, 'outer', None)
+    if outer:
+        try:
+            from check_drc import _point_on_board
+            return any(_point_on_board(px, py, outer, gate.cutouts)
+                       for px, py in pts)
+        except Exception:
+            return None
+    bounds = getattr(gate, 'bounds', None)
+    if not bounds:
+        return None
+    bx0, by0, bx1, by1 = bounds
+    return any(bx0 <= px <= bx1 and by0 <= py <= by1 for px, py in pts)
+
+
 def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
                  lock_patterns: Optional[Sequence[str]] = None,
                  min_confidence: str = 'medium',
@@ -202,11 +243,26 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
                 f"cost, so only the halo term decides where it goes")
             geometric = True
 
-        # --- rule 2: the body leaves the outline. Geometric fact.
+        # --- rule 2: the body leaves the outline. Geometric fact -- but WHICH
+        # fact depends on whether the body still straddles the edge.
+        displaced_off_board = False
         if out is not None and out > 1e-6:
-            rules.append('off_board_overhang')
-            reasons.append(f"courtyard leaves the board outline by {out:.2f} mm")
-            geometric = True
+            if _straddles_outline(gate, rect) is False:
+                # Wholly outside. This is displacement evidence, and the
+                # opposite of a reason to freeze the part where it lies.
+                rules.append('off_board_entirely')
+                reasons.append(
+                    f"body lies WHOLLY off the board (outline violation "
+                    f"{out:.2f} mm, no corner or centre on the board). An "
+                    f"edge-mounted part straddles the outline; this one "
+                    f"touches nothing, so the overhang is evidence of "
+                    f"DISPLACEMENT, not of an edge seat.")
+                displaced_off_board = True
+            else:
+                rules.append('off_board_overhang')
+                reasons.append(
+                    f"courtyard leaves the board outline by {out:.2f} mm")
+                geometric = True
         # --- rule 3: close to the edge. Measurement exact, inference weak.
         elif clr is not None and clr < edge_margin:
             rules.append('near_board_edge')
@@ -269,6 +325,15 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
 
         conf = 'high' if ('mounting_hole_npth' in rules
                           or 'off_board_overhang' in rules) else None
+        if displaced_off_board:
+            # A lock is not a placement. Whatever else this part looks like,
+            # it is not where it belongs, and the paste-ready line must not
+            # carry it -- pasting it freezes the damage.
+            conf = 'low'
+            reasons.append(
+                "[DEMOTED: wholly off-board. Reconstruct or repair this part "
+                "onto the board before considering a lock; a lock here "
+                "records the damaged pose as a decision.]")
         if conf is None:
             # Two INDEPENDENT evidence channels beat either alone.
             if geometric and lexical:

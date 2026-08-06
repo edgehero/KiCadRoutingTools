@@ -222,8 +222,11 @@ per part, and answer them from the board:
   4. Are the plane balls excluded, so they get plane-drop vias instead of
      escape routes?
 
-A part that passes 1 and 2 with room to spare usually routes better WITHOUT a
-fanout: an escape stub is committed copper that later steps must route around.
+Decide per part, from those four answers, not from a prior. When 1 and 2 both
+pass with room to spare, the case for a fanout is weak -- an escape stub is
+committed copper that later steps must route around -- but that is a
+CONCLUSION the four measurements support or refuse, part by part. Name the
+answer that decided each one.
 
 Next: --stage A4 --board {a.board}
 </stage_instructions>'''
@@ -279,15 +282,39 @@ JSON, because every R stage below refuses to run without it:
 
   wk/coverage.json
   {{"planes": ["GND", "VCC"], "diff_pairs": ["USB_*"], "impedance": [],
-    "signals": ["*"]}}
+    "signals": ["*"], "signals_exclude": ["GND", "VCC", "USB_*"]}}
 
-Then assert it, in code, before any command runs:
+A catch-all "signals": ["*"] claims the plane nets too, so the exclude list is
+not optional bookkeeping -- it is the half that makes this a partition.
+
+Then assert it against THIS BOARD's net list, before any command runs:
 
   python3 -X utf8 -c "
-import json; c = json.load(open('wk/coverage.json'))
-planes = set(c['planes']); excl = set(c.get('signals_exclude', planes))
-assert planes == excl, f'partition leak: {{planes ^ excl}}'
+import fnmatch, json
+from kicad_parser import parse_kicad_pcb
+c = json.load(open('wk/coverage.json'))
+nets = sorted({{n.name for n in parse_kicad_pcb('{a.board}').nets.values()
+               if n.name}})
+buckets = [k for k in c if not k.endswith('_exclude')]
+own = {{}}
+for name in nets:
+    own[name] = [k for k in buckets
+                 if any(fnmatch.fnmatch(name, p) for p in c[k])
+                 and not any(fnmatch.fnmatch(name, p)
+                             for p in c.get(k + '_exclude', []))]
+twice = {{n: v for n, v in own.items() if len(v) > 1}}
+never = [n for n, v in own.items() if not v]
+print(f'{{len(nets)}} nets: {{len(twice)}} claimed twice, '
+      f'{{len(never)}} claimed by nobody')
+assert not twice and not never, \\
+    f'partition leak\\n  twice: {{twice}}\\n  never: {{never[:20]}}'
 print('partition OK')"
+
+Expand the globs against the real nets, as above. Comparing the bucket lists to
+each other proves nothing: the earlier form of this check asserted
+`planes == c.get('signals_exclude', planes)`, whose default makes it a
+comparison of a value with itself. It printed "partition OK" for a coverage
+file with no exclude list at all -- the exact leak it was written to catch.
 
 The failure this prevents: a net that belongs to the pour also appearing in the
 bulk route's net list, so the router lays copper for a net the pour already
@@ -306,6 +333,19 @@ def _needs_coverage(a):
                           'without it, because a net routed by two stages (or '
                           'by none) is the failure that is hardest to see '
                           'afterwards.')
+    # A partition with no parts is not a partition. Checking only that the file
+    # parses lets `{}` satisfy the gate every R stage claims to be protected
+    # by -- the file-exists check wearing a partition's name.
+    missing = [k for k in ('planes', 'signals') if not isinstance(
+        (cov or {}).get(k), list)]
+    if missing:
+        return err(
+            f'The coverage file carries no {" and no ".join(missing)} list, so '
+            f'it does not partition anything. Every net on this board belongs '
+            f'to exactly one stage, and this file is where that is written '
+            f'down.\n\nA6 says how to build it. An empty JSON parses and '
+            f'answers nothing, which is why this refuses rather than '
+            f'proceeding.')
     return None
 
 
@@ -314,7 +354,13 @@ def r1(a, f):
 Pour on the EMPTY board, before the fanout. Nets and layers only:
 
   python3 -X utf8 route_planes.py {a.board} board_R1.kicad_pcb \\
-      --nets {' '.join(f['plane_candidates'][:4]) or 'GND'} --layers <from A5>
+      --nets {' '.join(f['plane_candidates']) or 'GND'} \\
+      --plane-layers <net:layer pairs from A5>
+
+--plane-layers is REQUIRED and is not --layers: --layers is the routing layer
+set. The net list above is every plane candidate this board has; confirm each
+one belongs on a plane before pouring it, and drop the ones that do not. A
+two-pad filter net whose name merely starts with GND or VCC is not a plane.
 
 NO --add-gnd-vias, NO --stitch-vias, NO --rip-blocker-nets at this stage: each
 adapts to signals that do not exist yet.
@@ -336,7 +382,7 @@ Exclude the plane nets -- the exclusion is exactly what marks their balls for
 plane-drop vias, which the intact pour picks up at fill:
 
   python3 -X utf8 bga_fanout.py board_R1.kicad_pcb board_R2.kicad_pcb \\
-      --nets "*" {' '.join('"!' + n + '"' for n in f['plane_candidates'][:3])}
+      --nets "*" {' '.join('"!' + n + '"' for n in f['plane_candidates'])}
 
 GATE before moving on: failed == 0 and no drc_grazes class. A fanout that left
 escapes unrouted has committed copper that every later stage must route around,
@@ -366,11 +412,16 @@ def r4(a, f):
 The most constrained routes claim their channels before anything else can block
 them. Stems seen by name: {', '.join(f['diff_pair_stems'][:8])}
 
-  python3 -X utf8 route_diff.py <in> board_R4.kicad_pcb \\
-      --pairs <confirmed pairs> [--impedance <ohms>] --clearance <floor>
+  python3 -X utf8 route_diff.py <in> --output board_R4.kicad_pcb \\
+      --nets <confirmed pair stems> --clearance <floor>
 
 Both members of a pair route together or the pair is not routed. A "partial"
 pair is a single-ended net with a misleading name.
+
+If the pairs carry an IMPEDANCE spec, add --impedance <ohms> and DROP
+--clearance: it is a ceiling over every net class, so passing it clamps the
+impedance classes down to the floor and the writeback then rewrites them. The
+one case where omitting a clearance is correct is this one.
 
 After this stage those nets are EXCLUDED from every later net list -- they are
 already routed, and re-routing them silently is how a matched pair becomes
@@ -383,7 +434,13 @@ Next: --stage R5 --board board_R4.kicad_pcb --coverage {a.coverage or 'wk/covera
 def r5(a, f):
     lc = ('\n--layer-costs is MANDATORY here: a solid pour exists, and without\n'
           'the cost the router will cut through it wherever that is shortest.\n'
-          'Derive it from the plane map (~3x on plane layers).'
+          'Derive it from the plane map (~3x on plane layers).\n\n'
+          'Its format is BARE FLOATS positionally matched to --layers, not\n'
+          'layer:cost pairs -- argparse rejects those as an invalid float:\n\n'
+          '  --layers F.Cu B.Cu --layer-costs 1.0 3.0\n\n'
+          'A negative cost FORBIDS a layer: its copper still blocks and vias\n'
+          'may span it, but no track is placed on it. Pass --layers whenever\n'
+          'you pass costs, so the pairing is visible instead of implied.'
           if f['plane_candidates'] else
           '\nNo planes on this board, so no layer costs to derive.')
     return f'''<stage_instructions stage="R5" name="the bulk signal route">
@@ -413,7 +470,11 @@ def r6(a, f):
 Now the signals exist, so stitching and return vias can adapt to them:
 
   python3 -X utf8 route_planes.py board_R5.kicad_pcb board_R6.kicad_pcb \\
-      --nets {' '.join(f['plane_candidates'][:3])} --add-gnd-vias --stitch-vias
+      --nets {' '.join(f['plane_candidates'])} \\
+      --plane-layers <the same pairs as R1> --add-gnd-vias --stitch-vias
+
+Pour the SAME nets on the same layers as R1. A net poured at R1 and missing
+here keeps R1's copper and gets no stitching.
 
 Prefer the no-rip form first. --rip-blocker-nets leaves nets unrouted for a
 later stage to reconnect, and a rip whose restore fails ships an open net.
@@ -425,7 +486,7 @@ Next: --stage R7 --board board_R6.kicad_pcb --coverage {a.coverage or 'wk/covera
 def r7(a, f):
     return f'''<stage_instructions stage="R7" name="repair plane regions">
   python3 -X utf8 route_disconnected_planes.py board_R6.kicad_pcb board_R7.kicad_pcb \\
-      --nets {' '.join(f['plane_candidates'][:3])} --clearance <floor>
+      --nets {' '.join(f['plane_candidates'])} --clearance <floor>
 
 This step's reconnect runs at THIS step's parameters, so restate every per-net
 constraint that matters (widths, layers, power-net widths) -- none of them
@@ -455,10 +516,16 @@ def r9(a, f):
 Four instruments, none of which replaces another. Do NOT pipe a gate -- a
 truncated read is how a failing board reads as passing:
 
-  python3 -X utf8 check_drc.py <board> --clearance <floor> --clearance-margin 0
+  python3 -X utf8 check_drc.py <board> --clearance <floor> --clearance-margin 0.1
   python3 -X utf8 check_connected.py <board>
   python3 -X utf8 check_orphan_stubs.py <board>
-  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/board_score.py <board> --json
+  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/board_score.py <board> \\
+      --json wk/score.json
+
+--clearance-margin 0.1 on a ROUTED board: the margin is a fraction of the
+clearance, and at 0 the grid quantization of the copper itself (~8 um) is
+reported as violations. Grade a COPPER-FREE board at 0 -- there is no routed
+geometry to quantize, and a real pad overlap must not be filtered.
 
 Connectivity is orthogonal to DRC: a DRC-clean board can be entirely
 disconnected, because isolated copper has no clearance conflicts.
@@ -540,7 +607,10 @@ Next: --stage V3 --board {a.board} --score {a.score}
 
 def v3(a, f):
     return f'''<stage_instructions stage="V3" name="apply, accept, record">
-Apply ONE lever. Re-score with the same flags.
+Apply ONE lever. Re-score with the same flags, and write to a FRESH output
+path: the routing steps write a sibling .kicad_pro carrying the DRC floor, so
+re-running to the same path reads that floor back and the iteration differs
+from its predecessor in two ways rather than one. Number the outputs.
 
 ACCEPT only if blocking strictly decreased, or it is level and quality
 improved. Two exceptions, both real:
@@ -552,7 +622,11 @@ improved. Two exceptions, both real:
 Record before the next iteration starts:
   python3 -X utf8 converge.py record --ledger wk/ledger.jsonl --board <board> \\
       --kind completion --lever "<what and why>" --score "$(cat wk/score.json)" \\
-      --argv <the real command>
+      --argv <the real command, as BARE TOKENS -- it takes the rest of the line>
+
+--argv must REPLAY: converge refuses (exit 2) a first token that is not a real
+file or on PATH, so expand every argument instead of writing a placeholder
+inside quotes -- quoted, the whole command becomes one unrunnable token.
 
 Failing nets go in by NAME. A count forces every later reader to re-derive the
 set, and a truncated re-derivation shipped a wrong close-out.
@@ -618,17 +692,41 @@ def main(argv=None):
     if a.self_test:
         return _self_test()
     if a.dump_all:
+        # Guard evidence must EXIST here, or the stages behind a guard dump
+        # their refusal instead of their instructions and anything auditing
+        # this output reads error text where the commands should be.
+        import json as _json
+        import tempfile
         fake = {'board': 'b.kicad_pcb', 'layers': 4,
                 'layer_names': ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu'],
                 'nets': 120, 'fine_pitch': ['U1'],
                 'plane_candidates': ['GND', '+3V3'],
                 'diff_pair_stems': ['USB'], 'has_copper': False}
-        loose = _args(['--board', 'b.kicad_pcb', '--coverage', 'c.json',
-                       '--score', 's.json'])
-        for k in sorted(STAGES):
-            print(f'===== {k} =====')
-            loose.stage = k
-            print(STAGES[k](loose, fake))
+        refused = []
+        with tempfile.TemporaryDirectory() as tmp:
+            def wrote(name, doc):
+                p = os.path.join(tmp, name)
+                with open(p, 'w', encoding='utf-8') as fh:
+                    _json.dump(doc, fh)
+                return p
+            loose = _args([
+                '--board', 'b.kicad_pcb',
+                '--coverage', wrote('c.json', {'planes': ['GND'],
+                                               'signals': ['*'],
+                                               'signals_exclude': ['GND']}),
+                '--score', wrote('s.json', {'blocking': 2, 'unrouted': 1,
+                                            'drc': 0, 'open': 1})])
+            for k in sorted(STAGES):
+                print(f'===== {k} =====')
+                loose.stage = k
+                body = STAGES[k](loose, fake)
+                print(body)
+                if body.startswith('<error>'):
+                    refused.append(k)
+        if refused:
+            print(f'\n!! {len(refused)} stage(s) dumped a REFUSAL, not their '
+                  f'instructions: {", ".join(refused)}')
+            return 1
         return 0
     if a.plan:
         f, e = board_facts(a.board)

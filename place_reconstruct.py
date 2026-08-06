@@ -180,8 +180,7 @@ Examples:
     report['edge_bands'] = {r: m for r, m in sorted(edge_bands.items())}
 
     base = reconstruct.measure(state, edge_bands)
-    print(f"Gate before: pad_pairs={base[0]} hole={base[1]} oob={base[2]} "
-          f"stacks={base[3]} hpwl={base[4]} overlap={base[5]}")
+    print(f"Gate before: {reconstruct.format_gate(base)}")
     report['gate_before'] = list(base)
 
     proposals = {}
@@ -287,9 +286,7 @@ Examples:
             print(f"  exchange: {n_refs} part(s) moved in "
                   f"{len(xrep['accepted'])} joint move(s)"
                   + (f" ({len(xpruned)} pruned back)" if xpruned else "")
-                  + f"; gate now pad_pairs={base[0]} hole={base[1]} "
-                  f"oob={base[2]} stacks={base[3]} hpwl={base[4]} "
-                  f"overlap={base[5]}")
+                  + f"; gate now {reconstruct.format_gate(base)}")
         return sorted(set(xold) - set(xpruned))
 
     moved = []
@@ -334,9 +331,7 @@ Examples:
                 print(f"  assign round {rnd + 1} APPLIED: {len(rmoved)} "
                       f"part(s) moved"
                       + (f" ({len(pruned)} pruned back)" if pruned else "")
-                      + f"; gate now pad_pairs={after[0]} hole={after[1]} "
-                      f"oob={after[2]} stacks={after[3]} hpwl={after[4]} "
-                      f"overlap={after[5]}")
+                      + f"; gate now {reconstruct.format_gate(after)}")
             else:
                 for ref, (x, y, rot) in old.items():
                     state.apply_move(ref, x, y, rot)

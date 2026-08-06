@@ -154,10 +154,20 @@ moves them is destroying information.
 
 Run the lock advisor and act on it:
 
-  python3 -X utf8 place_optimize.py {a.board} --suggest-locks --json wk/locks.json
+  python3 -X utf8 place_optimize.py {a.board} --suggest-locks \\
+      --suggest-locks-json wk/locks.json
 
 The gate for leaving this stage is `unlocked_high == 0`, or every remaining
 finding dispositioned IN WRITING with the reason.
+
+On a DAMAGED board that gate is usually unreachable by locking, and reaching
+for it is the trap: a displaced part can carry a high-confidence finding, and
+locking it records the damaged pose as a decision every later stage then treats
+as ground truth. Disposition instead, per ref, against a measurement. The
+advisor demotes a part lying WHOLLY off the board for this reason; a part
+hanging PARTLY off an edge it cannot distinguish from a real edge-mounted one,
+so that one is yours to judge -- compare its excursion with the other
+edge-mounted parts on this board.
 
 A part the FILE marks (locked yes) is never yours to move, whatever any intent
 says. Place a part, verify it, then lock it -- never inherit a lock you have
@@ -270,7 +280,12 @@ gone and nothing above it got worse.
 Then record it, before starting the next lap:
   python3 -X utf8 converge.py record --ledger wk/ledger.jsonl \\
       --board {a.board} --kind placement --lever "<what you changed and why>" \\
-      --argv <the real command that produced this board>
+      --argv <the real command that produced this board, as BARE TOKENS>
+
+--argv takes the rest of the line, unquoted, and it must REPLAY: converge
+refuses (exit 2) any first token that is not a real file or on PATH, and a
+placeholder like "<all but R12>" inside a quoted string makes the whole thing
+one unrunnable token. Expand the arguments you actually used.
 
 Two flat laps in a row means the residue is floorplan-shaped, not repairable
 here: stop and go to P5.
@@ -283,7 +298,8 @@ def p5(a):
     return f'''<stage_instructions stage="P5" name="options" of="7">
 Use this when the question is "which arrangement", not "is this one legal".
 
-  python3 -X utf8 place_portfolio.py {a.board} wk/slate/ --count <K> [--full-probe]
+  python3 -X utf8 place_portfolio.py {a.board} --out-dir wk/slate \\
+      --candidates <K> --keep <N> [--full-probe]
 
 Rank rules, in this order:
   1. HARD gates first: legality and the declared intent. A candidate that fails
@@ -397,6 +413,14 @@ def _guard_damage(a):
         count = _dig(drc, 'total_violations')
     if isinstance(count, list):
         count = len(count)
+    if count is None:
+        return False, (
+            'That JSON carries no violation count, so it does not say whether '
+            'this board has placement damage. A file that parses is not '
+            'evidence -- an empty or unrelated JSON passes a file-exists check '
+            'and answers nothing.\n\nProduce the real measurement:\n'
+            f'  python3 -X utf8 check_drc.py {a.board} --clearance <floor> '
+            '--json wk/drc0.json')
     if isinstance(count, int) and count == 0:
         asm, _ = _load(a.assembly_json, 'assembly')
         blocking = _dig(asm, 'blocking') if asm else None
@@ -453,13 +477,7 @@ def main(argv=None):
             print(f'  {key:8s} {TITLES[key]}')
         return 0
     if a.dump_all:
-        loose = _args(['--board', 'b.kicad_pcb', '--before', 'a.kicad_pcb',
-                       '--drc-json', 'd.json', '--locks-json', 'l.json',
-                       '--waive', 'X:checked'])
-        for key in sorted(STAGES):
-            print(f'===== {key} =====')
-            print(STAGES[key](loose))
-        return 0
+        return _dump_all()
     if a.self_test:
         return _self_test()
     if not a.stage:
@@ -469,6 +487,51 @@ def main(argv=None):
     out = STAGES[a.stage](a)
     print(out)
     return 4 if out.startswith('<error>') else 0
+
+
+def _dump_all():
+    """Every stage's REAL body, guards satisfied.
+
+    This used to pass filenames that do not exist, so P2, P3 and P4 dumped
+    their REFUSALS -- three of eight stages, including the two that carry the
+    most commands. Anything auditing the driver through --dump-all (a flag
+    checker, a reviewer, a person) was reading error text and seeing no
+    commands to be wrong. Guard evidence is cheap to fabricate HERE, where the
+    point is to show the instructions rather than to act on them.
+    """
+    import json as _json
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        def wrote(name, doc):
+            p = os.path.join(tmp, name)
+            with open(p, 'w', encoding='utf-8') as fh:
+                _json.dump(doc, fh)
+            return p
+
+        board = os.path.join(tmp, 'b.kicad_pcb')
+        before = os.path.join(tmp, 'a.kicad_pcb')
+        for p in (board, before):
+            open(p, 'w', encoding='utf-8').close()
+        loose = _args([
+            '--board', board, '--before', before,
+            '--drc-json', wrote('d.json', {'violations': 3}),
+            '--locks-json', wrote('l.json', {'findings': [],
+                                             'lock_patterns': []}),
+            '--assembly-json', wrote('as.json', {'blocking': 1}),
+            '--waive', 'X:checked'])
+        refused = []
+        for key in sorted(STAGES):
+            body = STAGES[key](loose)
+            print(f'===== {key} =====')
+            print(body)
+            if body.startswith('<error>'):
+                refused.append(key)
+    if refused:
+        # Loud, because a silently-refusing dump is what hid this for a while.
+        print(f'\n!! {len(refused)} stage(s) dumped a REFUSAL, not their '
+              f'instructions: {", ".join(refused)}')
+        return 1
+    return 0
 
 
 def _self_test():
