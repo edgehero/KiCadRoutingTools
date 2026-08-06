@@ -121,6 +121,15 @@ def main():
             'board': args.board,
             'clearance': clearance,
             'blocking': g['blocking'],
+            # The verdict itself, and the scalar behind half of it. Without
+            # these every reader re-derives `blocking == 0 and not
+            # locked_contact_pairs` for itself -- and the ones that got it
+            # wrong got it wrong quietly: board_score's assembly component
+            # reads `blocking` alone, and the recovery arm scraped this
+            # verdict back out of stdout rather than reading the JSON.
+            'buildable': not (g['blocking'] or locked_contact),
+            'verdict': verdict,
+            'locked_contacts': len(locked_contact),
             'advisory': g['advisory'],
             'waived': g['waived'],
             'pairs': [q._asdict() for q in g['pairs']],
