@@ -504,9 +504,17 @@ tell a finished run from a stalled one.
 Confirm with the instruments, and put the numbers in the report beside the
 names of the instruments that produced them:
 
+  python3 -X utf8 check_complete.py {a.board} --clearance <floor> \\
+      --authored-from <the board this chain STARTED from>
   python3 -X utf8 check_drc.py {a.board} --clearance <floor> --clearance-margin 0.1
   python3 -X utf8 check_connected.py {a.board}
   python3 -X utf8 check_assembly.py {a.board}
+
+check_complete is the one that fails CLOSED: board_score exits 0 with four of
+nine components ungraded, and it has no component at all for orphan stubs,
+weird copper or pad overlaps. --authored-from is what lets it see whether this
+board grades itself against floors it rewrote -- the writeback only ever
+loosens, so without the original project there is nothing left to compare to.
 
 Connectivity is orthogonal to DRC: a DRC-clean board can be entirely
 disconnected, because isolated copper has no clearance conflicts.
