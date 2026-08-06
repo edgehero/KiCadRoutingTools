@@ -127,6 +127,19 @@ def main():
     check('prune takes an evidenced set',
           'evidenced' in Rc.prune_assignment.__code__.co_varnames)
 
+
+    print('the off-board witness is silent on healthy boards, by construction')
+    from pose_score import make_state
+    for lab, bd, clr in (('splitflap', BOARD, 0.15),
+                         ('tigard', os.path.join('kicad_files',
+                                                 'tigard.kicad_pcb'), 0.09)):
+        st = make_state(parse_kicad_pcb(bd), bd, clearance=clr)
+        w = Rc.damage_witnesses(st)
+        check(f'no witness on healthy {lab}', not w, str(sorted(w)))
+    check('the mover preference consults it',
+          'witnesses' in open(os.path.join(ROOT, 'placement', 'seeder.py'),
+                              encoding='utf-8').read())
+
     print()
     if FAILURES:
         print(f'FAIL: {len(FAILURES)} check(s): {", ".join(FAILURES)}')

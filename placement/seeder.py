@@ -832,6 +832,28 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
         if ref in state.parts:
             weight[ref] = weight.get(ref, 0.0) + amt
 
+    # Refs known to be misplaced on structural grounds, not inferred from size.
+    try:
+        from placement import reconstruct as _recon
+        witnesses = set(_recon.damage_witnesses(state))
+    except Exception:                                       # noqa: BLE001
+        witnesses = set()
+
+    def _mover_key(r):
+        """Which member of a conflicting pair should move.
+
+        Pin count is a proxy for "the small part is the cheap one to move",
+        and on a DAMAGED board it is the wrong question: it will happily move
+        a small connector that is exactly where it belongs out from under a
+        large part that is not. A ref carrying a structural witness -- a pad
+        centre off the outline, which a shipped board cannot have -- is KNOWN
+        to be misplaced, so it sorts first whatever its size.
+
+        On a board with no witnesses this changes nothing, and that is every
+        healthy board in the corpus: measured zero witnesses on all 33.
+        """
+        return (0 if r in witnesses else 1, state.parts[r].pin_count, r)
+
     graded = None
     if intent is not None:
         graded = floorplan.grade(intent, pcb_data, pcb_file,
@@ -862,7 +884,7 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
         # one available -- the partner was never tried, and the pair was
         # reported unrepairable. Both are candidates now; the weights keep the
         # preferred one first in the worst-first order.
-        ordered = sorted(free, key=lambda r: (state.parts[r].pin_count, r))
+        ordered = sorted(free, key=_mover_key)
         _charge(ordered[0], mm)
         for partner in ordered[1:]:
             partner_of.setdefault(ordered[0], []).append(partner)
@@ -882,7 +904,7 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
             notes.append(f"body stack {bp.a}<->{bp.b} ({bp.area_mm2}mm2): "
                          f"both file-locked -- not repairable here")
             continue
-        ordered = sorted(free, key=lambda r: (state.parts[r].pin_count, r))
+        ordered = sorted(free, key=_mover_key)
         # mm2 -> a strong mm-equivalent charge: a stack is never cosmetic
         _charge(ordered[0], max(1.0, bp.area_mm2))
         for partner in ordered[1:]:

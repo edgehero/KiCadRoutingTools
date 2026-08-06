@@ -527,6 +527,46 @@ def edge_metric(state, ref: str, x: float, y: float,
     return state.edge_gate.edge_clearance(rect)
 
 
+def damage_witnesses(state) -> Dict[str, str]:
+    """Refs carrying a NAMED structural witness that they are misplaced.
+
+    Not a vector source. The off-board idea was measured as one and refuted:
+    containment leaves a box 30x11mm wide with sixty conflict-free candidate
+    vectors, hpwl's minimum among them sits 7.6mm from the truth and scores the
+    truth WORSE, and on a swap the joint box is infeasible. Same shape as the
+    airwire refutation -- sound detector, ordinary-layout chooser.
+
+    As a WITNESS it is sound, and the no-op is a property rather than a
+    threshold: a pad centre off the outline is the negation of a
+    manufacturability invariant, because you cannot solder to air. Measured
+    across 33 corpus boards plus 5 controls: ZERO witnesses.
+
+    The form matters and only one form has that guarantee. Measured on the same
+    boards, a pad-EXTENT bounding box against the outline fires on a healthy
+    module wider than its own board, and against a ROUNDED outline it fires on
+    four locked mounting holes whose round pads are entirely inside but whose
+    AABB corners clear the corner arc. Pad CENTRES fire on none of them.
+    """
+    out: Dict[str, str] = {}
+    ctx = getattr(state, 'legality_ctx', None)
+    if ctx is None:
+        return out
+    for ref, pp in sorted((ctx.parts or {}).items()):
+        p = state.parts.get(ref)
+        if p is None:
+            continue
+        try:
+            rects = pp.pad_rects(p.x, p.y, p.rot)
+        except Exception:                                   # noqa: BLE001
+            continue
+        for rect in rects or ():
+            x0, y0, x1, y1 = rect[0], rect[1], rect[2], rect[3]
+            if not _slot_on_board(state, (x0 + x1) / 2.0, (y0 + y1) / 2.0):
+                out[ref] = 'off_board'
+                break
+    return out
+
+
 def evidenced_moves(state, old: Dict[str, Tuple[float, float, float]],
                     vectors, tol: float = 2 * GRID_TOL) -> Set[str]:
     """Refs whose displacement AGREES with a kept vector, up to sign and step.
