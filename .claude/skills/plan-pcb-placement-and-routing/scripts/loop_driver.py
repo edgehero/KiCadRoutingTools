@@ -103,10 +103,98 @@ def _ledger_rows(path):
 # stages
 # --------------------------------------------------------------------------
 
+#: When a half runs in a teammate instead of here. ONE rule per half, on ONE
+#: number each, because "when the output would crowd the other half" is a thing
+#: nobody can evaluate at the moment they have to decide.
+#:
+#: The two halves are sized by different things, which is why there are two
+#: numbers rather than one:
+#:
+#:   PLACEMENT output scales with PARTS -- the repair sweep visits violators,
+#:   the legalize ladder visits them again, and every render draws all of them.
+#:   ROUTING output scales with NETS -- the route log is per-net, and the score
+#:   and connectivity reports enumerate them.
+#:
+#: Both are proxies for context volume and both are JUDGEMENTS, not
+#: calibrations. What is measured is only the two ends: a 65-part / 83-net
+#: 2-layer board ran both halves inline comfortably, and a 216-part / 266-net
+#: 4-layer board produces a per-net route log plus a fanout stage per
+#: fine-pitch part. The thresholds sit between those, and both are flags
+#: because the right value depends on what else is already in the context.
+#:
+#: What would calibrate them: record, per run, the half that forced a
+#: compaction and the board's parts/nets. Nothing measures that today, so
+#: these stay judgements and say so here rather than in the emission.
+DELEGATE_ABOVE_PARTS = 200
+DELEGATE_ABOVE_NETS = 300
+
+
+def _board_size(board):
+    """(parts, nets) with pads/names, or (None, None) if it cannot be read.
+
+    None matters: "I could not count" must not silently become "small enough
+    to run inline", so the caller keeps whatever the flags said instead of
+    inventing a decision out of a failed read.
+    """
+    if not board or not os.path.isfile(board):
+        return None, None
+    try:
+        sys.path.insert(0, ROOT)
+        from kicad_parser import parse_kicad_pcb
+        pcb = parse_kicad_pcb(board)
+        return (sum(1 for f in (pcb.footprints or {}).values() if f.pads),
+                sum(1 for n in (pcb.nets or {}).values() if n.name))
+    except Exception:                                       # noqa: BLE001
+        return None, None
+
+
+def _part_count(board):
+    return _board_size(board)[0]
+
+
+def _delegation(a, half='placement'):
+    """(delegate?, why) -- flags first, then the one number for THIS half.
+
+    Delegation is a CONTEXT decision, never a correctness one: the guards are
+    identical either way and both halves record into the same ledger. But
+    leaving it to judgement means it gets judged on the board where judging it
+    was already too late, so the number is read off the board and the default
+    decides. Either flag overrides, and the reason is ALWAYS printed with the
+    value, the threshold and the flag that changes it -- a run that silently
+    spawned a teammate would be worse than one that never did.
+    """
+    if getattr(a, 'no_delegate', False):
+        return False, '--no-delegate was passed, so this half runs here'
+    parts, nets = _board_size(a.board)
+    if getattr(a, 'delegate', False):
+        return True, '--delegate was passed, so this half goes to a teammate'
+    if parts is None:
+        return False, (f'{a.board} could not be read to size it. A failed read '
+                       f'is not evidence the board is small, so this half runs '
+                       f'here rather than guessing -- pass --delegate if it is '
+                       f'in fact large')
+    if half == 'routing':
+        val, lim, unit, flag = nets, a.delegate_above_nets, 'nets', \
+            '--delegate-above-nets'
+        other = f'{parts} parts'
+    else:
+        val, lim, unit, flag = parts, a.delegate_above_parts, 'parts', \
+            '--delegate-above-parts'
+        other = f'{nets} nets'
+    if val is not None and val > lim:
+        return True, (f'{val} {unit} > {lim} ({flag}), so this half goes to a '
+                      f'teammate. {other.capitalize()} for context')
+    return False, (f'{val} {unit} <= {lim} ({flag}), so this half runs here. '
+                   f'{other.capitalize()} for context')
+
+
 def l1(a):
     """Place. Delegated or inline -- correctness is the same either way."""
-    if a.delegate:
-        return f'''<stage_instructions stage="L1" name="place" of="5">
+    delegate, why = _delegation(a)
+    if delegate:
+        return f'''<stage_instructions stage="L1" name="place (delegated)" of="5">
+DELEGATING: {why}.
+
 Delegate the placement half to a TEAMMATE, not a plain subagent: the placement
 skill spawns its own verification subagents at its close-out, and a subagent
 cannot spawn one. Give it the prompt below verbatim.
@@ -140,6 +228,8 @@ Next: python3 -X utf8 {sys.argv[0]} --stage L2 --board <placed board> \\
           --ledger {a.ledger} --placement-report <its close-out json>
 </stage_instructions>'''
     return f'''<stage_instructions stage="L1" name="place" of="5">
+INLINE: {why}.
+
 Place this board yourself, driven. Do not read the placement skill end to end:
 ask its driver for one stage at a time, so only one loop's rules are ever in
 front of you.
@@ -150,10 +240,9 @@ front of you.
 Follow it to P-close, including its refusals. Record every accepted lap into
 {a.ledger} with converge.py.
 
-Delegate this stage instead (--delegate) when the placement run's own output
-would crowd out the routing half -- a few hundred parts, long repair sweeps,
-many renders. That is a context decision, not a correctness one: the guards
-below are identical either way.
+--delegate forces a teammate for this half whatever the size, and
+--no-delegate forces it inline. That is a context decision, not a correctness
+one: the guards below are identical either way.
 
 Next: python3 -X utf8 {sys.argv[0]} --stage L2 --board <placed board> \\
           --ledger {a.ledger} --placement-report <its close-out json>
@@ -214,11 +303,70 @@ def l2(a):
             f'declare it in the floorplan intent (edge_connectors), which '
             f'exempts it and makes the exemption reviewable, and then re-run '
             f'with --accept-residue.')
-    return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
-FREEZE first. Lock the refs whose poses are decisions -- mechanically fixed
+    delegate, why = _delegation(a, half='routing')
+    freeze = '''FREEZE first. Lock the refs whose poses are decisions -- mechanically fixed
 parts, anything a spec pins, anything the placement half moved deliberately. A
 later step that moves them silently undoes the placement work, and nothing
-downstream will report it.
+downstream will report it.'''
+    if delegate:
+        return f'''<stage_instructions stage="L2" name="freeze, then route (delegated)" of="5">
+DELEGATING: {why}.
+
+{freeze}
+
+Freeze BEFORE you hand it over -- the locks are a decision from the placement
+half, and a teammate that receives an unfrozen board cannot know which poses
+were deliberate.
+
+Then delegate the routing half to a TEAMMATE, for the same reason L1 does: the
+routing skill spawns its own verification subagents at close-out, and a
+subagent cannot spawn one. This half is the one that produces the most output
+of anything in the loop -- a route log on a board this size runs to thousands
+of lines -- so it is the half most worth keeping out of this context.
+
+<subagent_prompt agent="claude" description="route {os.path.basename(a.board)}">
+Route this board to its close-out. The placement is FROZEN: do not move a
+footprint, and if you conclude one must move, stop and say so rather than
+moving it.
+
+  board:  {a.board}
+  ledger: {a.ledger}
+
+Use /plan-pcb-routing. Ask its driver for the chain and then one stage at a
+time:
+  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
+      --plan --board {a.board}
+  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
+      --stage A1 --board {a.board}
+and follow it, including its refusals -- an <error> means a gate is holding,
+so produce what it asks for rather than working around it.
+
+Record EVERY accepted iteration into the ledger above with converge.py, and
+every rejected one with --rejected before stepping back. The stage after this
+one refuses a board that is not in the ledger, by content hash.
+
+Return, and return ONLY:
+  1. the path of the routed board;
+  2. its score JSON path, and `blocking` with its `blocking_by` breakdown;
+  3. the failing nets BY NAME, not counted;
+  4. anything left UNGRADED, named as unexamined rather than clean.
+Do not summarise the process. The next stage classifies from those numbers.
+</subagent_prompt>
+
+When it returns, continue here with the board and score it produced.
+
+Two rules that are only true HERE, where the halves meet:
+  - copper is not evidence about placement. A route that completed does not
+    ratify the placement it ran on, and one that failed does not condemn it.
+  - every routed board produced from THIS placement is valid only while this
+    placement stands.
+
+Next, on success: --stage L5. On a failure: --stage L3 --score <score json>
+</stage_instructions>'''
+    return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
+INLINE: {why}.
+
+{freeze}
 
 Then route, driven, so the routing loop's rules are the only ones in front of
 you:
@@ -576,6 +724,18 @@ def _args(argv=None):
     ap.add_argument('--flat', type=int, default=5,
                     help='accepted laps a half may go without improving '
                          'before it counts as blocked (default 5, ditto)')
+    ap.add_argument('--delegate-above-parts', type=int,
+                    default=DELEGATE_ABOVE_PARTS, metavar='N',
+                    help=f'parts above which the PLACEMENT half goes to a '
+                         f'teammate (default {DELEGATE_ABOVE_PARTS}): its '
+                         f'output scales with parts')
+    ap.add_argument('--delegate-above-nets', type=int,
+                    default=DELEGATE_ABOVE_NETS, metavar='N',
+                    help=f'nets above which the ROUTING half goes to a '
+                         f'teammate (default {DELEGATE_ABOVE_NETS}): its '
+                         f'output scales with nets')
+    ap.add_argument('--no-delegate', action='store_true',
+                    help='force both halves inline whatever the board size')
     ap.add_argument('--delegate', action='store_true',
                     help='hand a half to a TEAMMATE (not a plain subagent -- '
                          'each half spawns its own verifiers). A context '
@@ -620,9 +780,17 @@ def main(argv=None):
                 print(body)
                 if body.startswith('<error>'):
                     refused.append(k)
-            print('===== L1 (delegated) =====')
+            # Both halves can delegate, and the teammate prompts are where the
+            # commands a delegated run will actually execute live -- dumping
+            # only the inline forms leaves them unscanned.
             loose.delegate = True
-            print(STAGES['L1'](loose))
+            for k in ('L1', 'L2'):
+                print(f'===== {k} (delegated) =====')
+                body = STAGES[k](loose)
+                print(body)
+                if body.startswith('<error>'):
+                    refused.append(f'{k}/delegated')
+            loose.delegate = False
 
             # L5 has FOUR outcomes and the dump above shows one of them. The
             # other three carry the commands that close a run out -- the
@@ -738,12 +906,53 @@ def _self_test():
         out = STAGES['L4'](_args(base + ['--shape', shape]))
         want(needle in out, f'{shape}-shaped re-entry says what it costs')
 
-    inline = STAGES['L1'](_args(base))
+    inline = STAGES['L1'](_args(base + ['--no-delegate']))
     deleg = STAGES['L1'](_args(base + ['--delegate']))
     want('<subagent_prompt' in deleg and '<subagent_prompt' not in inline,
          'delegation is a choice, and only the delegated form dispatches')
     want('TEAMMATE' in deleg and 'cannot spawn' in deleg,
          'delegation says a teammate is required, and why')
+
+    # The size decides by default, so that it is not left to be remembered on
+    # the board where remembering it was already too late. Both halves, because
+    # routing is the one that produces the most output and used to have no
+    # escape hatch at all.
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _t:
+        rep = os.path.join(_t, 'p.json')
+        json.dump({'blocking': 0, 'oob_pad_count': 0},
+                  open(rep, 'w', encoding='utf-8'))
+        # ANY board in the corpus: this asserts the RULE, not a board, and
+        # naming one would pin a skill to a specific project.
+        import glob as _g
+        small = next(iter(sorted(
+            _g.glob(os.path.join(ROOT, 'kicad_files', '*.kicad_pcb')))), None)
+        if small and os.path.isfile(small):
+            n = _part_count(small)
+            want(isinstance(n, int) and n > 0,
+                 'the board can be sized at all')
+            auto = ['--board', small, '--placement-report', rep]
+            for k in ('L1', 'L2'):
+                out = STAGES[k](_args(auto))
+                want('INLINE:' in out and '<subagent_prompt' not in out,
+                     f'{k} runs a small board inline, and says why')
+                out = STAGES[k](_args(auto + ['--delegate-above-parts', '1',
+                                              '--delegate-above-nets', '1']))
+                want('DELEGATING:' in out and '<subagent_prompt' in out,
+                     f'{k} delegates once the board is over the threshold')
+                want(str(n) in out,
+                     f'{k} names the count it decided on, not just the verdict')
+                out = STAGES[k](_args(auto + ['--delegate-above-parts', '1',
+                                              '--delegate-above-nets', '1',
+                                              '--no-delegate']))
+                want('<subagent_prompt' not in out,
+                     f'{k}: --no-delegate overrides the size')
+        # A board that cannot be read is not evidence that it is small.
+        out = STAGES['L1'](_args(['--board', os.path.join(_t, 'nope.kicad_pcb'),
+                                  '--delegate-above-parts', '1',
+                                              '--delegate-above-nets', '1']))
+        want('could not be read' in out and '<subagent_prompt' not in out,
+             'an unreadable board does not auto-delegate, and says so')
 
     # Assemble the emitted text from stages whose guards are SATISFIED --
     # otherwise this scans refusals and reports the instructions are missing

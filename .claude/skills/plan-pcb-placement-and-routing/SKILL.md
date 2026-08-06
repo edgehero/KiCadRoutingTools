@@ -47,12 +47,29 @@ Its guards are the three this skill exists to enforce:
 | `L3` classify | a routing score | a retry without a classification is a guess |
 | `L4` re-enter | a measured `--shape` | the three shapes re-enter at three different points, and the cost of guessing is asymmetric |
 
-**Inline or delegated is a CONTEXT decision, not a correctness one.** The guards
-are identical either way. Pass `--delegate` on `L1` when a half's own output
-would crowd out the other -- a few hundred parts, long repair sweeps, many
-renders. The driver then emits a prompt for a **teammate**, not a plain
-subagent: each half spawns its own verification subagents at its close-out, and
-a subagent cannot spawn one.
+**Delegation is automatic, and the rule is one number per half.** You do not
+decide it and you cannot forget it — the driver reads the board and says which
+way it went, with the value and the threshold, every time:
+
+| half | goes to a teammate when | why that number |
+|---|---|---|
+| `L1` placement | **parts > 200** (`--delegate-above-parts`) | its output scales with parts: the repair sweep visits violators, the legalize ladder visits them again, every render draws all of them |
+| `L2` routing | **nets > 300** (`--delegate-above-nets`) | its output scales with nets: the route log is per-net, and the score and connectivity reports enumerate them |
+
+Override in either direction: `--delegate` forces a teammate, `--no-delegate`
+forces inline. A board that cannot be read is run **inline** and says so — a
+failed read is not evidence the board is small.
+
+Both thresholds are judgements, not calibrations, and the driver's source says
+so. What is measured is only the two ends: a 65-part / 83-net 2-layer board ran
+both halves inline comfortably; a 216-part / 266-net 4-layer board produces a
+per-net route log plus a fanout stage per fine-pitch part.
+
+**It is a CONTEXT decision, never a correctness one** — the guards are identical
+either way and both halves record into the same ledger. When it does delegate,
+the driver emits a prompt for a **teammate**, not a plain subagent: each half
+spawns its own verification subagents at its close-out, and a subagent cannot
+spawn one.
 
 State crosses the boundary on DISK, in the converge ledger, never in a head.
 That is what makes a re-entry able to say what was already tried.
