@@ -320,9 +320,16 @@ Examples:
                 # input inside a hugely-improving set). Per-part revert
                 # sweep, gated on strict tuple improvement -- monotone,
                 # board-only.
-                pruned = reconstruct.prune_assignment(state, old, notes,
-                                                      edge_bands=edge_bands,
-                                                      exempt=set(edge_pref))
+                # ...and a move the tuple rates EQUAL is reverted too unless
+                # it agrees with a kept vector. A zero-net part in free space
+                # touches no term the tuple has, so `strictly better` never
+                # fires for it and a 26.27mm carry to another hole's seat
+                # survived a sweep written to catch exactly that.
+                pruned = reconstruct.prune_assignment(
+                    state, old, notes, edge_bands=edge_bands,
+                    exempt=set(edge_pref),
+                    evidenced=reconstruct.evidenced_moves(
+                        state, old, list(vectors) + list(derived)))
                 all_pruned.extend(pruned)
                 after = reconstruct.measure(state, edge_bands)
                 base = after

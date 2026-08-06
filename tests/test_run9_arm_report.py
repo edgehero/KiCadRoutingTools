@@ -99,6 +99,34 @@ def main():
     check('...and guards a copper-less human reference',
           'original_degeneracy' in src)
 
+
+    print('an EQUAL tuple is no tie-break in favour of an unevidenced move')
+    # The hole A2 closes: a zero-net part in free space touches no term the
+    # gate tuple has, so `strictly better` never fires for it and a carry to
+    # another part's seat survives the sweep that exists to catch it.
+    from placement import reconstruct as Rc
+    class _P:
+        def __init__(s, x, y, rot=0.0):
+            s.x, s.y, s.rot = x, y, rot
+    class _S:
+        def __init__(s, parts):
+            s.parts = parts
+    st = _S({'A': _P(10.0, 20.0), 'B': _P(0.0, 0.0)})
+    old = {'A': (10.0 - 65.5, 20.0 + 11.3, 0.0), 'B': (5.0, 5.0, 0.0)}
+    ev = Rc.evidenced_moves(st, old, [(65.5, -11.3)])
+    check('a move matching a kept vector is evidenced', ev == {'A'}, str(ev))
+    ev2 = Rc.evidenced_moves(st, old, [])
+    check('with no vector, nothing is evidenced', ev2 == set(), str(ev2))
+    ev3 = Rc.evidenced_moves(st, {'A': (10.0, 20.0, 0.0)}, [(65.5, -11.3)])
+    check('a part that did not move needs no justification', ev3 == set(),
+          str(ev3))
+    st2 = _S({'A': _P(10.0 + 131.0, 20.0 - 22.6)})
+    ev4 = Rc.evidenced_moves(st2, {'A': (10.0, 20.0, 0.0)}, [(65.5, -11.3)])
+    check('a move of 2v is evidenced too (the lattice is +/-1, +/-2)',
+          ev4 == {'A'}, str(ev4))
+    check('prune takes an evidenced set',
+          'evidenced' in Rc.prune_assignment.__code__.co_varnames)
+
     print()
     if FAILURES:
         print(f'FAIL: {len(FAILURES)} check(s): {", ".join(FAILURES)}')

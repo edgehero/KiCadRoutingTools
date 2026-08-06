@@ -527,10 +527,37 @@ def edge_metric(state, ref: str, x: float, y: float,
     return state.edge_gate.edge_clearance(rect)
 
 
+def evidenced_moves(state, old: Dict[str, Tuple[float, float, float]],
+                    vectors, tol: float = 2 * GRID_TOL) -> Set[str]:
+    """Refs whose displacement AGREES with a kept vector, up to sign and step.
+
+    The damage hypothesis is "parts displaced by k*v"; a move that matches it
+    is evidence, and a move that matches nothing is a seat the solver liked.
+    Both look identical to a board-wide gate tuple when the part carries no
+    net, which is why this exists as a separate question from the tuple.
+    """
+    out: Set[str] = set()
+    steps = (-2, -1, 1, 2)
+    for ref, (x, y, _r) in (old or {}).items():
+        p = state.parts.get(ref)
+        if p is None:
+            continue
+        dx, dy = p.x - x, p.y - y
+        if math.hypot(dx, dy) < GRID_TOL:
+            continue                    # did not move; nothing to justify
+        for vx, vy in (vectors or ()):
+            if any(math.hypot(dx - k * vx, dy - k * vy) <= tol
+                   for k in steps):
+                out.add(ref)
+                break
+    return out
+
+
 def prune_assignment(state, old: Dict[str, Tuple[float, float, float]],
                      notes: Optional[List[str]] = None,
                      edge_bands: Optional[Dict[str, float]] = None,
-                     exempt: Optional[Set[str]] = None) -> List[str]:
+                     exempt: Optional[Set[str]] = None,
+                     evidenced: Optional[Set[str]] = None) -> List[str]:
     """Per-part revert sweep after an ACCEPTED assignment (run-4 F3b).
 
     The stage gate is one board-wide lexicographic tuple, so an assignment
@@ -542,7 +569,22 @@ def prune_assignment(state, old: Dict[str, Tuple[float, float, float]],
     tuple STRICTLY improves. Board-only, monotone by construction: the
     sweep can only improve the tuple, and a revert that would reintroduce a
     conflict is rejected by the same tuple.
+
+    `evidenced` names the refs whose chosen pose came from real evidence -- a
+    corroborated pattern slot, or a +/-v offset of a kept vector. For anything
+    NOT in that set, an EQUAL tuple is also grounds to revert, and that is the
+    hole a measured 26.27 mm move went through: a mounting hole was carried to
+    another hole's seat, the gate tuple came out byte-identical (a zero-net
+    part in free space touches no term the tuple has), so `< base` never fired
+    and the move survived a sweep written to catch exactly that. A move nothing
+    measured justifies is not a tie to be broken in its favour.
+
+    Strictness is deliberately NOT applied to the round accept upstream: a
+    displaced hole coming home is gate-neutral by construction for the same
+    reason, so requiring strict improvement there would reject the homecoming
+    the whole fit exists to produce.
     """
+    evidenced = evidenced or set()
     pruned: List[str] = []
 
     def moved_dist(item):
@@ -562,7 +604,8 @@ def prune_assignment(state, old: Dict[str, Tuple[float, float, float]],
         base = measure(state, edge_bands)
         cur = (p.x, p.y, p.rot)
         state.apply_move(ref, x, y, rot)
-        if measure(state, edge_bands) < base:
+        after = measure(state, edge_bands)
+        if after < base or (after == base and ref not in evidenced):
             pruned.append(ref)
         else:
             state.apply_move(ref, *cur)
