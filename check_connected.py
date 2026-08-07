@@ -1641,6 +1641,19 @@ def run_connectivity_check(pcb_file: str, net_patterns: Optional[List[str]] = No
             from kicad_oracle import find_kicad_cli, kicad_unconnected
             _cli = find_kicad_cli()
             _links = kicad_unconnected(pcb_file, _cli) if _cli else None
+            if _links is None and not quiet:
+                # There was no `else` here, so "the oracle ran and agreed" and
+                # "the oracle never ran" printed identically -- i.e. nothing --
+                # and the run still ended `ALL NETS FULLY CONNECTED!` / exit 0.
+                # On a board with zones that is the difference between a graded
+                # result and an ungraded one, and the reader could not tell.
+                # kicad_unconnected() returns None for a missing CLI, a DRC
+                # timeout (ORACLE_DRC_TIMEOUT 240s), a bad return code, or
+                # unreadable JSON; only the timeout prints anything of its own.
+                print(f"  NOTE: the KiCad grade reconciliation did NOT run "
+                      f"({'kicad-cli not found' if not _cli else 'the oracle returned nothing -- DRC timeout, bad exit, or unreadable output'})."
+                      f" Zone-covered nets below are graded by the copper model "
+                      f"ALONE; KiCad has not agreed with them.")
             if _links is not None:
                 _linked_nets = {lk[0] for lk in _links}
                 _reclass = [i for i in issues

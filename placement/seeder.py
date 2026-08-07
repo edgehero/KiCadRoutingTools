@@ -70,7 +70,8 @@ def _rect_inside(rect, outer, tol: float) -> bool:
 def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                constraint=None, tol: float = 0.5,
                max_disp: Optional[float] = None,
-               info: Optional[Dict] = None) -> Optional[float]:
+               info: Optional[Dict] = None,
+               deadline=None) -> Optional[float]:
     """Nearest FULLY-CONTAINED legal pose to (tx, ty); applies the move and
     returns True.
 
@@ -151,6 +152,22 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                         # run-7 A3: a ring whose step exceeds the cap can
                         # contribute nothing but used to burn a full sweep
                         continue
+                    # Budget check at the RING head (36 per call: 3 clearance
+                    # levels x 4 rotations x 3 bands) -- negligible, and it
+                    # bounds one pathological part's overrun to a single ring
+                    # sweep instead of a whole cap ladder. Deliberately NOT in
+                    # the `for dx, dy in _offsets(...)` loop below: that is the
+                    # innermost loop and _offsets already materialises ~3700
+                    # tuples per call, so the band check bounds it adequately.
+                    # Returns None rather than raising, so the caller's existing
+                    # "no legal pose" path handles it with no new control flow --
+                    # but `info` records WHY, because reporting an unfinished
+                    # search as a measured failure is the same silent lie this
+                    # whole change exists to remove.
+                    if deadline is not None and deadline.expired():
+                        if info is not None:
+                            info['deadline'] = True
+                        return None
                     for dx, dy in _offsets(radius, step):
                         if (max_disp is not None
                                 and math.hypot(dx, dy) > max_disp + 1e-9):
@@ -778,7 +795,8 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
                      clearance: float = 0.25,
                      board_edge_clearance: float = 0.55,
                      grid_step: float = 0.1,
-                     caps: Sequence[float] = REPAIR_CAPS_MM) -> Dict:
+                     caps: Sequence[float] = REPAIR_CAPS_MM,
+                     deadline=None, progress=None) -> Dict:
     """Violation-driven minimal-move repair of a PLACED board (#place_seed
     --repair). Everything clean freezes; only violators move, worst first,
     each seated by the seeder's own search targeted at its CURRENT pose with
@@ -794,6 +812,18 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
     seating (the stamp in the file survives the positional rewrite, so no
     re-stamping is needed). A file-locked ref OUTSIDE must_lock is not this
     tool's to move: reported in `unrepairable`.
+
+    `deadline` is an optional `krt_deadline.Deadline`. This sweep has no
+    internal bound -- its cost is violators x caps x 36 ring sweeps x O(parts)
+    per candidate -- and on a 217-part board it ran 46 minutes without
+    terminating (run 9). When a budget is supplied the loop stops between
+    violators, keeps every seat it already made, and reports the untouched ones
+    in `deadline_skipped`. Those are NOT `unrepairable`: a search that ran out
+    of clock has measured nothing, and filing it as a failure is the same class
+    of lie as the silent hang.
+
+    `progress` is an optional `(current, total, label)` callback -- the sweep is
+    otherwise completely silent between its census line and its final line.
     """
     import pose_score
     from placement import floorplan, legality as _leg
@@ -963,7 +993,24 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
     failed: List[str] = []
     zero_move: List[str] = []   # run-7 A2: honesty re-grade candidates
     moves: List[Dict] = []
-    for ref in violators:
+    deadline_skipped: List[str] = []
+    for _vi, ref in enumerate(violators):
+        # Budget check at the VIOLATOR head: one monotonic read per violator,
+        # and each violator costs seconds (caps x 36 ring sweeps x O(parts)).
+        # The partial is coherent by construction -- a violator is either fully
+        # seated, with its move in `moves`, or untouched.
+        if deadline is not None and deadline.check('legalize'):
+            deadline_skipped = list(violators[_vi:])
+            notes.append(
+                f"deadline reached after {_vi}/{len(violators)} violator(s); "
+                f"{len(deadline_skipped)} left untouched and reported in "
+                f"deadline_skipped (NOT unrepairable -- they were never tried)")
+            break
+        if progress is not None:
+            try:
+                progress(_vi, len(violators), f'repair {ref}')
+            except Exception:                                  # noqa: BLE001
+                pass
         part = state.parts[ref]
         was_locked = part.locked      # always False here: locked refs are
                                       # already in `unrepairable` (see above)
@@ -1011,7 +1058,8 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
         for cap in caps:
             info: Dict = {}
             clr = _try_place(state, ref, ox, oy, set(), constraint=rect,
-                             tol=tol, max_disp=cap, info=info)
+                             tol=tol, max_disp=cap, info=info,
+                             deadline=deadline)
             if clr is not None:
                 placed_at = cap
                 if info.get('anchor_zone'):
@@ -1023,7 +1071,7 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
             zx = (z.rect[0] + z.rect[2]) / 2.0
             zy = (z.rect[1] + z.rect[3]) / 2.0
             clr = _try_place(state, ref, zx, zy, set(), constraint=rect,
-                             tol=tol)
+                             tol=tol, deadline=deadline)
             if clr is not None:
                 placed_at = 'zone'
         part.locked = was_locked
@@ -1039,7 +1087,8 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
                 pox, poy, porot = pp.x, pp.y, pp.rot
                 for cap in caps:
                     if _try_place(state, partner, pox, poy, set(),
-                                  max_disp=cap) is not None:
+                                  max_disp=cap,
+                                  deadline=deadline) is not None:
                         pd = math.hypot(pp.x - pox, pp.y - poy)
                         if pd > 1e-9:
                             seated_partner = (partner, pd)
@@ -1099,7 +1148,13 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
     # board whose pad/body census did not move are UNRESOLVED, so the fix
     # loop can see it stalled instead of believing "repaired" forever.
     unresolved = []
-    if zero_move and state.legality_ctx is not None:
+    if deadline_skipped:
+        # Skip the honesty re-grade on a partial run. It is O(zero_move x parts)
+        # with pair_shortfall, it can only DOWNGRADE `repaired`, and a partial
+        # run's `repaired` is already qualified by complete:false -- so paying
+        # for it here would just spend the clock we already ran out of.
+        notes.append("unresolved re-grade skipped: run stopped on its deadline")
+    elif zero_move and state.legality_ctx is not None:
         # Post-repair poses live on the STATE (pcb_data still holds the
         # file's input poses), so the re-grade uses the state's own pair
         # machinery in the gate currency.
@@ -1123,6 +1178,8 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
     return {'moves': moves, 'repaired': repaired, 'unrepairable':
             unrepairable + failed, 'unresolved': unresolved,
             'violators': violators, 'notes': notes,
+            'deadline_skipped': deadline_skipped,
+            'complete': not deadline_skipped,
             'pad_report_before': {k: pads[k] for k in
                                   ('pad_conflicts', 'hole_conflicts',
                                    'oob_pad_count')},

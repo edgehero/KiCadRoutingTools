@@ -47,6 +47,12 @@ def _promote_staged(staged: str, final: str) -> None:
             os.replace(src, final_base + ext)
 
 
+#: The stage names that actually gate code. `classify` runs unconditionally
+#: (it is a prerequisite for everything below it, `reconstruct.classify` at the
+#: top of the pipeline) and is listed here so the default string round-trips.
+_STAGES = ('classify', 'fit', 'vector', 'assign', 'exchange', 'legalize')
+
+
 def main():
     import routing_defaults as defaults
 
@@ -65,7 +71,12 @@ Examples:
                         "from off-board repair; zones constrain re-seating)")
     p.add_argument("--stages",
                    default="classify,fit,vector,assign,exchange,legalize",
-                   help="Comma list of stages to run (default: all)")
+                   help="Comma list of stages to run. Valid: classify, fit, "
+                        "vector, assign, exchange, legalize (default: all). "
+                        "`classify` runs regardless -- it is a prerequisite. "
+                        "`assign` also needs fit or vector to have produced "
+                        "candidates. An unknown name is now an error, not a "
+                        "silent no-op.")
     p.add_argument("--anchor-extent", default="auto",
                    help="Anchor tier threshold in mm, or 'auto' = "
                         "max(3.5, P75 of pad-extent diagonals)")
@@ -91,8 +102,35 @@ Examples:
     p.add_argument("--grid-step", type=float, default=defaults.GRID_STEP)
     p.add_argument("--dry-run", action="store_true",
                    help="Print the stage reports and move list; write nothing")
+    p.add_argument("--deadline", type=float, default=None, metavar="SECONDS",
+                   help="Wall-clock budget. The legalize sweep has no internal "
+                        "bound and ran 46 min without terminating on a 217-part "
+                        "board (run 9); with a budget it stops between "
+                        "violators, keeps the seats it made, reports the rest "
+                        "in deadline_skipped, and exits 7. Default: no budget "
+                        "(a wall-clock default would break replay "
+                        "determinism). ANY harness with an external timeout "
+                        "should pass this at ~0.8x its own. Env: KRT_DEADLINE_S")
     args = p.parse_args()
     stages = {s.strip() for s in args.stages.split(',') if s.strip()}
+    # A misspelt stage used to be accepted silently and gate nothing, so
+    # `--stages legalise` ran no legalize and exited 0 with a clean-looking
+    # summary -- the same silent-lie class as the hang below.
+    _unknown = sorted(stages - set(_STAGES))
+    if _unknown:
+        p.error(f"unknown stage(s) {', '.join(_unknown)}; valid stages are "
+                f"{', '.join(_STAGES)}")
+
+    # Armed HERE, before the refusal paths below, not next to the first stage.
+    # The refusals (no Edge.Cuts, board carries copper, no legality layer)
+    # printed to stderr and returned with no JSON_SUMMARY at all, so a caller
+    # scraping the summary could not tell a refusal from a kill. `report` is
+    # mutated in place from here on and the flush hook sees whatever it holds.
+    report = {}
+    import krt_deadline
+    _dl = krt_deadline.arm(args.deadline, tool='place_reconstruct',
+                           on_partial=lambda: report)
+    report['stages_requested'] = sorted(stages)
 
     if not args.dry_run:
         try:
@@ -141,7 +179,6 @@ Examples:
         return 2
 
     notes = []
-    report = {}
 
     tiers = reconstruct.classify(state, intent, args.anchor_extent)
     report['tiers'] = tiers.as_dict()
@@ -216,6 +253,36 @@ Examples:
                               for d in derived))
             vectors = vectors + [d['v'] for d in derived]
         report['vectors_derived'] = [list(d['v']) for d in derived]
+
+        # SAY SO WHEN THERE IS NO STRUCTURAL HYPOTHESIS.
+        #
+        # Run 9: three derived vectors with support 6, 6 and 4 against a
+        # 107-part displaced block -- they explained ~15% of the damage -- and
+        # the run then moved 80 parts on that basis and reported nothing
+        # unusual. The near-inert recovery (+0.045, 0/107 home) was visible in
+        # this ratio at minute four and was not discovered until the audit.
+        # A render of the same board shows it instantly: the move arrows are
+        # broadly parallel over one region, so there IS structure the detector
+        # is not recovering. That is a finding about the DETECTOR, and it
+        # belongs in the log while there is still time to act on it.
+        _sup = sum(d['support'] for d in derived) if derived else 0
+        _movable = len([r for r in state.parts if not state.parts[r].locked])
+        report['vector_support'] = {
+            'derived_support_total': _sup,
+            'pattern_vectors': len(vectors) - len(derived),
+            'movable_parts': _movable,
+            'fraction_explained': (round(_sup / _movable, 4)
+                                   if _movable else None),
+        }
+        if derived and _movable and (_sup / _movable) < 0.25:
+            print(f"  WARNING: the derived vectors explain only {_sup} of "
+                  f"{_movable} movable part(s) ({_sup / _movable:.0%}). This "
+                  f"run is proceeding WITHOUT a confident structural "
+                  f"hypothesis -- expect the assignment to move parts on weak "
+                  f"evidence and recovery to be near-inert. If the damage "
+                  f"looks like a coherent block in a render, the detector is "
+                  f"missing it; that is a finding about the detector, not "
+                  f"about the board.")
 
     # F2: declared edge entries whose edge could not be named (implausible
     # pose) -- their objective term is the EDGE metric, not the net-anchor
@@ -422,7 +489,8 @@ Examples:
             pcb2, board_path, intent, group_sources=(),
             clearance=args.clearance,
             board_edge_clearance=args.board_edge_clearance,
-            grid_step=args.grid_step, caps=caps)
+            grid_step=args.grid_step, caps=caps, deadline=_dl,
+            progress=krt_deadline.stdout_progress(deadline=_dl))
         for n in rep['notes']:
             print(f"  NOTE: {n}")
         if rep['moves']:
@@ -456,7 +524,7 @@ Examples:
                     'unrepairable': _rep['unrepairable'],
                     'would_move': sorted(m['reference'] for m in _rep['moves']),
                 }
-        print("JSON_SUMMARY: " + json.dumps(report, sort_keys=True))
+        krt_deadline.emit(report, deadline=_dl)
         return 0
 
     # Run-7 A11: the output used to be written BEFORE legalize ran, so a run
@@ -471,7 +539,41 @@ Examples:
     if 'legalize' in stages:
         rep = _run_legalize(staged)
         report['legalize'] = {'repaired': rep['repaired'],
-                              'unrepairable': rep['unrepairable']}
+                              'unrepairable': rep['unrepairable'],
+                              'deadline_skipped': rep.get('deadline_skipped', []),
+                              'complete': rep.get('complete', True)}
+        if not rep.get('complete', True):
+            # Run-7 A11's invariant, kept verbatim: the OUTPUT path only ever
+            # holds a complete board. So on a deadline hit we promote NOTHING
+            # and simply name the staged board, which already exists, already
+            # has a distinguishing name, and already survives a kill -- the only
+            # defect today is that nobody is told it is there.
+            #
+            # Deliberately NOT a --promote-partial flag: that re-creates the
+            # exact defect A11 fixed, behind a switch a harness author will
+            # turn on without reading the rationale. A caller who genuinely
+            # wants the pre-legalize board can copy_board the staged path AFTER
+            # reading a summary that says complete:false -- an explicit act by
+            # someone who has seen the warning.
+            krt_deadline.mark(
+                report, _dl,
+                staged_board=staged,
+                output=None,
+                board_stage='pre-legalize + %d of %d legalize seat(s)'
+                            % (len(rep['repaired']),
+                               len(rep['repaired']) + len(rep.get(
+                                   'deadline_skipped', []))),
+                legalize_repaired=len(rep['repaired']),
+                deadline_skipped=rep.get('deadline_skipped', []))
+            print(f"  DEADLINE: legalize stopped with "
+                  f"{len(rep.get('deadline_skipped', []))} violator(s) "
+                  f"untried. The output path was NOT written; the partial "
+                  f"board is at:\n    {staged}\n  It carries the assign/"
+                  f"exchange result plus {len(rep['repaired'])} legalize "
+                  f"seat(s). Copy it with copy_board.py if you want it.",
+                  file=sys.stderr)
+            krt_deadline.emit(report, deadline=_dl)
+            return krt_deadline.DEADLINE_EXIT
 
     _promote_staged(staged, args.output_file)
 
@@ -504,7 +606,7 @@ Examples:
         print("  (off-board residue that no cap could repair: if it is a "
               "by-design overhang -- a card edge, a switch actuator -- "
               "declare it in an intent's edge_connectors; it is then exempt)")
-    print("JSON_SUMMARY: " + json.dumps(report, sort_keys=True))
+    krt_deadline.emit(report, deadline=_dl)
     # Exit 4 = residual PAD/HOLE conflicts or a blocking BODY pair -- the
     # defect classes this tool exists to remove. Off-board residue is
     # reported (and by-design overhang is indistinguishable from defect

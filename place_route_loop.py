@@ -152,6 +152,23 @@ def run_route(pcb_file: str, routed_file: str, route_args: str, log_file: str,
     if summary is None:
         raise RuntimeError(f"route.py produced no JSON_SUMMARY (see {log_file})"
                            f"\n" + _log_tail(log))
+    # A PARTIAL run is exactly as fatal as no summary, and this check is what
+    # keeps the deadline work from making things worse. Before deadlines
+    # existed, a killed step produced no summary at all and the raise above
+    # caught it. A `complete: false` summary PARSES -- so without this, the
+    # loop would consume an unfinished run's numbers as if they were a whole
+    # board's, which is a quieter and worse failure than the one it replaced.
+    # `.get('complete', True)` so pre-change logs are unaffected.
+    if not summary.get('complete', True):
+        raise RuntimeError(
+            f"route.py produced a PARTIAL JSON_SUMMARY "
+            f"(status={summary.get('status')!r}, "
+            f"stopped_in={summary.get('stopped_in')!r}, "
+            f"elapsed={summary.get('elapsed_s')}s of "
+            f"{summary.get('deadline_s')}s) -- the run stopped on its own "
+            f"deadline and its tallies are not a whole-board result. Raise "
+            f"--deadline, or drop it, and re-run.\nsee {log_file}\n"
+            + _log_tail(log))
 
     return metrics_from_summary(summary, log, extra_targets)
 

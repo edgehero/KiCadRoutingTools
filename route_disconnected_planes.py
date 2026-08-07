@@ -2261,6 +2261,20 @@ def route_planes(
 
         def _gate_oracle_query():
             import tempfile
+            # A cancelled run does not get to spend another 300s here. Both
+            # branches below shell out -- exact_unconnected via pcbnew's
+            # ZONE_FILLER (EXACT_FILL_TIMEOUT 300s) and the kicad-cli fallback
+            # via ORACLE_DRC_TIMEOUT (240s) -- and neither honours cancel_check,
+            # because neither existed as a cancellation point. Measured: a
+            # repair that cancelled cleanly at 45s then sat in a KiCad
+            # exact_fill child until the EXTERNAL timeout killed it at 200s,
+            # which handed back exactly the race the budget just won. The gate
+            # is a verification pass, not a correctness one; skipping it leaves
+            # the partial board written and gated by everything upstream.
+            if cancel_check is not None and cancel_check():
+                print("  guaranteed-join gate: SKIPPED (cancelled; the gate "
+                      "oracle shells out and would overrun the budget)")
+                return None
             try:
                 _tmp = tempfile.NamedTemporaryFile(
                     suffix='.kicad_pcb', delete=False)
@@ -3337,6 +3351,26 @@ Examples:
     from fix_kicad_drc_settings import add_drc_fix_args
     add_drc_fix_args(parser)
 
+    parser.add_argument("--deadline", type=float, default=None,
+                        metavar="SECONDS",
+                        help="Wall-clock budget for the REPAIR LOOPS. Not a "
+                             "hard cap on total runtime: the cancel is "
+                             "cooperative, and the bounded tail (fills, write, "
+                             "cleanup) still runs, so expect to overshoot -- "
+                             "measured 109s on a 45s budget. What it "
+                             "guarantees is TERMINATION on the tool's own "
+                             "terms: without it this tool ran 40 min "
+                             "(--rip-blocker-nets) and 25 min (plain) on a "
+                             "217-part board and never wrote a board at all "
+                             "(run 9). With it: cancels at the loop heads, "
+                             "writes the partial board, exits 7, and marks the "
+                             "summary complete:false. Set it well BELOW any "
+                             "external timeout. A reserve band is held back so "
+                             "the ripped-net reconnect still runs -- without "
+                             "it, ripped nets ship stripped and the board is "
+                             "WORSE than its input. Default: no budget. "
+                             "Env: KRT_DEADLINE_S")
+
     from fab_tiers import (add_fab_tier_args, fab_tier_from_args, set_default_fab_tier,
                            enforce_fab_floors, count_copper_layers_in_file)
     add_fab_tier_args(parser)
@@ -3458,7 +3492,31 @@ Examples:
         print(f"Per-net layer restrictions for {len(_net_layers)} net(s) "
               f"from {args.net_layers}")
 
+    # The deadline is ONE CLOSURE handed to plumbing this engine already has:
+    # `cancel_check` is a first-class parameter honoured at every loop head and
+    # forwarded into each inner batch_route, and on cancel the write branch
+    # still runs -- so a cancelled run yields a real, gated, strictly-better
+    # board. It was None on the CLI path only because this call never passed
+    # one. `progress_callback` is the same story: ~9 call sites, all dark on the
+    # CLI because it was built for the GUI.
+    #
+    # RESERVE BAND, and this one is a correctness hazard rather than a nicety:
+    # the end-of-run rip-casualty reconnect issues its OWN batch_route with the
+    # same cancel_check. If the budget were already spent, that reconnect would
+    # do nothing and every net ripped earlier would ship stripped -- a partial
+    # board WORSE than its input. So the repair loops trip early, at
+    # deadline - reserve, leaving clock for the reconnect.
+    import krt_deadline
+    _rdp_report = {'tool': 'route_disconnected_planes'}
+    _dl = krt_deadline.arm(args.deadline, tool='route_disconnected_planes',
+                           on_partial=lambda: _rdp_report)
+    _reserve = max(30.0, (args.deadline or 0) * 0.2) if _dl else 0.0
+
     _rdp_result = route_planes(
+        cancel_check=(_dl.cancel_check('plane repair', reserve=_reserve)
+                      if _dl else None),
+        progress_callback=(krt_deadline.stdout_progress(deadline=_dl)
+                           if _dl else None),
         input_file=args.input_file,
         output_file=args.output_file,
         corridor_nets=args.corridor_nets,
@@ -3523,7 +3581,21 @@ Examples:
     # KiCad's REAL fill produces can survive every model-based pass (castor
     # +3.3VA bare island, lumenpnp U5 pocket). Ask kicad-cli for the exact
     # missing links on the processed nets and route precisely those.
-    if not args.dry_run and not args.no_kicad_recheck and args.output_file:
+    # A deadline hit skips it. The recheck shells out to kicad-cli, which
+    # carries its own 240s ORACLE_DRC_TIMEOUT and can itself refill the board
+    # (300s EXACT_FILL_TIMEOUT) -- so running it after the budget is already
+    # spent hands the race straight back to the external timeout we just won.
+    # Measured: a cancelled repair reached "Plane repair cancelled" in ~45s and
+    # then sat for minutes inside a KiCad exact_fill child. The partial board is
+    # already written and already gated; the recheck is an improvement pass, not
+    # a correctness one, and its absence is disclosed in the summary.
+    _deadline_hit = bool(_dl and _dl.expired())
+    if _deadline_hit:
+        _rdp_report['oracle_recheck'] = 'skipped: deadline'
+        print("  KiCad-oracle recheck: SKIPPED (deadline reached; the pass "
+              "shells out to kicad-cli and would overrun the budget)")
+    if (not args.dry_run and not args.no_kicad_recheck and args.output_file
+            and not _deadline_hit):
         from kicad_oracle import oracle_reconnect
         from routing_config import GridRouteConfig
         # #338: the oracle pass runs on OUTPUT_FILE, whose sibling .kicad_pro
@@ -3611,6 +3683,30 @@ Examples:
     # A10: nets this step ripped and could neither reconnect nor restore. They
     # ship OPEN, so they belong in the summary by name and in the exit code.
     _summary["ripped_still_open"] = list(LAST_RIPPED_STILL_OPEN)
+    # A cancelled run must not exit 0. It wrote a real, gated board -- unlike
+    # place_reconstruct, this tool's cancel path writes, because a partial plane
+    # repair is strictly-better copper rather than a half-legalized placement --
+    # but it did not finish, and a caller reading exit 0 would treat a partial
+    # as complete. `complete` is the machine gate; `status` says why.
+    if _dl is not None and _dl.expired():
+        _summary["complete"] = False
+        _summary["status"] = "deadline"
+        _summary["deadline_s"] = _dl.seconds
+        _summary["elapsed_s"] = round(_dl.elapsed(), 1)
+        _summary["stopped_in"] = _dl.stopped_in
+        _rdp_report.update(_summary)
+        krt_deadline.emit(_summary, complete=False, status='deadline',
+                          deadline=_dl)
+        print(f"{RED}DEADLINE: this run stopped on its own budget after "
+              f"{_dl.elapsed():.0f}s of {_dl.seconds:g}s. The board at "
+              f"{args.output_file} is a PARTIAL repair -- real copper, fully "
+              f"gated, but the sweep did not finish. Do not read it as "
+              f"clean.{RESET}")
+        if LAST_RIPPED_STILL_OPEN:
+            print(f"{RED}  ...and {len(LAST_RIPPED_STILL_OPEN)} ripped net(s) "
+                  f"ship OPEN: {', '.join(LAST_RIPPED_STILL_OPEN)}{RESET}")
+        return krt_deadline.DEADLINE_EXIT
+    _summary.setdefault("complete", True)
     print("JSON_SUMMARY: " + _json.dumps(_summary))
 
     if LAST_RIPPED_STILL_OPEN:
@@ -3627,4 +3723,12 @@ Examples:
 if __name__ == "__main__":
     from console_encoding import enable_utf8_console
     enable_utf8_console()  # cp1252-safe non-ASCII prints (issue #152)
+    # CMD/EXIT self-echo (run-3 B1). This file was a deliberate non-adopter
+    # while it had no way to stop itself: its long silent phases ended in an
+    # external kill, and `atexit` does not run on one, so the banner would have
+    # promised an EXIT= line that never arrived. With --deadline the tool exits
+    # on its own terms, so the line is now truthful -- and this is the script
+    # whose exit code was hardest to tell from the shell's.
+    import cli_banner
+    cli_banner.install()
     sys.exit(main())
