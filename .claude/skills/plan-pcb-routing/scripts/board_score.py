@@ -224,6 +224,50 @@ def score_connectivity(root: str, board: str) -> dict:
             'poured_nets': sorted(poured), 'broken_detail': detail}
 
 
+def unrouted_shape(board: str, unrouted_names) -> dict:
+    """Which unrouted nets are PLACEMENT-blocked, and which are merely open.
+
+    `unrouted` is one bucket holding two different failure shapes, and the
+    router's own filter already separates them for free. A net with fewer than
+    2 ON-BOARD pads is refused outright by `net_queries.filter_routable_nets`
+    with a boxed warning -- no router setting will ever route it, so retrying it
+    in the router is exactly the mistake the placement+routing skill's
+    non-negotiable 2 exists to prevent. Measured on run 10: 13 of 57 `unrouted`
+    nets were this shape, and the loop spent a routing pass plus a plane-repair
+    pass discovering it.
+
+    This does NOT change `count`, and that is the property the change must not
+    break. The 13 are real, current damage -- they are just damage a router
+    cannot take a lever to. Fixing it in `check_connected.py` instead would
+    move `blocking` in every ledger already recorded, and would be wrong on the
+    merits: an off-board pad IS a defect, so 57 is the honest total. What was
+    missing is the SHAPE, not the number.
+    """
+    from kicad_parser import parse_kicad_pcb
+    from check_drc import make_off_board_test
+    from net_queries import routable_pad_count
+    try:
+        pcb = parse_kicad_pcb(board)
+        off = make_off_board_test(pcb.board_info)
+    except Exception as exc:                                   # noqa: BLE001
+        return {'error': f'{type(exc).__name__}: {exc}'}
+    by_name = {n.name: nid for nid, n in pcb.nets.items() if n.name}
+    blocked, open_nets, refs = {}, [], set()
+    for name in unrouted_names or ():
+        nid = by_name.get(name)
+        pads = getattr(pcb, 'pads_by_net', {}).get(nid, ()) if nid else ()
+        if nid is not None and routable_pad_count(pcb, nid, off) < 2 <= len(pads):
+            bad = sorted({p.component_ref for p in pads
+                          if off(p.global_x, p.global_y)})
+            blocked[name] = bad
+            refs.update(bad)
+        else:
+            open_nets.append(name)
+    return {'placement_blocked': blocked,
+            'placement_blocked_refs': sorted(refs),
+            'open': sorted(open_nets)}
+
+
 def score_assembly(root: str, board: str, intent: str, tmp: str) -> dict:
     """Blocking BODY pairs (run-6): two footprints' pad copper in the same
     space -- physically unbuildable, invisible to every copper checker (the
@@ -614,8 +658,12 @@ def main():
     # Both connectivity components carry their work list, not just their count --
     # see score_connectivity. `unrouted` needs names; `broken` needs names, piece
     # counts and the stranded pads, or 9.1a's lever 2 has nothing to act on.
+    # ...and `unrouted` carries its SHAPE. `count` is deliberately untouched, so
+    # `blocking` below is unchanged by construction.
+    shape = unrouted_shape(args.board, conn.get('unrouted_net_names', []))
     parts = {'unrouted': {'ran': conn['ran'], 'count': conn.get('unrouted'),
-                          'nets': conn.get('unrouted_net_names', [])},
+                          'nets': conn.get('unrouted_net_names', []),
+                          **shape},
              'broken': {'ran': conn['ran'], 'count': conn.get('broken'),
                         'poured_nets': conn.get('poured_nets', []),
                         'nets': conn.get('broken_detail', {})},
@@ -670,6 +718,18 @@ def main():
     _adv_bits = ' '.join(f'{k}={v}' for k, v in score['advisory'].items() if v)
     if _adv_bits:
         print(f"ADVISORY (floor-governed, not blocking): {_adv_bits}")
+    # WHICH LEVER. `unrouted` looks the same whether the router had a path and
+    # missed it (parameter-shaped) or the net has fewer than 2 pads ON the
+    # board (placement-shaped, and no router setting will ever fix it). The
+    # router's own filter already knows; nothing surfaced it, so run 10 spent a
+    # routing pass and a plane-repair pass finding out.
+    _pb = (score['components']['unrouted'].get('placement_blocked') or {})
+    if _pb:
+        print(f"PLACEMENT-BLOCKED: {len(_pb)} of "
+              f"{score['blocking_by']['unrouted']} unrouted net(s) have <2 "
+              f"ON-BOARD pads and CANNOT be routed at this placement -- "
+              f"bring these parts back on the board first: "
+              f"{' '.join(score['components']['unrouted']['placement_blocked_refs'])}")
     if score['ungraded']:
         # Loud, because this is the difference between "clean" and "unexamined".
         print(f"UNGRADED (not scored, not passed): {', '.join(score['ungraded'])}")

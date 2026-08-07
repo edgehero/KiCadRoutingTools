@@ -251,6 +251,18 @@ Next: python3 -X utf8 {sys.argv[0]} --stage L2 --board <placed board> \\
 
 def l2(a):
     """Freeze what placement decided, then route."""
+    _res = getattr(a, 'accept_residue', None)
+    if _res is not None:
+        _bad = [n for n in _res if n not in L2_CHECKS]
+        if not _res or _bad:
+            return err(
+                f'--accept-residue now names WHICH check you are accepting. '
+                f'Valid: {" ".join(L2_CHECKS)}.'
+                + (f' Unknown: {" ".join(_bad)}.' if _bad else
+                   ' A bare --accept-residue waived all of them at once, which '
+                   'is how a spurious `blocking` refusal also waived the '
+                   '`oob_pad_count` gate (run 10, 21 parts with pad copper off '
+                   'the board).'))
     rep, e = _load(a.placement_report, 'The placement close-out (--placement-report)')
     if e:
         return err(
@@ -280,6 +292,43 @@ def l2(a):
                 f'the board you are actually routing:\n'
                 f'  python3 -X utf8 check_assembly.py {a.board} --json '
                 f'wk/assembly_close.json')
+
+    # SHAPE, BEFORE CONTENT. `blocking` exists in BOTH check_assembly's report
+    # and board_score's, with completely different meanings -- a
+    # pad-intersection-PAIR count vs a six-component TOTAL over unrouted +
+    # broken + drc + undersized + floorplan + assembly -- while
+    # buildable/verdict/locked_contacts/oob_pad_count exist only in
+    # check_assembly's. Measured on run 10: handing board_score's JSON here
+    # silently disabled three of the four checks below (their keys are simply
+    # absent, and `None is False` is False) and fired the fourth with
+    # `blocking = 57` -- 100% unrouted, 0% assembly -- under a message blaming
+    # "a blocking assembly pair". Nothing about that JSON looks malformed,
+    # which is why a key-presence check is the only thing that catches it.
+    #
+    # NOT waivable by --accept-residue: a residue is a measured defect somebody
+    # accepted, and this is the wrong instrument's output. There is nothing to
+    # accept.
+    _missing = [k for k in L2_CHECKS if k not in rep]
+    if _missing:
+        _hint = ''
+        if rep.get('kind') == 'board-score' or 'blocking_by' in rep:
+            _hint = (
+                "\n\nThis looks like `board_score.py`'s JSON, not "
+                "`check_assembly.py`'s. They share the field name `blocking` "
+                "and mean different things by it: board_score's is a total "
+                "over unrouted + broken + drc + undersized + floorplan + "
+                "assembly, check_assembly's is a count of pad-intersection "
+                "PAIRS. board_score grades the ROUTE; this gate grades the "
+                "PLACEMENT.")
+        return err(
+            f'The placement close-out is not shaped like a `check_assembly.py` '
+            f'report: it is missing {", ".join(_missing)}.\n\nThis gate reads '
+            f'exactly four measurements -- {", ".join(L2_CHECKS)} -- and a '
+            f'document missing any of them cannot answer the questions the '
+            f'gate asks. A missing key is not a passing one; the checks that '
+            f'read it would simply not run.{_hint}\n\nProduce the right '
+            f'document:\n  python3 -X utf8 check_assembly.py '
+            f'{a.board or "<board>"} --json wk/assembly_close.json')
 
     def _count(key):
         """(value, refusal). Anything that is not a finite, non-negative real
@@ -319,18 +368,18 @@ def l2(a):
     _verdict = rep.get('verdict')
     if (_buildable is False or (isinstance(_verdict, str)
                                 and 'NOT BUILDABLE' in _verdict.upper())) \
-            and not a.accept_residue:
+            and not _accept(a, 'buildable'):
         return err(
             f'The placement close-out says the board is NOT BUILDABLE '
             f'(buildable={_buildable!r}, verdict={_verdict!r}).\n\nThis gate '
             f'used to read only `blocking` and `oob_pad_count`, so a board its '
             f'own instrument calls unbuildable walked through. Go back to the '
-            f'placement half, or re-run with --accept-residue if this is a '
+            f'placement half, or re-run with --accept-residue buildable if this is a '
             f'measured, named, accepted residue.')
     _lc, _lcerr = _count('locked_contacts')
     if _lcerr:
         return err(_lcerr)
-    if _lc and _lc > 0 and not a.accept_residue:
+    if _lc and _lc > 0 and not _accept(a, 'locked_contacts'):
         return err(
             f'The placement close-out reports locked_contacts = {_lc}: copper '
             f'or a part is in contact with a KiCad-LOCKED part.\n\nA locked '
@@ -352,13 +401,13 @@ def l2(a):
             'wk/assembly_close.json\n\nAn EMPTY or unrelated JSON satisfies a '
             'file-exists check and tells you nothing; that is the failure this '
             'refusal exists to stop.')
-    if blocking > 0 and not a.accept_residue:
+    if blocking > 0 and not _accept(a, 'blocking'):
         return err(
             f'The placement close-out reports blocking = {blocking}. A board '
             f'that reaches routing with a blocking assembly pair will fail '
             f'routing for a reason routing cannot fix, and the retries spent '
             f'there are wasted.\n\nGo back to the placement half, or re-run '
-            f'this stage with --accept-residue if that residue is measured '
+            f'this stage with --accept-residue blocking if that residue is measured '
             f'unfixable and NAMED in the close-out -- which is a decision you '
             f'are recording, not a flag that makes it go away.')
     # blocking == 0 is not the same as routable. A part whose pads lie off the
@@ -370,7 +419,7 @@ def l2(a):
     oob, _ooberr = _count('oob_pad_count')
     if _ooberr:
         return err(_ooberr)
-    if oob and oob > 0 and not a.accept_residue:
+    if oob and oob > 0 and not _accept(a, 'oob_pad_count'):
         return err(
             f'The placement close-out reports blocking = 0, but '
             f'oob_pad_count = {oob}: {oob} part(s) carry pad copper OFF the '
@@ -382,7 +431,7 @@ def l2(a):
             f'-- a card edge, a switch actuator, a castellated module -- '
             f'declare it in the floorplan intent (edge_connectors), which '
             f'exempts it and makes the exemption reviewable, and then re-run '
-            f'with --accept-residue.')
+            f'with --accept-residue oob_pad_count.')
     delegate, why = _delegation(a, half='routing')
     freeze = '''FREEZE first. Lock the refs whose poses are decisions -- mechanically fixed
 parts, anything a spec pins, anything the placement half moved deliberately. A
@@ -913,6 +962,26 @@ Answer with a line beginning VERDICT= and nothing above it.
 </stage_instructions>'''
 
 
+#: The four measurements L2 reads out of the placement close-out. It is also
+#: the SHAPE TEST -- these four exist in `check_assembly.py`'s JSON and in no
+#: other report this chain produces -- and the vocabulary of --accept-residue.
+L2_CHECKS = ('buildable', 'verdict', 'locked_contacts', 'blocking',
+             'oob_pad_count')
+
+
+def _accept(a, check: str) -> bool:
+    """Is THIS check's residue accepted?
+
+    One blanket flag used to waive all four at once, so clearing a SPURIOUS
+    `blocking` refusal -- one raised by the wrong document being handed in --
+    silently also waived the `oob_pad_count` gate, which on that board was the
+    only load-bearing check of the four (21 parts with pad copper off the
+    board). A bare --accept-residue is refused upstream; only named checks
+    waive anything."""
+    names = getattr(a, 'accept_residue', None)
+    return bool(names) and check in names
+
+
 STAGES = {'L1': l1, 'L2': l2, 'L3': l3, 'L4': l4, 'L5': l5}
 TITLES = {'L1': 'place (inline or delegated)',
           'L2': 'freeze what placement decided, then route',
@@ -958,9 +1027,15 @@ def _args(argv=None):
                     help='hand a half to a TEAMMATE (not a plain subagent -- '
                          'each half spawns its own verifiers). A context '
                          'decision, not a correctness one')
-    ap.add_argument('--accept-residue', action='store_true',
+    ap.add_argument('--accept-residue', nargs='*', metavar='CHECK',
+                    default=None,
                     help='proceed to routing with a NAMED, measured-unfixable '
-                         'placement residue')
+                         'placement residue -- naming WHICH check you are '
+                         'accepting: ' + ' '.join(L2_CHECKS) + '. One blanket '
+                         'flag used to waive all of them at once, so clearing '
+                         'a spurious `blocking` refusal silently also waived '
+                         'the `oob_pad_count` gate that was the load-bearing '
+                         'one (run 10). A bare --accept-residue is refused.')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
     ap.add_argument('--self-test', action='store_true')
@@ -1091,13 +1166,21 @@ def _self_test():
          'a re-entry refuses without a measured shape')
 
     with tempfile.TemporaryDirectory() as tmp:
+        # Every L2 fixture now carries the FOUR keys the gate reads, because a
+        # document missing any of them is refused on SHAPE before any of its
+        # content is looked at (see L2_CHECKS). That refusal is the change
+        # detector: run 10 fed this gate `board_score`'s JSON, which shares the
+        # field name `blocking` and means a six-component total by it, and
+        # three of the four checks silently did not run.
+        _asm = {'buildable': True, 'verdict': 'buildable (blocking 0)',
+                'locked_contacts': 0, 'oob_pad_count': 0}
         p = os.path.join(tmp, 'p.json')
-        json.dump({'blocking': 3}, open(p, 'w', encoding='utf-8'))
+        json.dump({**_asm, 'blocking': 3}, open(p, 'w', encoding='utf-8'))
         out = STAGES['L2'](_args(base + ['--placement-report', p]))
         want(out.startswith('<error>') and 'blocking = 3' in out,
              'routing refuses a placement that still has blocking pairs')
         out = STAGES['L2'](_args(base + ['--placement-report', p,
-                                         '--accept-residue']))
+                                         '--accept-residue', 'blocking']))
         want(out.startswith('<stage_instructions'),
              '...and proceeds when the residue is explicitly accepted')
 
@@ -1105,7 +1188,7 @@ def _self_test():
         # nothing is out there to collide with, and unroutable for the same
         # reason. Caught by running the real loop on a damaged board.
         oob = os.path.join(tmp, 'oob.json')
-        json.dump({'blocking': 0, 'oob_pad_count': 4},
+        json.dump({**_asm, 'blocking': 0, 'oob_pad_count': 4},
                   open(oob, 'w', encoding='utf-8'))
         out = STAGES['L2'](_args(base + ['--placement-report', oob]))
         want(out.startswith('<error>') and 'oob_pad_count = 4' in out,
@@ -1113,9 +1196,43 @@ def _self_test():
         want('edge_connectors' in out,
              '...and names how a BY-DESIGN overhang is declared instead')
         out = STAGES['L2'](_args(base + ['--placement-report', oob,
-                                         '--accept-residue']))
+                                         '--accept-residue', 'oob_pad_count']))
         want(out.startswith('<stage_instructions'),
              '...and still proceeds when that is explicitly accepted')
+
+        # THE COMPOUNDING HAZARD the per-check flag exists to remove: accepting
+        # one check must not waive another. This exact pair is what happened --
+        # a `blocking` refusal was cleared with a blanket flag, and the
+        # oob_pad_count gate went with it.
+        out = STAGES['L2'](_args(base + ['--placement-report', oob,
+                                         '--accept-residue', 'blocking']))
+        want(out.startswith('<error>') and 'oob_pad_count = 4' in out,
+             'accepting `blocking` does NOT waive the oob_pad_count gate')
+        out = STAGES['L2'](_args(base + ['--placement-report', oob,
+                                         '--accept-residue']))
+        want(out.startswith('<error>') and 'names WHICH check' in out,
+             'a BARE --accept-residue is refused, not a blanket waiver')
+        out = STAGES['L2'](_args(base + ['--placement-report', oob,
+                                         '--accept-residue', 'nonsense']))
+        want(out.startswith('<error>') and 'Unknown: nonsense' in out,
+             'an unknown check name is refused by name')
+
+        # SHAPE: board_score's JSON is not check_assembly's, and sharing the
+        # field name `blocking` is precisely why this must be a key-presence
+        # test rather than a value test.
+        bs = os.path.join(tmp, 'bs.json')
+        json.dump({'kind': 'board-score', 'blocking': 57,
+                   'blocking_by': {'unrouted': 57}, 'advisory': {}},
+                  open(bs, 'w', encoding='utf-8'))
+        out = STAGES['L2'](_args(base + ['--placement-report', bs]))
+        want(out.startswith('<error>') and 'board_score' in out,
+             'L2 refuses board_score\'s JSON BY SHAPE and names it')
+        want('blocking = 57' not in out,
+             '...without firing the blocking check on the wrong number')
+        out = STAGES['L2'](_args(base + ['--placement-report', bs,
+                                         '--accept-residue', 'blocking']))
+        want(out.startswith('<error>') and 'board_score' in out,
+             '...and the shape refusal is NOT waivable by --accept-residue')
 
         # A report that answers neither question is not a close-out.
         empty = os.path.join(tmp, 'empty.json')
@@ -1153,7 +1270,10 @@ def _self_test():
     import tempfile as _tf
     with _tf.TemporaryDirectory() as _t:
         rep = os.path.join(_t, 'p.json')
-        json.dump({'blocking': 0, 'oob_pad_count': 0},
+        # All four L2_CHECKS keys: this fixture has to get PAST the shape gate
+        # to reach the delegation decision it is actually testing.
+        json.dump({'blocking': 0, 'oob_pad_count': 0, 'locked_contacts': 0,
+                   'buildable': True, 'verdict': 'buildable (blocking 0)'},
                   open(rep, 'w', encoding='utf-8'))
         # ANY board in the corpus: this asserts the RULE, not a board, and
         # naming one would pin a skill to a specific project.

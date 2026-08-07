@@ -277,6 +277,39 @@ def frozen_net_ids(pcb_data, ignore_net_ids: Sequence[int] = ()) -> List[int]:
     return sorted(out)
 
 
+def dirty_net_ids(pcb_routed, drc_json_path: str) -> List[int]:
+    """Net ids carrying a DRC violation, from `check_drc.py --json`.
+
+    The missing half of `connectivity_tally`'s contract. `dirty_nets` has never
+    once been supplied by any caller, so `PRR`/`NRR` -- the DRC-CLEAN forms,
+    which are the ones OmniRouting actually defines -- have always come back
+    `None`, and only the `_connected` forms carried a number. This is the whole
+    producer: check_drc writes `items[].net1` / `net2` as net NAMES, and the
+    parsed board maps names to ids.
+
+    Names, not ids, is deliberate on check_drc's side and is why this cannot be
+    a one-liner at the call site: an id is meaningless without the net table of
+    the exact board it came from, and a report outlives the board it graded.
+    An unresolvable name is DROPPED rather than guessed -- silently widening
+    the dirty set would depress PRR on nets that are clean.
+    """
+    import json as _json
+    try:
+        with open(drc_json_path, encoding='utf-8') as fh:
+            doc = _json.load(fh)
+    except Exception:                                          # noqa: BLE001
+        return []
+    by_name = {n.name: nid for nid, n in (pcb_routed.nets or {}).items()
+               if n.name}
+    out = set()
+    for item in (doc.get('items') or ()):
+        for key in ('net1', 'net2'):
+            nid = by_name.get(item.get(key))
+            if nid is not None:
+                out.add(nid)
+    return sorted(out)
+
+
 def connectivity_tally(pcb_routed, net_ids: Sequence[int],
                        prr_denominator: Optional[int] = None,
                        rr_denominator: Optional[int] = None,
