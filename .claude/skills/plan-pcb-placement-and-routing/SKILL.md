@@ -19,21 +19,19 @@ signals a real defect — it means parts nothing had damaged were moved.
 
 **The handoff gate that matters is off-board pad copper, not total
 `blocking`.** A part whose pad copper lies outside the outline makes its nets
-unroutable, so it converts one-for-one into `unrouted` and `broken` — run 10:
-11 such parts caused all 13 unrouted nets. Two traps at this exact boundary,
-both measured:
+unroutable, so it converts one-for-one into `unrouted` and `broken` — measured,
+run 10: 11 such parts caused all 13 unrouted nets. Total `blocking` is the
+wrong gate here in the other direction too: on a copper-free board it is
+dominated by `unrouted`, which is the routing half's own job and not a
+placement residue at all.
 
-- **`check_assembly` says `VERDICT: buildable (blocking 0)`** while echoing
-  `21 part(s) with pad copper off-board` one line above. The verdict does not
-  gate on them.
-- **Stage L2's `--placement-report` must be a `check_assembly` document.** Hand
-  it `board_score`'s instead — the two share the field name `blocking` while
-  meaning entirely different things — and three of its four checks silently
-  no-op on absent keys while the fourth fires with the wrong number under a
-  mislabelled "blocking assembly pair" message. Then `--accept-residue` waives
-  all four at once, including the `oob_pad_count` check that was the one
-  actually load-bearing. Pass the right document; reach for `--accept-residue`
-  only with the residue named.
+**Feed each gate the document it was written for**, and check that what you
+passed actually carries the keys it reads. Different tools in this chain use
+the field name `blocking` for different quantities, so a gate handed the wrong
+report can no-op on the checks whose keys are absent and still refuse on the
+one key that collides — with a message naming the wrong cause. When a
+blanket-waiver flag exists, remember it waives the checks that were working as
+well as the one that misfired.
 
 <non_negotiable>
 1. Placement runs FIRST and ONCE. Every routed board downstream of a placement

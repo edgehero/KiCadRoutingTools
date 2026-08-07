@@ -35,36 +35,24 @@ you call a success.
 ### The top-priority defect: pad copper off the outline
 
 Ahead of every clearance graze. Those nets **cannot be routed at all**, so the
-defect converts directly into `unrouted` and `broken`. Run 10: 11 such parts
-(7.08–32.50 mm out) caused ALL 13 unrouted nets and most of 37 broken ones.
+defect converts one-for-one into `unrouted` and `broken`. Measured, run 10: 11
+such parts caused ALL 13 unrouted nets and most of 37 broken ones.
 
 Read it from `render_placement --json-out`'s
-`checklist.a_off_outline.pad_copper`. **Do not gate on `check_assembly`'s
-VERDICT alone** — it returns `buildable (blocking 0)` while echoing
-`21 part(s) with pad copper off-board` on the line immediately above; the
-verdict deliberately does not consider them.
+`checklist.a_off_outline.pad_copper`. A whole-board pass/fail verdict is the
+wrong channel to learn it from — check the per-part list.
 
-### Repair tools assume the part is NEAR where it belongs
+### Scope the search to the refs the gate names
 
-That assumption is false for real damage, and it is why the structural rungs
-below can sit inert while the board stays broken. Measured on 107 parts:
+When a gate names specific parts, free exactly those and lock everything else.
+A whole-board sweep orders its violators by its own priority — usually
+worst-off-board first — and may never reach the ones blocking you. Measured:
+2 parts freed and 105 locked cleared both blocking pairs in **63 seconds**,
+where whole-board sweeps ran 10+ minutes without touching them.
 
-| tool | measured |
-|---|---|
-| `place_seed --repair` | census is **conflict pairs only** — reported `oob_pad_count_before: 23` and attempted none |
-| `place_reconstruct` legalize | one part: **2 s** at `--max-move 5` (fail-fast) vs **>8.5 min** at 40, against 21–23 violators |
-| `place_optimize` | did not finish in **10 min** at `--max-displacement 40` |
-
-**So scope the search to the refs the gate names.** Free exactly those, lock
-everything else. The sweeps order violators worst-off-board-first and may never
-reach the ones blocking you. Measured: 2 parts freed, 105 locked, both blocking
-pairs cleared in **63 seconds** — where the global sweeps ground for 10+ minutes
-without touching them.
-
-And note **only `place_reconstruct` has `--deadline`**. `place_optimize`,
-`place_seed` and `route.py` have none, and on Windows a kill leaves nothing on
-disk — so never treat a harness "completed" notification as evidence a tool
-finished; require its own `JSON_SUMMARY` or written board.
+Repair searches start from a part's CURRENT pose, which carries no information
+once it is tens of millimetres from where it belongs; cost grows sharply with
+the displacement cap. Prefer re-seating such a part over nudging it.
 
 <non_negotiable>
 1. NEVER skip the assessment. It is two commands on the copper-free board and
