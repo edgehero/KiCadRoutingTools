@@ -179,9 +179,26 @@ def main(argv=None):
         return None if frac is None else int(round(frac * n))
 
     rows[0].update(recovery=None, home=home_count(d_dmg), rms=d0,
+                   median=d_dmg.get('per_part_median'),
+                   collateral=d_dmg.get('collateral_pad_rms'),
                    displacement=d_dmg)
     rows[1].update(recovery=R.recovery_fraction(d0, d1),
-                   home=home_count(d_res), rms=d1, displacement=d_res)
+                   home=home_count(d_res), rms=d1,
+                   median=d_res.get('per_part_median'),
+                   collateral=d_res.get('collateral_pad_rms'),
+                   displacement=d_res)
+    # `collateral_pad_rms` -- how far the run moved parts it was NOT asked to
+    # move -- has been computed since this module existed and READ BY NOTHING:
+    # it was serialised into REPORT.json and never looked at again. Run 9 took
+    # it from 0.000 to 1.171mm, i.e. it displaced undamaged parts, and no gate
+    # or report mentioned it. A recovery run that damages what it did not
+    # perturb is a specific, detectable failure and it belongs in the table.
+    _coll = d_res.get('collateral_pad_rms') or 0.0
+    if _coll > 0.5:
+        print(f"\n!! COLLATERAL DAMAGE: this run moved parts OUTSIDE the "
+              f"perturbed block by {_coll:.3f}mm RMS (the damaged input's "
+              f"figure was {d_dmg.get('collateral_pad_rms', 0.0):.3f}). "
+              f"Parts nobody asked it to touch have been displaced.\n")
     if human:
         human.update(recovery=None, home=n, rms=0.0)
 

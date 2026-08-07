@@ -278,6 +278,30 @@ def cmd_where(a):
 
 def cmd_record(a):
     from board_store import BoardStore, Ledger
+    # --score-file: the payload as a PATH, not as argv.
+    #
+    # `--score` is JSON text, and every caller passes `--score "$(cat ...)"`.
+    # board_score payloads run 24-49 kB (they repeat every net name in both
+    # `unrouted.nets` and `connectivity_nets`, and carry the whole assembly
+    # `pairs` array), so past roughly 32 kB of total argv the SHELL fails with
+    # `Argument list too long` and exits 126 -- before `record` ever execs.
+    # Nothing is written, and because the 126 belongs to the shell rather than
+    # to this tool, a caller who does not re-count the ledger rows sees no
+    # error at all. Run 9 lost a lap that way and found it only by chance.
+    #
+    # `verdict --score` was already a path (it is open()ed), so this makes the
+    # two subcommands agree rather than inventing a convention.
+    if getattr(a, 'score_file', None):
+        if a.score:
+            print("record: pass --score OR --score-file, not both.",
+                  file=sys.stderr)
+            return 2
+        try:
+            with open(a.score_file, encoding='utf-8') as _sf:
+                a.score = _sf.read()
+        except OSError as _e:
+            print(f"record: --score-file unreadable: {_e}", file=sys.stderr)
+            return 2
     # Refuse an --argv that can never replay (run-7 F4: entries recorded with
     # placeholder script names made replay a reconstruction, which is exactly
     # what the ledger exists to prevent). Nothing is written on refusal.
@@ -348,7 +372,25 @@ def cmd_record(a):
     #     not change a board, so an entry whose argv is a checker records no
     #     lever at all -- the board moved for a reason the ledger did not keep.
     if a.argv:
-        _exe = os.path.basename(str(a.argv[0])).lower()
+        # Skip past the interpreter to the SCRIPT. This guard inspected
+        # argv[0], which is `python3` for every invocation the doctrine
+        # teaches (`python3 -X utf8 <script> ...`) -- so it had never fired
+        # once, on any entry, in any run. The same blindness applies to the
+        # replay guard above, which was validating that an interpreter exists
+        # rather than that a command can replay.
+        _toks = [str(t) for t in a.argv]
+        _script = ''
+        for _t in _toks:
+            _base = os.path.basename(_t).lower()
+            if _base.endswith('.py'):
+                _script = _base
+                break
+            if _base.startswith('python') or _t.startswith('-') or \
+                    _base in ('utf8', 'timeout', 'env', 'nice'):
+                continue
+            _script = _base
+            break
+        _exe = _script or os.path.basename(_toks[0]).lower()
         if _exe.endswith('.py'):
             _exe = _exe[:-3]
         _stem = _exe.split()[0]
@@ -376,7 +418,20 @@ def cmd_record(a):
              'result_sha': sha, 'lever': a.lever,
              'lever_argv': list(a.argv) if a.argv else None,
              'score': json.loads(a.score) if a.score else None,
+             'renders': list(a.render_json) if a.render_json else None,
              'accepted': not a.rejected}
+    # A placement lap moved parts. The skill mandates the move be LOOKED AT,
+    # and run 9 skipped that for an entire campaign without anything noticing
+    # -- including afterwards, because the record kept no trace either way. A
+    # warning, not a refusal: a rejected lap or a no-move gate row legitimately
+    # has nothing to show. But silence must stop being indistinguishable from
+    # compliance.
+    if a.kind == 'placement' and not a.render_json and not a.rejected:
+        print("record NOTE: this placement lap records no --render-json. The "
+              "read mandates are only auditable through the ledger; without "
+              "one, a skipped read and an absent trigger look identical later. "
+              "Attach the render you read, or say in --lever why there was "
+              "no trigger.", file=sys.stderr)
     if a.final:
         entry['final'] = True
         entry['stop_condition'] = a.stop_condition
@@ -463,9 +518,21 @@ def _score_key(score):
         return None
     b = score.get('blocking')
     q = score.get('quality') or {}
-    quality = (q.get('vias'), q.get('copper_mm'), q.get('segments'))
+    # A quality tuple carrying None (board_score.quality returns {'error': ...}
+    # when the board will not parse) makes min() raise TypeError the moment two
+    # rows tie on `blocking`. Untested until now because the self-tests use a
+    # uniform empty quality. Sort unknowns LAST rather than crashing.
+    quality = tuple(v if isinstance(v, (int, float)) else float('inf')
+                    for v in (q.get('vias'), q.get('copper_mm'),
+                              q.get('segments')))
     if b is None:
-        return (float('inf'), quality)
+        # NOT `inf`. A row whose score never measured `blocking` used to rank
+        # as the worst possible board, and `inf >= inf` then made the plateau
+        # test TRUE -- so an unmeasured lap read as a plateaued one, which is
+        # the opposite of what it is. Returning None drops it from the window
+        # entirely (the callers already filter None), so a half is judged on
+        # laps that actually measured something.
+        return None
     return (b, quality)
 
 
@@ -482,8 +549,23 @@ def _half_is_flat(rows, half, flat):
     keys = [k for k in keys if k is not None]
     if len(keys) <= flat:
         return False, len(keys)          # not enough laps to call it a plateau
-    best_before = min(keys[:-flat])
-    return min(keys[-flat:]) >= best_before, len(keys)
+    # Did this half improve ACROSS ITS OWN last `flat` laps?
+    #
+    # `best_before = min(keys[:-flat])` asked a different question: has the
+    # window beaten the best lap EVER seen before it. One large early
+    # improvement then pins the bar for the rest of the run. Measured on run 9:
+    # the pour took the routing half to 297 on its first lap, and the series
+    # [297, 371, 365, 340, 330, 320] -- a necessary rise at the fanout, then
+    # five laps of strict improvement -- reported flat:true, because 320 never
+    # beat 297. A half that is demonstrably still moving read as plateaued,
+    # which is exactly the DONE-vs-STUCK confusion this function exists to
+    # prevent.
+    #
+    # (Replacing it with `keys[-flat-1]` does NOT fix that case -- on a
+    # 6-lap ledger that IS the 297. The baseline has to be the window's own
+    # first lap.)
+    window = keys[-flat:]
+    return min(window) >= window[0], len(keys)
 
 
 def cmd_verdict(a):
@@ -640,6 +722,19 @@ def build_parser():
                    default='completion')
     r.add_argument('--lever', default=None)
     r.add_argument('--score', default=None, help='JSON')
+    r.add_argument('--score-file', default=None, metavar='PATH',
+                   help='the score payload as a FILE. Prefer this: '
+                        '--score "$(cat ...)" exceeds the OS argv limit at '
+                        '~32kB and the shell then exits 126 BEFORE record '
+                        'runs, so the lap is lost with no error. Mutually '
+                        'exclusive with --score.')
+    r.add_argument('--render-json', action='append', default=None,
+                   metavar='PATH',
+                   help='render_placement --json-out document(s) that were '
+                        'READ for this lap; repeatable. Stored as '
+                        'entry["renders"]. The [read: ...] convention lived in '
+                        'free-text --lever, so an audit could not tell a '
+                        'skipped mandate from an absent trigger.')
     r.add_argument('--rejected', action='store_true')
     r.add_argument('--final', action='store_true',
                    help='mark the run-closing record; requires --stop-condition')

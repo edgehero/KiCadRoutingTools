@@ -148,7 +148,33 @@ def displacement_to_original(poses_now: Dict[str, Pose],
     out_set = [v for r, v in per_part.items() if r not in members]
     home = [r for r in members
             if per_part.get(r, float('inf')) <= HOME_TOLERANCE_MM]
+    # A SINGLE threshold saturates and then carries no signal. Run 9 measured
+    # `parts_home_frac` = 0.0 for the damaged board AND for the recovered one,
+    # while `recovery` moved +0.045 -- so the headline metric could not
+    # distinguish "moved nothing" from "moved 80 parts most of the way", which
+    # is the distinction the experiment exists to make. The curve is pure
+    # derivation from `per_part`, which is already computed above.
+    _in = sorted(in_set)
+    def _frac(t):
+        return round(sum(1 for v in _in if v <= t) / len(_in), 6) if _in else None
+    # The ladder runs well past HOME_TOLERANCE_MM on purpose. Measured on run 9:
+    # a ladder stopping at 20mm was ALSO all-zero on both boards, because the
+    # median displacement was 28.6mm -- i.e. a curve can saturate exactly like
+    # the single threshold it replaces, just more verbosely. `per_part_median`
+    # below is the scalar that cannot saturate, and it is the one that showed
+    # the movement there (28.580 -> 27.277mm). Keep the ladder FIXED rather than
+    # deriving it per board: an adaptive ladder is not comparable between two
+    # boards, which is the whole point of reporting it.
+    home_curve = {t: _frac(t) for t in (0.5, 1.0, HOME_TOLERANCE_MM,
+                                        5.0, 10.0, 20.0, 50.0, 100.0)}
+    if _in:
+        _m = len(_in) // 2
+        median = round(_in[_m] if len(_in) % 2 else (_in[_m - 1] + _in[_m]) / 2.0, 6)
+    else:
+        median = None
     return {
+        'home_curve': home_curve,
+        'per_part_median': median,
         'perturbed_pad_rms': round(_rms(in_set), 6),
         'perturbed_pad_max': round(max(in_set), 6) if in_set else 0.0,
         'perturbed_centre_rms': round(_rms([centre[r] for r in members

@@ -485,6 +485,45 @@ def score_net_widths(board: str, spec_file: str) -> dict:
     return {'ran': True, 'count': failures, 'nets': detail,
             'patterns_matching_no_routed_net': unmatched}
 
+def _floors(board: str, sizes: dict) -> dict:
+    """The size floors this score was graded against, and where each came from.
+
+    Only `components.drc.graded_at` survived before -- and that is scraped from
+    check_drc's stdout, not computed -- so `min_track_width`,
+    `min_via_diameter`, `min_via_drill` and `min_via_annular_width` appeared in
+    no score payload at any row. Two consequences, both measured on run 9:
+
+      * an A/B across runs is incomparable on four of five floors, and nothing
+        says so; and
+      * the DRC writeback lowers a project's own floors to whatever was routed
+        (run 9: track 0.2->0.1, via 0.5->0.25, annular 0.1->0.05, clearance
+        0.2->0.09, and only ONE of the four steps that did it printed a
+        warning), so a later score grades against a rule the run itself moved
+        and reads clean. `check_complete --authored-from` catches that, but the
+        score should carry the evidence rather than requiring a second tool.
+
+    `requested` is what the caller passed; `board` is what the project declares
+    now. They differ exactly when a spec floor is tighter than the board's own.
+    """
+    out = {'requested': {k.lstrip('-').replace('-', '_'): v
+                         for k, v in (sizes or {}).items() if v is not None}}
+    try:
+        import list_nets
+        dr = list_nets.read_design_rules(board)
+        con = (dr or {}).get('constraints') or {}
+        out['board'] = {k: con.get(k) for k in (
+            'min_clearance', 'min_track_width', 'min_via_diameter',
+            'min_via_annular_width', 'min_hole_to_hole',
+            'min_through_hole_diameter', 'min_copper_edge_clearance')}
+        cls = ((dr or {}).get('classes') or {}).get('Default') or {}
+        out['default_netclass'] = {k: cls.get(k) for k in
+                                   ('clearance', 'track_width',
+                                    'via_diameter', 'via_drill')}
+    except Exception as exc:                                    # noqa: BLE001
+        out['error'] = f'{type(exc).__name__}: {exc}'
+    return out
+
+
 def quality(board: str) -> dict:
     """Tie-breakers, compared ONLY once blocking == 0. Never a blocker itself:
     a board is not worse for having more copper if the alternative is a
@@ -615,6 +654,7 @@ def main():
              'ungraded': sorted(k for k, v in parts.items() if v.get('ran') is False),
              'unknown': sorted(unknown), 'quality': quality(args.board),
              'components': {**parts, **advisory},
+             'floors': _floors(args.board, sizes),
              'connectivity_nets': conn.get('nets', [])}
 
     if args.json:
