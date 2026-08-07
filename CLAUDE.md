@@ -142,6 +142,88 @@ Validate routed boards against the *real* spec, with the right checker — most
   both; `--net-clearances <json>` gives explicit per-net control). Grade multi-class
   boards at the netclasses that survived (`kicad_drc_compare._staged_copy`).
 
+## What a placement run is FOR (read before grading one)
+
+**The objective is a board that ROUTES: parts arranged so they work together,
+and zero `unrouted` and zero `broken` nets at the end. It is NOT restoring
+parts to the poses they had before.**
+
+This is stated here because the perturbed-corpus rig (#411) grades on
+`recovery` and `home /N`, which measure **distance to the original pose** —
+and those are the wrong headline for this goal. A placement that is
+electrically excellent but arranged differently scores ~0 recovery. Measured,
+run 10: `recovery` **−0.0014** and `home` **0/30** on a run that took
+copper-free DRC 9 → 0, assembly blocking 4 → 0, and `check_assembly` from NOT
+BUILDABLE to **buildable**. The headline said failure about a board that had
+become strictly more buildable.
+
+So, when grading a placement:
+
+- **Lead with the routed outcome** — `board_score`'s `blocking`
+  (`unrouted + broken` first, then the rest), with `quality` (vias,
+  copper_mm, segments) as the tie-break once `blocking` is 0.
+- **Keep `recovery` as a DIAGNOSTIC, never the score.** It is how you catch a
+  run that wandered — `collateral_pad_rms` rising (run 10: 0.000 → 3.670 mm)
+  means parts nothing had damaged were moved, which is a real defect. But a
+  negative recovery on a board that got more buildable is not a failure of
+  the run.
+- **The human original is a BENCHMARK TO APPROACH, not a pose to match**
+  (its vias / copper_mm / segments), because a human layout is one solution,
+  not the only one.
+
+**A part whose pad copper lies outside the outline is the top-priority
+placement defect**, ahead of every clearance graze: its nets cannot be routed
+at all, so it converts directly into `unrouted` and `broken`. Run 10: 11 such
+parts (7.08–32.50 mm out) produced ALL 13 unrouted nets and most of the 37
+broken ones. Read it off `render_placement --json-out`'s
+`checklist.a_off_outline.pad_copper`, and note that `check_assembly` will
+still say `VERDICT: buildable (blocking 0)` with 21 off-board pad entries
+echoed one line above — that verdict does not gate on them.
+
+### Repair tools assume the part is NEAR where it belongs — and that is false for real damage
+
+Every repair path searches outward from the part's CURRENT pose, which carries
+no information when the part is tens of millimetres away. Measured on a
+107-part board:
+
+| tool | model | measured |
+|---|---|---|
+| `place_seed --repair` | "seated nearest its current pose, escalating cap" | census is **conflict pairs only** — printed `oob_pad_count_before: 23` and attempted none of them |
+| `place_reconstruct` legalize | cap ladder 0.5/1.0/2.0/5.0, `--max-move` extends | one part: **2 s** at cap 5 (fail-fast) vs **>8.5 min** at cap 40, against 21–23 violators |
+| `place_optimize` | local quench | did not finish in **10 min** at `--max-displacement 40` |
+
+Two consequences that are cheap to act on:
+
+- **Scope the search to the refs the gate names.** When a gate names specific
+  parts, free exactly those and lock everything else. The general sweeps order
+  violators worst-off-board-first and may never reach the ones actually
+  blocking you. Measured: freeing 2 parts and locking the other 105 cleared
+  both blocking pairs in **63 seconds**, where the global sweeps ground for
+  10+ minutes without touching them.
+- **`place_optimize`, `place_seed` and `route.py` have NO `--deadline`;** only
+  `place_reconstruct` does. On Windows a kill is `TerminateProcess`, which no
+  handler can catch, so a timed-out run leaves **nothing on disk**. Budget
+  accordingly, and never accept a harness "completed" notification as evidence
+  a tool finished — require its own `JSON_SUMMARY` or written board.
+
+### `zero_net` means UNWIRED, not pin-count-zero (#411 / run 10)
+
+`placement/reconstruct.py::classify` frames a part when no pad sits on a net
+touching any other part **and** its pads are drilled — not when
+`pin_count == 0`. The old test assumed a net-less mounting hole is also
+PAD-less: true for a bare NPTH, false for every `MountingHole_*_Pad*`
+footprint, whose plated pad KiCad gives a real non-zero net id under an
+`unconnected-(REF-PadN)` placeholder NAME (`quench` builds `pads_local` with
+`net_id > 0`). On a board using those, `zero_net` came out EMPTY, which
+silently disabled `fit_corner_insets` — the one rung that can carry a part an
+arbitrary distance home — and left the holes in `smalls`, free for a search to
+move a mounting hole. The drilled conjunct is load-bearing: without it the
+rule frames the sole part of a single-part fixture board.
+
+`lock_advisor.py` still states the old assumption in its docstring and has the
+same coverage gap: its structural rule is NPTH-only, so a plated mounting hole
+is caught only by the weak lexical name-match.
+
 ## Stress testing & A/B replay
 
 Every recorded stress run leaves a `redo_commands.sh` manifest that replays the

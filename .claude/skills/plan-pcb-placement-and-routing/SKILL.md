@@ -9,6 +9,32 @@ Use this when a single run must do both. It does not restate either half: it
 sequences `/plan-pcb-placement` and `/plan-pcb-routing` and owns the four rules
 that only exist when they meet.
 
+**The goal of the whole run is a board that ROUTES — parts arranged so they
+work together, ending at zero `unrouted` and zero `broken`.** On the perturbed
+corpus, `recovery` and `home /N` measure distance to the ORIGINAL pose and are
+diagnostics, not the score; a run can post a negative recovery while taking the
+board from NOT BUILDABLE to buildable (measured, run 10). Lead every report
+with `blocking`, and use `collateral_pad_rms` as the one recovery figure that
+signals a real defect — it means parts nothing had damaged were moved.
+
+**The handoff gate that matters is off-board pad copper, not total
+`blocking`.** A part whose pad copper lies outside the outline makes its nets
+unroutable, so it converts one-for-one into `unrouted` and `broken` — run 10:
+11 such parts caused all 13 unrouted nets. Two traps at this exact boundary,
+both measured:
+
+- **`check_assembly` says `VERDICT: buildable (blocking 0)`** while echoing
+  `21 part(s) with pad copper off-board` one line above. The verdict does not
+  gate on them.
+- **Stage L2's `--placement-report` must be a `check_assembly` document.** Hand
+  it `board_score`'s instead — the two share the field name `blocking` while
+  meaning entirely different things — and three of its four checks silently
+  no-op on absent keys while the fourth fires with the wrong number under a
+  mislabelled "blocking assembly pair" message. Then `--accept-residue` waives
+  all four at once, including the `oob_pad_count` check that was the one
+  actually load-bearing. Pass the right document; reach for `--accept-residue`
+  only with the residue named.
+
 <non_negotiable>
 1. Placement runs FIRST and ONCE. Every routed board downstream of a placement
    change is stale -- re-run the chain from the placed board, never patch

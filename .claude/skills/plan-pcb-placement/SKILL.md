@@ -14,6 +14,58 @@ placement at all, fixing it when it is wrong, and proving the fix.
 `/plan-pcb-placement-and-routing`, which sequences the two and owns the rules
 that only exist when they meet.
 
+## What you are optimising FOR
+
+**A board that ROUTES: parts arranged so they work together, ending at zero
+`unrouted` and zero `broken`.** Not parts returned to the poses they used to
+have. On a repair or reconstruction job this distinction decides which result
+you call a success.
+
+- **Lead with the routed outcome.** `board_score`'s `blocking` —
+  `unrouted + broken` first — then `quality` as the tie-break once it is 0.
+- On the perturbed corpus, **`recovery` and `home /N` are DIAGNOSTICS, not the
+  score.** They measure distance to the original pose. Measured (run 10):
+  `recovery` −0.0014, `home` 0/30, on a run that took copper-free DRC 9 → 0,
+  assembly blocking 4 → 0, and the board from NOT BUILDABLE to **buildable**.
+  The one recovery figure that IS a defect signal is `collateral_pad_rms`
+  rising — that means parts nothing had damaged were moved.
+- A human original is a **benchmark to approach** (its vias / copper / segment
+  counts), not a pose to match.
+
+### The top-priority defect: pad copper off the outline
+
+Ahead of every clearance graze. Those nets **cannot be routed at all**, so the
+defect converts directly into `unrouted` and `broken`. Run 10: 11 such parts
+(7.08–32.50 mm out) caused ALL 13 unrouted nets and most of 37 broken ones.
+
+Read it from `render_placement --json-out`'s
+`checklist.a_off_outline.pad_copper`. **Do not gate on `check_assembly`'s
+VERDICT alone** — it returns `buildable (blocking 0)` while echoing
+`21 part(s) with pad copper off-board` on the line immediately above; the
+verdict deliberately does not consider them.
+
+### Repair tools assume the part is NEAR where it belongs
+
+That assumption is false for real damage, and it is why the structural rungs
+below can sit inert while the board stays broken. Measured on 107 parts:
+
+| tool | measured |
+|---|---|
+| `place_seed --repair` | census is **conflict pairs only** — reported `oob_pad_count_before: 23` and attempted none |
+| `place_reconstruct` legalize | one part: **2 s** at `--max-move 5` (fail-fast) vs **>8.5 min** at 40, against 21–23 violators |
+| `place_optimize` | did not finish in **10 min** at `--max-displacement 40` |
+
+**So scope the search to the refs the gate names.** Free exactly those, lock
+everything else. The sweeps order violators worst-off-board-first and may never
+reach the ones blocking you. Measured: 2 parts freed, 105 locked, both blocking
+pairs cleared in **63 seconds** — where the global sweeps ground for 10+ minutes
+without touching them.
+
+And note **only `place_reconstruct` has `--deadline`**. `place_optimize`,
+`place_seed` and `route.py` have none, and on Windows a kill leaves nothing on
+disk — so never treat a harness "completed" notification as evidence a tool
+finished; require its own `JSON_SUMMARY` or written board.
+
 <non_negotiable>
 1. NEVER skip the assessment. It is two commands on the copper-free board and
    it decides everything below. Skipping it is how a board with parts stacked
