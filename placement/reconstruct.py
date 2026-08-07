@@ -254,8 +254,50 @@ def classify(state, intent=None, anchor_extent='auto') -> Tiers:
         refs_all = sorted(state.parts)
         for pat in intent.must_lock:
             t.locked |= set(_fn.filter(refs_all, pat))
+    # UNWIRED, not pin-count-zero (run-10 A1). The frame tier means "this
+    # part's position is not a netlist question". `pin_count == 0` reads that
+    # off the pad count, which assumes a net-less mounting hole is also
+    # PAD-less -- true for a bare NPTH, false for every `MountingHole_*_Pad*`
+    # footprint, whose plated pad KiCad gives a real, non-zero net id under an
+    # `unconnected-(REF-PadN)` placeholder NAME. `quench` builds `pads_local`
+    # with `net_id > 0`, so such a hole counts a pin and misses this tier.
+    #
+    # Measured on the run-10 subject, whose 9 mounting holes are all of that
+    # kind: `zero_net` came out EMPTY, and two things followed silently.
+    # `fit_corner_insets` scans `zero_net | locked`, so it saw only the 2
+    # holes the FILE happened to lock, found no group of >=2 in distinct
+    # corners, and returned {} -- disabling the hole-pattern fit, the one rung
+    # that can carry a part an arbitrary distance home. `rigid_vectors` is
+    # pattern-gated, so it then had nothing either, and the whole structural
+    # ladder was inert while `legalize` (capped at --max-move) was left to do
+    # the work alone. The other 7 holes also landed in `smalls`, i.e. free for
+    # a search to move a mounting hole.
+    #
+    # Ask the netlist instead: a pad whose net touches no OTHER part is not a
+    # connection -- which is the same >=2-parts rule the routable denominator
+    # uses. Strictly wider than the old test (a part with no pads has no nets,
+    # so `all(...)` is vacuously true) and it frames only parts nothing wires:
+    # on the subject board exactly the 9 holes plus 6 `Z*` mechanical parts,
+    # and none of the 11 parts the damage displaced.
+    _net_parts: Dict[int, set] = {}
+    for _r, _p in state.parts.items():
+        for _nid in (getattr(_p, 'nets', ()) or ()):
+            _net_parts.setdefault(_nid, set()).add(_r)
+    #
+    # AND DRILLED, when it has pads at all (run-10 W17). "Nothing wires it" is
+    # necessary and not sufficient: on a single-part fixture board the sole
+    # part's net-neighbourhood is trivially solo, so the unwired test alone
+    # framed the one part the board exists to place -- measured on three
+    # in-repo QFN fanout fixtures. A part carrying pads earns the frame only
+    # if those pads are DRILLED, which is what separates a plated mounting
+    # hole from an unwired SMD part, and is the same `has_tht` filter
+    # `fit_corner_insets` applies to whatever this tier hands it. A part with
+    # no pads at all keeps the old unconditional pass.
     t.zero_net = {r for r, p in state.parts.items()
-                  if p.pin_count == 0 and r not in t.locked}
+                  if r not in t.locked
+                  and all(len(_net_parts.get(nid, ())) < 2
+                          for nid in (getattr(p, 'nets', ()) or ()))
+                  and (p.pin_count == 0 or getattr(p, 'has_tht', False))}
     free = [r for r in state.parts if r not in t.locked | t.zero_net]
     exts = sorted(part_extent_mm(state, r) for r in free)
     if anchor_extent == 'auto':
