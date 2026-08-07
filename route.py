@@ -913,6 +913,22 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                         if net.name in _scope_names}
                        | {nid for _name, nid in net_ids})
     if not net_ids:
+        # The caller named nets and NOT ONE of them exists on this board. That
+        # is an input error, not a no-op: the old soft return wrote an
+        # unchanged passthrough copy and reported rc 0, so a net list whose
+        # names all missed (run 11: a CRLF file gave every one of 88 names a
+        # trailing \r) looked exactly like "nothing left to do". Raise, so the
+        # CLI exits non-zero and the GUI surfaces a real error, instead of both
+        # of them reporting success over an untouched board.
+        if net_names:
+            from routing_exceptions import NetNotFoundError
+            raise NetNotFoundError(
+                list(net_names),
+                f"None of the {len(net_names)} requested net name(s) exist on "
+                f"this board -- nothing was routed and no copper was written. "
+                f"Check for stray whitespace (a CRLF net list gives every name "
+                f"a trailing carriage return) or a stale net list. "
+                f"First few: {', '.join(repr(n) for n in list(net_names)[:5])}")
         print("No valid nets to route!")
         if return_results:
             return 0, 0, 0.0, _empty_results_data()
@@ -3703,10 +3719,15 @@ For differential pair routing, use route_diff.py:
               "--list-groups to see what exists.", file=sys.stderr)
         sys.exit(2)
 
-    # Combine positional net_patterns and --nets argument
+    # Combine positional net_patterns and --nets argument.
+    # Strip surrounding whitespace, as route_diff.py already does: a net list
+    # read from a CRLF file hands every name a trailing '\r', which matches
+    # nothing and (before the guard in batch_route) reported success over an
+    # untouched board. Names are never meaningfully whitespace-padded.
     all_patterns = list(args.net_patterns) if args.net_patterns else []
     if args.nets:
         all_patterns.extend(args.nets)
+    all_patterns = [p.strip() for p in all_patterns if p.strip()]
 
     # --force-reroute rips every selected net; without an explicit scope the
     # default-'*' below would silently select the WHOLE BOARD for rip+reroute.
@@ -3800,6 +3821,22 @@ For differential pair routing, use route_diff.py:
     if not net_names:
         print("No nets matched the given patterns!")
         sys.exit(1)
+
+    # ...and the case that guard cannot see: net_names is NON-empty but every
+    # entry is a literal that matched nothing. expand_net_patterns deliberately
+    # passes an unmatched literal through (callers may name nets a board does
+    # not carry), so the list is full of names that will all fail to resolve.
+    # batch_route then found zero net_ids, wrote an unchanged passthrough copy
+    # and returned rc 0 -- indistinguishable from "nothing left to do". Run 11
+    # lost a lap to it: a CRLF net list gave all 88 names a trailing '\r'.
+    # batch_route now raises for the GUI's benefit; the CLI refuses here so the
+    # exit code is a clean 2 rather than a traceback.
+    if not resolve_net_ids(pcb_data, net_names):
+        print(f"route.py: error: none of the {len(net_names)} requested net "
+              f"name(s) exist on this board -- nothing would be routed. Check "
+              f"for stray whitespace or a stale net list. First few: "
+              f"{', '.join(repr(n) for n in net_names[:5])}", file=sys.stderr)
+        sys.exit(2)
 
     # --undo: strip the scoped nets' copper instead of routing them.
     if args.undo:

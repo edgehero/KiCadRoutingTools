@@ -202,11 +202,12 @@ def legality_findings(model) -> Dict[str, object]:
 
     Channels are labelled because run 3 lost time to an UNLABELLED
     two-channel disagreement: `oob_refs_pad_copper` measures each part's PAD
-    extent against the board bbox (what the dashed-red overlay draws);
-    `oob_refs_courtyard` measures the courtyard rect against the outline
+    extent against the board OUTLINE (what the dashed-red overlay draws);
+    `oob_refs_courtyard` measures the courtyard rect against the same outline
     gate (what `oob_count` in the metrics counts). They legitimately differ
     -- an NPTH mounting hole has no pad copper, a courtyard overhang may
-    carry no copper.
+    carry no copper -- but they differ only in WHICH RECT they measure. Both
+    fall back to the bounding box only when the model carries no outline.
     """
     cached = getattr(model, '_legality_findings', None)
     if cached is not None:
@@ -220,6 +221,39 @@ def legality_findings(model) -> Dict[str, object]:
     ctx = getattr(state, 'legality_ctx', None) if state is not None else None
     if ctx is not None:
         b = state.board
+        # Measure the pad extent against the REAL outline, not the bounding
+        # box. The board is not its bounding box: on a board with an inner
+        # cutout (the run-11 smartknob has 1 ring + 5 cutouts) a part sitting
+        # dead-centre in the hole scored oob = 0, so this channel -- which the
+        # placement skill calls the top-priority placement gate, because
+        # off-outline pad copper converts one-for-one into unrouted nets --
+        # was structurally blind exactly where it mattered. The courtyard
+        # channel 25 lines below has always used the outline gate; the two are
+        # meant to differ in WHICH RECT they measure (pad extent vs courtyard),
+        # not in which board. Bounding box stays as the fallback for a model
+        # with no outline.
+        # ZERO margin, deliberately. state.edge_gate carries the board-edge
+        # CLEARANCE margin, so reusing it would report every part merely inside
+        # the edge band as off-outline -- on run 11's board that turned 8 real
+        # breaches into 21 findings, and this channel gates the placement->
+        # routing hand-off. The question here is only "is pad copper outside
+        # the outline", which is the margin-0 form. The ring geometry is
+        # already computed, so this is a shallow copy, not a re-parse.
+        _pad_gate = None
+        if not getattr(model, 'no_outline', False):
+            _src = getattr(state, 'edge_gate', None)
+            _pad_gate = getattr(state, '_pad_edge_gate_m0', None)
+            if _pad_gate is None and _src is not None:
+                import copy as _copy
+                _pad_gate = _copy.copy(_src)
+                _pad_gate.margin = 0.0
+                if getattr(_pad_gate, 'bounds', None) is not None:
+                    _pad_gate.usable = tuple(_pad_gate.bounds)
+                _pad_gate._near = {}
+                try:
+                    state._pad_edge_gate_m0 = _pad_gate
+                except Exception:
+                    pass
         for ref in sorted(ctx.parts):
             p = state.parts.get(ref)
             if p is None:
@@ -227,8 +261,24 @@ def legality_findings(model) -> Dict[str, object]:
             ext = ctx.parts[ref].extent(p.x, p.y, p.rot)
             if ext is None:
                 continue
-            oob = (max(0.0, b[0] - ext[0]) + max(0.0, ext[2] - b[2])
-                   + max(0.0, b[1] - ext[1]) + max(0.0, ext[3] - b[3]))
+            oob = None
+            if _pad_gate is not None:
+                try:
+                    # Per PAD rect, not the part's whole axis-aligned extent.
+                    # That extent is an AABB over every pad, so a part rotated
+                    # off-axis near an edge (run 11's J1 sits at 45 deg) has
+                    # AABB corners well outside its real copper and reported a
+                    # breach no pad actually makes. This channel gates the
+                    # hand-off to routing, so a false positive here costs a
+                    # refusal on a healthy board.
+                    _rects = ctx.parts[ref].pad_rects(p.x, p.y, p.rot)
+                    oob = max((_pad_gate.rect_outside_amount(r[:4])
+                               for r in _rects), default=0.0)
+                except Exception:
+                    oob = None
+            if oob is None:
+                oob = (max(0.0, b[0] - ext[0]) + max(0.0, ext[2] - b[2])
+                       + max(0.0, b[1] - ext[1]) + max(0.0, ext[3] - b[3]))
             if oob > 1e-6:
                 out['oob_refs_pad_copper'].append([ref, round(oob, 4)])
         refs = sorted(ctx.parts)

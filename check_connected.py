@@ -24,6 +24,11 @@ from net_queries import expand_pad_layers
 # tests/test_component_multipoint.py) and > ~0.02 (COINCIDENCE_TOL).
 STRICT_JOINT_OVERLAP = 0.05
 
+# Zone layers already reported as not-a-copper-layer-of-this-board.
+# check_net_connectivity runs once PER NET, so without this the same phantom
+# layer would be announced fifty-odd times on one board.
+_WARNED_PHANTOM_ZONE_LAYERS: Set[str] = set()
+
 
 def point_in_polygon(x: float, y: float, polygon: List[Tuple[float, float]]) -> bool:
     """Check if a point (x, y) is inside a polygon using ray casting algorithm.
@@ -686,9 +691,32 @@ def check_net_connectivity(net_id: int, segments: List[Segment], vias: List[Via]
             # Skip wildcards like "*.Cu" - they don't represent actual layers
             if layer.endswith('.Cu') and not layer.startswith('*'):
                 copper_layer_set.add(layer)
+    # A zone layer is cross-checked against the board's OWN copper layers, not
+    # merely tested for a '.Cu' suffix (#run11). route_planes once accepted a
+    # net:layer pair as a layer name and wrote (layer "GND:B.Cu") into the zone:
+    # KiCad refuses such a file outright, but "GND:B.Cu".endswith('.Cu') is
+    # True, so the phantom layer joined this census, expand_pad_layers spread
+    # through-hole pads onto it, and the pour was credited 70/70 when the honest
+    # figure was 69/70. Every checker downstream of this function inherited that
+    # lie. GUARD: only when the board declares copper layers -- a board whose
+    # stackup failed to parse degrades to the old behaviour rather than having
+    # every zone rejected.
+    _board_copper = set(getattr(getattr(pcb_data, 'board_info', None),
+                                'copper_layers', None) or ())
     for zone in zones:
-        if zone.layer.endswith('.Cu'):
-            copper_layer_set.add(zone.layer)
+        if not zone.layer.endswith('.Cu'):
+            continue
+        if _board_copper and zone.layer not in _board_copper:
+            if zone.layer not in _WARNED_PHANTOM_ZONE_LAYERS:
+                _WARNED_PHANTOM_ZONE_LAYERS.add(zone.layer)
+                print(f"WARNING: zone on layer '{zone.layer}', which is NOT a "
+                      f"copper layer of this board "
+                      f"({', '.join(sorted(_board_copper))}). KiCad cannot open "
+                      f"this file; its copper is NOT credited here. A net:layer "
+                      f"pair passed to route_planes --plane-layers writes exactly "
+                      f"this.")
+            continue
+        copper_layer_set.add(zone.layer)
 
     # Sort layers: F.Cu first, then In*.Cu in order, then B.Cu last
     def layer_sort_key(layer):

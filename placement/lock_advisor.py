@@ -182,8 +182,14 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
                  lock_patterns: Optional[Sequence[str]] = None,
                  min_confidence: str = 'medium',
                  edge_margin: float = 1.0,
+                 conflict_clearance: Optional[float] = None,
                  use_globs: bool = False) -> LockAdvice:
-    """Findings for every footprint, sorted (confidence, ref). Never mutates."""
+    """Findings for every footprint, sorted (confidence, ref). Never mutates.
+
+    `conflict_clearance` is the floor the pad-conflict demotion grades at.
+    None = read the board's own Default netclass (never a guessed round
+    number), else `routing_defaults.CLEARANCE`.
+    """
     from placement.legality import BoardOutlineGate, footprint_side
     from placement.placement_state import _global_rect
     from placement.legality import rotate_local_bounds
@@ -215,6 +221,49 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
             gate = BoardOutlineGate(pcb_data.board_info, 0.0)
     except Exception:
         gate = None
+
+    # A part whose pad copper INTERSECTS another part's is not lockable, at any
+    # confidence a lexical rule can supply. Freezing one side of a short does
+    # not resolve it -- it decides, silently, that the OTHER side is the one to
+    # move, and the other side may be the part that was never damaged.
+    #
+    # Measured, run 11 (smartknob): J3 shorted R20. J3 was promoted to HIGH on
+    # `near_board_edge` + a `J` prefix and locked; the repair then had no legal
+    # pose for R20 within any cap and re-seated it 11.883 mm, which was the
+    # entire collateral of that run -- and R20 had been at its correct pose all
+    # along, while J3 was a member of a 30-part block displaced 38.65 mm.
+    #
+    # (The first version of this guard keyed on "edge proximity is vacuous on
+    # an annular board". Measurement refuted it: on that very board the edge
+    # rule fires on 20 of 84 on-board parts, 24% -- discriminating, not
+    # vacuous. Participating in a short is the signal that actually separates
+    # J3 from the 16 ring members, and unlike displacement it is derivable from
+    # the board alone.)
+    # Graded at the advisor's own edge_margin-independent floor: a conflict is
+    # a shortfall against the board's clearance, so clearance 0 finds nothing
+    # (measured: 0 pairs at 0.0, 5 at 0.2 on run 11's board).
+    _cc = conflict_clearance
+    if _cc is None:
+        try:
+            from list_nets import board_default_netclass_clearance
+            _cc = board_default_netclass_clearance(pcb_file) if pcb_file else None
+        except Exception:
+            _cc = None
+    if not _cc:
+        try:
+            from routing_defaults import CLEARANCE as _DEF_CLR
+            _cc = _DEF_CLR
+        except Exception:
+            _cc = 0.25
+    _conflict_refs: set = set()
+    try:
+        from placement.legality import grade_pad_legality
+        _rep = grade_pad_legality(pcb_data, _cc, worst_n=0)
+        for _a, _b, _mm in (_rep.get('worst') or ()):
+            _conflict_refs.add(_a)
+            _conflict_refs.add(_b)
+    except Exception:
+        _conflict_refs = set()
 
     # STRUCTURE the advisor could not previously see. A part standing on a
     # fitted family orbit -- an LED ring, a fiducial circle, a bolt circle --
@@ -412,6 +461,30 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
         # of the paste-ready list -- run 3's J1 carried three lexical
         # connector signals at MEDIUM, and a medium-cutoff round trip would
         # have frozen it 15.8 mm from its true edge slot.
+        # Participates in a pad SHORT: never HIGH, whatever agreed to promote
+        # it. A lock here is not "this pose is a decision", it is "the other
+        # part is the one that moves" -- a choice the advisor has no evidence
+        # to make, and which cost run 11 its whole collateral figure.
+        # ...UNLESS the part stands on a fitted family orbit. That is
+        # independent, positive evidence the pose is right, and it is exactly
+        # what separates the two populations here: on run 11's board the
+        # conflict set is {C7, U2, D7, C18, R13, J3, R20, C20, U3}, and C7/D7
+        # are LED-ring members on complete 8-of-8 orbits whose lock is the very
+        # thing that stops a legality search dismantling the ring (run 10 flung
+        # C7 30 mm and pulled D7 out of it). Demoting them would re-enable that.
+        # J3 carries no such corroboration, so it is the one that drops.
+        if (ref in _conflict_refs and conf == 'high'
+                and 'family_orbit_seat' not in rules):
+            conf = 'medium'
+            ev['pad_conflict'] = True
+            reasons.append(
+                "[DEMOTED from HIGH: this part's pad copper conflicts with "
+                "another part's, and nothing independent corroborates this "
+                "pose. Locking one side of a conflict does not resolve it, it "
+                "silently elects the other side to move -- and that side may be "
+                "the part that was never displaced. Resolve the conflict, then "
+                "reconsider the lock.]")
+
         if pc.name == 'edge_receptacle' and plaus is False:
             conf = 'low'
             reasons.append(

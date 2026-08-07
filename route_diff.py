@@ -1319,6 +1319,16 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
         else:
             failed_diff_pairs.append(pair_name)
 
+    # A pair the audit demoted to PARTIAL was already counted in `successful`
+    # by the coupled-route loop, so the headline and the JSON key still claimed
+    # it. Take it back here, after the audit has spoken and BEFORE either the
+    # printed summary or the returned tuple reads the counter -- the GUI reads
+    # `successful` raw (differential_gui.py), so fixing only the print site
+    # would leave the GUI and JSON_SUMMARY saying different things than the
+    # member audit sitting next to them.
+    if partial_diff_pairs:
+        successful = max(0, successful - len(partial_diff_pairs))
+
     # Count total vias from results
     total_vias = sum(len(r.get('new_vias', [])) for r in results)
 

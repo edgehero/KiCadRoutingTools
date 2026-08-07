@@ -355,10 +355,22 @@ Pour on the EMPTY board, before the fanout. Nets and layers only:
 
   python3 -X utf8 route_planes.py {a.board} board_R1.kicad_pcb \\
       --nets {' '.join(f['plane_candidates']) or 'GND'} \\
-      --plane-layers <net:layer pairs from A5>
+      --plane-layers <one BARE layer name per net, in the same order>
 
 --plane-layers is REQUIRED and is not --layers: --layers is the routing layer
-set. The net list above is every plane candidate this board has; confirm each
+set. Its format is BARE LAYER NAMES positionally matched to --nets, NOT
+net:layer pairs -- A5 gives you a net -> layer MAP, and you pass only its
+right-hand column, in --nets order:
+
+  --nets GND GNDA --plane-layers B.Cu B.Cu
+
+Passing `GND:B.Cu` writes a zone on a layer that does not exist. KiCad then
+refuses the whole board ("Failed to load board") while every in-repo checker
+still reads it as fine -- run 11 lost two full routing laps to exactly this.
+route_planes now refuses it against the board's own copper layers, but the
+mistake is easier not to make.
+
+The net list above is every plane candidate this board has; confirm each
 one belongs on a plane before pouring it, and drop the ones that do not. A
 two-pad filter net whose name merely starts with GND or VCC is not a plane.
 
@@ -471,10 +483,11 @@ Now the signals exist, so stitching and return vias can adapt to them:
 
   python3 -X utf8 route_planes.py board_R5.kicad_pcb board_R6.kicad_pcb \\
       --nets {' '.join(f['plane_candidates'])} \\
-      --plane-layers <the same pairs as R1> --add-gnd-vias --stitch-vias
+      --plane-layers <the same BARE layer names as R1> --add-gnd-vias --stitch-vias
 
 Pour the SAME nets on the same layers as R1. A net poured at R1 and missing
-here keeps R1's copper and gets no stitching.
+here keeps R1's copper and gets no stitching. Same format rule as R1: bare
+layer names positionally matched to --nets, never net:layer pairs.
 
 Prefer the no-rip form first. --rip-blocker-nets leaves nets unrouted for a
 later stage to reconnect, and a rip whose restore fails ships an open net.

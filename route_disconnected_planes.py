@@ -3706,8 +3706,17 @@ Examples:
             print(f"{RED}  ...and {len(LAST_RIPPED_STILL_OPEN)} ripped net(s) "
                   f"ship OPEN: {', '.join(LAST_RIPPED_STILL_OPEN)}{RESET}")
         return krt_deadline.DEADLINE_EXIT
-    _summary.setdefault("complete", True)
-    print("JSON_SUMMARY: " + _json.dumps(_summary))
+    # Emit through krt_deadline, NOT a raw print. `_emitted` is set only inside
+    # krt_deadline.emit(), so a bare print left it False and the atexit flush
+    # then published the contentless partial report armed at --deadline time --
+    # every successful run printed a SECOND, contradicting
+    # `{"complete": false, "status": "incomplete"}` line after the real one
+    # (run 11, v6_r7: total_regions 7, complete true, then incomplete). Any
+    # consumer keying on the LAST JSON_SUMMARY read a good repair as a failed
+    # one. The deadline branch above already does this; this is the other half.
+    _rdp_report.update(_summary)
+    krt_deadline.emit(_summary, complete=_summary.get("complete", True),
+                      status=_summary.get("status", "ok"))
 
     if LAST_RIPPED_STILL_OPEN:
         print(f"{RED}RIP CASUALTIES SHIP OPEN ({len(LAST_RIPPED_STILL_OPEN)}): "

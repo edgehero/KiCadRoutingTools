@@ -3048,6 +3048,31 @@ def create_plane(
     from kicad_parser import canonicalize_pcb_data_order
     canonicalize_pcb_data_order(pcb_data)
 
+    # --plane-layers takes BARE copper layer names positionally matched to
+    # --nets, but the natural thing to type (and what the routing skill's R1
+    # stage used to instruct) is a net:layer pair. The argument is untyped
+    # `str`, so "GND:B.Cu" was accepted AS A LAYER NAME, travelled through
+    # generate_zone_sexpr, and was written verbatim as (layer "GND:B.Cu").
+    # KiCad then refuses the whole file ("Failed to load board") -- while every
+    # in-repo checker read it happily, because check_connected's copper-layer
+    # census only tested `endswith('.Cu')`. Two full routing laps of run 11
+    # were spent on boards nobody could open.
+    #
+    # Engine-side, not in main(): main() never parses the board so it cannot
+    # validate, and this way the CLI, the GUI planes tab and
+    # route_disconnected_planes all inherit the guard (same reasoning as the
+    # copper-to-edge rule below).
+    _copper = list(getattr(pcb_data.board_info, 'copper_layers', None) or ())
+    if _copper:
+        _bad = [l for l in plane_layers if l not in _copper]
+        if _bad:
+            print(f"Error: {', '.join(sorted(set(_bad)))} is not a copper layer "
+                  f"of this board ({', '.join(_copper)}). --plane-layers takes "
+                  f"BARE layer names positionally matched to --nets "
+                  f"(e.g. --nets GND GNDA --plane-layers B.Cu B.Cu), "
+                  f"not net:layer pairs.")
+            return _empty_plane_results(return_results)
+
     # Route trace (#482): plane creation builds its tap tracks/vias as dicts in
     # all_new_segments/all_new_vias (never touching pcb_data.segments), so record
     # them from those dicts at the end. Local trace, baseline = the input copper.
@@ -4681,7 +4706,10 @@ Examples:
     parser.add_argument("--nets", "-n", nargs="+", required=True,
                         help="Net name(s) for the plane(s) (e.g., GND VCC)")
     parser.add_argument("--plane-layers", "-p", nargs="+", required=True,
-                        help="Plane layer(s) for the zone(s), one per net (e.g., In1.Cu In2.Cu)")
+                        help="BARE copper layer name(s) for the zone(s), one per net, "
+                             "positionally matched to --nets (e.g., In1.Cu In2.Cu). "
+                             "NOT net:layer pairs -- 'GND:B.Cu' is not a layer name and "
+                             "is refused against the board's own copper layers.")
 
     # Via and track geometry
     parser.add_argument("--via-size", type=float, default=None, help="Via outer diameter in mm (default: the board Default net-class via, else 0.5)")
