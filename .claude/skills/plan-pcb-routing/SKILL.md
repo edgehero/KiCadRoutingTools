@@ -253,6 +253,64 @@ the ledger entry must name the panels read (see 9.4).
    `pad-conflicts` / `hole-conflict` numbers pair with what you see — the
    numbers stay the verdict.
 
+### Which of these a tool ENFORCES, and which are on you
+
+The eight above are doctrine. Only some are gated, and knowing which is the
+difference between a rule and a hope:
+
+| mandate | enforced by | what happens if you skip it |
+|---|---|---|
+| 2, 8 — after a placement move | `placement_driver` **P4** refuses without `--render-json` | `<error>`, exit 4, no instructions |
+| 1 — before writing an intent | `placement_driver` **P6** refuses | `<error>`, exit 4 |
+| the close-out | `placement_driver` **P-close** refuses | `<error>`, exit 4 |
+| recording the read | `converge record --kind placement` NOTEs when `--render-json` is absent | a warning; the row is still written |
+| 3, 4, 5, 6, 7 | **nothing** | silence |
+
+The gate checks that a render EXISTS, is of **this** board (`instrument.board`
+vs `--board`), carries a `checklist`, and agrees with `--expect-moved`. It
+**cannot** check that you looked at the pixels. That part is still yours, and
+the only trace it leaves is `--render-json` in the ledger — which is why the
+`[read: …]` convention moved from free-text into a field.
+
+### The render tells you what it sees — read that too
+
+`render_placement` prints three blocks unless `--no-describe`:
+
+- **WHAT THIS PANEL SHOWS** — every finding in words, with the consequence
+  attached (off-board pad copper: *"their nets cannot be routed at all"*; a body
+  stack: *"not a clearance graze; no router can fix one"*; a locked part:
+  *"the OTHER part must move"*).
+- **THE WORST N, framed one per crop** — ranked by severity, each with a ready
+  `--view` command. Run one. Clustering everything implicated does not work on a
+  dense board — single-linkage merges 54 parts into one board-sized "pocket" —
+  so these frame ONE finding each.
+- **DECLUTTER** — `--no-ratsnest` first, it is the biggest source of noise.
+
+**`--pair` is the one to reach for after a move.** `--before` alone overlays
+ghosts and arrows on one panel and tells you what MOVED; `--pair` renders both
+boards at identical instrument settings and diffs the findings **by name**:
+
+```
+body stacks: 55 -> 46   [9 fixed, 0 NEW, 46 kept]
+VERDICT: 29 resolved, none introduced.
+overlap mm2: 237.50 -> 239.02   (worse)
+```
+
+Names, not counts, for the same reason the ledger records failing nets by name:
+`46 -> 46` can be nine fixed and nine new somewhere else. And note the last row —
+every discrete finding improved while the aggregate got worse; a single scalar
+would have picked one and hidden the other.
+
+**`--gate` makes the checklist decide the exit code** (4 when anything is off the
+outline, overlapping, hole-conflicting, or disagreeing with `--expect-moved`).
+Default stays 0: seeing a broken board is the renderer's job.
+
+**Two things the caption cannot do for you.** On a `--view` crop the metrics are
+still WHOLE-BOARD — the strip says so, but read it as the board's totals, not the
+crop's. And there is no colour key: red rings = pad/hole conflict, solid red =
+body stack, orange = NPTH keepout, dashed red = off-board pad extent, yellow =
+move vectors, hatched = KiCad-locked.
+
 **Show without reading:** the movie, `--ratsnest-all` hairballs, full panel
 dumps. Those are for the human. Budget **≤3 images read per turn**, crops
 count as cheap — pick by the question you have, not by what is available. The
@@ -362,6 +420,79 @@ only in `check_floorplan`'s `outline` block.
   ```bash
   grep -oE '"routed_single": \[[^]]*\]|"failed_single": \[[^]]*\]|"failed_multipoint": \[[^]]*' run.log
   ```
+
+- **YOUR OWN CHECKS ARE INSTRUMENTS TOO, and they fail the same way.** Every
+  rule above is about a tool that can fail two ways and reports one. The checks
+  you write to test those tools have exactly that shape, and they are *easier*
+  to get wrong, because a check's failure path is the path nobody looks at.
+
+  Measured in a single session, all five reporting "the guard held" or "the
+  feature is absent" when neither was true:
+
+  | what I ran | what it actually did | what I concluded |
+  |---|---|---|
+  | a negative control copied to a temp dir | died on `ModuleNotFoundError`, exit 1 | "the gate refused" |
+  | a probe calling `check_connectivity(...)` | that function does not exist | "the branch never fires" |
+  | evidence passed as `<(echo '{...}')` | fd gone before a Windows child opened it | "the stage never mentions it" |
+  | an `awk` section splitter | matched the first of two `===== L5 =====` | "zero render mentions" |
+  | `--deadline 0` must yield a partial | a board with no work correctly completes | "the deadline is broken" |
+
+  Four rules, and the first one is most of it:
+
+  1. **A non-zero exit is not evidence.** Assert the REASON. `tests/run_utils.py`
+     has `check(argv, refuse='<the reason>', code=N)`, which reports an
+     `ImportError`/traceback/argparse accident as a **BROKEN TEST** rather than
+     as a satisfied guard. Use it instead of `assert r.returncode == 2`.
+  2. **Verify the input before trusting the output.** `run_utils.evidence(path)`
+     refuses a path that is not a real non-empty file. A check whose input is
+     missing tests nothing — and process substitution is not a file on Windows.
+  3. **Test both directions.** "It refuses when X" is half a test; "it accepts
+     when not-X" is the half that catches a gate wedged shut. The deadline case
+     above was a spec error, and only the accepting direction exposed it.
+  4. **When a check reports something surprising, suspect the check first.**
+     Every one of the five looked like a real finding. The tell is always the
+     same: a result that would require the code to be broken in a way you have
+     no other evidence for.
+
+- **THE SILENT-TIMEOUT FAMILY. Learn its signature, because five different
+  instruments share it and none of them says the word "timeout" where you look.**
+  A long quiet phase after a complete-looking report; an exit code belonging to
+  the **shell** rather than the tool; and staged output that leaves nothing at
+  the output path on a kill. Measured members:
+
+  | where | limit | on expiry | what you see |
+  |---|---|---|---|
+  | `place_reconstruct --stages legalize` | none | runs forever | shell `124`, no output, no `JSON_SUMMARY` |
+  | `route_disconnected_planes` (either form) | none | runs forever | the same |
+  | `EXACT_FILL_TIMEOUT` (`kicad_exact_fill.py`) | 300 s | returns `None` | ONE misattributed line |
+  | `ORACLE_DRC_TIMEOUT` (`kicad_oracle.py`) | 240 s | `None`, and **memoises the board so every later step skips the oracle too** | nothing at all |
+  | `converge record` argv | ~32 kB | never execs | shell `126`, **no ledger row** |
+
+  Three of the five degrade to a fallback with no failure signal and no effect
+  on the exit code. Two consequences you must build into how you run:
+
+  1. **Pass `--deadline` on any step with an external timeout**, set well below
+     it. It is the only mechanism that works: on Windows a harness kill is
+     `TerminateProcess`, which no handler, `atexit` or flush can catch, so the
+     tool must stop ITSELF. A log with no `DEADLINE:` line is proof no budget
+     was set. Note the cancel is cooperative — measured 109 s against a 45 s
+     budget — so it guarantees TERMINATION, not a wall-clock cap.
+  2. **Check the row count after every `converge.py record`.** The 126 is the
+     shell's, so a caller that does not re-count sees no error and the lap is
+     gone. Prefer `--score-file` over `--score "$(cat …)"`.
+
+  A `'NoneType' object has no attribute 'items'` from the plane fragility field
+  was, for a long time, the *caller's* own `AttributeError` printed where the
+  diagnosis should be — the real reason (a 300 s fill timeout) was computed and
+  discarded. If a message names a Python type error, suspect that the instrument
+  is reporting its own bug rather than the board's.
+
+- **The routable denominator is ON-BOARD pads.** `board_score` counts a net
+  routable at ≥2 pads; the router's own `net_queries.filter_routable_nets`
+  requires ≥2 pads **on the board**. Measured on one board: 147 vs 149, and the
+  two nets in the gap (2 pads, 1 on-board each) appear in `unrouted` forever
+  while no router could ever route them. Before reporting an unrouted net as a
+  routing failure, check it has two pads the router can reach.
 
   **This is a family, not a route.py quirk**: ANY truncated or piped read of
   ANY instrument — an exit code through a pipe, a `grep | tail -N` of a long
@@ -3453,6 +3584,29 @@ if `blocking` is level, because 9.1a ranks connectivity above the rest. Say so i
 the ledger with both numbers. A dead net is worse than a wide trace, and the scalar
 does not know that.
 
+**A THIRD EXCEPTION, for a MANDATORY CHAIN STEP that manufactures `broken` by
+construction.** A fanout converts nets that had NO copper into nets whose copper
+is in fragments — that is what an escape stub *is* — so it moves work from
+`unrouted` into `broken` and `blocking` rises. The step is not a candidate
+iteration to be accepted or reverted; it is a step the chain requires, and the
+pass that closes those fragments comes later. Measured on one board: the U1
+fanout took `blocking` 297 → 371 while `unrouted` fell 144 → 83 (61 nets gained
+copper) and `broken` rose 11 → 140; the bulk signal route then took `blocking`
+to 222 and `broken` to 65.
+
+Neither of the two exceptions above covers it, and reaching for them is the
+mistake: exception 1 is scoped to "`blocking` is **level**" and here it rose 74,
+and exception 2's commensurability probes (`ungraded`,
+`patterns_matching_no_routed_net`, `nets_analyzed`) are **identical** across the
+two rows, because nothing new became measurable — the same nets are graded, they
+simply moved between components. By the letter of the accept rule that lap
+should have been reverted, which would have deleted the fanout.
+
+So: **name the step as a mandatory chain step, record the component-level
+movement (not the scalar), and say which later step closes the fragments.** Do
+not dress it up as 9.1a rank — 9.1a is a LEVER-SELECTION rule, not an accept
+rule, and citing it here is a category error that reads as compliance.
+
 **A SECOND EXCEPTION, and it is the one you will get backwards: `blocking` can
 RISE because the iteration made more of the board MEASURABLE.** 9.1's rule that
 "a run reporting 12 has not found a better board, it has looked at less of it"
@@ -3519,7 +3673,7 @@ unreachable from it.
 python3 -X utf8 converge.py record --ledger wk/ledger.jsonl \
     --board wk/iter03.kicad_pcb --kind completion \
     --lever 'rip lever: --rip-existing-nets QSPI_SD2 + --grid-step 0.025' \
-    --score "$(cat wk/score_iter03.json)" \
+    --score-file wk/score_iter03.json \
     --argv python3 -X utf8 route.py wk/iter02.kicad_pcb wk/iter03.kicad_pcb --nets QSPI_SD1 ...
 
 python3 -X utf8 converge.py status --ledger wk/ledger.jsonl      # EVERY iteration

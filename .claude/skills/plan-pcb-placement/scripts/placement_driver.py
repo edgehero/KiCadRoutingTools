@@ -188,13 +188,45 @@ def p3(a):
                           f'place_optimize.py {a.board} --suggest-locks '
                           '--json wk/locks.json')
     high = _dig(locks, 'unlocked_high')
-    if isinstance(high, int) and high > 0 and not a.waive:
-        return err(
-            f'The lock advisor reports unlocked_high = {high}. Those are parts '
-            f'whose position looks load-bearing and which nothing is holding, '
-            f'so a search is free to move them.\n\nLock them, or re-run this '
-            f'stage with --waive REF:reason for each one you have decided '
-            f'about. Do not proceed by hoping the search leaves them alone.')
+    if isinstance(high, int) and high > 0:
+        # --waive was used ONLY for its truthiness: the strings were never
+        # parsed, the count was never compared to `unlocked_high` (so one
+        # `--waive X:y` unblocked a report of 300), and they were never written
+        # anywhere. P3 hard-refuses without them, so a resumed run could not
+        # re-enter this stage -- run 9's six waivers survive only because the
+        # teammate happened to re-type them into a handover message.
+        parsed, malformed = {}, []
+        for w in (a.waive or []):
+            ref, sep, reason = str(w).partition(':')
+            if not sep or not ref.strip() or not reason.strip():
+                malformed.append(w)
+            else:
+                parsed[ref.strip()] = reason.strip()
+        if malformed:
+            return err(
+                f'--waive takes REF:reason, and these do not parse: '
+                f'{", ".join(repr(m) for m in malformed)}.\n\nThe reason is the '
+                f'point -- a waiver without one is a flag that makes the gate '
+                f'go away, which is what this stage exists to prevent.')
+        if len(parsed) < high:
+            return err(
+                f'The lock advisor reports unlocked_high = {high}. Those are '
+                f'parts whose position looks load-bearing and which nothing is '
+                f'holding, so a search is free to move them.\n\nYou waived '
+                f'{len(parsed)} of {high}'
+                f'{" (" + ", ".join(sorted(parsed)) + ")" if parsed else ""}. '
+                f'Lock them, or re-run with --waive REF:reason for EACH one. '
+                f'The count used to go unchecked, so a single waiver cleared '
+                f'any number of findings.')
+        _wp = os.path.join(os.path.dirname(os.path.abspath(a.locks_json)),
+                           'waivers.json')
+        try:
+            with open(_wp, 'w', encoding='utf-8') as _wf:
+                json.dump({'board': os.path.abspath(a.board),
+                           'unlocked_high': high, 'waivers': parsed},
+                          _wf, indent=1, sort_keys=True)
+        except OSError:
+            _wp = None
     return f'''<stage_instructions stage="P3" name="reconstruct" of="7">
 The board is placed WRONG, not merely rough, so the quench is the wrong tool:
 it is a local search on a continuous lattice, and what you have is a structural
@@ -230,8 +262,24 @@ R5  Anchor the large parts, then size the gap between two anchors from the
 After ANY anchor move, re-run the escape ledger for every neighbouring
 fine-pitch part -- a widened corridor can eat another part's escape face.
 
+LOOK AT WHAT YOU MOVED. This stage moves parts, and the next one will not open
+without a render of the result -- so produce it here, and READ it. --pair diffs
+the findings BY NAME across the two boards, which is what says whether the move
+fixed anything or just swapped one conflict for another (a level count hides a
+swap):
+
+  python3 -X utf8 render_placement.py r.kicad_pcb --before {a.board} --pair \\
+      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
+      --expect-moved <the count this stage reported> \\
+      --json-out wk/render_p3.json -o wk/render_p3.png
+
+It prints WHAT THIS PANEL SHOWS (every finding in words), THE WORST N (one crop
+command each) and DECLUTTER (the flags that clear the noise). Run one of the
+crops it hands you; that is the whole point of it handing them to you.
+
 Next: python3 -X utf8 {sys.argv[0]} --stage P4 --board r.kicad_pcb \\
-          --before {a.board} --drc-json wk/drc1.json
+          --before {a.board} --drc-json wk/drc1.json \\
+          --render-json wk/render_p3.json
 </stage_instructions>'''
 
 
@@ -243,6 +291,9 @@ def p4(a):
                    'absolute threshold is what made two of them unusable.')
     if not os.path.isfile(a.before):
         return err(f'--before: no such file: {a.before}')
+    _ok, _why = _guard_render(a)
+    if not _ok:
+        return err(_why)
     return f'''<stage_instructions stage="P4" name="fix loop" of="7">
 One lap = measure, ONE targeted change, verify. Cap: 5 laps. Anything still
 broken at the cap is NAMED with its measurement, not carried silently.
@@ -298,6 +349,21 @@ back is a checkout of the parent board, siblings included, not a reconstruction:
 Two flat laps in a row means the residue is floorplan-shaped, not repairable
 here: stop and go to P5.
 
+EVERY LAP THAT MOVES A PART OWES A RENDER, and P6/P-close will not open without
+one of the board they are handed. Re-render after each accepted lap, against the
+board that lap came from:
+
+  python3 -X utf8 render_placement.py <this lap> --before <the lap before it> \\
+      --pair --clearance <floor> --ignore-nets <poured nets> \\
+      --expect-moved <what the lever said it moved> \\
+      --json-out wk/render_lapN.json -o wk/render_lapN.png
+
+Read WHAT THE MOVE DID: `N fixed, M NEW` is the lap's verdict. A lap that
+introduces findings it did not resolve is a lap to revert, and the count alone
+will not tell you -- 46 -> 46 can be nine fixed and nine new somewhere else.
+
+Record it: converge.py record ... --render-json wk/render_lapN.json
+
 Next: --stage P5 (a slate) or --stage P6 (declare and grade), then P-close.
 </stage_instructions>'''
 
@@ -326,6 +392,11 @@ Next: --stage P4 --board <adopted> --before {a.board}
 
 
 def p6(a):
+    # Mandate 1: you cannot declare zones for a board you have not looked at.
+    # An intent authored off coordinates alone is a guess with a schema.
+    _ok, _why = _guard_render(a)
+    if not _ok:
+        return err(_why)
     return f'''<stage_instructions stage="P6" name="declare the intent" of="7">
 An intent turns "it looks right" into something gradable.
 
@@ -355,6 +426,14 @@ def p_close(a):
     if not a.before:
         return err('The close-out compares against the board this run started '
                    'from: pass --before <original>.')
+    if not os.path.isfile(a.before):
+        return err(f'--before: no such file: {a.before}')
+    # The last chance to have looked at what is being handed on. Run 9's
+    # placement half closed out having read no image at all, and the omission
+    # was invisible afterwards because nothing recorded reads.
+    _ok, _why = _guard_render(a)
+    if not _ok:
+        return err(_why)
     return f'''<stage_instructions stage="P-close" name="close out" of="7">
 Prove the placement, then hand it on.
 
@@ -452,6 +531,73 @@ def _guard_damage(a):
     return True, ''
 
 
+def _guard_render(a):
+    """A stage that FOLLOWS a move refuses until the move was looked at.
+
+    Run 9 produced ZERO render_placement reads across an entire placement
+    campaign and nothing noticed -- not the driver, not the ledger, not the
+    operator. The skill mandates a read in eight cases; this file enforced none
+    of them, so the mandate was carried entirely by prose that an executor
+    skims. That is the same failure mode this whole driver exists to fix: "a
+    gate written in prose is a sentence someone skims; a gate that withholds
+    the next instructions cannot be skimmed past."
+
+    What it checks, and why each one:
+      * the document loads -- a claim is not evidence;
+      * `instrument.board` is THIS board -- render_placement records the board
+        it rendered, and without this check an earlier lap's render satisfies a
+        later stage (the same board-binding hole loop_driver.l2 has);
+      * a `checklist` block exists -- a bare `--json` render answers none of
+        mandate 8's four questions;
+      * `checklist.d_moved.match` is not False -- if the caller declared
+        --expect-moved, the render must agree with it.
+    """
+    doc, derr = _load(a.render_json, 'The placement render (--render-json)')
+    if derr:
+        return False, (
+            derr + '\n\nEvery stage that FOLLOWS a move needs one. Produce it '
+                   'against the board this one came from:\n'
+                   f'  python3 -X utf8 render_placement.py {a.board} \\\n'
+                   f'      --before <the board it was derived from> \\\n'
+                   '      --clearance <the board\'s own floor> '
+                   '--ignore-nets <the poured nets> \\\n'
+                   '      --expect-moved <how many the stage said it moved> \\\n'
+                   '      --json-out wk/render.json -o wk/render.png\n\n'
+                   'Then READ it -- the JSON is the re-measurement channel, the '
+                   'picture is what catches what no metric models.')
+    inst = doc.get('instrument') or {}
+    shown = inst.get('board')
+    if not shown:
+        return False, (
+            'That render carries no `instrument.board`, so it cannot say WHICH '
+            'board it looked at. A render that parses is not evidence that this '
+            'board was looked at. Re-render with --json-out (not bare --json).')
+    if os.path.normcase(os.path.abspath(shown)) != \
+            os.path.normcase(os.path.abspath(a.board)):
+        return False, (
+            f'That render is of a DIFFERENT board:\n'
+            f'      rendered: {shown}\n'
+            f'      staging : {os.path.abspath(a.board)}\n\n'
+            f'An earlier lap\'s render does not prove this one was looked at.')
+    chk = doc.get('checklist')
+    if not isinstance(chk, dict):
+        return False, (
+            'That render has no `checklist` block, so it answers none of the '
+            'four questions the read exists to ask: is any part off the '
+            'outline, is any part on any other part, is any part on a hole or a '
+            'locked part, and did more parts move than the step claimed.\n\n'
+            'Re-render with --json-out.')
+    d = chk.get('d_moved') or {}
+    if d.get('match') is False:
+        return False, (
+            f'The render disagrees with the move count you declared: it '
+            f'measured {d.get("moved")} moved part(s), you passed '
+            f'--expect-moved {d.get("expected")}.\n\nOne of the two is wrong, '
+            f'and "more parts moved than the step claimed" is exactly what '
+            f'mandate 8(d) exists to catch. Resolve it before continuing.')
+    return True, ''
+
+
 STAGES = {
     'P0': p0, 'P1': p1, 'P2': p2, 'P3': p3, 'P4': p4, 'P5': p5, 'P6': p6,
     'P-close': p_close,
@@ -479,6 +625,12 @@ def _args(argv=None):
     ap.add_argument('--drc-json', default=None)
     ap.add_argument('--assembly-json', default=None)
     ap.add_argument('--locks-json', default=None)
+    ap.add_argument('--render-json', default=None, metavar='PATH',
+                    help='render_placement --json-out document for THIS board. '
+                         'Required by every stage that follows a move (P4, P6, '
+                         'P-close): the read mandates were prose-only, and a '
+                         'whole campaign once ran with zero reads and nothing '
+                         'noticed.')
     ap.add_argument('--waive', action='append', default=[], metavar='REF:reason')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
@@ -503,6 +655,25 @@ def main(argv=None):
     out = STAGES[a.stage](a)
     print(out)
     return 4 if out.startswith('<error>') else 0
+
+
+def _fake_render(board):
+    """The minimum render document `_guard_render` accepts, for the fixtures.
+
+    Deliberately the REAL shape render_placement emits (`instrument.board` +
+    a `checklist` with mandate 8's keys), not a stub that happens to pass:
+    a fixture that satisfies a guard by a shape the real tool never produces
+    would let the guard drift away from its instrument unnoticed.
+    """
+    return {
+        'instrument': {'board': os.path.abspath(board)},
+        'checklist': {
+            'a_off_outline': {'pad_copper': [], 'courtyard': []},
+            'b_pad_clearance_pairs': [], 'b_body_overlap_pairs': [],
+            'c_hole_conflicts': [], 'c_locked_refs': [],
+            'd_moved': {'moved': 3, 'expected': None, 'match': None},
+        },
+    }
 
 
 def _dump_all():
@@ -534,6 +705,7 @@ def _dump_all():
             '--locks-json', wrote('l.json', {'findings': [],
                                              'lock_patterns': []}),
             '--assembly-json', wrote('as.json', {'blocking': 1}),
+            '--render-json', wrote('r.json', _fake_render(board)),
             '--waive', 'X:checked'])
         refused = []
         for key in sorted(STAGES):
@@ -595,16 +767,54 @@ def _self_test():
                                   '--locks-json', locks]))
         want(out.startswith('<error>') and 'unlocked_high' in out,
              'P3 refuses while load-bearing parts are unlocked')
+        # This used to pass ONE waiver against unlocked_high = 3 and assert the
+        # stage proceeded -- so the test's own label ("each finding") described
+        # a rule the code did not implement and the test did not check.
         out = STAGES['P3'](_args(['--board', 'b', '--drc-json', dmg,
                                   '--locks-json', locks, '--waive', 'U1:checked']))
+        want(out.startswith('<error>') and '1 of 3' in out,
+             'P3 refuses when the waivers do not cover every finding')
+        out = STAGES['P3'](_args(['--board', 'b', '--drc-json', dmg,
+                                  '--locks-json', locks,
+                                  '--waive', 'U1:checked', '--waive', 'U2:edge',
+                                  '--waive', 'U3:standoff']))
         want(out.startswith('<stage_instructions'),
              'P3 proceeds once each finding is waived in writing')
+        out = STAGES['P3'](_args(['--board', 'b', '--drc-json', dmg,
+                                  '--locks-json', locks, '--waive', 'U1',
+                                  '--waive', 'U2:e', '--waive', 'U3:s']))
+        want(out.startswith('<error>') and 'do not parse' in out,
+             'P3 refuses a waiver with no reason (REF, not REF:reason)')
 
     # Banned shapes: hedging, and a subagent prompt the model might obey itself.
-    everything = '\n'.join(
-        STAGES[k](_args(['--board', 'b', '--before', 'a', '--drc-json', 'd',
-                         '--locks-json', 'l', '--waive', 'X:y']))
-        for k in sorted(STAGES))
+    # The evidence must be REAL files: this used to pass bare names ('b', 'a',
+    # 'd'), so every stage with an existence check dumped its refusal instead of
+    # its body and the banned-shape scan ran over error text. It went unnoticed
+    # because the only assertion that depended on a body -- the subagent-prompt
+    # one -- happened to be satisfied by the one stage that had no such check.
+    with tempfile.TemporaryDirectory() as tmp2:
+        _b = os.path.join(tmp2, 'b.kicad_pcb')
+        _a = os.path.join(tmp2, 'a.kicad_pcb')
+        for _p in (_b, _a):
+            open(_p, 'w', encoding='utf-8').close()
+
+        def _w(name, doc):
+            p = os.path.join(tmp2, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        _ev = _args(['--board', _b, '--before', _a,
+                     '--drc-json', _w('d.json', {'violations': 3}),
+                     '--locks-json', _w('l.json', {'findings': []}),
+                     '--assembly-json', _w('as.json', {'blocking': 1}),
+                     '--render-json', _w('r.json', _fake_render(_b)),
+                     '--waive', 'X:y'])
+        bodies = {k: STAGES[k](_ev) for k in sorted(STAGES)}
+        everything = '\n'.join(bodies.values())
+    _refused = [k for k, v in bodies.items() if v.startswith('<error>')]
+    want(not _refused,
+         f'every stage emits its body under complete evidence '
+         f'(refused: {", ".join(_refused) or "none"})')
     for phrase in ('you may want to', 'if you are not sure', 'consider running'):
         want(phrase not in everything.lower(), f'no hedging: {phrase!r}')
     want(everything.count('<subagent_prompt') >= 1,

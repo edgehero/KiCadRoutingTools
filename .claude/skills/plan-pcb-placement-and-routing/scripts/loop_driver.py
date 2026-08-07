@@ -263,7 +263,85 @@ def l2(a):
                 '--json wk/drc0.json\n'
                 '  python3 -X utf8 check_assembly.py <board> --json '
                 'wk/assembly0.json')
-    blocking = rep.get('blocking')
+    # Bind the close-out to the board it is unlocking. check_assembly writes the
+    # graded board's path into the payload and this gate never compared it, so
+    # an EARLIER lap's close-out (or another board's entirely) unlocked routing
+    # on a board nobody graded. Cheap, and it closes a hole that is invisible
+    # afterwards because the ledger records only that the stage passed.
+    _graded = rep.get('board')
+    if _graded and a.board:
+        if os.path.normcase(os.path.abspath(_graded)) != \
+                os.path.normcase(os.path.abspath(a.board)):
+            return err(
+                f'The placement close-out grades a DIFFERENT board than the one '
+                f'being handed to routing:\n\n  close-out graded : {_graded}\n'
+                f'  handing to route: {os.path.abspath(a.board)}\n\n'
+                f'A stale close-out is not evidence about this board. Re-grade '
+                f'the board you are actually routing:\n'
+                f'  python3 -X utf8 check_assembly.py {a.board} --json '
+                f'wk/assembly_close.json')
+
+    def _count(key):
+        """(value, refusal). Anything that is not a finite, non-negative real
+        is UNMEASURED, never clean.
+
+        The guards were `isinstance(x, int) and x > 0`, which passes a
+        string "7" (fails the isinstance, so the refusal never fires), a float
+        3.0 (not an int), a NaN (`nan > 0` is False, and json round-trips a
+        bare NaN) and a negative. Every one of those reads as a clean board.
+        """
+        v = rep.get(key)
+        if v is None:
+            return None, None
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None, (
+                f'The close-out reports `{key}` as {type(v).__name__} {v!r}, '
+                f'not a number. A count that is not a number has not been '
+                f'measured, and an unmeasured count is not a passing one -- '
+                f'the old guard here accepted exactly this shape as clean. '
+                f'Re-produce the close-out with check_assembly --json.')
+        if v != v or v in (float('inf'), float('-inf')):
+            return None, (
+                f'The close-out reports `{key}` = {v!r}. NaN and infinity both '
+                f'compare False against `> 0`, so they used to read as a clean '
+                f'board. Re-produce the close-out.')
+        if v < 0:
+            return None, (
+                f'The close-out reports `{key}` = {v}, which is negative and '
+                f'therefore not a count. Re-produce the close-out.')
+        return v, None
+
+    # check_assembly always writes `buildable` and `locked_contacts`; this gate
+    # read NEITHER, so a board it calls NOT BUILDABLE passed. SKILL.md's
+    # non-negotiable 3 names all three -- a blocking pair, a locked-part
+    # contact, a rigid inconsistency -- and the driver enforced two.
+    _buildable = rep.get('buildable')
+    _verdict = rep.get('verdict')
+    if (_buildable is False or (isinstance(_verdict, str)
+                                and 'NOT BUILDABLE' in _verdict.upper())) \
+            and not a.accept_residue:
+        return err(
+            f'The placement close-out says the board is NOT BUILDABLE '
+            f'(buildable={_buildable!r}, verdict={_verdict!r}).\n\nThis gate '
+            f'used to read only `blocking` and `oob_pad_count`, so a board its '
+            f'own instrument calls unbuildable walked through. Go back to the '
+            f'placement half, or re-run with --accept-residue if this is a '
+            f'measured, named, accepted residue.')
+    _lc, _lcerr = _count('locked_contacts')
+    if _lcerr:
+        return err(_lcerr)
+    if _lc and _lc > 0 and not a.accept_residue:
+        return err(
+            f'The placement close-out reports locked_contacts = {_lc}: copper '
+            f'or a part is in contact with a KiCad-LOCKED part.\n\nA locked '
+            f'pose is a decision somebody made -- an enclosure standoff, a '
+            f'panel cut-out -- so a placement search may not settle this by '
+            f'moving the other part somewhere it likes better, and routing '
+            f'cannot settle it at all. Fix it in the placement half.')
+
+    blocking, _berr = _count('blocking')
+    if _berr:
+        return err(_berr)
     if blocking is None:
         return err(
             'The placement close-out carries no `blocking` count, so it does '
@@ -274,7 +352,7 @@ def l2(a):
             'wk/assembly_close.json\n\nAn EMPTY or unrelated JSON satisfies a '
             'file-exists check and tells you nothing; that is the failure this '
             'refusal exists to stop.')
-    if isinstance(blocking, int) and blocking > 0 and not a.accept_residue:
+    if blocking > 0 and not a.accept_residue:
         return err(
             f'The placement close-out reports blocking = {blocking}. A board '
             f'that reaches routing with a blocking assembly pair will fail '
@@ -289,8 +367,10 @@ def l2(a):
     # damaged board that passed this gate at blocking 0 with three parts
     # sitting wholly off the outline; every net on them would have failed, and
     # the loop would have spent a routing pass to discover it.
-    oob = rep.get('oob_pad_count')
-    if isinstance(oob, int) and oob > 0 and not a.accept_residue:
+    oob, _ooberr = _count('oob_pad_count')
+    if _ooberr:
+        return err(_ooberr)
+    if oob and oob > 0 and not a.accept_residue:
         return err(
             f'The placement close-out reports blocking = 0, but '
             f'oob_pad_count = {oob}: {oob} part(s) carry pad copper OFF the '
@@ -361,7 +441,22 @@ Two rules that are only true HERE, where the halves meet:
   - every routed board produced from THIS placement is valid only while this
     placement stands.
 
+TAKE THE HAND-OFF PICTURE before the first route. This is the last moment the
+board is copper-free, so it is the only render that shows the placement ALONE --
+afterwards every panel is placement plus whatever the router did, and the two
+become hard to separate by eye:
+
+  python3 -X utf8 render_placement.py {a.board} \\
+      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
+      --json-out wk/handoff.json -o wk/handoff.png
+
+Its WHAT THIS PANEL SHOWS block is what routing is being given. Anything it
+names as off the outline, stacked, or hole-conflicting will still be there after
+the route, and no router setting removes it -- so if that list is not empty,
+read this stage's refusals again before spending a routing pass on it.
+
 Next, on success: --stage L5. On a failure: --stage L3 --score <score json>
+         --render-json <a --focus render; L3 will not open without one>
 </stage_instructions>'''
     return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
 INLINE: {why}.
@@ -385,7 +480,22 @@ Two rules that are only true HERE, where the halves meet:
   - every routed board produced from THIS placement is valid only while this
     placement stands.
 
+TAKE THE HAND-OFF PICTURE before the first route. This is the last moment the
+board is copper-free, so it is the only render that shows the placement ALONE --
+afterwards every panel is placement plus whatever the router did, and the two
+become hard to separate by eye:
+
+  python3 -X utf8 render_placement.py {a.board} \\
+      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
+      --json-out wk/handoff.json -o wk/handoff.png
+
+Its WHAT THIS PANEL SHOWS block is what routing is being given. Anything it
+names as off the outline, stacked, or hole-conflicting will still be there after
+the route, and no router setting removes it -- so if that list is not empty,
+read this stage's refusals again before spending a routing pass on it.
+
 Next, on success: --stage L5. On a failure: --stage L3 --score <score json>
+         --render-json <a --focus render; L3 will not open without one>
 </stage_instructions>'''
 
 
@@ -422,7 +532,7 @@ def l3(a):
             f'  python3 -X utf8 converge.py record --ledger {a.ledger} \\\n'
             f'      --board {a.board} --kind completion \\\n'
             f'      --lever "<what you changed and why>" \\\n'
-            f'      --score "$(cat {a.score})" \\\n'
+            f'      --score-file {a.score} \\\n'
             f'      --argv <the real command, as bare tokens>')
     if blocking == 0:
         return f'''<stage_instructions stage="L3" name="classify" note="nothing to classify">
@@ -439,8 +549,35 @@ reported unexamined, never clean.
 
 Next: --stage L5 --board {a.board} --score {a.score} --ledger {a.ledger}
 </stage_instructions>'''
+    if not a.render_json:
+        return err(
+            f'blocking = {blocking}, so there IS a failure to classify -- and '
+            f'the classification is the decision this whole loop turns on. Do '
+            f'it with the picture, not from the score.\n\n'
+            f'"Do the failures share one pocket, or scatter?" is the question '
+            f'that separates placement-shaped from parameter-shaped, and it is '
+            f'ONE look. A run that skipped it spent eleven iterations on '
+            f'clearance grading while five nets sat with no copper at all; the '
+            f'panels would have shown that in seconds.\n\n'
+            f'  python3 -X utf8 render_placement.py {a.board} \\\n'
+            f'      --summary-json <the route log JSON_SUMMARY> --focus \\\n'
+            f'      --clearance <the board\'s own floor> '
+            f'--ignore-nets <the poured nets> \\\n'
+            f'      --json-out wk/focus.json -o wk/focus/\n\n'
+            f'  (no route summary to hand it? --focus now clusters the '
+            f'LEGALITY findings instead, which is the only form of the '
+            f'question a copper-free board can answer.)\n\n'
+            f'READ the panels, then re-run this stage with '
+            f'--render-json wk/focus.json.\n\n'
+            f'The render prints WHAT THIS PANEL SHOWS and THE WORST N with a '
+            f'crop command each; one pocket means a local fix, scattered means '
+            f'systemic, and that is the classification below.')
     return f'''<stage_instructions stage="L3" name="classify the failure" of="5">
 blocking = {blocking}. Name the SHAPE before choosing anything.
+
+You have the focus panels ({a.render_json}). Say in one line what they showed --
+one pocket or scattered -- and let that lead the evidence below, rather than
+being reverse-engineered to agree with it.
 
 All three shapes look identical from inside the router -- nets that did not
 route. What separates them is a measurement, and the cost of guessing is
@@ -550,7 +687,7 @@ Next: --stage L1 --board <the adopted arrangement> --ledger {a.ledger}
             '      python3 -X utf8 converge.py record --ledger '
             f'{a.ledger} \\\n'
             '          --board <the routed board> --kind completion \\\n'
-            '          --score "$(cat <the score json>)" --argv <the command>')
+            '          --score-file <the score json> --argv <the command>')
     return f'''<stage_instructions stage="L4" name="re-enter: placement" of="5">
 This is the expensive one, and the cost is the point: no router setting adds a
 lane, so every routed board produced from this placement is now stale.
@@ -571,6 +708,19 @@ Routed boards this ledger recorded, which must not be reused:
    do not carry a routed net list across: the nets are the same, the corridors
    are not.
 
+Before you restart, SEE what the re-entry changed. Otherwise the next lap begins
+on a board nobody looked at, and "the loop turned" becomes the only record that
+anything happened:
+
+  python3 -X utf8 render_placement.py <the re-placed board> \\
+      --before <the board it came from> --pair \\
+      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
+      --json-out wk/reenter.json -o wk/reenter.png
+
+Read WHAT THE MOVE DID. A re-entry that resolves nothing and introduces findings
+is a lap to revert, and `N fixed, M NEW` says which -- a level count does not.
+Attach it: converge.py record ... --render-json wk/reenter.json
+
 Next: --stage L1 --board <the re-placed board> --ledger {a.ledger}
 </stage_instructions>'''
 
@@ -579,6 +729,30 @@ def _verdict(a):
     """Ask converge for the stop verdict. Returns (name, doc, exit) or None."""
     if not a.score or not os.path.isfile(a.score):
         return None
+    # L5 interpolated `a.board` into every command it emits and NEVER checked
+    # it. A typo, or a stale path a later lap overwrote, produced a
+    # `DONE-EXHAUSTED` close-out naming a board nobody graded -- and the
+    # close-out is the run's terminal artifact. board_score already writes a
+    # `board_sha` with the same digest board_store uses, so binding them is
+    # free.
+    if a.board and not os.path.isfile(a.board):
+        return ('NO-BOARD', {'board': a.board}, 3)
+    try:
+        with open(a.score, encoding='utf-8') as _sf:
+            _payload = json.load(_sf)
+    except Exception:                                           # noqa: BLE001
+        _payload = None
+    if isinstance(_payload, dict) and a.board and os.path.isfile(a.board):
+        _psha = _payload.get('board_sha')
+        if _psha:
+            try:
+                sys.path.insert(0, ROOT)
+                from board_store import sha256_file
+                if sha256_file(a.board) != _psha:
+                    return ('SCORE-MISMATCH',
+                            {'board': a.board, 'payload_sha': _psha}, 3)
+            except Exception:                                   # noqa: BLE001
+                pass
     import subprocess
     p = subprocess.run(
         [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'converge.py'),
@@ -604,6 +778,23 @@ def l5(a):
     was finished must not look like one that stopped because it was stuck.
     """
     got = _verdict(a)
+    if got and got[0] == 'NO-BOARD':
+        return err(
+            f'L5 was asked to close out a board that does not exist:\n\n'
+            f'  {os.path.abspath(got[1]["board"])}\n\n'
+            f'This stage names the board in every command it emits and used to '
+            f'validate none of them, so a typo or a path a later lap overwrote '
+            f'produced a DONE close-out for a file nobody graded -- in the '
+            f'run\'s terminal artifact. Point --board at the board you are '
+            f'closing out.')
+    if got and got[0] == 'SCORE-MISMATCH':
+        return err(
+            f'The score was taken on a DIFFERENT board than --board names.\n\n'
+            f'  --board       : {os.path.abspath(got[1]["board"])}\n'
+            f'  score board_sha: {str(got[1]["payload_sha"])[:16]}...\n\n'
+            f'board_score embeds the sha of the board it graded precisely so '
+            f'this cannot go unnoticed. Re-score the board you are closing '
+            f'out, then come back.')
     if got is None:
         return err(
             'L5 decides whether the loop is OVER, and that is a measurement, '
@@ -672,12 +863,33 @@ without it, deliberately:
 
   python3 -X utf8 converge.py record --ledger {a.ledger} --board {a.board} \\
       --kind completion --final --stop-condition "{name}" \\
-      --score "$(cat {a.score})" --argv <the command that produced this board>
+      --score-file {a.score} --argv <the command that produced this board>
 
 Then render the run. It is the only artifact that shows HOW the board got here,
 and because both halves recorded into one ledger it is ONE film, not two:
 
   python3 -X utf8 make_film.py --from-ledger {a.ledger} -o wk/run.mp4
+
+And take the ONE still that shows whether the run made progress: the board this
+run started from against the board it is ending with, at identical instrument
+settings, diffed BY NAME.
+
+  python3 -X utf8 render_placement.py {a.board} \\
+      --before <the board this RUN started from> --pair \\
+      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
+      --json-out wk/run_pair.json -o wk/run_pair.png
+
+Its WHAT THE MOVE DID block is the run's verdict in one place -- `N fixed, M
+NEW` per finding class, plus crossings/hpwl/overlap before and after. Put those
+numbers in the report. Two reasons they are not optional:
+
+  * a level count hides a swap. "46 body stacks then 46 body stacks" can be
+    nine resolved and nine created somewhere else, and only the by-name diff
+    shows it -- the same reason the ledger records failing nets by name.
+  * the discrete findings and the aggregate can disagree. On one run every
+    finding class improved while `overlap_area` got WORSE (237.50 -> 239.02);
+    a single scalar picks one and hides the other, and a report built on the
+    flattering one is the failure this stage exists to prevent.
 
 Report, per half, the number and the instrument beside it; say how many times
 the loop turned and why each turn happened; and name anything UNEXAMINED rather
@@ -717,6 +929,12 @@ def _args(argv=None):
     ap.add_argument('--ledger', default='wk/ledger.jsonl')
     ap.add_argument('--placement-report', default=None)
     ap.add_argument('--score', default=None)
+    ap.add_argument('--render-json', default=None, metavar='PATH',
+                    help='render_placement --json-out document. L3 requires '
+                         'one when there is a failure to classify: "one pocket '
+                         'or scattered" is the question that separates '
+                         'placement-shaped from parameter-shaped, and it is a '
+                         'look, not an inference from the score.')
     ap.add_argument('--shape', default=None, choices=SHAPES)
     ap.add_argument('--budget', type=int, default=100,
                     help='ledger entries this run may write before L5 calls '
@@ -769,10 +987,25 @@ def main(argv=None):
                 with open(p, 'w', encoding='utf-8') as fh:
                     json.dump(doc, fh)
                 return p
-            loose = _args(['--board', 'b.kicad_pcb',
+            # A REAL board file, and a close-out carrying every key the L2 gate
+            # reads. Both were bare/partial before: the board did not exist (L5
+            # now validates it) and the close-out omitted `buildable` /
+            # `locked_contacts` / `board` (L2 now reads them). A dump whose
+            # fixture cannot satisfy the guards prints refusals, which is the
+            # opposite of what a dump is for.
+            _bd = os.path.join(tmp, 'b.kicad_pcb')
+            open(_bd, 'w', encoding='utf-8').close()
+            loose = _args(['--board', _bd,
                            '--score', wrote('s.json', {'blocking': 2}),
-                           '--placement-report', wrote('p.json',
-                                                       {'blocking': 0}),
+                           '--placement-report', wrote(
+                               'p.json', {'blocking': 0, 'oob_pad_count': 0,
+                                          'buildable': True,
+                                          'verdict': 'buildable (blocking 0)',
+                                          'locked_contacts': 0,
+                                          'board': _bd}),
+                           '--render-json', wrote('rj.json', {
+                               'instrument': {'board': _bd},
+                               'checklist': {'d_moved': {'match': None}}}),
                            '--shape', 'placement'])
             for k in sorted(STAGES):
                 print(f'===== {k} =====')
@@ -811,7 +1044,7 @@ def main(argv=None):
                 with open(lp, 'w', encoding='utf-8') as fh:
                     for i, r in enumerate(rows):
                         fh.write(json.dumps(dict(r, iteration=i)) + '\n')
-                v = _args(['--board', 'b.kicad_pcb', '--ledger', lp,
+                v = _args(['--board', _bd, '--ledger', lp,
                            '--budget', str(budget),
                            '--score', wrote(f's_{label}.json', sc)])
                 print(f'===== L5 ({label}) =====')
@@ -958,12 +1191,27 @@ def _self_test():
     # otherwise this scans refusals and reports the instructions are missing
     # content the refusals were never going to carry.
     with tempfile.TemporaryDirectory() as tmp:
+        # A REAL board: L5 now validates the path it interpolates into its
+        # close-out commands, and the close-out is the run's terminal artifact.
+        _bf = os.path.join(tmp, 'b.kicad_pcb')
+        open(_bf, 'w', encoding='utf-8').close()
         ok_rep = os.path.join(tmp, 'p.json')
-        json.dump({'blocking': 0}, open(ok_rep, 'w', encoding='utf-8'))
+        # The close-out must also carry the keys the L2 gate now reads --
+        # `buildable`, `locked_contacts` and the board it graded -- because a
+        # payload that omits them is exactly what used to walk an unbuildable
+        # board into routing.
+        json.dump({'blocking': 0, 'oob_pad_count': 0, 'buildable': True,
+                   'verdict': 'buildable (blocking 0)', 'locked_contacts': 0,
+                   'board': _bf}, open(ok_rep, 'w', encoding='utf-8'))
         ok_score = os.path.join(tmp, 's.json')
         json.dump({'blocking': 4}, open(ok_score, 'w', encoding='utf-8'))
-        full = base + ['--score', ok_score, '--placement-report', ok_rep,
-                       '--shape', 'placement']
+        ok_rj = os.path.join(tmp, 'rj.json')
+        json.dump({'instrument': {'board': _bf},
+                   'checklist': {'d_moved': {'match': None}}},
+                  open(ok_rj, 'w', encoding='utf-8'))
+        full = ['--board', _bf,
+                '--score', ok_score, '--placement-report', ok_rep,
+                '--render-json', ok_rj, '--shape', 'placement']
         everything = '\n'.join(STAGES[k](_args(full)) for k in sorted(STAGES))
         for k in sorted(STAGES):
             want(not STAGES[k](_args(full)).startswith('<error>'),
@@ -977,8 +1225,24 @@ def _self_test():
     # which stopped because it was finished and one that stopped because it was
     # stuck no longer produce the same artifact.
     with tempfile.TemporaryDirectory() as tmp:
+        # The board must EXIST for these. It used to be the bare name
+        # 'b.kicad_pcb', which is exactly the hole L5 now closes: this stage
+        # names the board in every command it emits and validated none of them,
+        # so a DONE close-out could be produced for a file nobody graded. The
+        # fixtures were relying on that.
+        _b5 = os.path.join(tmp, 'b.kicad_pcb')
+        open(_b5, 'w', encoding='utf-8').close()
+        base = ['--board', _b5]
+
         want(STAGES['L5'](_args(base)).startswith('<error>'),
              'close-out refuses without a score to decide on')
+        want('does not exist' in STAGES['L5'](_args(
+                 ['--board', os.path.join(tmp, 'ghost.kicad_pcb'),
+                  '--ledger', os.path.join(tmp, 'x.jsonl'),
+                  '--score', (lambda p: (json.dump({'blocking': 0},
+                                                   open(p, 'w', encoding='utf-8')),
+                                         p)[1])(os.path.join(tmp, 'g.json'))])),
+             'close-out refuses a board that does not exist')
 
         def ledger_of(rows, name):
             p = os.path.join(tmp, name)

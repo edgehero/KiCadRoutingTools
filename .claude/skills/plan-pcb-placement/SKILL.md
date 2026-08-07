@@ -895,15 +895,52 @@ command (`converge.py replay` runs it); record your adoption as an
 `accepted: true` entry so the chain's provenance survives. Same `--seed` +
 same input reproduces the whole portfolio byte for byte.
 
-### Step 0d: see it before trusting it
+### Step 0d: see it before trusting it — and this one is ENFORCED
 
 ```bash
 python3 -X utf8 render_placement.py board_placed.kicad_pcb \
-    --before board.kicad_pcb -o /tmp/placement_delta.png
+    --before board.kicad_pcb --pair \
+    --clearance <the board's own floor> --ignore-nets <the poured nets> \
+    --expect-moved <what the step reported> \
+    --json-out wk/render.json -o wk/render.png
 ```
 
+**`placement_driver` refuses to open P4, P6 and P-close without
+`--render-json`.** It checks the document is of THIS board (`instrument.board`
+vs `--board`), carries a `checklist`, and agrees with `--expect-moved`. It
+cannot check that you looked; that is still yours, and `converge record
+--render-json` is the only trace it leaves.
+
+The reason it is a gate rather than a sentence: a whole placement campaign once
+ran with **zero** reads and nothing noticed — not the driver, not the ledger,
+not afterwards, because nothing recorded reads either way.
+
+**Use `--pair` after a move, not bare `--before`.** `--before` overlays ghosts
+and arrows on one panel and shows what MOVED. `--pair` renders both boards at
+identical settings and diffs the findings **by name**, which is what says
+whether the move helped:
+
+```
+body stacks: 55 -> 46   [9 fixed, 0 NEW, 46 kept]
+VERDICT: 29 resolved, none introduced.
+overlap mm2: 237.50 -> 239.02   (worse)
+```
+
+`46 -> 46` can be nine fixed and nine new somewhere else; only names show that.
+And note the last line — every discrete finding improved while the aggregate got
+worse. A lap that introduces findings it did not resolve is a lap to revert.
+
+The tool also prints **WHAT THIS PANEL SHOWS** (every finding in words, with its
+consequence), **THE WORST N** (one ready `--view` crop command each — run one),
+and **DECLUTTER** (`--no-ratsnest` first). `--gate` makes the checklist decide
+the exit code; `--focus` now clusters legality findings even with no route
+summary, which is the only form of the question available on a copper-free
+board.
+
 Ghost rects mark seed positions, arrows show what moved, and the caption strip
-carries the real metrics.
+carries the real metrics — it wraps rather than clipping, so the trailing fields
+(`hole-conflict`, `oob`) are actually present. On a `--view` crop those metrics
+are still WHOLE-BOARD, and the caption says so.
 
 **The render is triage, not a verdict.** The verdict is the numbers —
 `crossings`/`hpwl` from the `JSON_SUMMARY`, and for the loop `failures` and

@@ -621,7 +621,7 @@ improved. Two exceptions, both real:
 
 Record before the next iteration starts:
   python3 -X utf8 converge.py record --ledger wk/ledger.jsonl --board <board> \\
-      --kind completion --lever "<what and why>" --score "$(cat wk/score.json)" \\
+      --kind completion --lever "<what and why>" --score-file wk/score.json \\
       --argv <the real command, as BARE TOKENS -- it takes the rest of the line>
 
 --argv must REPLAY: converge refuses (exit 2) a first token that is not a real
@@ -640,7 +640,7 @@ siblings included.
 
   python3 -X utf8 converge.py record --ledger wk/ledger.jsonl --board <board> \\
       --kind completion --rejected --lever "<what and why it did not work>" \\
-      --score "$(cat wk/score.json)" --argv <the real command>
+      --score-file wk/score.json --argv <the real command>
   python3 -X utf8 converge.py step-back --ledger wk/ledger.jsonl \\
       --out <where to put the restored board>
 
