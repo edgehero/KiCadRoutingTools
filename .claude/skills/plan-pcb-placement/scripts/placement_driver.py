@@ -249,7 +249,23 @@ R2  Does the BOARD determine a position? A family whose pattern is
 R3  Apply with the repair tools, never the from-scratch seeder:
       python3 -X utf8 place_seed.py {a.board} r.kicad_pcb --intent fp.json --repair
       python3 -X utf8 place_reconstruct.py {a.board} r.kicad_pcb [--intent fp.json]
-    Both take --dry-run and report what they WOULD do.
+    Both take --dry-run and report what they WOULD do, and both take
+    --deadline SECONDS -- pass it at ~0.8x whatever timeout you are under.
+R3b A part whose pad CENTRES are off the outline is not repairable by a
+    minimal-move sweep, whatever cap you give it: every repair search starts
+    from the part's current pose, and that pose carries no information once
+    the part is tens of millimetres out. LIFT it instead --
+      python3 -X utf8 place_seed.py {a.board} r.kicad_pcb --intent fp.json \\
+          --reseat --clearance <floor> --deadline 600
+    (bare --reseat = auto scope = exactly those parts; name refs/globs to
+    scope it yourself). Or as a ladder rung: place_reconstruct --stages
+    classify,fit,vector,assign,exchange,reseat,legalize.
+    THE NUMBER TO READ IS `witnesses_after`, NOT `repaired`/`reseated`: the
+    first is what predicts routability, the second counts effort. Key it off
+    render_placement's checklist.a_off_outline.pad_copper channel.
+    Measured, same board: --repair 4m55s and attempted NONE of the 11
+    off-board parts; --reseat 13s, 11 of 11, off-outline count to 0.
+    Do NOT expect recovery to improve -- it seats by net centroid.
 R4  Test for a rigid displacement. Offsets of +v and -v are AGREEMENT, not
     disagreement -- an exchange displaces its two groups by opposite vectors,
     and that pair is the swap's signature. Offsets disagreeing in MAGNITUDE

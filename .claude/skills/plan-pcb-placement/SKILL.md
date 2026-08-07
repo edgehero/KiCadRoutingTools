@@ -52,7 +52,43 @@ where whole-board sweeps ran 10+ minutes without touching them.
 
 Repair searches start from a part's CURRENT pose, which carries no information
 once it is tens of millimetres from where it belongs; cost grows sharply with
-the displacement cap. Prefer re-seating such a part over nudging it.
+the displacement cap. **Prefer RE-SEATING such a part over nudging it** — lift
+it and search from its net centroid instead, holding everything else fixed:
+
+    python3 -X utf8 place_seed.py <board> <out> --intent fp.json --reseat \
+        --clearance <floor> --deadline 600      # bare --reseat = auto scope
+
+The auto scope is the off-outline pad-CENTRE census, which is zero on all 33
+corpus boards, so this is a no-op with exit 0 on a healthy board. It composes
+with `--repair` and runs before it, and `place_reconstruct --stages
+...,reseat,legalize` is the same engine as a ladder rung. **Read
+`witnesses_after`, not `reseated`** — the first predicts routability, the
+second counts effort. Measured on the same board: `--repair` spent 4 m 55 s
+and attempted none of the 11 off-board parts (its cap ladder tops out at 5 mm
+from the wrong centre); `--reseat` seated 11 of 11 in 13 s, taking the
+off-outline count to 0.
+
+Expect `recovery` to get no better and `collateral_pad_rms` to grow: this puts
+parts where the netlist wants them, not where they were. That is the intended
+trade.
+
+### An observed violation is evidence, never permission
+
+**Never derive an intent from a damaged board and then use it to gate that
+damage's repair.** `check_floorplan --emit-intent --declare-classes` records
+what the board DOES; run it on a damaged board and every overhang becomes a
+declared `edge_connectors` band, and every consumer that exempts declared edge
+parts then goes blind to exactly the damage you are trying to fix. Measured,
+run 10: an 81 mm board emitted bands up to **160 mm** (each part's own damage
+displacement); the repair census skipped all 11 off-board parts and reported
+5 violators, none of them the ones whose pads were in the air; and the
+reconstruct gate read `oob = 4.348` on a board with parts 158 mm out.
+
+The emitter now caps an observed band at `max(5 mm, the part's own size)` and
+emits the entry **without an `edge`** above that, saying it is treating the
+overhang as damage — so a fresh intent is safe. An intent emitted BEFORE this
+is not: check `overhang_mm.max` against the part before trusting one, and
+re-emit if in doubt.
 
 <non_negotiable>
 1. NEVER skip the assessment. It is two commands on the copper-free board and
