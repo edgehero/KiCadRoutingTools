@@ -45,6 +45,40 @@ def main():
 
     clearance = (args.clearance if args.clearance is not None
                  else defaults.CLEARANCE)
+    # SAY WHICH FLOOR THIS GRADE USED, AND WHERE IT CAME FROM.
+    #
+    # The default is a flat routing_defaults.CLEARANCE (0.25) -- it does NOT
+    # read the board, while every router resolves the board's own Default
+    # netclass first and prints which source it used. So this tool routinely
+    # grades STRICTER than the board it is grading, and the only trace was a
+    # `clearance` field in the JSON that nothing compared against the board.
+    # Measured on one 0.2mm board: pad_conflicts 96 at the default vs 39 at the
+    # board's own floor -- while `blocking` and `locked_contacts` were
+    # identical, because those pairs are true pad INTERSECTIONS rather than
+    # clearance grazes. So the choice moves the echo numbers and not the
+    # verdict; that is worth knowing rather than discovering.
+    #
+    # The default is left alone deliberately: board_score and the stress
+    # harness both shell this tool, and silently re-basing their numbers is a
+    # bigger change than the disclosure that was actually missing.
+    _board_clr = None
+    try:
+        from list_nets import board_default_netclass_clearance
+        _board_clr = board_default_netclass_clearance(args.board)
+    except Exception:                                          # noqa: BLE001
+        pass
+    _src = ('--clearance' if args.clearance is not None
+            else 'routing_defaults (this tool does NOT read the board)')
+    print(f"  grading at clearance {clearance}mm  [{_src}]")
+    if args.clearance is None and _board_clr is not None \
+            and abs(_board_clr - clearance) > 1e-9:
+        print(f"  NOTE: this board's own Default net-class clearance is "
+              f"{_board_clr}mm, so this grade is "
+              f"{'STRICTER' if clearance > _board_clr else 'LOOSER'} than the "
+              f"board asks for. Pass --clearance {_board_clr} to grade at the "
+              f"board's floor. Expect the pad/hole ECHO counts to move; "
+              f"`blocking` usually will not, because blocking pairs are pad "
+              f"intersections rather than clearance grazes.")
 
     waivers = ()
     if args.intent:
