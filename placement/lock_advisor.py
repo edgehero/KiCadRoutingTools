@@ -30,6 +30,20 @@ the output says so.
 
 A ref matched by rules from two DIFFERENT evidence channels (one geometric, one
 lexical) promotes to `high`: two channels that fail independently.
+
+## Structure is the third question, and it used to be unasked
+
+Every rule above asks what a part IS (a connector, a hole) or where it sits
+relative to the OUTLINE. Neither can see that a part is a member of an
+ARRANGEMENT -- a ring of LEDs, a bolt circle, a fiducial triangle -- and a
+placement search that cannot see one will happily take a member out of it to
+buy a legality number. Measured: a 63-second targeted `place_optimize` lap
+moved a decoupling cap 30 mm (and flipped it 180 deg) out of a geometrically
+perfect 8-fold ring, and was reported as the run's best moment.
+`reconstruct.fit_family_orbits` supplies that fact and `family_orbit_seat`
+promotes it to HIGH, because a fitted seat is a decision the board already
+made. It is silent on all 33 healthy corpus boards (a complete orbit has no
+free slot and an over-determined fit needs one).
 """
 from __future__ import annotations
 
@@ -202,6 +216,29 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
     except Exception:
         gate = None
 
+    # STRUCTURE the advisor could not previously see. A part standing on a
+    # fitted family orbit -- an LED ring, a fiducial circle, a bolt circle --
+    # is at a seat the board already chose, and every other rule here is blind
+    # to it: they ask what a part IS (a connector, a hole) or where it is
+    # relative to the OUTLINE, never whether it is a member of an arrangement.
+    #
+    # Measured, run 10: an 8-fold LED ring (D1-D8) and its 8 decoupling caps
+    # (C1-C8) were geometrically perfect on the damaged board. The advisor
+    # rated D1-D8 and C7/C8 MEDIUM, the run's --lock list took HIGH only, and a
+    # 63-second legality search then flung C7 30 mm across the board (flipped
+    # 180 deg) and pulled D7 7 mm out of the ring to buy a legality number.
+    # Six of the eight ring caps survived BY ACCIDENT, on an edge-proximity
+    # rule that had no idea a ring existed. This finding is what would have
+    # made that lap impossible.
+    orbit_seat: Dict[str, object] = {}
+    try:
+        import pose_score
+        from placement import reconstruct as _recon
+        _st = pose_score.make_state(pcb_data, pcb_file or '')
+        orbit_seat = _recon.orbit_seats(_recon.fit_family_orbits(_st))
+    except Exception:                                          # noqa: BLE001
+        orbit_seat = {}
+
     for ref, fp in sorted((pcb_data.footprints or {}).items()):
         if not fp.pads:
             continue
@@ -299,6 +336,28 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
                            f"({', '.join(sorted(pins & _IFACE_PINS))[:40]})")
             lexical = True
 
+        # --- rule 7: at seat on a fitted family orbit. Geometric fact.
+        _orb = orbit_seat.get(ref)
+        if _orb is not None:
+            rules.append('family_orbit_seat')
+            others = [r for r in _orb.inliers if r != ref]
+            reasons.append(
+                f"at seat on a fitted {_orb.m}-fold family orbit "
+                f"(r = {_orb.r:.4f} mm about "
+                f"({_orb.cx:.4f}, {_orb.cy:.4f}), {len(_orb.inliers)} of "
+                f"{_orb.slots} seats filled), corroborated by "
+                f"{len(others)} other member(s): "
+                f"{', '.join(others[:8])}"
+                f"{'...' if len(others) > 8 else ''}. This pose is a decision "
+                f"the board already made and no wirelength or legality gain "
+                f"may buy it -- a search that moves one member out of an "
+                f"intact array has dismantled a structure to improve a number")
+            ev['orbit_family'] = _orb.family
+            ev['orbit_m'] = _orb.m
+            ev['orbit_radius_mm'] = round(_orb.r, 4)
+            ev['orbit_corroborating'] = len(others)
+            geometric = True
+
         # --- advisory (reported, deliberately NOT in the lock list)
         if len(netted) >= HIGH_PIN_ADVISORY:
             adv.advisories.append({
@@ -324,7 +383,8 @@ def advise_locks(pcb_data, pcb_file: Optional[str] = None, *,
             continue
 
         conf = 'high' if ('mounting_hole_npth' in rules
-                          or 'off_board_overhang' in rules) else None
+                          or 'off_board_overhang' in rules
+                          or 'family_orbit_seat' in rules) else None
         if displaced_off_board:
             # A lock is not a placement. Whatever else this part looks like,
             # it is not where it belongs, and the paste-ready line must not

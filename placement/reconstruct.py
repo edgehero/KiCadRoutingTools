@@ -477,6 +477,323 @@ def fit_corner_insets(state, tiers: Tiers) -> Dict[str, List[Tuple[float, float]
 
 
 # --------------------------------------------------------------------------
+# family orbits -- a DETECTOR, deliberately not a proposal source
+# --------------------------------------------------------------------------
+
+#: A family member's radius must agree with the consensus to this (mm).
+ORBIT_RADIUS_TOL_MM = 0.20
+#: ...and its angular residue with its class to this (degrees).
+ORBIT_ANGLE_TOL_DEG = 0.75
+#: Fewest members that may define an orbit. Measured: the corpus no-op below
+#: holds at 5, 4 and 3 -- 5 is chosen because the fit has four continuous
+#: parameters (cx, cy, r, theta0) plus a discrete m, and five members give ten
+#: observations.
+ORBIT_MIN_INLIERS = 5
+#: Rotational orders tried. 2 is excluded by the CURVATURE guard: a 2-fold
+#: "orbit" is a point reflection and has no curvature at all, so any two parts
+#: anywhere define one.
+ORBIT_M_RANGE = range(3, 25)
+#: OVER-DETERMINATION: distinct SEATS a residue class must occupy. Seats, not
+#: members -- two co-located parts are one piece of evidence about a pattern.
+ORBIT_MIN_SEATS_PER_CLASS = 3
+#: OCCUPANCY: fraction of the orbit's slots that must actually be filled.
+ORBIT_MIN_OCCUPANCY = 0.60
+#: SCALE: the fitted circle must be at most this fraction of the board
+#: diagonal, and its centre on the board. A near-collinear family fits an
+#: enormous circle exactly as a long airwire fits a damage vector.
+ORBIT_MAX_RADIUS_FRAC = 0.75
+#: Deterministic bound on circumcentre hypotheses per family. A 100-member
+#: family has 161700 triples; the stride covers the whole family rather than a
+#: prefix of it, so a ring whose refs sort late is not missed.
+ORBIT_MAX_HYPOTHESES = 4000
+
+
+class OrbitFit:
+    """One fitted rotational orbit of a footprint family."""
+    __slots__ = ('family', 'cx', 'cy', 'r', 'm', 'residues', 'slots',
+                 'inliers', 'free_slots')
+
+    def __init__(self, family, cx, cy, r, m, residues, slots, inliers,
+                 free_slots):
+        self.family = family
+        self.cx, self.cy, self.r, self.m = cx, cy, r, m
+        self.residues = residues
+        self.slots = slots
+        self.inliers = inliers
+        self.free_slots = free_slots
+
+    def as_dict(self):
+        return {'family': self.family,
+                'centre': [round(self.cx, 4), round(self.cy, 4)],
+                'radius_mm': round(self.r, 4), 'm': self.m,
+                'residues_deg': [round(a, 4) for a in self.residues],
+                'slots': self.slots, 'inliers': list(self.inliers),
+                'free_slots': [[round(x, 4), round(y, 4)]
+                               for x, y in self.free_slots]}
+
+    def __repr__(self):                     # pragma: no cover - diagnostics
+        return (f'OrbitFit({self.family} m={self.m}x{len(self.residues)} '
+                f'r={self.r:.4f} c=({self.cx:.4f},{self.cy:.4f}) '
+                f'{len(self.inliers)}/{self.slots})')
+
+
+def _circumcentre(p1, p2, p3):
+    ax, ay = p1
+    bx, by = p2
+    cx, cy = p3
+    d = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
+    if abs(d) < 1e-9:
+        return None                     # collinear: no finite circumcentre
+    a2, b2, c2 = ax * ax + ay * ay, bx * bx + by * by, cx * cx + cy * cy
+    ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / d
+    uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d
+    return (ux, uy)
+
+
+def fit_family_orbits(state, tiers=None, *,
+                      min_inliers: int = ORBIT_MIN_INLIERS
+                      ) -> List[OrbitFit]:
+    """Footprint families that lie on a regular rotational orbit.
+
+    A DETECTOR and nothing else. It proposes no poses and contributes no gate
+    term; its whole product is the fact "this part is AT SEAT on a fitted
+    orbit, corroborated by N others". Two consumers want that fact and neither
+    needs a proposal: `lock_advisor` (protect an intact array from a legality
+    search) and any model that would otherwise claim an at-seat part is
+    displaced -- `fit_corner_insets` has no hypothesis for a rotational
+    pattern, and on the measured board read H2, standing on an exact 3-fold
+    orbit with H1/H3 (radii agreeing to 0.8 nanometres), as displaced and
+    offered it a 5.2 mm move.
+
+    THE GUARDS ARE THE DESIGN. Un-guarded this is the shape that got
+    `airwire_cluster_vectors` refuted (`:1045`,
+    `tests/test_run8_airwire_refuted.py`), so the firing rate on the 33 HEALTHY
+    in-repo corpus boards was measured guard by guard BEFORE shipping any of
+    it, and `tests/test_orbit_fit_noop.py` pins the whole matrix:
+
+        no guards at all                                 28 of 33 fire
+        + scale        (r <= 0.75*diag, centre on board) 28 of 33
+        + curvature    (m >= 3)                          28 of 33
+        + over-determination (>= 3 distinct SEATS/class) 14 of 33
+        + occupancy    (>= 0.60 of slots filled)          7 of 33
+        + min_inliers 4                                   2 of 33
+        + min_inliers 5   <- SHIPPED                      0 of 33
+
+      scale               r <= ORBIT_MAX_RADIUS_FRAC * board diagonal, centre
+                          inside the bbox
+      curvature           m >= 3 (a 2-fold orbit is a point reflection)
+      over-determination  every residue class occupies >= 3 distinct SEATS
+      occupancy           filled seats >= ORBIT_MIN_OCCUPANCY * slots
+      min_inliers         >= 5 members on the fitted orbit
+
+    TWO CORRECTIONS TO THE INVESTIGATION THAT PROPOSED THIS, both measured
+    here and both in the direction that flattered the proposal:
+
+    1. It reported the un-guarded rate as 6 of 33 and claimed the guarded rate
+       stayed 0 with min_inliers lowered to 4 and to 3. Neither reproduces: the
+       un-guarded rate is 28 of 33, and relaxing min_inliers to 4 and 3 fires
+       on 2 and 7 boards. `min_inliers` is a load-bearing guard here, not a
+       formality, and lowering it is a regression rather than a free widening.
+    2. Over-determination MUST count distinct seats, not members. Counting
+       members, glasgow_revC's six `Fiducial_0.75mm_Mask1.5mm` -- which are
+       three positions with a front/back pair at each -- read as six
+       corroborations of a 10-fold orbit through three points, and that fit
+       passed every other guard. Two co-located parts are one piece of evidence
+       about a pattern.
+
+    WHAT THE THRESHOLD COSTS, stated rather than left to be discovered: a
+    3- or 4-member orbit is below `min_inliers` and is NOT detected. On the
+    measured board that means the exact 3-fold mounting-hole orbit H1/H2/H3
+    (radii agreeing to 0.8 nanometres) is invisible here, so this detector does
+    NOT refute `fit_corner_insets`' claim that H2 -- which is at seat -- is
+    displaced. That refutation needs either a hole-specific relaxation or a
+    different model; it is not delivered by this one.
+
+    A near-collinear line of parts is REFUSED, not fitted -- which is correct
+    behaviour and not a gap: the case that motivates wanting one (six 0603s at
+    1.5 mm pitch, all six displaced together) has no surviving member to anchor
+    a line, and a pattern fitter with no survivors must propose nothing.
+    Re-seating owns that case (`seeder.reseat_scope`).
+
+    `tiers` is accepted for symmetry with `fit_corner_insets` and is unused:
+    an orbit is a property of a family's geometry, not of a part's size tier.
+    """
+    from collections import defaultdict
+    from itertools import combinations
+
+    b = state.board
+    diag = math.hypot(b[2] - b[0], b[3] - b[1])
+    r_max = ORBIT_MAX_RADIUS_FRAC * diag
+
+    families: Dict[str, List[str]] = defaultdict(list)
+    for ref in sorted(state.parts):
+        fam = getattr(state.parts[ref], 'footprint_name', None)
+        if fam:
+            families[fam].append(ref)
+
+    fits: List[OrbitFit] = []
+    for fam in sorted(families):
+        members = families[fam]
+        if len(members) < min_inliers:
+            continue
+        pts = {r: (state.parts[r].x, state.parts[r].y) for r in members}
+
+        # ---- centre hypotheses: circumcentres of member triples ------------
+        total = len(members) * (len(members) - 1) * (len(members) - 2) // 6
+        stride = max(1, total // ORBIT_MAX_HYPOTHESES)
+        seen_c = set()
+        centres = []
+        for i, tri in enumerate(combinations(members, 3)):
+            if i % stride:
+                continue
+            c = _circumcentre(*(pts[t] for t in tri))
+            if c is None:
+                continue
+            key = (round(c[0] / 0.01), round(c[1] / 0.01))
+            if key in seen_c:
+                continue
+            seen_c.add(key)
+            centres.append(c)
+
+        best = None
+        for (cx, cy) in centres:
+            if not (b[0] <= cx <= b[2] and b[1] <= cy <= b[3]):
+                continue                                        # scale guard
+            radii = sorted((math.hypot(pts[r][0] - cx, pts[r][1] - cy), r)
+                           for r in members)
+            # Consensus radius = the largest run within tolerance.
+            i = 0
+            while i < len(radii):
+                j = i
+                while (j + 1 < len(radii)
+                       and radii[j + 1][0] - radii[i][0] <= ORBIT_RADIUS_TOL_MM):
+                    j += 1
+                run = radii[i:j + 1]
+                i = j + 1
+                if len(run) < min_inliers:
+                    continue
+                rr = sum(t[0] for t in run) / len(run)
+                if rr > r_max or rr < 1e-6:
+                    continue                                    # scale guard
+                cand = _fit_orbit_m(fam, cx, cy, rr,
+                                    [t[1] for t in run], pts, min_inliers)
+                if cand is None:
+                    continue
+                key = (-len(cand.inliers), cand.slots - len(cand.inliers),
+                       -cand.m)
+                if best is None or key < best[0]:
+                    best = (key, cand)
+        if best is not None:
+            fits.append(best[1])
+    return fits
+
+
+def _fit_orbit_m(family, cx, cy, r, refs, pts, min_inliers):
+    """Best rotational order for `refs` on the circle (cx, cy, r), or None."""
+    angles = {ref: math.degrees(math.atan2(pts[ref][1] - cy,
+                                           pts[ref][0] - cx)) % 360.0
+              for ref in refs}
+    best = None
+    for m in ORBIT_M_RANGE:
+        step = 360.0 / m
+        # Residue classes: the angle reduced mod the rotational step. A
+        # complete orbit of an m-fold pattern with k independent seeds has
+        # exactly k classes, each occupied m times.
+        buckets: Dict[int, List[str]] = {}
+        bucket_res: Dict[int, float] = {}       # each class's REFERENCE residue
+        for ref, a in sorted(angles.items()):
+            res = a % step
+            hit = None
+            for key, r0 in bucket_res.items():
+                d = abs(res - r0)
+                if min(d, step - d) <= ORBIT_ANGLE_TOL_DEG:
+                    hit = key
+                    break
+            if hit is None:
+                hit = round(res / ORBIT_ANGLE_TOL_DEG)
+                bucket_res[hit] = res
+            buckets.setdefault(hit, []).append(ref)
+        # OVER-DETERMINATION, counted in SLOTS rather than in members. A
+        # residue class seen once or twice is a fitted free parameter, not
+        # evidence -- and the members holding it must be at DIFFERENT seats.
+        # Measured: glasgow_revC carries six `Fiducial_0.75mm_Mask1.5mm` at
+        # three positions (a front/back pair at each), and counting members
+        # made 3 distinct points look like 6 corroborations, which was enough
+        # for a 10-fold "orbit" through them to survive every other guard. Two
+        # co-located parts are one piece of evidence about a pattern.
+        #
+        # The slot index is taken RELATIVE TO THE CLASS'S REFERENCE RESIDUE,
+        # never by flooring the raw angle: a residue that wraps (an angle of
+        # 179.99999 deg on a 45 deg step has residue 44.99999, which IS the
+        # same class as 0.0) floors into the PREVIOUS slot, so an exact 8-fold
+        # ring read as two members sharing a seat and was mis-fitted as 4-fold
+        # with two residue classes.
+        occupied = {}                   # (class, k) -> refs on that seat
+        for k, v in sorted(buckets.items()):
+            for ref in v:
+                slot = int(round((angles[ref] - bucket_res[k]) / step)) % m
+                occupied.setdefault((k, slot), []).append(ref)
+        seats_per_class: Dict[int, set] = {}
+        for (k, slot) in occupied:
+            seats_per_class.setdefault(k, set()).add(slot)
+        classes = {k: v for k, v in buckets.items()
+                   if len(seats_per_class.get(k, ()))
+                   >= ORBIT_MIN_SEATS_PER_CLASS}
+        if not classes:
+            continue
+        inliers = sorted(ref for v in classes.values() for ref in v)
+        if len(inliers) < min_inliers:
+            continue
+        slots = len(classes) * m
+        filled = sum(len(seats_per_class[k]) for k in classes)
+        # OCCUPANCY: 5 parts spread over a 21-slot orbit is a coincidence, and
+        # so are 3 seats of 10.
+        if filled < ORBIT_MIN_OCCUPANCY * slots:
+            continue
+        # Circular mean about the class reference, for the same wrap reason:
+        # averaging 0.0 and 44.99999 arithmetically gives 22.5, which is not a
+        # residue any member has.
+        residues = tuple(sorted(
+            (bucket_res[k] + sum(((angles[ref] % step) - bucket_res[k]
+                                  + step / 2.0) % step - step / 2.0
+                                 for ref in v) / len(v)) % step
+            for k, v in classes.items()))
+        # Pick the m with the FEWEST FREE SLOTS; ties go to the larger m.
+        key = (slots - filled, -m)
+        if best is None or key < best[0]:
+            free = []
+            seated = [angles[ref] for ref in inliers]
+            for res in residues:
+                for k in range(m):
+                    a = (res + k * (360.0 / m)) % 360.0
+                    if any(min(abs(a - oa), 360.0 - abs(a - oa))
+                           <= ORBIT_ANGLE_TOL_DEG for oa in seated):
+                        continue
+                    free.append((cx + r * math.cos(math.radians(a)),
+                                 cy + r * math.sin(math.radians(a))))
+            best = (key, OrbitFit(family, cx, cy, r, m, residues, slots,
+                                  tuple(inliers), tuple(sorted(free))))
+    return None if best is None else best[1]
+
+
+def orbit_seats(fits: Sequence['OrbitFit'], min_corroborating: int = 3
+                ) -> Dict[str, 'OrbitFit']:
+    """{ref: the fit it is AT SEAT on}, for fits with enough corroboration.
+
+    `min_corroborating` counts the OTHER members holding the same orbit, so 3
+    means a part plus three others agreeing on centre, radius and pitch. That
+    is the threshold at which the fit stops being a description of the part
+    itself: four points over-determine a circle's three parameters."""
+    out: Dict[str, OrbitFit] = {}
+    for f in fits:
+        if len(f.inliers) < min_corroborating + 1:
+            continue
+        for ref in f.inliers:
+            out.setdefault(ref, f)
+    return out
+
+
+# --------------------------------------------------------------------------
 # rigid_vector
 # --------------------------------------------------------------------------
 
