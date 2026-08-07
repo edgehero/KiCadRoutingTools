@@ -634,7 +634,334 @@ def overlay_for(spec: PanelSpec):
             draw_arrows(d, r, spec.moves)
         if o.get('labels', True):
             draw_ref_labels(d, r, m, prom)
+        if o.get('legend', True):
+            draw_legend(d, r, spec)
     return _draw
+
+
+def draw_legend(d, r, spec) -> None:
+    """A colour key, bottom-left.
+
+    The encoding lived only in source comments, so reading a panel correctly
+    depended on having read render_placement.py -- and the two colours most
+    likely to be misread are the two that matter: solid red is a BODY STACK
+    (parts physically overlapping, unfixable by any router) while a red ring is
+    a clearance shortfall (often fixable). A reader who conflates them draws
+    the wrong conclusion from the picture, which is worse than not looking.
+
+    Only the keys this panel can actually show are drawn -- a legend listing
+    arrows on a panel with no --before is itself misinformation.
+    """
+    rows = [(C_CONFLICT, 'dashed', 'pad copper off-board'),
+            (C_CONFLICT, 'ring', 'pad/hole clearance short'),
+            (C_CONFLICT, 'solid', 'BODY STACK - parts overlap'),
+            (C_HOLE, 'ring', 'NPTH keepout'),
+            (C_LOCKED, 'hatch', 'KiCad-locked (never moved)')]
+    if spec.moves:
+        rows.append((C_ARROW, 'arrow', 'moved since --before'))
+    if spec.hot_nets:
+        rows.append((C_AIR_FAIL, 'line', 'failed net'))
+    try:
+        # Overlays draw on the SUPERSAMPLED canvas, which is `ss` times the
+        # output size -- so `r.H` (the output height) put the legend at 1/ss of
+        # the way up the image, on top of the board, instead of at the bottom.
+        # The caption escapes this because _label draws on the final image.
+        ss = max(1, int(getattr(r, 'ss', 1)))
+        W, H = r.W * ss, r.H * ss
+        font = load_font(max(10, H // 78))
+        pad, sw = 6 * ss, max(10, H // 90)
+        lh = sw + 5
+        h = lh * len(rows) + 8
+        w = max(int(d.textlength(t, font=font)) for _, _, t in rows) + sw + 20
+        y0 = H - h - pad
+        d.rectangle([pad, y0, pad + w, y0 + h], fill=(0, 0, 0))
+        for i, (col, kind, text) in enumerate(rows):
+            yy = y0 + 4 + i * lh
+            box = [pad + 6, yy, pad + 6 + sw, yy + sw]
+            if kind == 'solid':
+                d.rectangle(box, fill=col)
+            elif kind == 'ring':
+                d.ellipse(box, outline=col, width=2)
+            elif kind == 'dashed':
+                for k in range(0, sw, 4):
+                    d.line([box[0] + k, box[1], box[0] + k + 2, box[1]], fill=col)
+                    d.line([box[0] + k, box[3], box[0] + k + 2, box[3]], fill=col)
+            elif kind == 'hatch':
+                d.rectangle(box, outline=col, width=1)
+                for k in range(0, sw, 3):
+                    d.line([box[0] + k, box[3], box[0] + sw, box[1] + k], fill=col)
+            elif kind == 'arrow':
+                d.line([box[0], box[3], box[2], box[1]], fill=col, width=2)
+            else:
+                d.line([box[0], (box[1] + box[3]) // 2,
+                        box[2], (box[1] + box[3]) // 2], fill=col, width=2)
+            d.text((pad + 6 + sw + 6, yy - 1), text, fill=(225, 225, 225),
+                   font=font)
+    except Exception:                                          # noqa: BLE001
+        pass          # a legend is never worth failing a render over
+
+
+def crop_findings(model, view) -> Dict[str, int]:
+    """How many legality findings lie INSIDE `view`.
+
+    A finding counts when any part it names overlaps the rect -- for a pair,
+    either member. That is deliberately inclusive: a stack half in frame is
+    still the thing the crop is showing, and undercounting it would recreate
+    the whole-board-tally problem in the other direction.
+    """
+    x0, y0, x1, y1 = view
+
+    def _hit(ref):
+        r = model.rect(ref)
+        return bool(r) and not (r[2] < x0 or r[0] > x1 or r[3] < y0 or r[1] > y1)
+
+    f = legality_findings(model)
+    out = {}
+    out['body stacks'] = sum(1 for p in f['body_overlap_pairs_refs']
+                             if _hit(p[0]) or _hit(p[1]))
+    out['pad pairs'] = sum(1 for p in f['pad_conflict_pairs_refs']
+                           if _hit(p[0]) or _hit(p[1]))
+    out['hole conflicts'] = sum(1 for p in f['hole_conflict_pairs_refs']
+                                if _hit(p[0]) or _hit(p[1]))
+    out['off-board'] = sum(1 for r, _ in (f['oob_refs_pad_copper']
+                                          + f['oob_refs_courtyard']) if _hit(r))
+    return out
+
+
+def _ref_centres(model, refs):
+    """(x, y) centre of each ref's courtyard rect, skipping refs with none."""
+    out = {}
+    for r in refs:
+        rc = model.rect(r)
+        if rc:
+            out[r] = ((rc[0] + rc[2]) / 2.0, (rc[1] + rc[3]) / 2.0)
+    return out
+
+
+def _pocket_views(model, refs, gap: float, cap: int):
+    """Spatially cluster `refs` and return [(view_rect, [ref, ...]), ...].
+
+    Reuses the same `cluster_points` / `union_view` the route-failure `--focus`
+    path uses -- the question "do these findings share one pocket or scatter"
+    is identical whether the findings are failed nets or overlapping parts, and
+    it is the question that decides local-fix vs systemic.
+    """
+    centres = _ref_centres(model, refs)
+    if not centres:
+        return []
+    inv = {}
+    for r, xy in centres.items():
+        inv.setdefault((round(xy[0], 4), round(xy[1], 4)), []).append(r)
+    out = []
+    for cl in cluster_points(list(centres.values()), gap)[:cap]:
+        v = union_view([(x, y, x, y) for x, y in cl], gap / 2)
+        members = sorted({r for x, y in cl
+                          for r in inv.get((round(x, 4), round(y, 4)), [])})
+        out.append((v, members))
+    out.sort(key=lambda t: -len(t[1]))
+    return out
+
+
+def _pair_key(entry):
+    """A finding's identity across two boards: the refs, order-independent."""
+    if len(entry) >= 2 and isinstance(entry[1], str):
+        return tuple(sorted(entry[:2]))
+    return (entry[0],)
+
+
+def describe_pair(before_model, after_model, args):
+    """What the move FIXED, what it BROKE, and what it left alone.
+
+    Two panels side by side answer "does it look different". They do not answer
+    the question a move is judged on, which is whether the specific findings
+    moved -- and a reader comparing two counts (46 stacks then 46 stacks) will
+    conclude nothing changed when in fact eleven were resolved and eleven new
+    ones appeared somewhere else. Only the by-NAME diff shows that, and it is
+    the same reason the ledger records failing nets by name rather than by
+    count.
+    """
+    b, a = legality_findings(before_model), legality_findings(after_model)
+    L, J = [], {}
+    L.append("")
+    L.append("WHAT THE MOVE DID  (findings by NAME, not by count -- a count "
+             "that stays level hides a swap)")
+    CATS = (('body stacks', 'body_overlap_pairs_refs'),
+            ('pad-clearance pairs', 'pad_conflict_pairs_refs'),
+            ('hole conflicts', 'hole_conflict_pairs_refs'),
+            ('off-board (pad copper)', 'oob_refs_pad_copper'),
+            ('off-board (courtyard)', 'oob_refs_courtyard'))
+    for label, key in CATS:
+        bs = {_pair_key(e) for e in b[key]}
+        as_ = {_pair_key(e) for e in a[key]}
+        fixed, new, kept = sorted(bs - as_), sorted(as_ - bs), sorted(bs & as_)
+        J[key] = {'fixed': ['<->'.join(k) for k in fixed],
+                  'new': ['<->'.join(k) for k in new],
+                  'kept': len(kept), 'before': len(bs), 'after': len(as_)}
+        if not (bs or as_):
+            continue
+        verdict = ('no change' if not fixed and not new
+                   else f"{len(fixed)} fixed, {len(new)} NEW, {len(kept)} kept")
+        L.append(f"  {label}: {len(bs)} -> {len(as_)}   [{verdict}]")
+        if fixed:
+            L.append("    fixed: " + ", ".join('<->'.join(k) for k in fixed[:8])
+                     + ("..." if len(fixed) > 8 else ""))
+        if new:
+            L.append("    NEW:   " + ", ".join('<->'.join(k) for k in new[:8])
+                     + ("..." if len(new) > 8 else ""))
+    net_new = sum(len(v['new']) for v in J.values())
+    net_fixed = sum(len(v['fixed']) for v in J.values())
+    J['net_fixed'], J['net_new'] = net_fixed, net_new
+    L.append("")
+    if net_new and not net_fixed:
+        L.append(f"  VERDICT: this move introduced {net_new} finding(s) and "
+                 f"resolved none.")
+    elif net_new:
+        L.append(f"  VERDICT: {net_fixed} resolved, {net_new} introduced. A "
+                 f"level count is NOT no-change -- read the names above.")
+    elif net_fixed:
+        L.append(f"  VERDICT: {net_fixed} resolved, none introduced.")
+    else:
+        L.append("  VERDICT: no legality finding changed identity.")
+    for mk, mlabel in (('crossings', 'crossings'), ('hpwl', 'hpwl mm'),
+                       ('overlap_area', 'overlap mm2')):
+        bm, am = before_model.metrics.get(mk), after_model.metrics.get(mk)
+        if bm is not None and am is not None:
+            arrow = '->' if abs(am - bm) > 1e-9 else '=='
+            J[mk] = {'before': round(bm, 4), 'after': round(am, 4)}
+            L.append(f"  {mlabel}: {bm:.2f} {arrow} {am:.2f}"
+                     + ("   (worse)" if am > bm + 1e-9 else
+                        "   (better)" if am < bm - 1e-9 else ""))
+    return "\n".join(L), J
+
+
+def describe(model, fnd, moves, args, panel_paths):
+    """Say what is IN the picture, then say what to run to see it better.
+
+    A render was being produced and not read -- across a whole campaign, once --
+    and the honest reason is that a picture answers nothing until somebody
+    forms a sentence about it. The JSON already carried the refs; nobody was
+    going to assemble them into "these 46 stacks sit in 3 pockets, the biggest
+    is around U1" by hand, every time.
+
+    So the tool does it: the findings, grouped where they physically are, with
+    the crop command for each group and the flags that clear the clutter. The
+    numbers still come from the checklist -- this narrates them, it does not
+    re-derive them.
+    """
+    L, J = [], {}
+    n_stack = len(fnd['body_overlap_pairs_refs'])
+    n_pad = len(fnd['pad_conflict_pairs_refs'])
+    n_hole = len(fnd['hole_conflict_pairs_refs'])
+    oob_pc = fnd['oob_refs_pad_copper']
+    oob_cy = fnd['oob_refs_courtyard']
+
+    L.append("WHAT THIS PANEL SHOWS")
+    if not (n_stack or n_pad or n_hole or oob_pc or oob_cy):
+        L.append("  no legality findings: nothing off the outline, no part on "
+                 "another part, no hole conflict.")
+    if oob_pc:
+        L.append(f"  {len(oob_pc)} part(s) with pad COPPER off the outline "
+                 f"(dashed red): "
+                 + ", ".join(f"{r} by {a:g}mm" for r, a in oob_pc[:8]))
+        L.append("    -> their nets cannot be routed at all; this is "
+                 "placement-shaped, not routing-shaped.")
+    if oob_cy:
+        L.append(f"  {len(oob_cy)} part(s) with COURTYARD off the outline: "
+                 + ", ".join(f"{r} by {a:g}mm" for r, a in oob_cy[:8]))
+    if n_stack:
+        L.append(f"  {n_stack} BODY STACK(S) -- pads of two parts physically "
+                 f"overlapping (solid red). Not a clearance graze; no router "
+                 f"can fix one.")
+    if n_pad:
+        L.append(f"  {n_pad} pad-clearance pair(s) (red rings).")
+    if n_hole:
+        L.append(f"  {n_hole} hole conflict(s) (orange) -- a fab blocker that "
+                 f"is not a body overlap, so `blocking` does not count it.")
+    if fnd['locked_refs']:
+        L.append(f"  {len(fnd['locked_refs'])} KiCad-LOCKED part(s) (hatched): "
+                 + ", ".join(fnd['locked_refs'][:10]))
+        L.append("    -> a search may not settle a conflict by moving the "
+                 "locked side; the OTHER part must move.")
+    if moves:
+        big = sorted(moves, key=lambda m: -m.get('dist', 0.0))[:6]
+        L.append(f"  {len(moves)} part(s) moved vs --before (yellow arrows); "
+                 f"largest: "
+                 + ", ".join(f"{m['reference']} {m.get('dist', 0.0):.2f}mm"
+                             for m in big))
+
+    # --- the WORST findings, each with a crop that frames exactly it ---------
+    #
+    # Clustering everything implicated does NOT work here and the failure is
+    # instructive: on a 50x49mm board with 54 implicated parts, single-linkage
+    # at the default 10mm gap merges them into one 42mm "pocket" -- i.e. the
+    # whole board, which is the panel you already have. A crop is only useful
+    # when it frames ONE finding, so rank by severity and frame the pair.
+    worst = []
+    for a_, b_, sf in fnd['pad_conflict_pairs_refs']:
+        worst.append((sf, 'pad-clearance', (a_, b_), f'{sf:g}mm short'))
+    for a_, b_, sf in fnd['hole_conflict_pairs_refs']:
+        worst.append((sf + 1e6, 'hole', (a_, b_), f'{sf:g}mm short'))
+    for r, amt in oob_pc:
+        worst.append((amt + 1e9, 'off-board pad copper', (r,), f'{amt:g}mm out'))
+    for r, amt in oob_cy:
+        worst.append((amt, 'off-board courtyard', (r,), f'{amt:g}mm out'))
+    _stackset = {tuple(sorted(p[:2])) for p in fnd['body_overlap_pairs_refs']}
+    worst.sort(key=lambda t: -t[0])
+
+    board = args.board
+    same = []
+    if args.clearance is not None:
+        same.append(f"--clearance {args.clearance:g}")
+    if args.ignore_nets:
+        same.append("--ignore-nets " + " ".join(args.ignore_nets))
+    same_s = (" " + " ".join(same)) if same else ""
+
+    shots = []
+    for _sev, kind, refs, note in worst[:args.max_focus]:
+        rects = [model.rect(r) for r in refs if model.rect(r)]
+        if not rects:
+            continue
+        v = union_view(rects, 1.5, min_size=6.0)
+        stacked = tuple(sorted(refs)) in _stackset
+        shots.append({'kind': kind, 'refs': list(refs), 'note': note,
+                      'body_stack': stacked, 'view': [round(c, 3) for c in v]})
+    J['worst'] = shots
+    if shots:
+        L.append("")
+        L.append(f"THE WORST {len(shots)}, framed one per crop")
+        for i, s in enumerate(shots, 1):
+            L.append(f"  {i}. {' <-> '.join(s['refs'])}  {s['kind']}, "
+                     f"{s['note']}"
+                     + ("  [also a BODY STACK]" if s['body_stack'] else ""))
+            v = s['view']
+            L.append(f"     python3 -X utf8 render_placement.py {board}"
+                     f" --view {v[0]},{v[1]},{v[2]},{v[3]}{same_s}"
+                     f" --no-ratsnest -o wk/worst{i}.png")
+    L.append("")
+    L.append("SEE THE WHOLE PICTURE AGAIN, uncluttered")
+    L.append(f"  python3 -X utf8 render_placement.py {board}{same_s} "
+             f"--no-ratsnest --no-labels -o wk/clean.png")
+    L.append(f"  python3 -X utf8 render_placement.py {board}{same_s} "
+             f"--focus -o wk/focus/    # a panel per legality pocket")
+    L.append("")
+    L.append("DECLUTTER  (add these when the panel is too busy to read)")
+    L.append("  --no-ratsnest    drop the airwires -- the biggest source of "
+             "visual noise on a dense board")
+    L.append("  --no-labels      drop ref designators (keep them on crops, "
+             "drop them board-wide)")
+    L.append("  --no-ghosts --no-arrows   drop the --before overlay when you "
+             "want the CURRENT state alone")
+    L.append("  --ratsnest-nets '<glob>'  show ONE bus instead of all of them")
+    L.append("  --per-side / --flat       split or merge the two sides")
+    if not args.ignore_nets:
+        L.append("  --ignore-nets <plane nets>  a plane-routed rail's airwire "
+                 "is a fiction; excluding it is what makes crossings/hpwl "
+                 "reproduce the optimizer's own numbers")
+    # Deliberately NOT storing the narrative text in the JSON. It is ~2kB of
+    # prose that duplicates what was just printed, and an oversized payload is
+    # the exact failure `converge record --score-file` had to be added for.
+    # The structured `worst` entries carry everything a later reader needs.
+    return "\n".join(L), J
 
 
 def caption(spec: PanelSpec, extra: Optional[Dict] = None) -> str:
@@ -645,6 +972,21 @@ def caption(spec: PanelSpec, extra: Optional[Dict] = None) -> str:
     bits = [spec.label] if spec.label else []
     if spec.side:
         bits.append(f"side {spec.side}")
+    if spec.view:
+        # COUNT THE FINDINGS THAT ARE ACTUALLY IN THIS CROP.
+        #
+        # `spec.model.metrics` is whole-board, always -- it comes from the
+        # optimizer's model, which has no notion of a view. Labelling that
+        # "WHOLE-BOARD" was honest but not much use: a reader looking at a 19mm
+        # crop still had no idea how many of the 46 stacks were in front of
+        # them. So report both, local first, and keep the whole-board scope
+        # label on the rest.
+        v = spec.view
+        loc = crop_findings(spec.model, v)
+        local = ", ".join(f"{n} {k}" for k, n in loc.items() if n)
+        bits.append(f"CROP {v[0]:.1f},{v[1]:.1f}-{v[2]:.1f},{v[3]:.1f}mm")
+        bits.append("IN CROP: " + (local if local else "no findings"))
+        bits.append("board totals below")
     for k, fmt in (('crossings', '{:.0f}'), ('hpwl', '{:.1f}mm')):
         if m.get(k) is not None:
             bits.append(f"{k} " + fmt.format(m[k]))
@@ -737,6 +1079,11 @@ Examples:
                         'draws over an F part with no distinction)')
     _bool_pair(p, 'borders', True, 'draw component courtyards (default: on)')
     _bool_pair(p, 'labels', True, 'draw component references (default: on)')
+    _bool_pair(p, 'legend', True,
+               'draw the colour key bottom-left (default: on). The encoding '
+               'used to live only in source comments, and the two colours most '
+               'easily confused are the two that matter: solid red is a body '
+               'stack no router can fix, a red ring is a clearance shortfall.')
     _bool_pair(p, 'ratsnest', True, 'draw airwires (default: on)')
     _bool_pair(p, 'pads', True, 'draw pads (default: on)')
     _bool_pair(p, 'ghosts', True, 'draw seed rects when --before is given')
@@ -778,6 +1125,25 @@ Examples:
                         '--json). A separate flag rather than an optional '
                         'argument on --json, so `--json BOARD` can never '
                         'swallow the positional (run-4 G1)')
+    p.add_argument('--pair', action='store_true',
+                   help='render the --before board AND this one as separate '
+                        'panels with byte-identical instrument settings, and '
+                        'diff their legality findings BY NAME. `--before` '
+                        'alone overlays ghosts and arrows on one panel, which '
+                        'shows what MOVED; --pair shows what the move FIXED '
+                        'and BROKE, which is what it should be judged on.')
+    p.add_argument('--no-describe', action='store_true',
+                   help='suppress the WHAT THIS PANEL SHOWS / LOOK CLOSER / '
+                        'DECLUTTER narrative. On by default: a render that '
+                        'does not say what is in it gets produced and not '
+                        'read, which is measured, not hypothetical.')
+    p.add_argument('--gate', action='store_true',
+                   help='Exit 4 when the checklist finds anything: a part off '
+                        'the outline, a pad-clearance or body-overlap pair, a '
+                        'hole conflict, or a move count that disagrees with '
+                        '--expect-moved. Default stays exit 0 -- seeing a '
+                        'broken board is this tool\'s job -- but a caller who '
+                        'wants a verdict should not have to re-read the JSON.')
     p.add_argument('--expect-moved', type=int, default=None, metavar='N',
                    help='the number of parts the step claims it moved; the '
                         "JSON checklist then carries d={moved, expected, "
@@ -850,6 +1216,26 @@ def main(argv=None):
                                           'ignore_net_ids': ignore_ids})
 
     moves = moved_parts(parse_kicad_pcb(args.before), pcb) if args.before else []
+
+    # --pair: build a SECOND model on the before board, with byte-identical
+    # instrument settings. Same clearance, same ignored nets -- otherwise the
+    # two sets of metrics are not comparable and the delta below is fiction.
+    before_model = None
+    if args.pair:
+        if not args.before:
+            print("render_placement: --pair needs --before <the board this one "
+                  "came from>", file=sys.stderr)
+            return 2
+        _bpcb = parse_kicad_pcb(args.before)
+        _bignore = set()
+        if args.ignore_nets:
+            _bignore = {nid for nid, net in _bpcb.nets.items()
+                        if net.name and any(fnmatch.fnmatch(net.name, pat)
+                                            for pat in args.ignore_nets)}
+        before_model = PlacementModel(
+            _bpcb, args.before, exact=True,
+            quench_kwargs={'clearance': args.clearance,
+                           'ignore_net_ids': _bignore})
     failed, blockers, route_metrics = _load_summary(args.summary_json)
     prominent = {m['reference'] for m in moves} | \
         model.refs_of_nets(model.net_ids_for(failed))
@@ -920,18 +1306,51 @@ def main(argv=None):
             print("  (no back-side footprints and no B.Cu: skipping the B panel)")
 
     panels = []
+    if before_model is not None:
+        # BEFORE first, so a reader scanning the panel list sees them in the
+        # order the change happened. No ghosts/arrows on it -- it IS the ghost.
+        _bopts = dict(opts) if isinstance(opts, dict) else opts
+        for side in sides:
+            panels.append(PanelSpec(before_model, view=view, side=side,
+                                    prominent=prominent, moves=(),
+                                    hot_nets=failed, blocker_nets=blockers,
+                                    pick_nets=pick,
+                                    label=f"BEFORE {os.path.basename(args.before)}",
+                                    opts=_bopts))
     for side in sides:
         panels.append(PanelSpec(model, view=view, side=side, prominent=prominent,
                                 moves=moves, hot_nets=failed,
                                 blocker_nets=blockers, pick_nets=pick,
-                                label=tag, opts=opts))
+                                label=(f"AFTER {tag}" if before_model is not None
+                                       else tag),
+                                opts=opts))
+    _leg_pockets = []
     if args.focus and not args.summary_json:
-        # Run-4 G7: --focus derives its clusters from the summary's failed
-        # nets; without --summary-json it silently emitted one panel and
-        # nothing said why.
-        print("  WARNING: --focus emits nothing without --summary-json "
-              "(the failed-net clusters come from the route summary)",
-              file=sys.stderr)
+        # Run-4 G7 made --focus warn here, because its clusters came from the
+        # route summary's failed nets and without one it emitted a single panel
+        # and said nothing. But the same question -- one pocket or scattered --
+        # is worth asking of the LEGALITY findings, which need no route at all,
+        # and on a copper-free board that is the only version of the question
+        # available. So --focus now clusters those instead of refusing.
+        _f = legality_findings(model)
+        _hot = sorted({r for p in _f['body_overlap_pairs_refs'] for r in p[:2]}
+                      | {r for p in _f['pad_conflict_pairs_refs'] for r in p[:2]}
+                      | {r for p in _f['hole_conflict_pairs_refs'] for r in p[:2]}
+                      | {r for r, _ in _f['oob_refs_pad_copper']}
+                      | {r for r, _ in _f['oob_refs_courtyard']})
+        _leg_pockets = _pocket_views(model, _hot, args.focus_gap, args.max_focus)
+        if not _leg_pockets:
+            print("  NOTE: --focus found nothing to focus on -- no route "
+                  "summary was given and this board has no legality findings.",
+                  file=sys.stderr)
+        for i, (fview, members) in enumerate(_leg_pockets):
+            panels.append(PanelSpec(model, view=fview, side=None,
+                                    prominent=prominent, moves=moves,
+                                    hot_nets=failed, blocker_nets=blockers,
+                                    pick_nets=pick,
+                                    label=f"{tag} pocket {i + 1} "
+                                          f"({', '.join(members[:3])})",
+                                    opts=opts))
     if args.focus and failed:
         pts = model.net_points(model.net_ids_for(failed))
         for i, cl in enumerate(cluster_points(pts, args.focus_gap)[:args.max_focus]):
@@ -966,21 +1385,42 @@ def main(argv=None):
     if as_dir:
         os.makedirs(out, exist_ok=True)
     written = []
+    written_paths = set()
     stem, ext = os.path.splitext(out)
     for i, spec in enumerate(panels):
         img = render_panel(spec, size=args.size, supersample=args.supersample,
                            extra=extra)
+        # The suffix must DISTINGUISH the panel, and it only knew about `side`
+        # and the literal word "focus". So --pair with --flat gave both panels
+        # an empty suffix and the AFTER silently overwrote the BEFORE (one file
+        # where the JSON promised two), and the legality-pocket panels collided
+        # the same way because their label says "pocket". Derive it from the
+        # label, and guarantee uniqueness rather than trusting the derivation.
         suffix_bits = []
         if spec.side:
             suffix_bits.append(spec.side)
-        if 'focus' in spec.label:
+        _lab = (spec.label or '').lower()
+        if 'before' in _lab:
+            suffix_bits.append('before')
+        elif 'after' in _lab:
+            suffix_bits.append('after')
+        if 'focus' in _lab:
             suffix_bits.append(f"focus{i}")
+        elif 'pocket' in _lab:
+            suffix_bits.append(f"pocket{i}")
         if as_dir:
             path = os.path.join(out, "_".join([tag] + suffix_bits) + ".png")
         elif multi_file:
             path = stem + "".join("_" + s for s in suffix_bits) + (ext or '.png')
         else:
             path = out
+        if multi_file or as_dir:
+            _base, _e = os.path.splitext(path)
+            _n = 2
+            while path in written_paths:
+                path = f"{_base}_{_n}{_e}"
+                _n += 1
+        written_paths.add(path)
         img.save(path)
         written.append(path)
         if not args.quiet:
@@ -1037,10 +1477,53 @@ def main(argv=None):
             },
             'unplaced': state.unplaced, 'no_outline': model.no_outline,
         }
+        if not args.no_describe:
+            _txt, _dj = describe(model, legality_findings(model), moves, args,
+                                 [p['path'] for p in doc['panels']])
+            doc['describe'] = _dj
+            print()
+            print(_txt)
+            if before_model is not None:
+                _ptxt, _pj = describe_pair(before_model, model, args)
+                doc['pair'] = _pj
+                print(_ptxt)
         if args.json_out:
             with open(args.json_out, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, sort_keys=True, default=str)
         print("JSON_SUMMARY: " + json.dumps(doc, sort_keys=True, default=str))
+        if args.gate:
+            # Opt-in verdict. The default stays 0 on purpose -- SEEING an
+            # unplaced or broken board is this tool's job, and a renderer that
+            # refuses to render one is useless. But the checklist could report
+            # off-board parts, body stacks and hole conflicts while the tool
+            # exited 0, so a caller who wanted a verdict had to re-implement the
+            # reading. --gate makes the picture's own findings decide.
+            _fail = {
+                'a_off_outline.pad_copper':
+                    len(doc['checklist']['a_off_outline']['pad_copper']),
+                'a_off_outline.courtyard':
+                    len(doc['checklist']['a_off_outline']['courtyard']),
+                'b_pad_clearance_pairs':
+                    len(doc['checklist']['b_pad_clearance_pairs']),
+                'b_body_overlap_pairs':
+                    len(doc['checklist']['b_body_overlap_pairs']),
+                'c_hole_conflicts':
+                    len(doc['checklist']['c_hole_conflicts']),
+            }
+            _hit = {k: v for k, v in _fail.items() if v}
+            _moved = doc['checklist']['d_moved']
+            if _moved.get('match') is False:
+                _hit['d_moved'] = (f"moved {_moved.get('moved')} != expected "
+                                   f"{_moved.get('expected')}")
+            if _hit:
+                print("GATE: FAIL -- " + '; '.join(f'{k}={v}'
+                                                   for k, v in _hit.items()),
+                      file=sys.stderr)
+                return 4
+            print("GATE: PASS -- checklist a/b/c clear"
+                  + ("" if _moved.get('match') is None
+                     else f", moved {_moved.get('moved')} as expected"),
+                  file=sys.stderr)
     return 0
 
 
