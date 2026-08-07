@@ -50,7 +50,8 @@ def _promote_staged(staged: str, final: str) -> None:
 #: The stage names that actually gate code. `classify` runs unconditionally
 #: (it is a prerequisite for everything below it, `reconstruct.classify` at the
 #: top of the pipeline) and is listed here so the default string round-trips.
-_STAGES = ('classify', 'fit', 'vector', 'assign', 'exchange', 'legalize')
+_STAGES = ('classify', 'fit', 'vector', 'assign', 'exchange', 'reseat',
+           'legalize')
 
 
 def main():
@@ -70,13 +71,20 @@ Examples:
                    help="Optional floorplan intent (edge connectors exempt "
                         "from off-board repair; zones constrain re-seating)")
     p.add_argument("--stages",
-                   default="classify,fit,vector,assign,exchange,legalize",
+                   default="classify,fit,vector,assign,exchange,reseat,"
+                           "legalize",
                    help="Comma list of stages to run. Valid: classify, fit, "
-                        "vector, assign, exchange, legalize (default: all). "
-                        "`classify` runs regardless -- it is a prerequisite. "
-                        "`assign` also needs fit or vector to have produced "
-                        "candidates. An unknown name is now an error, not a "
-                        "silent no-op.")
+                        "vector, assign, exchange, reseat, legalize "
+                        "(default: all). `classify` runs regardless -- it is "
+                        "a prerequisite. `assign` also needs fit or vector to "
+                        "have produced candidates. `reseat` lifts the parts "
+                        "whose pad CENTRES are off the outline and re-seats "
+                        "them from scratch at their net centroids -- it runs "
+                        "before `legalize` because no cap ladder anchored on "
+                        "a part's current pose can carry it back onto the "
+                        "board, and legalize's minimal-move cleanup is much "
+                        "cheaper once everything is on it. An unknown name is "
+                        "an error, not a silent no-op.")
     p.add_argument("--anchor-extent", default="auto",
                    help="Anchor tier threshold in mm, or 'auto' = "
                         "max(3.5, P75 of pad-extent diagonals)")
@@ -479,6 +487,67 @@ Examples:
     for n in notes:
         print(f"  NOTE: {n}")
 
+    def _run_reseat(board_path):
+        """Re-seat the off-outline parts of `board_path` IN PLACE.
+
+        The rung between `exchange` and `legalize`: exchange carries parts the
+        damage moved by a DETECTED vector, and legalize nudges parts that are
+        nearly right, so a part that is neither -- tens of millimetres out with
+        no surviving family to over-determine a vector -- falls between them
+        and nothing in the ladder moves it. Measured on a 107-part board: 11
+        such parts, and every one of the 13 nets the router could not attempt
+        had a pad on one of them.
+        """
+        pcb2 = parse_kicad_pcb(board_path)
+        rep = seeder.reseat_scope(
+            pcb2, board_path, intent, group_sources=(),
+            clearance=args.clearance,
+            board_edge_clearance=args.board_edge_clearance,
+            grid_step=args.grid_step,
+            # The scope's own bands are filtered out INSIDE: a ref being
+            # re-seated has forfeited its declared band (the band was measured
+            # off the pose being discarded), and leaving it in makes the gate
+            # read `oob 4.348` on a board with parts 158mm off the outline.
+            edge_bands=edge_bands, deadline=_dl,
+            progress=krt_deadline.stdout_progress(deadline=_dl))
+        for n in rep['notes']:
+            print(f"  NOTE: {n}")
+        if rep['edge_bands_dropped']:
+            print("  reseat dropped the declared band of: "
+                  + ", ".join(f"{r} ({m:g})" for r, m in
+                              sorted(rep['edge_bands_dropped'].items())))
+        if rep['moves']:
+            tmp = board_path + '.reseat'
+            write_placed_output(board_path, tmp, rep['moves'])
+            os.replace(tmp, board_path)
+        print(f"  reseat ({rep['scope_source']}): {len(rep['scope'])} in "
+              f"scope, {len(rep['reseated'])} re-seated, "
+              f"{len(rep['unseated'])} unseated, {len(rep['refused'])} "
+              f"refused; OFF-OUTLINE PARTS {len(rep['witnesses_before'])} -> "
+              f"{len(rep['witnesses_after'])}"
+              + ('' if rep['accepted'] else '  [GATE REFUSED]'))
+        print(f"  reseat gate: {reconstruct.format_gate(rep['gate_before'])}"
+              f"  ->  {reconstruct.format_gate(rep['gate_after'])}")
+        return rep
+
+    def _reseat_report(rep, preview=False):
+        d = {'scope': rep['scope'], 'scope_source': rep['scope_source'],
+             'reseated': rep['reseated'], 'unseated': rep['unseated'],
+             'refused': rep['refused'], 'pruned': rep['pruned'],
+             'edge_bands_dropped': rep['edge_bands_dropped'],
+             'gate_before': rep['gate_before'],
+             'gate_after': rep['gate_after'],
+             'accepted': rep['accepted'],
+             # `witnesses_after` is the number that predicts routability --
+             # NOT `reseated`, which counts effort.
+             'witnesses_before': rep['witnesses_before'],
+             'witnesses_after': rep['witnesses_after'],
+             'deadline_skipped': rep.get('deadline_skipped', []),
+             'complete': rep.get('complete', True)}
+        if preview:
+            d['preview'] = True
+        return d
+
     def _run_legalize(board_path):
         """Legalize `board_path` IN PLACE; returns the seeder's report."""
         pcb2 = parse_kicad_pcb(board_path)
@@ -510,20 +579,28 @@ Examples:
         # parts when it really ran. A preview that silently skips the stage is
         # worse than no preview. Stage it in a temp dir instead and report what
         # legalize WOULD do; the caller's output path is still never written.
-        if 'legalize' in stages:
+        if {'reseat', 'legalize'} & stages:
             import tempfile
             with tempfile.TemporaryDirectory() as _td:
                 _preview = os.path.join(
                     _td, os.path.basename(args.output_file) or 'preview.kicad_pcb')
                 write_placed_output(args.input_file, _preview, placements)
                 copy_siblings(args.input_file, _preview)
-                _rep = _run_legalize(_preview)
-                report['legalize'] = {
-                    'preview': True,
-                    'repaired': _rep['repaired'],
-                    'unrepairable': _rep['unrepairable'],
-                    'would_move': sorted(m['reference'] for m in _rep['moves']),
-                }
+                # Same ORDER as the real run, so the legalize preview is taken
+                # against the RE-SEATED board rather than one the real run
+                # would never hand it.
+                if 'reseat' in stages:
+                    report['reseat'] = _reseat_report(_run_reseat(_preview),
+                                                      preview=True)
+                if 'legalize' in stages:
+                    _rep = _run_legalize(_preview)
+                    report['legalize'] = {
+                        'preview': True,
+                        'repaired': _rep['repaired'],
+                        'unrepairable': _rep['unrepairable'],
+                        'would_move': sorted(m['reference']
+                                             for m in _rep['moves']),
+                    }
         krt_deadline.emit(report, deadline=_dl)
         return 0
 
@@ -535,6 +612,23 @@ Examples:
     staged = args.output_file + '.staging.kicad_pcb'
     write_placed_output(args.input_file, staged, placements)
     copy_siblings(args.input_file, staged)
+
+    if 'reseat' in stages:
+        _rs = _run_reseat(staged)
+        report['reseat'] = _reseat_report(_rs)
+        if not _rs.get('complete', True):
+            krt_deadline.mark(
+                report, _dl,
+                staged_board=staged, output=None,
+                board_stage='pre-legalize + %d reseat(s)'
+                            % len(_rs['reseated']),
+                deadline_skipped=_rs.get('deadline_skipped', []))
+            print(f"  DEADLINE: reseat stopped with "
+                  f"{len(_rs.get('deadline_skipped', []))} part(s) untried. "
+                  f"The output path was NOT written; the partial board is "
+                  f"at:\n    {staged}", file=sys.stderr)
+            krt_deadline.emit(report, deadline=_dl)
+            return krt_deadline.DEADLINE_EXIT
 
     if 'legalize' in stages:
         rep = _run_legalize(staged)

@@ -91,15 +91,44 @@ Examples:
                         "legality move, worst first, each seated nearest its "
                         "current pose with an escalating displacement cap. "
                         "The opposite contract of --force")
+    p.add_argument("--reseat", nargs="*", default=None, metavar="REF",
+                   help="LIFT the named parts and re-seat them FROM SCRATCH "
+                        "at their net centroids, holding every other part "
+                        "fixed as an obstacle. With no REF the scope is the "
+                        "off-outline pad-CENTRE census "
+                        "(reconstruct.damage_witnesses), which is zero on all "
+                        "33 corpus boards -- so a bare --reseat on a healthy "
+                        "board is a no-op that exits 0. Unlike --repair, the "
+                        "part's CURRENT POSE IS NOT THE SEARCH CENTRE: a part "
+                        "30mm from where it belongs carries no information "
+                        "about where it belongs, and --repair's cap ladder "
+                        "tops out at 5mm from the wrong centre. REF accepts "
+                        "fnmatch globs. Any edge_connector declaration on a "
+                        "scope ref is DROPPED (the band was measured off the "
+                        "pose being discarded). Composes with --repair and "
+                        "runs BEFORE it. Judge it on witnesses_after, not on "
+                        "how far anything moved")
+    p.add_argument("--deadline", type=float, default=None, metavar="SECONDS",
+                   help="Wall-clock budget for --repair/--reseat. The repair "
+                        "sweep has no internal bound (violators x caps x 36 "
+                        "ring sweeps x O(parts)); with a budget it stops "
+                        "between violators, keeps the seats it made, reports "
+                        "the rest in deadline_skipped and exits 7. Default: "
+                        "no budget (a wall-clock default would break replay "
+                        "determinism). ANY harness with an external timeout "
+                        "should pass this at ~0.8x its own -- on Windows an "
+                        "external kill is TerminateProcess and leaves NO "
+                        "output at all. Env: KRT_DEADLINE_S")
     p.add_argument("--dry-run", action="store_true",
-                   help="With --repair: print the move list and grades, "
-                        "write nothing")
+                   help="With --repair/--reseat: print the move list and "
+                        "grades, write nothing")
     args = p.parse_args()
-    if args.repair and args.force:
-        p.error("--repair and --force are mutually exclusive (repair moves "
-                "only violators; force re-derives everything)")
-    if args.dry_run and not args.repair:
-        p.error("--dry-run only applies to --repair")
+    if (args.repair or args.reseat is not None) and args.force:
+        p.error("--repair/--reseat and --force are mutually exclusive (they "
+                "move only the parts that need it; force re-derives "
+                "everything)")
+    if args.dry_run and not (args.repair or args.reseat is not None):
+        p.error("--dry-run only applies to --repair / --reseat")
 
     try:
         from redo_record import record_invocation
@@ -138,42 +167,157 @@ Examples:
               f"{st.vias} via(s); seeding moves footprints and would strand "
               f"every track. Seed the unrouted board.", file=sys.stderr)
         return UNPLACED_EXIT
-    if args.repair:
+    if args.repair or args.reseat is not None:
+        import math as _math
+        import tempfile
+        import krt_deadline
         if st.unplaced:
-            print("place_seed: --repair needs a PLACED board (this one is "
-                  "unplaced -- seed it instead).", file=sys.stderr)
+            print("place_seed: --repair/--reseat need a PLACED board (this "
+                  "one is unplaced -- seed it instead).", file=sys.stderr)
             return UNPLACED_EXIT
-        result = seeder.repair_placement(
-            pcb, args.input_file, intent, group_sources=sources,
-            clearance=args.clearance,
-            board_edge_clearance=args.board_edge_clearance,
-            grid_step=args.grid_step)
-        for note in result['notes']:
-            print(f"  NOTE: {note}")
-        max_move = 0.0
-        for mv in result['moves']:
-            fp = pcb.footprints.get(mv['reference'])
-            if fp is not None:
-                import math as _math
-                max_move = max(max_move, _math.hypot(mv['new_x'] - fp.x,
-                                                     mv['new_y'] - fp.y))
-        print(f"Repair: {len(result['violators'])} violator(s), "
-              f"{len(result['repaired'])} repaired "
-              f"({len(result['moves'])} moved, max {max_move:.2f}mm), "
-              f"{len(result.get('unresolved') or [])} unresolved, "
-              f"{len(result['unrepairable'])} unrepairable")
-        summary = {'repaired': len(result['repaired']),
-                   'unrepairable': len(result['unrepairable']),
-                   'moved_refs': [m['reference'] for m in result['moves']],
-                   'max_move_mm': round(max_move, 3),
-                   'dry_run': args.dry_run,
+        summary = {'dry_run': args.dry_run,
                    'output': None if args.dry_run else args.output_file}
-        summary.update({f'{k}_before': v
-                        for k, v in result['pad_report_before'].items()})
+        # Armed BEFORE the passes, so the flush hook covers every return
+        # below -- the refusals above print no summary at all today, which is
+        # how a killed run and a refused one look identical to a scraper.
+        _dl = krt_deadline.arm(args.deadline, tool='place_seed',
+                               on_partial=lambda: summary)
+        _prog = krt_deadline.stdout_progress(deadline=_dl)
+
+        # Both passes stage into a temp dir and the finished board is copied
+        # to the output path once, at the end. That keeps --dry-run honest
+        # (--reseat then --repair previews the repair against the RE-SEATED
+        # board, which is what the real run would do) and keeps the output
+        # path from ever holding a half-finished result (run-7 A11).
+        _stage = tempfile.TemporaryDirectory()
+        cur, cur_pcb = args.input_file, pcb
+        exit_rc = 0
+
+        def _advance(moves, tag):
+            """Apply `moves` onto a fresh staged board; advances cur/cur_pcb."""
+            nonlocal cur, cur_pcb
+            if not moves:
+                return
+            nxt = os.path.join(_stage.name, f'{tag}.kicad_pcb')
+            write_placed_output(cur, nxt, moves)
+            copy_siblings(cur, nxt)
+            cur = nxt
+            cur_pcb = parse_kicad_pcb(cur)
+
+        reseat = None
+        if args.reseat is not None:
+            # `nargs='*'`: bare --reseat is [] and means AUTO scope; None is
+            # the flag being absent.
+            reseat = seeder.reseat_scope(
+                cur_pcb, cur, intent,
+                refs=(args.reseat or None), group_sources=sources,
+                clearance=args.clearance,
+                board_edge_clearance=args.board_edge_clearance,
+                grid_step=args.grid_step, seed=args.seed,
+                deadline=_dl, progress=_prog)
+            for note in reseat['notes']:
+                print(f"  NOTE: {note}")
+            _rmax = 0.0
+            for mv in reseat['moves']:
+                fp = cur_pcb.footprints.get(mv['reference'])
+                if fp is not None:
+                    _rmax = max(_rmax, _math.hypot(mv['new_x'] - fp.x,
+                                                  mv['new_y'] - fp.y))
+            print(f"Reseat ({reseat['scope_source']}): "
+                  f"{len(reseat['scope'])} in scope, "
+                  f"{len(reseat['reseated'])} re-seated "
+                  f"(max {_rmax:.2f}mm), {len(reseat['unseated'])} unseated, "
+                  f"{len(reseat['refused'])} refused; "
+                  f"OFF-OUTLINE PARTS {len(reseat['witnesses_before'])} -> "
+                  f"{len(reseat['witnesses_after'])}"
+                  + ('' if reseat['accepted'] else '  [GATE REFUSED]'))
+            print(f"  gate {reseat['gate_before']} -> {reseat['gate_after']}")
+            summary.update({
+                'reseat': True,
+                'scope': reseat['scope'],
+                'scope_source': reseat['scope_source'],
+                'reseated': len(reseat['reseated']),
+                'reseated_refs': reseat['reseated'],
+                'unseated': reseat['unseated'],
+                'refused': reseat['refused'],
+                'edge_bands_dropped': reseat['edge_bands_dropped'],
+                # THE load-bearing number: it is the one that predicts
+                # routability. `reseated` counts moves, which is effort.
+                'witnesses_before': len(reseat['witnesses_before']),
+                'witnesses_after': len(reseat['witnesses_after']),
+                'witnesses_after_refs': reseat['witnesses_after'],
+                'gate_before': reseat['gate_before'],
+                'gate_after': reseat['gate_after'],
+                'accepted': reseat['accepted'],
+                'reseat_max_move_mm': round(_rmax, 3),
+            })
+            _advance(reseat['moves'], 'reseat')
+            if reseat['edge_bands_dropped']:
+                # Grade against what the pass actually honoured. Keeping the
+                # dropped declarations would charge the repair for repairing:
+                # a part brought home from 160mm out then reads "sits nearest
+                # the west edge but is declared on the east edge".
+                intent = reseat['intent_used']
+                print(f"  (final grade excludes the "
+                      f"{len(reseat['edge_bands_dropped'])} dropped edge "
+                      f"declaration(s): a band measured off a discarded pose "
+                      f"is not a spec to grade the homecoming against)")
+            if reseat['unseated'] or reseat['refused'] \
+                    or not reseat['accepted']:
+                exit_rc = 4
+
+        result = None
+        if args.repair:
+            result = seeder.repair_placement(
+                cur_pcb, cur, intent, group_sources=sources,
+                clearance=args.clearance,
+                board_edge_clearance=args.board_edge_clearance,
+                grid_step=args.grid_step, deadline=_dl, progress=_prog)
+            for note in result['notes']:
+                print(f"  NOTE: {note}")
+            max_move = 0.0
+            for mv in result['moves']:
+                fp = cur_pcb.footprints.get(mv['reference'])
+                if fp is not None:
+                    max_move = max(max_move, _math.hypot(mv['new_x'] - fp.x,
+                                                         mv['new_y'] - fp.y))
+            print(f"Repair: {len(result['violators'])} violator(s), "
+                  f"{len(result['repaired'])} repaired "
+                  f"({len(result['moves'])} moved, max {max_move:.2f}mm), "
+                  f"{len(result.get('unresolved') or [])} unresolved, "
+                  f"{len(result['unrepairable'])} unrepairable")
+            summary.update({
+                'repaired': len(result['repaired']),
+                'unrepairable': len(result['unrepairable']),
+                'moved_refs': [m['reference'] for m in result['moves']],
+                'max_move_mm': round(max_move, 3),
+                'deadline_skipped': result.get('deadline_skipped') or [],
+            })
+            summary.update({f'{k}_before': v
+                            for k, v in result['pad_report_before'].items()})
+            _advance(result['moves'], 'repair')
+            if result['unrepairable']:
+                exit_rc = 4
+
+        summary['complete'] = ((result or {}).get('complete', True)
+                               and (reseat or {}).get('complete', True))
+        if not summary['complete'] and _dl is not None:
+            # Unlike place_reconstruct, the output IS written on expiry: the
+            # partial is coherent by construction here (a part is either fully
+            # seated, with every seat legality-checked before it was taken, or
+            # untouched), so there is no pre-legalize staging step whose result
+            # would be invalid to hand on.
+            krt_deadline.mark(
+                summary, _dl,
+                reseat_skipped=(reseat or {}).get('deadline_skipped') or [],
+                repair_skipped=(result or {}).get('deadline_skipped') or [],
+                output=None if args.dry_run else args.output_file)
         if not args.dry_run:
-            write_placed_output(args.input_file, args.output_file,
-                                result['moves'])
-            copy_siblings(args.input_file, args.output_file)
+            # A no-op still writes a board: the next step in a chain is handed
+            # a path, and "nothing needed doing" must not look like "the tool
+            # produced nothing".
+            write_placed_output(cur, args.output_file, [])
+            copy_siblings(cur, args.output_file)
             from placement.legality import grade_pad_legality
             pcb_out = parse_kicad_pcb(args.output_file)
             pads_after = grade_pad_legality(pcb_out, args.clearance)
@@ -186,10 +330,14 @@ Examples:
             summary['grade_errors'] = len(graded.errors)
             summary['pad_conflicts_after'] = pads_after['pad_conflicts']
             summary['hole_conflicts_after'] = pads_after['hole_conflicts']
-            print("JSON_SUMMARY: " + json.dumps(summary, sort_keys=True))
-            return 4 if (result['unrepairable'] or graded.errors) else 0
-        print("JSON_SUMMARY: " + json.dumps(summary, sort_keys=True))
-        return 4 if result['unrepairable'] else 0
+            summary['oob_pad_count_after'] = pads_after['oob_pad_count']
+            if graded.errors:
+                exit_rc = 4
+        _stage.cleanup()
+        krt_deadline.emit(summary, deadline=_dl)
+        if not summary['complete']:
+            return krt_deadline.DEADLINE_EXIT
+        return exit_rc
 
     if not st.unplaced and not st.partially_unplaced and not args.force:
         # PARTIALLY unplaced boards (a stacked pile beside real placements --
