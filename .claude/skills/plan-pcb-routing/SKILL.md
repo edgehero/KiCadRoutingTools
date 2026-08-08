@@ -462,21 +462,33 @@ only in `check_floorplan`'s `outline` block.
 
   | where | limit | on expiry | what you see |
   |---|---|---|---|
-  | `place_reconstruct --stages legalize` | none | runs forever | shell `124`, no output, no `JSON_SUMMARY` |
-  | `route_disconnected_planes` (either form) | none | runs forever | the same |
+  | `place_reconstruct --stages legalize` | `--deadline` | stops between violators, keeps the seats | `JSON_SUMMARY` `status: deadline`, exit `7` |
+  | `place_seed --repair/--reseat` | `--deadline` | the same | the same |
+  | `route.py` / `route_diff.py` / `route_planes.py` | `--deadline` | stops between nets/pairs/regions, writes the copper it has | the same |
+  | `route_disconnected_planes` (either form) | `--deadline` | partial repair, fully gated | the same |
+  | *any of the above WITHOUT `--deadline`* | none | runs forever | shell `124`, no output, no `JSON_SUMMARY` |
   | `EXACT_FILL_TIMEOUT` (`kicad_exact_fill.py`) | 300 s | returns `None` | ONE misattributed line |
   | `ORACLE_DRC_TIMEOUT` (`kicad_oracle.py`) | 240 s | `None`, and **memoises the board so every later step skips the oracle too** | nothing at all |
   | `converge record` argv | ~32 kB | never execs | shell `126`, **no ledger row** |
 
-  Three of the five degrade to a fallback with no failure signal and no effect
-  on the exit code. Two consequences you must build into how you run:
+  The last three degrade to a fallback with no failure signal and no effect on
+  the exit code. Two consequences you must build into how you run:
 
   1. **Pass `--deadline` on any step with an external timeout**, set well below
-     it. It is the only mechanism that works: on Windows a harness kill is
-     `TerminateProcess`, which no handler, `atexit` or flush can catch, so the
-     tool must stop ITSELF. A log with no `DEADLINE:` line is proof no budget
-     was set. Note the cancel is cooperative — measured 109 s against a 45 s
-     budget — so it guarantees TERMINATION, not a wall-clock cap.
+     it (~0.8×). It is the only mechanism that works: on Windows a harness kill
+     is `TerminateProcess`, which no handler, `atexit` or flush can catch, so
+     the tool must stop ITSELF. **The routing tools have it too now** — run 11
+     lost a full lap because `route.py` did not, and only a re-parse of the
+     output board established that the engine had in fact finished. A log with
+     no `DEADLINE:` line is proof no budget was set. `KRT_DEADLINE_S` budgets a
+     whole chain with one export. Note the cancel is cooperative — measured
+     109 s against a 45 s budget — so it guarantees TERMINATION, not a
+     wall-clock cap.
+
+     **Read `complete` before you read any tally.** A partial run's
+     `JSON_SUMMARY` parses perfectly and its numbers are not a whole board's;
+     `place_route_loop` already refuses one, and a hand-read must too
+     (`.get('complete', True)`, so pre-deadline logs are unaffected).
   2. **Check the row count after every `converge.py record`.** The 126 is the
      shell's, so a caller that does not re-count sees no error and the lap is
      gone. Prefer `--score-file` over `--score "$(cat …)"`.
@@ -3741,6 +3753,17 @@ reuse an output path across iterations**: a ledger that says
 `wk/placed.kicad_pcb` when three iterations wrote that name is unauditable, and
 one that named a *rejected* board as the parent of everything downstream got
 shipped.
+
+**Take the argv from the tool's own `CMD:` line, not from memory.** Every
+routing tool now self-echoes `CMD: <the exact invocation>` as its first stdout
+line and `EXIT=<rc>` as its last (`route.py`, `route_diff.py`,
+`route_planes.py`, `route_disconnected_planes.py`, and the checkers). That line
+comes from `sys.orig_argv`, so it carries interpreter flags like `-X utf8`
+verbatim and is REPLAYABLE truth rather than a reconstruction. Until run 12 the
+three signal/diff/plane routers did not have it, which made "paste the tool's
+own `CMD:` line into `converge record --argv`" unsatisfiable for a routing lap
+— run 11 hand-wrote replay scripts instead, which is exactly the placeholder-
+argv failure the next paragraph exists to stop.
 
 **The argv must be real, and the close-out must name its stop condition —
 `record` now enforces both.** An `--argv` whose first token is neither an

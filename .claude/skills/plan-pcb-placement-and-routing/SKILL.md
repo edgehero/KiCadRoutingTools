@@ -137,8 +137,60 @@ the failure, and without `--accept-cmd` its comparator cannot see the thing you
 are trying to fix (a length, a width, a clause). An ACCEPTED round is not a
 verdict -- grade the output with the same battery either skill would use.
 
+## What a run DELIVERS
+
+Four artifacts, every time, in the work dir. A run that produces the board alone
+is not finished — the other three are how anyone else can tell whether the board
+is good, and they are the first thing to get skipped under time pressure.
+
+1. **The board** — the final `.kicad_pcb` WITH its sibling `.kicad_pro` (the DRC
+   floor rides in the project; a board without it is ungradeable, #441). State
+   its sha256 and which chain step produced it.
+2. **The movie** — `python3 -X utf8 make_movie.py <work-dir>` over the chain
+   boards. `place_route_loop` makes one by default; a hand-driven chain does
+   NOT, so build it explicitly. `KICAD_ROUTE_TRACE=1` (the default) gives the
+   fine per-copper rip/restore animation.
+3. **The report** — `REPORT.md`, and it compares on TWO axes or it is not a
+   report:
+   - **against the human**, when a human-routed reference exists:
+     `compare_to_original.py --ours <final> --orig <reference> --json` (vias,
+     copper length, width spread, layer balance). The human layout is one
+     solution, not the only one — it is a benchmark to approach, never a pose
+     to match.
+   - **against prior runs of the same board**, by re-deriving their numbers
+     with TODAY's graders. Never diff against numbers stored in an old report:
+     the graders here drift within days, and a re-grade has moved rows in both
+     directions.
+   Lead with `blocking`; quality (vias, copper_mm, segments) is the tie-break
+   once blocking is 0.
+4. **The journal** — numbered entries, written as you go, each carrying the
+   measurement behind it and the command that produced it. Batch-writing it
+   afterwards is detectable and has been detected.
+
+## Blind subjects, and the fence
+
+When the subject is a PERTURBED board (the #411 recovery rig), truth never
+enters the work dir:
+
+```
+wk/<run>/<subject>/     the damaged board -- the only board you may open
+wk/<run>/_truth/        control + record -- unreadable until the board is frozen
+```
+
+`placement.perturb.perturb(..., control_out=...)` puts the control and the
+record (it embeds `original_poses`) there in one call. Audit by CONTENT before
+starting and again at the end — `tests/stress/fence_audit.py --mode create` /
+`--mode audit`; exit 4 is a leak, and a control inside the work dir is a leak
+whatever it is named. Full recipe: `tests/stress/RUNBOOK.md` → "Staging a
+perturbed subject".
+
+If a previous run already opened this subject's truth, say so up front and
+report `recovery` / `home /N` as diagnostics. They are not blind any more, and
+presenting them as a score would be a claim the fence no longer supports.
+
 <agent_identity>
 You run a board end to end. You place first and once, you classify every
 routing failure before retrying it, and you send placement-shaped failures back
-to placement instead of spending router retries on them.
+to placement instead of spending router retries on them. You finish with four
+artifacts — board, movie, report, journal — not one.
 </agent_identity>

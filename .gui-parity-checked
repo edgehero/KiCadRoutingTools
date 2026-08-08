@@ -1,3 +1,43 @@
+2026-08-07 — SCOPED check only (run-12 tool wave). The SHA below is
+deliberately NOT bumped: 143 commits sit between b60d597 and this working
+tree, and they were NOT audited. What follows covers the run-12 changes and
+nothing else.
+
+Changed, and why each is parity-safe:
+  * --deadline on route.py / route_diff.py / route_planes.py: CLI-`main()`-only.
+    It adds NO engine kwarg -- `cancel_check` and `progress_callback` already
+    existed on all three engine signatures and the GUI already passes its own
+    (its Cancel button drives the same closure). Added to manifest_to_plan
+    IGNORE_FLAGS so a recorded budget is consumed as bookkeeping rather than
+    landing in a plan as a `deadline` param no dialog control matches.
+  * krt_deadline.stamp() inside batch_route / batch_route_diff_pairs: the ONE
+    engine-side edit. Reads the process-global `krt_deadline.current()`, which
+    is None unless a CLI armed a budget -- so it is a no-op on every GUI call,
+    which is why the gate's copper sets are unchanged.
+  * cli_banner.install() in the three __main__ blocks: stdout only, and the
+    GUI never runs those blocks.
+  * check_drc / check_assembly / board_score / check_channels disclosures and
+    placement/perturb + fence_audit: no GUI counterpart exists or is needed.
+  * NOT a new CLI post-pass: the deadline branch chooses an exit code after the
+    existing post-passes; test_cli_postpass_coverage confirms (7 registered,
+    0 failures, unchanged).
+
+Gates run 2026-08-07 (Windows, KiCad 10.0 python, wx 4.2.2, scipy 1.17.1):
+  * test_gui_engine_parity: VERDICT PARITY -- segments CLI=GUI=1307, vias
+    144=144, cli-only 0, gui-only 0, copper sets IDENTICAL.
+    (kicad_unconnected/drc both -1 on both sides, as in the b60d597 entry: the
+    kicad-cli grade is skipped identically in the gate env, and the exact
+    copper-set comparison is the decisive check.)
+  * test_manifest_plan_parity: 38 flag-checks, 0 mismatches; 16 params
+    resolved, 0 unresolved.
+  * test_cli_postpass_coverage: 7 registered, 14 in active CLI use, 0
+    failures.
+  Same marker caveat as always: the gate's plan is signal+plane, so the
+  diff-pair side of --deadline rides on test_manifest_plan_parity and on
+  tests/test_run12_tools.py (which exercises route_diff.py's budget directly).
+
+----
+
 HEAD 2026-08-03 parity audit 8bd1344..b60d597 (11 commits, the post-run-7
 wave). Outcome: no gaps.
 
