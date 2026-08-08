@@ -2716,6 +2716,24 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
         # move successful/failed (scope-based), so they get their own key --
         # a caller that only reads the scoped tallies must still see them.
         summary['ripped_open'] = _ripped_open
+        # ...and say whether the VERDICT already counts them. The verdict is
+        # `failed_single + open_single + pad-deficit`; `ripped_open` is in none
+        # of the first two by construction (it is scope-EXCLUDED), and the
+        # deficit ships as two bare scalars with no per-net attribution, so
+        # membership in the third was untestable from the summary. One run's
+        # true open count was therefore a RANGE -- 58 to 61 -- that no
+        # published field could narrow. This names the uncounted set instead of
+        # leaving the reader to guess it.
+        _counted = set(summary.get('failed_single') or []) \
+            | set(summary.get('open_single') or [])
+        summary['ripped_open_uncounted'] = sorted(
+            n for n in _ripped_open if n not in _counted)
+        summary['ripped_open_note'] = (
+            'ripped_open nets are OUTSIDE this run\'s --nets scope, so they '
+            'move neither failed_single nor open_single. Those listed in '
+            'ripped_open_uncounted are additionally not in either scoped term: '
+            'if they are also outside the multipoint pad deficit, the run\'s '
+            'open-net verdict is understated by that many.')
     try:
         from protected_nets import PROTECTED_SKIPPED
         if PROTECTED_SKIPPED:

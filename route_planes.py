@@ -2902,6 +2902,23 @@ def _stitch_plane_area_vias(
     return new_via_dicts
 
 
+#: The pad tally from the last create_plane() in this process.
+#: #487 folded plane RESISTANCE into the machine-readable summary for exactly
+#: this reason and stopped one field short: the summary could report the
+#: plane's ampacity but not whether it reached its pads. `complete: true,
+#: status: "ok", EXIT=0` was the entire machine-readable story of a pour that
+#: left 5 pads open -- the number is held three times inside create_plane, and
+#: main() calls it as a bare statement, so none of it survived.
+_LAST_PAD_TALLY: dict = {}
+
+
+def consume_pad_tally() -> dict:
+    """Take (and clear) the last pour's pad tally."""
+    global _LAST_PAD_TALLY
+    out, _LAST_PAD_TALLY = dict(_LAST_PAD_TALLY), {}
+    return out
+
+
 def create_plane(
     input_file: str,
     output_file: str,
@@ -4351,6 +4368,8 @@ def create_plane(
         print(f"  Total new vias placed: {total_vias_placed}")
         print(f"  Total existing vias reused: {total_vias_reused}")
         print(f"  Total traces added: {total_traces_added}")
+        _LAST_PAD_TALLY['failed_pads'] = int(total_failed_pads)
+        _LAST_PAD_TALLY['pads_needing_vias'] = int(total_pads_needing_vias)
         if total_failed_pads > 0:
             print(f"  Total failed pads: {total_failed_pads}")
 
@@ -4494,6 +4513,7 @@ def create_plane(
             output_file, net_ids, net_names, plane_layers, all_ripped_net_ids)
         if geo_results:
             geo_failed = sum(info['failed'] for info in geo_results.values())
+            _LAST_PAD_TALLY['geometric_failed'] = int(geo_failed)
             if geo_failed != total_failed_pads:
                 print(f"\n  NOTE: via-placement counters reported "
                       f"{total_failed_pads} failed pad(s), but geometric check "
@@ -5239,6 +5259,15 @@ Examples:
     # ("report-only ... print and discard"). Fold the per-net results the
     # engine noted into the machine-readable summary so chains/graders/skills
     # can gate on them.
+    # The pad tally. Without it `complete: true, status: "ok", EXIT=0` is the
+    # whole machine-readable story of a pour that left pads open -- the text
+    # said "Total failed pads: 5" and the JSON had no channel for it at all.
+    _pt = consume_pad_tally()
+    if _pt:
+        _summary["pads"] = _pt
+        if _pt.get('failed_pads') or _pt.get('geometric_failed'):
+            _summary["status"] = "incomplete-pads"
+
     try:
         from plane_resistance import consume_resistance_results
         _res = consume_resistance_results()

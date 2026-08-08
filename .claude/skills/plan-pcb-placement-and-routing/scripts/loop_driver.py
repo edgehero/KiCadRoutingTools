@@ -184,6 +184,26 @@ def _delegation(a, half='placement'):
     if val is not None and val > lim:
         return True, (f'{val} {unit} > {lim} ({flag}), so this half goes to a '
                       f'teammate. {other.capitalize()} for context')
+
+    # THE TWO THRESHOLDS MUST NOT SPLIT THE DECISION. They are independent
+    # proxies for the same thing, so a board can land over one and under the
+    # other -- and that split is what run 13 was: 264 parts (delegate) and 251
+    # nets (inline). Placement went to a teammate and followed its driver rung
+    # by rung; routing stayed with the orchestrator, which by then was also
+    # holding the outer loop, two watchers, the journal and the report -- and
+    # never entered routing's own V1-V5 convergence loop at all.
+    #
+    # So: if the board was big enough to need a teammate for PLACEMENT, it is
+    # big enough for one for ROUTING. The orchestrator has been coordinating
+    # rather than executing, and handing it a loop to drive directly at that
+    # point is the transition that failed. Costs no new state to ask.
+    if half == 'routing' and _delegation(a, half='placement')[0]:
+        return True, (f'{val} {unit} <= {lim} ({flag}), but PLACEMENT was '
+                      f'delegated, so routing goes to a teammate too rather '
+                      f'than splitting the decision. The two thresholds are '
+                      f'independent proxies for one thing; the half that '
+                      f'skipped its own convergence loop was the inline half '
+                      f'of exactly such a split. --no-delegate overrides')
     return False, (f'{val} {unit} <= {lim} ({flag}), so this half runs here. '
                    f'{other.capitalize()} for context')
 
@@ -878,6 +898,15 @@ data: it is what makes the plateau detectable, and without it this stage cannot
 tell a finished run from a stalled one.
 </stage_instructions>'''
 
+    # The terminal branches are where the run SHIPS, so this is where the
+    # routing half has to have closed out. Not CONTINUE: that is the go-round-
+    # again branch, and gating it would put the most expensive instrument in
+    # the repo into the loop that runs most often, to say nothing the score has
+    # not already said.
+    _refusal = _close_out(a, name)
+    if _refusal:
+        return _refusal
+
     verdicts = {
         'DONE-EXHAUSTED': 'the board is done, and measured to be done',
         'STUCK': 'stopping is legitimate; calling this finished is not',
@@ -982,6 +1011,171 @@ def _accept(a, check: str) -> bool:
     return bool(names) and check in names
 
 
+#: The routing close-out, produced by `check_complete.py --json`.
+#: `verdict` alone is not a shape test -- check_assembly's report carries a
+#: `verdict` too -- so the value vocabulary is tested as well. That option was
+#: not available to L2 (its `blocking` collided with no vocabulary at all),
+#: which is why that gate has to lean on key presence.
+CLOSE_KEYS = ('board', 'score', 'components', 'fab_floors', 'verdict',
+              'reason', 'ungraded')
+CLOSE_VERDICTS = ('DONE', 'INCOMPLETE', 'UNSOUND')
+
+#: The vocabulary of --accept-unclosed. Deliberately NOT --accept-residue's:
+#: `_accept` reads one namespace attribute, so sharing it would mean an
+#: `--accept-residue blocking` passed for the PLACEMENT gate silently waived a
+#: ROUTING check -- the run-10 compounding hazard rebuilt across gates instead
+#: of within one. `shape` and `binding` are absent on purpose: a malformed or
+#: mis-bound document is the wrong document, and there is nothing to accept.
+CLOSE_CHECKS = ('instruments', 'fab_floors', 'ungraded', 'agreement')
+
+
+def _accept_close(a, check: str) -> bool:
+    """Is THIS close-out check accepted? (L5's routing gate.)"""
+    names = getattr(a, 'accept_unclosed', None)
+    return bool(names) and check in names
+
+
+def _close_out(a, name):
+    """Refusal string, or None when the close-out clears L5.
+
+    The asymmetry this exists to remove: L2 refuses to START routing without a
+    placement close-out, while nothing ever refused to FINISH. A run reached
+    the terminal artifact having never invoked the routing half's own V1-V5 at
+    all, and shipped a board carrying a power-rail-to-signal short.
+
+    The gate is NOT "produce a document" -- a well-shaped empty one would
+    satisfy that. It is that TWO INDEPENDENT INSTRUMENTS MUST NOT CONTRADICT
+    EACH OTHER. converge reaches DONE-EXHAUSTED from `blocking == 0` plus a
+    plateau, and `blocking == 0` is exactly the number check_complete exists to
+    distrust: it has no component at all for orphan stubs, weird copper or
+    cross-footprint pad overlaps, so a short can live in the gap between them.
+    The contradiction is the refusal.
+    """
+    _res = getattr(a, 'accept_unclosed', None)
+    if _res is not None:
+        _bad = [n for n in _res if n not in CLOSE_CHECKS]
+        if not _res or _bad:
+            return err(
+                f'--accept-unclosed names WHICH close-out check you are '
+                f'accepting. Valid: {" ".join(CLOSE_CHECKS)}.'
+                + (f' Unknown: {" ".join(_bad)}.' if _bad else
+                   ' A bare flag would waive all of them at once, which is how '
+                   'a spurious refusal also waives the one check that was '
+                   'load-bearing.'))
+
+    doc, e = _load(getattr(a, 'routing_close', None),
+                   'The routing close-out (--routing-close)')
+    if e:
+        return err(
+            e + f'\n\nL5 is where the run ships, so it is where the routing '
+                f'half has to have closed out. Produce it:\n\n'
+                f'  python3 -X utf8 check_complete.py {a.board} \\\n'
+                f'      --authored-from <the board this chain STARTED from> \\\n'
+                f'      --json wk/routing_close.json\n\n'
+                f'--authored-from is not optional bookkeeping: without it the '
+                f'floor check cannot run at all, and UNSOUND becomes '
+                f'unreachable. The chain rewrites the floors in place, so the '
+                f'original project is the only thing left to compare against.')
+
+    _missing = [k for k in CLOSE_KEYS if k not in doc]
+    if _missing or doc.get('verdict') not in CLOSE_VERDICTS:
+        _hint = ''
+        if doc.get('kind') == 'board-score' or 'blocking_by' in doc:
+            _hint = ("\n\nThis looks like `board_score.py`'s JSON. That is the "
+                     "document check_complete WRAPS and distrusts -- it exits 0 "
+                     "with four of nine components ungraded and has no "
+                     "component for orphan stubs, weird copper or pad overlaps.")
+        elif 'ledger_rows' in doc:
+            _hint = ("\n\nThis looks like `converge.py verdict`'s JSON. That is "
+                     "the OTHER half of this gate: it never opens the board, so "
+                     "it cannot see the things this check is for.")
+        return err(
+            f'The routing close-out is not shaped like a `check_complete.py` '
+            f'report'
+            + (f': it is missing {", ".join(_missing)}.' if _missing else
+               f': `verdict` is {doc.get("verdict")!r}, not one of '
+               f'{" / ".join(CLOSE_VERDICTS)}.')
+            + f' A missing key is not a passing one.{_hint}\n\nProduce the '
+              f'right document:\n  python3 -X utf8 check_complete.py {a.board} '
+              f'--authored-from <original> --json wk/routing_close.json')
+
+    # Bind by CONTENT. A path comparison accepts a close-out for a board that
+    # has since been rewritten, and the close-out is the terminal artifact.
+    _dsha = doc.get('board_sha')
+    if _dsha and a.board and os.path.isfile(a.board):
+        try:
+            sys.path.insert(0, ROOT)
+            from board_store import sha256_file
+            if sha256_file(a.board) != _dsha:
+                return err(
+                    f'The close-out grades a DIFFERENT board than the one being '
+                    f'closed out:\n\n  --board          : '
+                    f'{os.path.abspath(a.board)}\n'
+                    f'  close-out board_sha: {str(_dsha)[:16]}...\n\n'
+                    f'Re-run check_complete on the board you are shipping.')
+        except Exception:                                       # noqa: BLE001
+            pass
+    elif doc.get('board') and a.board:
+        if os.path.normcase(os.path.abspath(doc['board'])) != \
+                os.path.normcase(os.path.abspath(a.board)):
+            return err(
+                f'The close-out names a different board:\n\n'
+                f'  close-out : {doc["board"]}\n'
+                f'  --board   : {os.path.abspath(a.board)}')
+
+    # `--skip-slow` empties `components`, leaving a document that passes every
+    # shape check while carrying LESS than the score already in hand -- the
+    # added instruments are the only reason to prefer it.
+    if doc.get('components') == {} and not _accept_close(a, 'instruments'):
+        return err(
+            'The close-out ran with --skip-slow: `components` is empty, so '
+            'orphan stubs, weird copper and cross-footprint pad overlaps were '
+            'NOT examined. Those are the instruments board_score has no '
+            'component for, and they are the reason this document gates '
+            'anything.\n\nRe-run without --skip-slow, or '
+            '--accept-unclosed instruments to ship with them unexamined.')
+
+    _ff = doc.get('fab_floors') or {}
+    if _ff.get('ran') is False and not _accept_close(a, 'fab_floors'):
+        return err(
+            f'The close-out could not check the fab floors: '
+            f'{_ff.get("reason", "no reason given")}.\n\nWithout it UNSOUND is '
+            f'unreachable by construction, so a DONE from this document cannot '
+            f'distinguish "the copper is right" from "the rule moved". Pass '
+            f'--authored-from <the board this chain STARTED from>, or '
+            f'--accept-unclosed fab_floors.')
+
+    _ung = doc.get('ungraded') or []
+    if _ung and not _accept_close(a, 'ungraded'):
+        return err(
+            f'{len(_ung)} component(s) were never examined: '
+            f'{", ".join(_ung)}.\n\nNothing was asked to grade them, so they '
+            f'are UNKNOWN rather than clean, and they contributed nothing to '
+            f'`blocking`. Pass the spec flags check_complete needs, or '
+            f'--accept-unclosed ungraded to ship with them unexamined.')
+
+    # THE AGREEMENT CHECK. Only fires where the two instruments disagree:
+    # STUCK/BUDGET alongside INCOMPLETE is a CONSISTENT pair and passes.
+    if name == 'DONE-EXHAUSTED' and doc['verdict'] != 'DONE' \
+            and not _accept_close(a, 'agreement'):
+        return err(
+            f'TWO INSTRUMENTS DISAGREE, and this is the one place that must '
+            f'not be waved through.\n\n'
+            f'  converge verdict : DONE-EXHAUSTED  (blocking == 0, and a '
+            f'plateau)\n'
+            f'  check_complete   : {doc["verdict"]}\n\n'
+            f'  {doc.get("reason", "")}\n\n'
+            f'converge reaches DONE-EXHAUSTED from `blocking == 0`, and that is '
+            f'exactly the number check_complete exists to distrust -- it has no '
+            f'component for orphan stubs, weird copper or cross-footprint pad '
+            f'overlaps, so a defect can sit in the gap between them and every '
+            f'published number still reads clean.\n\n'
+            f'Fix what the close-out names and re-score, or --accept-unclosed '
+            f'agreement and say in the report which instrument you are '
+            f'overriding and why.')
+    return None
+
+
 STAGES = {'L1': l1, 'L2': l2, 'L3': l3, 'L4': l4, 'L5': l5}
 TITLES = {'L1': 'place (inline or delegated)',
           'L2': 'freeze what placement decided, then route',
@@ -1036,6 +1230,21 @@ def _args(argv=None):
                          'a spurious `blocking` refusal silently also waived '
                          'the `oob_pad_count` gate that was the load-bearing '
                          'one (run 10). A bare --accept-residue is refused.')
+    ap.add_argument('--routing-close', default=None, metavar='PATH',
+                    help='the ROUTING close-out, from `check_complete.py '
+                         '--json`. L5 refuses without it: L2 refuses to START '
+                         'routing without a placement close-out and nothing '
+                         'ever refused to FINISH, so a run reached the '
+                         'terminal artifact having never entered the routing '
+                         "half's own V1-V5 loop at all.")
+    ap.add_argument('--accept-unclosed', nargs='*', metavar='CHECK',
+                    default=None,
+                    help='ship with a NAMED close-out check unsatisfied: '
+                         + ' '.join(CLOSE_CHECKS) + '. Deliberately separate '
+                         'from --accept-residue, which is the placement gate: '
+                         'one shared flag would let a waiver granted for '
+                         'placement silently waive a routing check. A bare '
+                         '--accept-unclosed is refused.')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
     ap.add_argument('--self-test', action='store_true')
@@ -1111,16 +1320,31 @@ def main(argv=None):
                         'score': {'blocking': 0, 'quality': {}}}] * 6)
             stuck = [dict(r, score={'blocking': 4, 'quality': {}})
                      for r in flat]
-            for label, rows, sc, budget in (
-                    ('DONE-EXHAUSTED', flat, {'blocking': 0}, 100),
-                    ('STUCK', stuck, {'blocking': 4}, 100),
-                    ('BUDGET', stuck, {'blocking': 4}, 1)):
+            def close_doc(verdict):
+                return {'schema': 1, 'kind': 'board-complete', 'board': _bd,
+                        'score': {'blocking': 0},
+                        'components': {'orphan_stubs': {'ran': True}},
+                        'fab_floors': {'ran': True, 'relaxed': []},
+                        'verdict': verdict, 'reason': 'fixture',
+                        'ungraded': []}
+
+            # Each terminal branch needs its own close-out, and they are NOT
+            # all DONE: pairing DONE-EXHAUSTED with DONE and the other two with
+            # INCOMPLETE is what makes this dump show the agreement rule is
+            # ONE-DIRECTIONAL. A fixture set that is DONE throughout would
+            # print identically whether or not the rule existed.
+            for label, rows, sc, budget, cv in (
+                    ('DONE-EXHAUSTED', flat, {'blocking': 0}, 100, 'DONE'),
+                    ('STUCK', stuck, {'blocking': 4}, 100, 'INCOMPLETE'),
+                    ('BUDGET', stuck, {'blocking': 4}, 1, 'INCOMPLETE')):
                 lp = os.path.join(tmp, f'l_{label}.jsonl')
                 with open(lp, 'w', encoding='utf-8') as fh:
                     for i, r in enumerate(rows):
                         fh.write(json.dumps(dict(r, iteration=i)) + '\n')
                 v = _args(['--board', _bd, '--ledger', lp,
                            '--budget', str(budget),
+                           '--routing-close', wrote(f'c_{label}.json',
+                                                    close_doc(cv)),
                            '--score', wrote(f's_{label}.json', sc)])
                 print(f'===== L5 ({label}) =====')
                 body = STAGES['L5'](v)
@@ -1376,6 +1600,15 @@ def _self_test():
             json.dump(doc, open(p, 'w', encoding='utf-8'))
             return p
 
+        def closed(name, **over):
+            """A check_complete.py close-out, DONE unless told otherwise."""
+            d = {'schema': 1, 'kind': 'board-complete', 'board': _b5,
+                 'score': {'blocking': 0}, 'components': {'orphan_stubs': {}},
+                 'fab_floors': {'ran': True, 'relaxed': []},
+                 'verdict': 'DONE', 'reason': 'clean', 'ungraded': []}
+            d.update(over)
+            return scored(d, name)
+
         flat = ([{'kind': 'placement', 'accepted': True,
                   'score': {'blocking': 0, 'quality': {}}}] * 6
                 + [{'kind': 'completion', 'accepted': True,
@@ -1385,18 +1618,89 @@ def _self_test():
             '--score', scored({'blocking': 0}, 'zero.json')]))
         want('not done yet' in out,
              'blocking == 0 with the halves still moving does NOT close out')
-        out = STAGES['L5'](_args(base + [
-            '--ledger', ledger_of(flat, 'flat.jsonl'),
-            '--score', scored({'blocking': 0}, 'z2.json')]))
+        # CONTINUE must NOT be gated: it is the go-round-again branch, and
+        # gating it would run the most expensive instrument every lap.
+        want('routing close-out' not in out,
+             'the CONTINUE branch is not gated on a close-out')
+
+        _fl = ledger_of(flat, 'flat.jsonl')
+        _z2 = scored({'blocking': 0}, 'z2.json')
+        done_args = base + ['--ledger', _fl, '--score', _z2]
+        out = STAGES['L5'](_args(done_args))
+        want(out.startswith('<error>') and 'routing close-out' in out,
+             'close-out refuses to SHIP without a routing close-out')
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_done.json')]))
         want('DONE-EXHAUSTED' in out and 'make_film' in out,
              'a plateaued solved board closes out, with the film')
+
+        # THE AGREEMENT CHECK, both directions. Asserting only the refusal
+        # would pass for a gate that refused everything.
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_unsound.json', verdict='UNSOUND',
+                                      reason='floors moved')]))
+        want(out.startswith('<error>') and 'TWO INSTRUMENTS DISAGREE' in out,
+             'DONE-EXHAUSTED + UNSOUND is refused')
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_inc.json', verdict='INCOMPLETE',
+                                      reason='orphan stubs')]))
+        want(out.startswith('<error>') and 'TWO INSTRUMENTS DISAGREE' in out,
+             'DONE-EXHAUSTED + INCOMPLETE is refused')
+        want('DONE-EXHAUSTED' in STAGES['L5'](_args(
+                 done_args + ['--routing-close', closed('c_ok2.json'),
+                              '--accept-unclosed', 'agreement'])),
+             '...and --accept-unclosed agreement ships it, named')
+
+        _stuck = ledger_of(
+            [dict(r, score={'blocking': 4, 'quality': {}}) for r in flat],
+            'stuck.jsonl')
+        _f4 = scored({'blocking': 4}, 'four.json')
         out = STAGES['L5'](_args(base + [
-            '--ledger', ledger_of(
-                [dict(r, score={'blocking': 4, 'quality': {}}) for r in flat],
-                'stuck.jsonl'),
-            '--score', scored({'blocking': 4}, 'four.json')]))
+            '--ledger', _stuck, '--score', _f4,
+            '--routing-close', closed('c_inc2.json', verdict='INCOMPLETE',
+                                      reason='blocking = 4')]))
         want('STUCK' in out and 'calling this finished is not' in out,
              'a plateaued UNSOLVED board says stuck, not done')
+        want(not out.startswith('<error>'),
+             'STUCK + INCOMPLETE is a CONSISTENT pair and is NOT refused')
+
+        # The document must be the right one, and about the right board.
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', scored(
+                {'kind': 'board-score', 'blocking': 0, 'blocking_by': {},
+                 'quality': {}}, 'c_bs.json')]))
+        want(out.startswith('<error>') and 'board_score' in out,
+             'a board_score JSON is refused BY SHAPE and named')
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_skip.json', components={})]))
+        want(out.startswith('<error>') and '--skip-slow' in out,
+             'a --skip-slow document is refused, and --skip-slow is named')
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_noff.json',
+                                      fab_floors={'ran': False,
+                                                  'reason': 'no --authored-from'})]))
+        want(out.startswith('<error>') and 'UNSOUND is unreachable' in out,
+             'a close-out that could not check the floors is refused')
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_ung.json',
+                                      ungraded=['impedance', 'length'])]))
+        want(out.startswith('<error>') and 'never examined' in out,
+             'unexamined components are refused, and named')
+        # ...and each waiver waives ONLY its own check.
+        out = STAGES['L5'](_args(done_args + [
+            '--routing-close', closed('c_two.json', components={},
+                                      ungraded=['impedance']),
+            '--accept-unclosed', 'ungraded']))
+        want(out.startswith('<error>') and '--skip-slow' in out,
+             'accepting `ungraded` does NOT waive `instruments`')
+        want(STAGES['L5'](_args(done_args + [
+                 '--routing-close', closed('c_bare.json'),
+                 '--accept-unclosed'])).startswith('<error>'),
+             'a bare --accept-unclosed is refused')
+        want('Unknown: nonsense' in STAGES['L5'](_args(done_args + [
+                 '--routing-close', closed('c_unk.json'),
+                 '--accept-unclosed', 'nonsense'])),
+             'an unknown --accept-unclosed name is refused BY NAME')
 
         # The staleness list, the film and step-back all read the ledger, so
         # the stage that feeds them checks the board is in it.

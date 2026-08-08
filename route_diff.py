@@ -108,6 +108,13 @@ import rust_alloc  # noqa: E402,F401  # issue #419: set MIMALLOC_PURGE_DELAY bef
 from grid_router import GridObstacleMap, GridRouter
 
 
+#: Set when the --nets patterns resolved to no differential pair at all.
+#: Read by main() to exit non-zero: the refusal used to print `Error:` and
+#: return (0, 0, 0.0), which main discarded, so the process exited 0 and a
+#: chained caller walked past an unrouted board.
+_NO_PAIRS_MATCHED = False
+
+
 def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[str],
                 layers: List[str] = None,
                 layer_costs: Optional[List[float]] = None,
@@ -519,6 +526,11 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
                   f"(coupled via {', '.join(_xn.bridge_refs)})")
 
     if not diff_pairs:
+        # A precise sentinel. Inferring this from a (0, 0) return conflates it
+        # with a legitimate run in which every pair DEFERRED to single-ended
+        # routing -- also 0 routed, 0 failed, and not an error at all.
+        global _NO_PAIRS_MATCHED
+        _NO_PAIRS_MATCHED = True
         print(f"Error: No differential pairs found matching the patterns!")
         print("  Differential pairs must have _P/_N, P/N, or +/- suffixes.")
         print(f"  Patterns provided: {net_names}")
@@ -2185,3 +2197,14 @@ Examples:
     # unfinished route as a finished one.
     if _deadline_hit:
         sys.exit(krt_deadline.DEADLINE_EXIT)
+    # AFTER the deadline: a run that ran out of clock exits 7, and that is the
+    # more specific fact. This is the other false success -- the patterns
+    # matched no pair at all, which used to print `Error:` and exit 0 because
+    # main called the router as a bare statement. Measured: a shell rewrote
+    # every `/IO_Banks/Z*` argument into a Windows path and 14 patterns matched
+    # nothing.
+    if _NO_PAIRS_MATCHED:
+        print("route_diff: the --nets patterns matched no differential pair, "
+              "so nothing was routed. Exiting non-zero so a chained caller "
+              "does not read this as success.", file=sys.stderr)
+        sys.exit(2)

@@ -16,9 +16,11 @@ contract the skill file promises.
 
 Run: python3 -X utf8 tests/test_run8_placement_driver.py
 """
+import json
 import os
 import subprocess
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DRIVER = os.path.join(ROOT, '.claude', 'skills', 'plan-pcb-placement',
@@ -108,6 +110,31 @@ def test_loop_driver():
     code, out = run_loop(['--stage', 'L2', '--board', 'b.kicad_pcb'])
     check('routing refuses to start without a placement close-out', code == 4)
     check('...and says how to produce one', 'check_assembly' in out, out[:300])
+
+    # The other end of the same asymmetry: L2 refuses to START routing without
+    # a placement close-out, and until run 13 nothing refused to FINISH. A run
+    # reached the terminal artifact having never entered the routing half's own
+    # V1-V5 loop, and shipped a board carrying a power-to-signal short.
+    with tempfile.TemporaryDirectory() as td:
+        bd = os.path.join(td, 'b.kicad_pcb')
+        open(bd, 'w', encoding='utf-8').close()
+        lp = os.path.join(td, 'l.jsonl')
+        rows = ([{'kind': 'placement', 'accepted': True,
+                  'score': {'blocking': 0, 'quality': {}}}] * 6
+                + [{'kind': 'completion', 'accepted': True,
+                    'score': {'blocking': 0, 'quality': {}}}] * 6)
+        with open(lp, 'w', encoding='utf-8') as fh:
+            for i, r in enumerate(rows):
+                fh.write(json.dumps(dict(r, iteration=i)) + '\n')
+        sp = os.path.join(td, 's.json')
+        with open(sp, 'w', encoding='utf-8') as fh:
+            json.dump({'blocking': 0}, fh)
+        code, out = run_loop(['--stage', 'L5', '--board', bd,
+                              '--ledger', lp, '--score', sp])
+        check('closing out refuses without a routing close-out', code == 4,
+              out[:300])
+        check('...and says which command produces one',
+              'check_complete' in out and '--authored-from' in out, out[:400])
 
     code, out = run_loop(['--stage', 'L4', '--board', 'b.kicad_pcb'])
     check('a re-entry refuses without a measured shape', code == 4)

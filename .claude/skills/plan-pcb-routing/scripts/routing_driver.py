@@ -27,6 +27,7 @@ Exit: 0 emitted, 2 usage, 4 a guard refused.
 import argparse
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -148,11 +149,24 @@ def _facts_or_err(a):
         return None, err(f'{e}\n\nEvery stage in this driver is computed from '
                          f'the board, so it cannot run without one. Pass '
                          f'--board <file>.')
-    if f['has_copper'] and a.stage in ('R1', 'R2'):
+    # R1 only. R2 was in this tuple and could never be reached: R1's own
+    # `Next:` hands R2 the board R1 just poured, and R2's first line says
+    # "escape the fine-pitch parts ON THE POURED BOARD". Both were written in
+    # the same commit (255af97), so this is choosing between two co-authored
+    # intents rather than restoring a lost one -- and R2's text is the one that
+    # describes the chain the rest of the file computes.
+    #
+    # It was not a latent edge case. `has_copper` is segments-or-vias, and
+    # `route_planes` places real copper: one 266-part board came out of R1 with
+    # 241 vias and 1915 traces, so R2 refused on the FIRST hop of the normal
+    # chain and the run had to work around its own driver.
+    if f['has_copper'] and a.stage == 'R1':
         return None, err(
-            'This board already carries copper, and this stage assumes an '
-            'empty board. Re-run the chain from the unrouted board, or pick '
-            'the stage you actually mean to re-enter at.')
+            'This board already carries copper, and the pour assumes an empty '
+            'board -- a fanout\'s escape stubs are signal copper, and pouring '
+            'over them seals the channels they need. Re-run the chain from the '
+            'unrouted board, or pick the stage you actually mean to re-enter '
+            'at.')
     return f, None
 
 
@@ -664,8 +678,80 @@ Next: --stage V2 (another lever) or --stage V5 (close out)
 </stage_instructions>'''
 
 
+#: The routed-board lenses, and the slice each one is handed.
+#: verifier-prompts.md says "fan these out in one response, each handed only
+#: its slice" and "never hand a verifier the raw .kicad_pcb" -- V5 used to
+#: dispatch ONE agent, for all three lenses, with the board itself as the
+#: input, in violation of the file it was quoting.
+ROUTED_LENSES = (
+    ('connectivity', 'conn.txt (check_connected), wk/score.json, and the '
+                     '--nets list every routing step was given',
+     'reconcile score.json#/components/unrouted/count and /broken/count '
+     'against conn.txt. A net left unrouted because it was excluded from '
+     'every step and never poured is a FAIL, not an absence'),
+    ('drc', 'drc.txt (check_drc --max-print 0), wk/score.json, and the '
+            'clearance the copper was ACTUALLY routed to',
+     'score.json#/components/drc/graded_at must equal the routed floor. If '
+     'the spec states sizes and board_score was called without them, FAIL on '
+     'that alone'),
+    ('spec', 'wk/score.json, the requirements document, and intent.json',
+     'walk every numeric requirement to a measurement. Entries in '
+     'score.json#/ungraded are findings: ungraded is not passed'),
+)
+
+
 def v5(a, f):
+    # Same guard as V2, for the same reason: the close-out is where the run
+    # ships, and it had NO guard at all -- a chain could be "closed out" with
+    # no score, no ledger and no verifier ever dispatched.
+    _score, _serr = _load(a.score, 'The board score (--score)')
+    if _serr:
+        return err(_serr + '\n\nV1 produces it. A close-out without the score '
+                           'is a claim, not a measurement.')
+    lenses = list(getattr(a, 'lens', None) or [])
+    seen = set()
+    for v in lenses:
+        m = re.match(r'^VERDICT=(PASS|FAIL):lens=([A-Za-z0-9_-]+)', v.strip())
+        if m:
+            seen.add(m.group(2))
+    missing = [n for n, _, _ in ROUTED_LENSES if n not in seen]
+
+    if lenses and missing:
+        return err(
+            f'The close-out is missing {len(missing)} routed-board lens '
+            f'verdict(s): {", ".join(missing)}.\n\n"blocking == 0" and "every '
+            f'lens passes" are two different claims, and only the first has a '
+            f'number. Dispatch the missing lens(es) and pass each VERDICT= '
+            f'line back as --lens.')
+
+    if not lenses:
+        blocks = '\n\n'.join(
+            f'''<subagent_prompt agent="verifier" description="lens {name}">
+Read {os.path.join(REFS, 'verifier-prompts.md')} and apply lens `{name}` to
+this board, and ONLY that lens. Your inputs are:
+    {inputs}
+{rule}.
+Re-derive every number yourself; do not trust the report. Answer with one line
+beginning VERDICT= and nothing above it.
+</subagent_prompt>''' for name, inputs, rule in ROUTED_LENSES)
+        return f'''<stage_instructions stage="V5" name="close out: verify">
+Three routed-board lenses, fanned out IN ONE RESPONSE, each handed only its
+slice. Never hand a verifier the raw .kicad_pcb: it is the thing they are
+supposed to be independent of.
+
+{blocks}
+
+Then come back with every verdict line, verbatim:
+
+  python3 -X utf8 {sys.argv[0]} --stage V5 --board {a.board} \\
+      --score {a.score or 'wk/score.json'} \\
+      --lens "VERDICT=..." --lens "VERDICT=..." --lens "VERDICT=..."
+</stage_instructions>'''
+
+    failed = [v for v in lenses if v.strip().startswith('VERDICT=FAIL')]
     return f'''<stage_instructions stage="V5" name="close out">
+{len(lenses)} lens verdict(s) in hand, {len(failed)} FAILED.
+
 Stop on one of these, and NAME which:
   1. blocking == 0 and every lens passes;
   2. the budget is spent;
@@ -674,15 +760,27 @@ Stop on one of these, and NAME which:
 
 "It looks done" and "the router says routed" are not stop conditions. A
 router's own tally can come from a local proxy while pads stay disconnected.
+{"A FAILED lens means `blocking` was not really zero, so condition 1 is not "
+ "available: spend an iteration on it, or stop on 2 or 4 and report it as an "
+ "outstanding blocker." if failed else ""}
+Produce the close-out document -- it is what the loop's L5 gate reads, and it
+fails CLOSED where board_score does not:
 
-Dispatch the independent lenses -- quote the file, do not paraphrase it:
+  python3 -X utf8 check_complete.py {a.board} \\
+      --authored-from <the board this chain STARTED from> \\
+      --json wk/routing_close.json
 
-<subagent_prompt agent="verifier" description="verify the routed board">
-Read {os.path.join(REFS, 'verifier-prompts.md')} and apply its
-routed-board lenses to <board>. Re-derive every number from the board itself;
-do not trust the report. Answer with a line beginning VERDICT= and nothing
-above it.
-</subagent_prompt>
+--authored-from is not bookkeeping: without it the fab-floor check cannot run
+at all and UNSOUND becomes unreachable. The writeback only ever loosens, so the
+original project is the only thing left to compare against.
+
+Then close the ledger with the verdicts attached:
+
+  python3 -X utf8 converge.py record --ledger wk/ledger.jsonl \\
+      --board {a.board} --kind completion --final --stop-condition <1-4> \\
+      --score-file {a.score or 'wk/score.json'} \\
+      {" ".join(f'--lens "{v}"' for v in lenses[:3])} \\
+      --argv <the command that produced this board>
 
 The report states, per component: the number, the instrument that produced it,
 and for anything unresolved WHY it is unfixable here.
@@ -703,6 +801,11 @@ def _args(argv=None):
     ap.add_argument('--board', default='board.kicad_pcb')
     ap.add_argument('--coverage', default=None)
     ap.add_argument('--score', default=None)
+    ap.add_argument('--lens', action='append', default=None, metavar='VERDICT',
+                    help="a routed-board lens verdict, verbatim from the "
+                         "verifier: 'VERDICT=PASS:lens=connectivity'. "
+                         "Repeatable. V5 fans the lenses out when none are "
+                         "given and closes out when all three are in hand.")
     ap.add_argument('--plan', action='store_true',
                     help='the chain this board needs, computed from the board')
     ap.add_argument('--list', action='store_true')
@@ -845,7 +948,47 @@ def _self_test():
     want(_needs_coverage(_args(['--board', 'b'])) is not None,
          'an R stage refuses without the coverage partition')
 
-    everything = '\n'.join(fn(a, dense) for fn in STAGES.values())
+    # Assembled from SATISFIED args. `a` above names files that do not exist,
+    # which was fine while no stage validated them -- V5 now does, so a
+    # refusal would silently empty the sweep below and the subagent-prompt
+    # assertion would pass on a stage that no longer emits one. (loop_driver's
+    # self-test had to learn the same thing.)
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as _td:
+        _sp = os.path.join(_td, 's.json')
+        with open(_sp, 'w', encoding='utf-8') as _fh:
+            json.dump({'blocking': 3, 'blocking_by': {}}, _fh)
+        _sat = _args(['--board', 'b.kicad_pcb', '--coverage', 'c.json',
+                      '--score', _sp])
+        everything = '\n'.join(fn(_sat, dense) for fn in STAGES.values())
+        want('<error>' not in everything,
+             'every stage emits instructions when its guards are satisfied')
+
+        # V5 has two branches and the sweep above only sees the first. With
+        # the verdicts in hand it must stop fanning out and start closing out.
+        _closing = STAGES['V5'](_args(
+            ['--board', 'b.kicad_pcb', '--coverage', 'c.json', '--score', _sp,
+             '--lens', 'VERDICT=PASS:lens=connectivity',
+             '--lens', 'VERDICT=PASS:lens=drc',
+             '--lens', 'VERDICT=PASS:lens=spec']), dense)
+        want('check_complete.py' in _closing and '--authored-from' in _closing,
+             'V5 with every lens in hand names the close-out document')
+        want('--lens' in _closing and 'converge.py record' in _closing,
+             '...and carries the verdicts into the ledger record')
+        _partial = STAGES['V5'](_args(
+            ['--board', 'b.kicad_pcb', '--coverage', 'c.json', '--score', _sp,
+             '--lens', 'VERDICT=PASS:lens=connectivity']), dense)
+        want(_partial.startswith('<error>') and 'drc' in _partial
+             and 'spec' in _partial,
+             'V5 refuses a partial lens set and names what is missing')
+        want(STAGES['V5'](_args(['--board', 'b.kicad_pcb',
+                                 '--coverage', 'c.json']),
+                          dense).startswith('<error>'),
+             'V5 refuses without a score, as V2 does')
+        want(everything.count('<subagent_prompt') >= 3,
+             'the close-out fans out one verifier PER LENS, not one for all '
+             'three')
+
     for phrase in ('you may want to', 'if you are not sure', 'perhaps'):
         want(phrase not in everything.lower(), f'no hedging: {phrase!r}')
     # The forbidden flag may be NAMED (to forbid it) but never offered. The
@@ -856,6 +999,34 @@ def _self_test():
     want(not offered, 'the forbidden flag is named to forbid it, never offered')
     want(everything.count('<subagent_prompt') >= 1,
          'the close-out dispatches an independent verifier')
+
+    # ---- the copper guard, which had NO coverage in either direction -------
+    # Every fixture above pins `has_copper: False` and calls the stage
+    # functions directly, bypassing _facts_or_err entirely -- so the guard that
+    # decides which stages may see copper was never executed by a test. R2 sat
+    # in that guard while R1's own `Next:` handed it a poured board, and the
+    # contradiction survived because nothing ran it.
+    import types as _types
+    _real = globals()['board_facts']
+    try:
+        for _copper in (True, False):
+            globals()['board_facts'] = (
+                lambda _b, _c=_copper: (dict(dense, has_copper=_c), None))
+            for _stage in ('R1', 'R2'):
+                _a = _types.SimpleNamespace(board='b.kicad_pcb', stage=_stage)
+                _f, _e = _facts_or_err(_a)
+                _refused = _e is not None
+                if _copper and _stage == 'R1':
+                    want(_refused, 'R1 refuses a board that already has copper')
+                elif _copper and _stage == 'R2':
+                    want(not _refused,
+                         'R2 does NOT refuse a poured board -- it is the stage '
+                         'that runs ON one')
+                else:
+                    want(not _refused,
+                         f'{_stage} opens on an empty board')
+    finally:
+        globals()['board_facts'] = _real
 
     print('OK' if not bad else f'FAIL: {len(bad)}')
     return 1 if bad else 0

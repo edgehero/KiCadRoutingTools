@@ -155,13 +155,48 @@ def test_record_final_requires_stop_condition():
         r = _cv(['record', '--ledger', led, '--board', BOARD, '--final'])
         assert r.returncode == 2 and 'stop-condition' in r.stderr
         assert not os.path.exists(led), "nothing may be written on refusal"
+        # A completion --final now also needs the routed-board lens verdicts:
+        # `blocking == 0` and "every lens passes" are two different claims and
+        # only the first ever had a number, so a close-out could be written
+        # with no lens dispatched at all.
         r = _cv(['record', '--ledger', led, '--board', BOARD, '--final',
                  '--stop-condition', 'plateau: 3 iterations, no new copper'])
+        assert r.returncode == 2 and 'routed-board lenses' in r.stderr, r.stderr
+        assert not os.path.exists(led), "nothing may be written on refusal"
+        lenses = ['--lens', 'VERDICT=PASS:lens=connectivity',
+                  '--lens', 'VERDICT=PASS:lens=drc',
+                  '--lens', 'VERDICT=PASS:lens=spec']
+        r = _cv(['record', '--ledger', led, '--board', BOARD, '--final',
+                 '--stop-condition', 'plateau: 3 iterations, no new copper']
+                + lenses)
         assert r.returncode == 0, r.stderr
         e = json.loads(r.stdout)
         assert e.get('final') is True
         assert e.get('stop_condition', '').startswith('plateau')
+        assert len(e.get('lenses') or []) == 3, e.get('lenses')
     print("  PASS: --final without --stop-condition is refused; with it, recorded")
+
+
+def test_record_final_wants_the_lens_verdicts():
+    """A FAILED lens means `blocking` was not really zero, so the run did not
+    finish clean -- stop condition 1 is then not available to it."""
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+        r = _cv(['record', '--ledger', led, '--board', BOARD, '--lever', 'x',
+                 '--lens', 'all three passed'])
+        assert r.returncode == 2 and 'verbatim' in r.stderr, r.stderr
+        assert not os.path.exists(led), "nothing may be written on refusal"
+
+        base = ['record', '--ledger', led, '--board', BOARD, '--final',
+                '--lens', 'VERDICT=PASS:lens=connectivity',
+                '--lens', 'VERDICT=FAIL:lens=drc;finding=short;evidence=x',
+                '--lens', 'VERDICT=PASS:lens=spec']
+        r = _cv(base + ['--stop-condition', '1'])
+        assert r.returncode == 2 and 'lens FAILED' in r.stderr, r.stderr
+        r = _cv(base + ['--stop-condition', '4'])
+        assert r.returncode == 0, r.stderr
+        assert json.loads(r.stdout).get('lenses')[1].startswith('VERDICT=FAIL')
+    print("  PASS: lens grammar is enforced, and a FAIL forbids condition 1")
 
 
 def test_record_score_failures_want_names():

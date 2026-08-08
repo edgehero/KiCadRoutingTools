@@ -2835,6 +2835,22 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
         # router never places pads), so flagging them by default just adds noise
         # to routed-board grading. Enable with --check-pad-edge to catch a
         # placement step that pushed a component off the board / into a cutout.
+        if not check_pad_edge and not quiet:
+            # SAY that it was not checked. The severity-ignore case one branch
+            # up prints a "Skipping..." line and this one printed nothing at
+            # all, so "pads are clear of the edge" and "pads were never looked
+            # at" were the same output. The default is off because on a ROUTED
+            # board the hits are almost always pre-existing edge connectors --
+            # but that premise inverts on a placement-repair run, where a part
+            # really can be pushed off the outline. One board's copper-free
+            # baseline was 93 by default and 95 with the flag, and the two
+            # extra violations were on precisely the two parts that run was
+            # about to freeze and waive.
+            print("Skipping pad-to-board-edge checks (--check-pad-edge is off; "
+                  "pads are edge-exempt by default because on a routed board "
+                  "the hits are usually pre-existing edge connectors). Pass it "
+                  "on a board whose PLACEMENT may have moved a part off the "
+                  "outline.")
         if check_pad_edge:
             for pad_net, pads in pads_by_net.items():
                 if matching_pad_nets is not None and pad_net not in matching_pad_nets:
@@ -3316,6 +3332,17 @@ if __name__ == "__main__":
         import collections as _c
         import json as _json
         _real = [v for v in violations if not v.get('accepted')]
+
+        def _clearance_for(v):
+            """The clearance THIS violation was graded against.
+
+            Per-net clearances mean the graded floor is not one number, so a
+            violation carrying its own `required_mm` wins; otherwise the run's
+            clearance applies. Same relation the pad-pad `[SHORT]` tag uses.
+            """
+            r = v.get('required_mm')
+            return r if isinstance(r, (int, float)) else args.clearance
+
         _doc = {
             'schema': 1,
             'tool': 'check_drc.py',
@@ -3336,7 +3363,28 @@ if __name__ == "__main__":
             'violations': len(_real),
             'accepted': len(violations) - len(_real),
             'by_type': dict(_c.Counter(v.get('type') for v in _real)),
-            'items': [{k: v for k, v in item.items()} for item in violations],
+            # CONTACT, per type. `overlap_mm >= clearance` means the two pieces
+            # of copper physically reach each other -- required_dist is
+            # (width/2 + clearance) and overlap is required_dist minus the
+            # EDGE-TO-EDGE distance, so the relation holds for every type, not
+            # just pad-pad.
+            #
+            # Two boards once differed by a +1V2-to-signal short and reported
+            # 38 violations with byte-identical `by_type`. The pad-pad SHORT
+            # count was identical too (10 vs 10) -- every differing contact was
+            # `pad-segment`, whose TOTAL was 8 on both. So neither the total nor
+            # the obvious refinement could separate them, and the `[SHORT]` tag
+            # is emitted at exactly one place in this file, inside the pad-pad
+            # branch, and is structurally incapable of naming a track contact.
+            # Only a PER-TYPE contact count does it.
+            'contacts_by_type': dict(_c.Counter(
+                v.get('type') for v in _real
+                if isinstance(v.get('overlap_mm'), (int, float))
+                and v['overlap_mm'] >= _clearance_for(v))),
+            'items': [dict(item,
+                           short=(isinstance(item.get('overlap_mm'), (int, float))
+                                  and item['overlap_mm'] >= _clearance_for(item)))
+                      for item in violations],
         }
         with open(args.json, 'w', encoding='utf-8') as _fh:
             _json.dump(_doc, _fh, indent=1, default=str, sort_keys=True)

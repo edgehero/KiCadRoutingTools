@@ -263,6 +263,9 @@ difference between a rule and a hope:
 | 2, 8 — after a placement move | `placement_driver` **P4** refuses without `--render-json` | `<error>`, exit 4, no instructions |
 | 1 — before writing an intent | `placement_driver` **P6** refuses | `<error>`, exit 4 |
 | the close-out | `placement_driver` **P-close** refuses | `<error>`, exit 4 |
+| the ROUTING close-out | `routing_driver` **V5** refuses without `--score`, and fans out three lens verifiers until every `--lens` verdict is in hand | `<error>`, exit 4 |
+| shipping | `loop_driver` **L5** refuses without a `check_complete` close-out, and refuses again when it CONTRADICTS `converge` | `<error>`, exit 4 |
+| recording the verdicts | `converge record --final` refuses without the three routed-board lenses, and forbids stop-condition 1 when any FAILED | exit 2, nothing written |
 | recording the read | `converge record --kind placement` NOTEs when `--render-json` is absent | a warning; the row is still written |
 | 3, 4, 5, 6, 7 | **nothing** | silence |
 

@@ -450,6 +450,32 @@ def p_close(a):
     _ok, _why = _guard_render(a)
     if not _ok:
         return err(_why)
+    # The intent, or a stated reason there is none. Same shape as P3's --waive:
+    # a named exemption is a decision on the record; an absent one is a gap
+    # nobody can see afterwards.
+    _iw = [w for w in (a.waive or []) if w.split(':', 1)[0].strip() == 'intent']
+    if not a.intent_json and not _iw:
+        return err(
+            'The close-out has no graded floorplan intent (--intent-json).\n\n'
+            'An intent is what turns "it looks right" into something gradable, '
+            'and P6 -- the rung that declares one -- is reachable only as a '
+            'side branch off P1/P4, so a run can arrive here having declared '
+            'nothing. Not hypothetical: one run shipped an intent with '
+            '`rules_run: 0`, which constrained two laps with nothing, then a '
+            'second covering 0 of 266 parts. Nothing objected either time.\n\n'
+            '  python3 -X utf8 check_floorplan.py <board> '
+            '--emit-intent wk/intent.json\n'
+            '  # then EDIT IT DOWN -- the emit describes the board AS IT IS, '
+            'damage included\n'
+            '  python3 -X utf8 check_floorplan.py <board> '
+            '--intent wk/intent.json --require-rules 1 '
+            '--json wk/intent_result.json\n\n'
+            'If this board genuinely has no spec to declare, put that on the '
+            'record instead: --waive intent:<why>.')
+    if _iw and not a.intent_json and not (
+            _iw[0].split(':', 1)[1].strip() if ':' in _iw[0] else ''):
+        return err('--waive intent: needs a REASON after the colon. "No '
+                   'intent" with no cause is the gap, not the fix.')
     return f'''<stage_instructions stage="P-close" name="close out" of="7">
 Prove the placement, then hand it on.
 
@@ -464,6 +490,10 @@ lenses to this board. Your inputs are:
     result   {a.board}
     before   {a.before}
     ledger   wk/ledger.jsonl
+    intent   {a.intent_json or '(none -- waived on the record; see --waive)'}
+Lens 1 (`intent`) needs that last file and was dispatched without it, so it had
+no inputs and could not fail. It MUST fail on `rules_run == 0`: a grade that ran
+no rules is a vacuous pass, not a clean board.
 Re-derive every number yourself from the boards; do not trust the report.
 Answer with a line beginning VERDICT= and nothing above it.
 </subagent_prompt>
@@ -647,6 +677,15 @@ def _args(argv=None):
                          'P-close): the read mandates were prose-only, and a '
                          'whole campaign once ran with zero reads and nothing '
                          'noticed.')
+    ap.add_argument('--intent-json', default=None, metavar='PATH',
+                    help='the GRADED floorplan intent -- check_floorplan '
+                         '--intent I --json PATH. P-close requires it, or '
+                         '--waive intent:<why there is no spec to declare>. '
+                         'P6 is the rung that produces one and is reachable '
+                         'only as a side branch off P1/P4, so a run could walk '
+                         'P0-P4-P-close and declare nothing: two laps were '
+                         'once graded against an intent running ZERO rules, '
+                         'and every tool consuming it said nothing.')
     ap.add_argument('--waive', action='append', default=[], metavar='REF:reason')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
@@ -722,6 +761,9 @@ def _dump_all():
                                              'lock_patterns': []}),
             '--assembly-json', wrote('as.json', {'blocking': 1}),
             '--render-json', wrote('r.json', _fake_render(board)),
+            '--intent-json', wrote('i.json', {'rules_run': ['envelope'],
+                                              'parts_covered': 7,
+                                              'violations': []}),
             '--waive', 'X:checked'])
         refused = []
         for key in sorted(STAGES):
@@ -824,6 +866,9 @@ def _self_test():
                      '--locks-json', _w('l.json', {'findings': []}),
                      '--assembly-json', _w('as.json', {'blocking': 1}),
                      '--render-json', _w('r.json', _fake_render(_b)),
+                     '--intent-json', _w('i.json', {'rules_run': ['envelope'],
+                                                    'parts_covered': 7,
+                                                    'violations': []}),
                      '--waive', 'X:y'])
         bodies = {k: STAGES[k](_ev) for k in sorted(STAGES)}
         everything = '\n'.join(bodies.values())

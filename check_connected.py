@@ -1555,6 +1555,34 @@ def run_connectivity_check(pcb_file: str, net_patterns: Optional[List[str]] = No
                         continue
                 unrouted_nets.append((net_id, net_info.name, len(pads_by_net[net_id])))
 
+    # A scope that matched NOTHING is not a clean board. This printed
+    # `Checking 0 nets matching: [...]` and then went on to
+    # `ALL NETS FULLY CONNECTED!` and exit 0 -- so a typo'd or shell-mangled
+    # --nets turned the instrument the project says to always run before
+    # calling a route clean into a rubber stamp, invisible to `&&` and to
+    # `set -e`. Found live when a shell rewrote `/IO_Banks/Z0` into a Windows
+    # path. Same failure mode as the oracle branch ~200 lines below, which was
+    # already fixed there.
+    if (net_patterns or component) and not nets_to_check:
+        _what = []
+        if net_patterns:
+            _what.append(f"--nets {net_patterns}")
+        if component:
+            _what.append(f"component {component}")
+        print(f"ERROR: {' and '.join(_what)} matched NO nets on this board. "
+              f"That is a scope that selected nothing, not a board that is "
+              f"connected -- refusing to report a result. Check the pattern "
+              f"(a leading '/' is rewritten by some shells; MSYS_NO_PATHCONV=1 "
+              f"on Git Bash), or drop the flag to check every net.",
+              file=sys.stderr)
+        # Returned as an issue rather than an exit code: this function's
+        # contract is List[Dict] and library callers unpack it. main() maps
+        # `scope_error` to exit 2, which is distinct from 1 ("found real
+        # problems") so a caller can tell a bad scope from a bad board.
+        return [{'scope_error': True, 'net_patterns': net_patterns,
+                 'component': component,
+                 'description': 'the requested scope matched no nets'}]
+
     if not quiet:
         if net_patterns and component:
             print(f"Checking {len(nets_to_check)} nets on {component} matching: {net_patterns}")
@@ -1897,4 +1925,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     issues = run_connectivity_check(args.pcb, args.nets, args.tolerance, args.quiet, args.verbose, args.component, args.routed_only)
+    # 2 = the scope selected nothing, so no board was graded. Deliberately not
+    # 1: a caller must be able to tell "your pattern is wrong" from "this board
+    # has unconnected nets", and must never read either as success.
+    if any(i.get('scope_error') for i in issues):
+        sys.exit(2)
     sys.exit(1 if issues else 0)

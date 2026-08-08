@@ -315,14 +315,54 @@ def cmd_record(a):
                   f"produced the board), or omit --argv for a prose-only "
                   f"entry. Nothing was written.", file=sys.stderr)
             return 2
-    # A run-closing record must name its stop condition (run-7 F5: the final
-    # entry shipped a headline count that contradicted the oracle; forcing
-    # the stop condition into the record is what makes the close-out gradable).
+    # Lens verdicts are stored RAW, so the grammar stays owned by
+    # verifier-prompts.md and a malformed line stays visible instead of being
+    # normalised into something that reads like a pass. Refuse the shape at
+    # write time -- same posture as --argv above -- so the ledger never holds a
+    # row that cannot be read back.
+    _LENS_RE = r'^VERDICT=(PASS|FAIL):lens=[A-Za-z0-9_-]+'
+    if a.lens:
+        import re as _re
+        _badl = [v for v in a.lens if not _re.match(_LENS_RE, v.strip())]
+        if _badl:
+            print("record: --lens takes the verifier's VERDICT= line verbatim, "
+                  "e.g. 'VERDICT=PASS:lens=connectivity' or "
+                  "'VERDICT=FAIL:lens=drc;finding=...;evidence=...'. "
+                  f"Not: {_badl[0]!r}. Nothing was written.", file=sys.stderr)
+            return 2
     if a.final and not a.stop_condition:
         print("record: --final requires --stop-condition (which of the run's "
               "stop conditions ended it). Nothing was written.",
               file=sys.stderr)
         return 2
+    # A run-closing record must carry the routed-board lenses. `blocking == 0`
+    # and "every lens passes" are two different claims and the second had no
+    # mechanism at all -- verifier-prompts.md states the conjunct and nothing
+    # computed it, so a close-out could be written with no lens ever dispatched.
+    if a.final and a.kind == 'completion':
+        _seen = set()
+        for v in (a.lens or []):
+            _m = __import__('re').match(r'^VERDICT=(PASS|FAIL):lens=([A-Za-z0-9_-]+)',
+                                        v.strip())
+            if _m:
+                _seen.add(_m.group(2))
+        _need = {'connectivity', 'drc', 'spec'}
+        _miss = sorted(_need - _seen)
+        if _miss:
+            print(f"record: --final needs the routed-board lenses and is "
+                  f"missing {', '.join(_miss)}. Dispatch them "
+                  f"(routing_driver --stage V5 fans them out) and pass each "
+                  f"VERDICT= line as --lens. `blocking == 0` is not `every "
+                  f"lens passes`. Nothing was written.", file=sys.stderr)
+            return 2
+        _failed = [v for v in (a.lens or []) if v.strip().startswith('VERDICT=FAIL')]
+        if _failed and (a.stop_condition or '').strip() not in ('2', '4'):
+            print(f"record: {len(_failed)} lens FAILED, so this run did not "
+                  f"finish clean -- --stop-condition must be 2 (budget spent) "
+                  f"or 4 (measured-unfixable and said so), not "
+                  f"{a.stop_condition!r}. A FAIL means `blocking` was not "
+                  f"really zero. Nothing was written.", file=sys.stderr)
+            return 2
     store = BoardStore(a.store or os.path.join(os.path.dirname(a.ledger), 'boards'))
     sha = store.put(a.board)
     # Run-3 B4: three ledger entries shipped carrying a PRIOR board's score
@@ -419,6 +459,7 @@ def cmd_record(a):
              'lever_argv': list(a.argv) if a.argv else None,
              'score': json.loads(a.score) if a.score else None,
              'renders': list(a.render_json) if a.render_json else None,
+             'lenses': list(a.lens) if a.lens else None,
              'accepted': not a.rejected}
     # A placement lap moved parts. The skill mandates the move be LOOKED AT,
     # and run 9 skipped that for an entire campaign without anything noticing
@@ -735,6 +776,14 @@ def build_parser():
                         'entry["renders"]. The [read: ...] convention lived in '
                         'free-text --lever, so an audit could not tell a '
                         'skipped mandate from an absent trigger.')
+    r.add_argument('--lens', action='append', default=None, metavar='VERDICT',
+                   help='a verifier lens verdict, VERBATIM: '
+                        '"VERDICT=PASS:lens=connectivity" or '
+                        '"VERDICT=FAIL:lens=drc;finding=...;evidence=...". '
+                        'Repeatable; stored raw as entry["lenses"]. Same '
+                        'reason as --render-json: a verdict that lives in '
+                        'free-text --lever cannot be told from a lens nobody '
+                        'ran. --final requires the three routed-board lenses.')
     r.add_argument('--rejected', action='store_true')
     r.add_argument('--final', action='store_true',
                    help='mark the run-closing record; requires --stop-condition')

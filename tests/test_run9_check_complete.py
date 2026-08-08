@@ -128,6 +128,72 @@ def main():
         check('with no --authored-from the floor check does not claim a pass',
               code2 != UNSOUND, f'exit {code2}')
 
+    # ---- the document is a GATE INPUT, so it has to survive its own -------
+    # ---- failures and be bindable to a board ------------------------------
+    print('the close-out document holds up as something a gate can read')
+    with tempfile.TemporaryDirectory() as td:
+        jp = os.path.join(td, 'close.json')
+
+        # A relative board path from a cwd that is NOT the repo root. _run
+        # uses cwd=ROOT, so before the abspath fix board_score was handed a
+        # path that does not resolve, returned nothing, and the verdict became
+        # a FALSE "INCOMPLETE: blocking is null" wearing a correctly-bound
+        # doc['board']. Every other test in this file runs after os.chdir(ROOT),
+        # which is exactly why it survived.
+        sub = os.path.join(td, 'elsewhere')
+        os.makedirs(sub)
+        rel = os.path.relpath(os.path.join(ROOT, BOARD), sub)
+        p = subprocess.run(
+            [sys.executable, '-X', 'utf8',
+             os.path.join(ROOT, 'check_complete.py'), rel,
+             '--skip-slow', '--json', jp],
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', cwd=sub, timeout=1800)
+        out = (p.stdout or '') + (p.stderr or '')
+        check('a relative board path from another cwd still resolves',
+              'blocking is null' not in out and 'no score' not in out,
+              out[-300:])
+        doc = {}
+        if os.path.isfile(jp):
+            with open(jp, encoding='utf-8') as fh:
+                doc = json.load(fh)
+        check('...and the document names itself for a shape test',
+              doc.get('kind') == 'board-complete' and doc.get('schema') == 1,
+              repr({k: doc.get(k) for k in ('kind', 'schema')}))
+        # Bind by CONTENT, not by path: a gate comparing paths accepts a
+        # close-out for a board that has since been rewritten.
+        import hashlib
+        h = hashlib.sha256(open(os.path.join(ROOT, BOARD), 'rb').read())
+        check('...and carries board_sha, matching the file on disk',
+              doc.get('board_sha') == h.hexdigest(),
+              f'doc {doc.get("board_sha")!r}')
+        # --skip-slow empties `components`, so a gate that only checks keys
+        # would accept a document strictly weaker than the score it wraps.
+        check('--skip-slow leaves components empty, visibly',
+              doc.get('components') == {}, repr(doc.get('components'))[:120])
+
+        # An unreadable board must still produce a document that SAYS so. The
+        # --json write used to be the last statement, so anything that raised
+        # above it produced no document at all.
+        bad = os.path.join(td, 'truncated.kicad_pcb')
+        with open(bad, 'w', encoding='utf-8') as fh:
+            fh.write('(kicad_pcb (version 20221018)\n')      # unterminated
+        jp2 = os.path.join(td, 'close2.json')
+        code3, out3 = run(bad, '--json', jp2)
+        check('an unparseable board still writes a document',
+              os.path.isfile(jp2), out3[-300:])
+        if os.path.isfile(jp2):
+            with open(jp2, encoding='utf-8') as fh:
+                d2 = json.load(fh)
+            check('...and it is never DONE', d2.get('verdict') != 'DONE',
+                  repr(d2.get('verdict')))
+            check('...and it says the instrument did not run, not that it passed',
+                  'did not' in (d2.get('reason') or '')
+                  or 'no score' in (d2.get('reason') or ''),
+                  repr(d2.get('reason'))[:220])
+        check('...and the exit code is not success', code3 != DONE,
+              f'exit {code3}')
+
     print()
     if FAILURES:
         print(f'FAIL: {len(FAILURES)} check(s): {", ".join(FAILURES)}')
