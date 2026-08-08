@@ -817,6 +817,7 @@ DISPROPORTION_FLOOR_MM = 1.0
 
 
 def repair_placement(pcb_data, pcb_file: str, intent, *,
+                     lock_globs: Optional[Sequence[str]] = None,
                      group_sources: Sequence[str] = (),
                      clearance: float = 0.25,
                      board_edge_clearance: float = 0.55,
@@ -854,9 +855,18 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
     import pose_score
     from placement import floorplan, legality as _leg
 
+    # A caller's --lock globs, on top of the file's own (locked yes) stamps.
+    # These two entry points RE-PARSE the board and build their own state, so
+    # a lock resolved by the CLI never reached them -- `--lock` was honoured
+    # by five reconstruct stages and silently ignored by the two that move the
+    # most parts. Feeding it here means the existing `.locked` checks below
+    # (the unrepairable filter, and reseat's refusal list) pick it up for free.
+    _extra_locked = {r for pat in (lock_globs or [])
+                     for r in fnmatch.filter(sorted(pcb_data.footprints), pat)}
     state = pose_score.make_state(
         pcb_data, pcb_file, clearance=clearance,
-        board_edge_clearance=board_edge_clearance, grid_step=grid_step)
+        board_edge_clearance=board_edge_clearance, grid_step=grid_step,
+        extra_locked_refs=_extra_locked or None)
     refs_all = sorted(pcb_data.footprints)
     notes: List[str] = []
     must_lock = {r for pat in intent.must_lock
@@ -1241,6 +1251,7 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
 
 
 def reseat_scope(pcb_data, pcb_file: str, intent, *,
+                 lock_globs: Optional[Sequence[str]] = None,
                  refs: Optional[Sequence[str]] = None,
                  group_sources: Sequence[str] = (),
                  clearance: float = 0.25,
@@ -1328,9 +1339,18 @@ def reseat_scope(pcb_data, pcb_file: str, intent, *,
     if intent is None:
         intent = floorplan.empty_intent(pcb_file)
 
+    # A caller's --lock globs, on top of the file's own (locked yes) stamps.
+    # These two entry points RE-PARSE the board and build their own state, so
+    # a lock resolved by the CLI never reached them -- `--lock` was honoured
+    # by five reconstruct stages and silently ignored by the two that move the
+    # most parts. Feeding it here means the existing `.locked` checks below
+    # (the unrepairable filter, and reseat's refusal list) pick it up for free.
+    _extra_locked = {r for pat in (lock_globs or [])
+                     for r in fnmatch.filter(sorted(pcb_data.footprints), pat)}
     state = pose_score.make_state(
         pcb_data, pcb_file, clearance=clearance,
-        board_edge_clearance=board_edge_clearance, grid_step=grid_step)
+        board_edge_clearance=board_edge_clearance, grid_step=grid_step,
+        extra_locked_refs=_extra_locked or None)
     refs_all = sorted(pcb_data.footprints)
     notes: List[str] = []
     must_lock = {r for pat in intent.must_lock
@@ -1355,10 +1375,18 @@ def reseat_scope(pcb_data, pcb_file: str, intent, *,
         if ref not in state.parts:
             refused[ref] = 'not a movable part on this board'
         elif state.parts[ref].locked:
-            why = ("in must_lock, which grades the lock rather than licensing "
-                   "a move" if ref in must_lock else "not in must_lock")
-            refused[ref] = (f"(locked yes) in the file ({why}) -- not this "
-                            f"tool's to move")
+            # NAME THE SOURCE. This said "(locked yes) in the file"
+            # unconditionally, which is false for a ref locked by --lock -- and
+            # sends the reader hunting the board for a stamp that is not there.
+            if ref in _extra_locked:
+                refused[ref] = ("locked by --lock on this invocation -- not "
+                                "this tool's to move")
+            else:
+                why = ("in must_lock, which grades the lock rather than "
+                       "licensing a move" if ref in must_lock
+                       else "not in must_lock")
+                refused[ref] = (f"(locked yes) in the file ({why}) -- not "
+                                f"this tool's to move")
     for ref, why in sorted(refused.items()):
         notes.append(f"{ref}: {why}")
     scope -= set(refused)
@@ -1381,6 +1409,14 @@ def reseat_scope(pcb_data, pcb_file: str, intent, *,
         # A no-op is a RESULT. On a healthy board the auto scope is empty by
         # construction (zero witnesses on all 33 corpus boards), and that is
         # the property that makes this pass safe to put in a default ladder.
+        # "No part NEEDS re-seating" is a claim about the board. When every
+        # candidate was refused for being locked, the truthful claim is about
+        # the LOCKS -- one run reported this while its own census still said
+        # `OFF-OUTLINE PARTS 1 -> 1`.
+        if refused:
+            return _empty(f'{len(refused)} candidate(s) were refused (locked), '
+                          f'so nothing was left to re-seat -- this is not '
+                          f'"no part needs it"')
         return _empty('no part needs re-seating'
                       if refs is None else
                       'every named ref was refused or matched nothing')

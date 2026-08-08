@@ -504,6 +504,12 @@ Do not summarise the process. The next stage classifies from those numbers.
 
 When it returns, continue here with the board and score it produced.
 
+Set `--deadline` on every searching step, BELOW THE SMALLEST CAP IN THE STACK
+-- your harness's included. A 2400s deadline inside a 600s window can never
+fire: the harness SIGTERMs, the tool's own shutdown never runs, and you get
+exit 143 with no partial board and no summary. 143 and 124 are the SHELL's
+codes, not a tool's. Run long steps detached rather than raising the number.
+
 Two rules that are only true HERE, where the halves meet:
   - copper is not evidence about placement. A route that completed does not
     ratify the placement it ran on, and one that failed does not condemn it.
@@ -542,6 +548,12 @@ you:
 
 Its Step 0 gate will pass: you just did that work, and the close-out is the
 evidence.
+
+Set `--deadline` on every searching step, BELOW THE SMALLEST CAP IN THE STACK
+-- your harness's included. A 2400s deadline inside a 600s window can never
+fire: the harness SIGTERMs, the tool's own shutdown never runs, and you get
+exit 143 with no partial board and no summary. 143 and 124 are the SHELL's
+codes, not a tool's. Run long steps detached rather than raising the number.
 
 Two rules that are only true HERE, where the halves meet:
   - copper is not evidence about placement. A route that completed does not

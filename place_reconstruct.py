@@ -399,6 +399,18 @@ Examples:
     xmoved_all = []
     if 'assign' in stages and (vectors or proposals):
         for rnd in range(max(1, args.assign_rounds)):
+            # BETWEEN ROUNDS. `--deadline` used to reach only reseat and
+            # legalize, so parse, state build, classify, fit, vector, every
+            # assign round (each one a scipy ILP) and exchange all ran outside
+            # it, so `--deadline 0` could run a board to COMPLETION and still
+            # report `complete: true` -- measured on tigard__swap: 7s, assign
+            # and exchange both ran, exit 0. A round is the right unit:
+            # the ILP inside one is not interruptible, and the partial is the
+            # previous round's board, which is coherent.
+            if _dl is not None and _dl.check('assign'):
+                notes.append(f"assign: stopped after {rnd} round(s) (budget)")
+                print(f"  assign: stopping after {rnd} round(s) (budget)")
+                break
             cands, pattern = reconstruct.build_candidates(
                 state, tiers, vectors, proposals, edge_bands=edge_bands)
             n_multi = sum(1 for c in cands.values() if len(c) > 1)
@@ -491,6 +503,13 @@ Examples:
     report['assign_pruned'] = sorted(set(all_pruned))
     report['assign_moved'] = sorted(moved)
     report['gate_after_assign'] = list(base)
+    # Membership FIRST: `check()` latches `stopped_in` on its first call, so
+    # testing the clock before the stage set made a run report it stopped in
+    # `exchange` when exchange was never requested.
+    if 'exchange' in stages and _dl is not None and _dl.check('exchange'):
+        notes.append('exchange: skipped (budget)')
+        print('  exchange: skipped (budget)')
+        stages = stages - {'exchange'}
     if 'exchange' in stages:
         report['exchange'] = {
             'attempts': xrep_all['attempts'],
@@ -531,6 +550,7 @@ Examples:
         pcb2 = parse_kicad_pcb(board_path)
         rep = seeder.reseat_scope(
             pcb2, board_path, intent, group_sources=(),
+            lock_globs=args.lock,
             clearance=args.clearance,
             board_edge_clearance=args.board_edge_clearance,
             grid_step=args.grid_step,
@@ -586,6 +606,7 @@ Examples:
             caps = list(caps) + [args.max_move]
         rep = seeder.repair_placement(
             pcb2, board_path, intent, group_sources=(),
+            lock_globs=args.lock,
             clearance=args.clearance,
             board_edge_clearance=args.board_edge_clearance,
             grid_step=args.grid_step, caps=caps, deadline=_dl,

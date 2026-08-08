@@ -82,6 +82,7 @@ def rank_poses(pcb_data, board_path: str, ref: str, *, radius: float = 2.0,
                step: float = 0.5, rotations: Sequence[float] = ROTATIONS,
                limit: int = 12, allow_rotations: bool = True,
                state=None, diagnostics: Optional[Dict] = None,
+               cancel_check=None,
                **state_kw) -> List[Dict]:
     """Legal poses for `ref`, cheapest first.
 
@@ -123,6 +124,17 @@ def rank_poses(pcb_data, board_path: str, ref: str, *, radius: float = 2.0,
     dropped_total = 0
     dropped_in_place = []
     for dx, dy in _offsets(radius, step):
+        # THE SWEEP, which `--limit` never bounded: limit truncates the sorted
+        # RESULT on the last line of this function, while every candidate here
+        # has already paid a full total_cost() plus ref_inversions(). A 30mm /
+        # 0.25mm ring set is 231,392 candidates and --limit 12 evaluates all of
+        # them. `_offsets` yields flat POINTS, not rings, so this runs once
+        # per candidate position (58,081 for r=30/s=0.25) -- finer than a
+        # ring and still negligible against a full cost evaluation.
+        if cancel_check is not None and cancel_check():
+            if diagnostics is not None:
+                diagnostics['stopped_early'] = True
+            break
         for rot in rots:
             x, y = x0 + dx, y0 + dy
             if not st.candidate_valid(ref, x, y, rot):

@@ -479,6 +479,13 @@ already routed:
       [--layer-costs ...] 2>&1 | tee wk/route.log
 {lc}
 
+EVERY step below that searches takes `--deadline`, and the value must be BELOW
+THE SMALLEST CAP IN THE STACK -- including your harness's. A 2400s deadline
+inside a 600s window can never fire: the harness sends SIGTERM, the tool's own
+shutdown never runs, and you get exit 143 with no partial board, no
+`complete:false` and no summary. 143 and 124 are the SHELL's codes, not a
+tool's. Run anything long detached rather than raising the number.
+
 Do NOT pass --max-iterations: the router self-budgets. Rip-up depth 3-5;
 deeper measured WORSE, because a ripped victim whose corridor is taken cannot
 be restored.
