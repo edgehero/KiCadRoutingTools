@@ -62,14 +62,30 @@ def main():
     # harness both shell this tool, and silently re-basing their numbers is a
     # bigger change than the disclosure that was actually missing.
     _board_clr = None
+    _decl = None
     try:
-        from list_nets import board_default_netclass_clearance
+        from list_nets import (board_default_netclass_clearance,
+                               board_floor_declaration)
         _board_clr = board_default_netclass_clearance(args.board)
+        _decl = board_floor_declaration(args.board)
     except Exception:                                          # noqa: BLE001
         pass
     _src = ('--clearance' if args.clearance is not None
             else 'routing_defaults (this tool does NOT read the board)')
     print(f"  grading at clearance {clearance}mm  [{_src}]")
+    # A board that declares NOTHING is a DIFFERENT case from one whose Default
+    # class happens to match (run-12 Tier 1.3). The comparison below can only
+    # fire when there IS a declared value to compare against, so on a
+    # project-less board -- tigard ships none -- this tool said "grading at
+    # 0.25mm [routing_defaults]" and nothing recorded that 0.25 was a fallback
+    # rather than agreement. Name it.
+    if _decl is not None and _decl['declares_nothing']:
+        print(f"  NOTE: this board declares NO net class and NO board "
+              f"constraint (no sibling .kicad_pro, no (net_class) block), so "
+              f"{clearance}mm is a FALLBACK rather than the board's own floor. "
+              f"Pass --clearance <the value the copper was routed to> if you "
+              f"know it; the pad/hole ECHO counts move with it, `blocking` "
+              f"usually does not.")
     if args.clearance is None and _board_clr is not None \
             and abs(_board_clr - clearance) > 1e-9:
         print(f"  NOTE: this board's own Default net-class clearance is "
@@ -154,6 +170,11 @@ def main():
         doc = {
             'board': args.board,
             'clearance': clearance,
+            # run-12 Tier 1.3: True when `clearance` above is this tool's
+            # fallback because the board declared no floor at all -- which a
+            # reader comparing the scalar across boards cannot otherwise tell
+            # from a board that genuinely asks for it.
+            'board_declares_no_floor': bool(_decl and _decl['declares_nothing']),
             'blocking': g['blocking'],
             # The verdict itself, and the scalar behind half of it. Without
             # these every reader re-derives `blocking == 0 and not

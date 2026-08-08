@@ -268,6 +268,47 @@ def board_constraint(pcb_path, key, design_rules=None):
         return None
 
 
+def board_floor_declaration(pcb_path, design_rules=None):
+    """What this board DECLARES about its own DRC floors -- and whether that is
+    nothing at all.
+
+    Returns ``{'classes': int, 'constraints': int, 'source': str|None,
+    'declares_nothing': bool}``. ``declares_nothing`` is True when the board
+    carries NO net class and NO board constraint from any source -- no sibling
+    ``.kicad_pro``, and no KiCad 6/7 ``(net_class ...)`` block in the board
+    file either.
+
+    Why the graders need this rather than just a value (run-12 Tier 1.3): every
+    floor accessor here answers ``None`` on such a board, and each grader then
+    quietly substitutes its own constant (``routing_defaults.CLEARANCE`` 0.25,
+    check_drc's 0.2). Measured on tigard, which ships no project: a whole
+    placement baseline was graded against a fallback with nothing in the
+    transcript recording that the number was a fallback rather than the board's
+    own. That is the "grade at a floor the board was not routed to" failure
+    CLAUDE.md warns about, reached from the other direction -- and unlike a
+    board that declares 0.25, there is no value to compare against to notice it.
+
+    Report-only. Nothing here changes a floor or an exit code; it exists so a
+    grader can NAME its fallback.
+
+    A board whose rules could not be READ answers ``declares_nothing: False``
+    plus an ``error``, never True: "I could not look" is not "there is nothing
+    there", and a disclosure that fires on a read failure is the kind of line
+    readers learn to skip.
+    """
+    try:
+        dr = design_rules if design_rules is not None else read_design_rules(pcb_path)
+    except Exception as exc:                                   # noqa: BLE001
+        return {'classes': 0, 'constraints': 0, 'source': None,
+                'declares_nothing': False,
+                'error': f'{type(exc).__name__}: {exc}'}
+    classes = dr.get('classes') or {}
+    constraints = dr.get('constraints') or {}
+    return {'classes': len(classes), 'constraints': len(constraints),
+            'source': dr.get('source'),
+            'declares_nothing': not classes and not constraints}
+
+
 def board_floor_knobs(pcb_path, clearance=None, board_edge_clearance=None,
                       clearance_default=0.25, edge_default=0.55,
                       design_rules=None):

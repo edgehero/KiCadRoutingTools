@@ -563,6 +563,16 @@ def _floors(board: str, sizes: dict) -> dict:
         out['default_netclass'] = {k: cls.get(k) for k in
                                    ('clearance', 'track_width',
                                     'via_diameter', 'via_drill')}
+        # run-12 Tier 1.3. `board` and `default_netclass` above go all-None on a
+        # board that declares nothing, which reads identically to "the accessor
+        # failed" and identically across two different boards. Name the state:
+        # every floor the components were graded at is then a fallback each
+        # checker chose for itself, not this board's own. Measured on a board
+        # shipping no .kicad_pro at all -- a whole baseline was graded that way
+        # and nothing in the transcript said so.
+        out['declares_no_floor'] = not ((dr or {}).get('classes')
+                                        or (dr or {}).get('constraints'))
+        out['source'] = (dr or {}).get('source')
     except Exception as exc:                                    # noqa: BLE001
         out['error'] = f'{type(exc).__name__}: {exc}'
     return out
@@ -730,6 +740,20 @@ def main():
               f"ON-BOARD pads and CANNOT be routed at this placement -- "
               f"bring these parts back on the board first: "
               f"{' '.join(score['components']['unrouted']['placement_blocked_refs'])}")
+    # WHICH FLOOR. A board that declares no net class and no board constraint
+    # was graded entirely against each checker's own fallback, and every
+    # `floors` value is None -- indistinguishable in a table from a board whose
+    # rules simply were not read. Say it once, here, rather than leaving the
+    # reader to notice a column of nulls (run-12 Tier 1.3; corpus boards that
+    # ship no .kicad_pro are common). Report-only: `blocking` and the exit code
+    # are untouched.
+    if score['floors'].get('declares_no_floor'):
+        print("NO DECLARED FLOOR: this board carries no net class and no board "
+              "constraint (no sibling .kicad_pro, no (net_class) block), so "
+              "every component above was graded at its checker's FALLBACK, not "
+              "at this board's own rules. Compare it only against boards graded "
+              "the same way, and pass --clearance <the routed value> when the "
+              "chain records one.")
     if score['ungraded']:
         # Loud, because this is the difference between "clean" and "unexamined".
         print(f"UNGRADED (not scored, not passed): {', '.join(score['ungraded'])}")

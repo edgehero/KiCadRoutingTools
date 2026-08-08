@@ -3184,6 +3184,7 @@ if __name__ == "__main__":
     # tap escalation). Grading stricter than that invents phantom violations on
     # legitimately tight copper; grading looser hides real ones. (issue follow-up
     # to the route_disconnected_planes fine-tap grading confusion.)
+    _explicit_clearance = args.clearance is not None   # args.clearance is overwritten below
     if args.clearance is None:
         args.clearance = 0.2
         found = False
@@ -3216,6 +3217,36 @@ if __name__ == "__main__":
         # log and board_score's graded_at parsed to null exactly when the
         # caller was most explicit. Say it always, with its source.
         print(f"Grading at clearance {args.clearance:.4g} mm (--clearance)")
+
+    # ...and say when the board declares NO floor of its own, on BOTH branches
+    # (run-12 Tier 1.3). The missing-project warning above fires only when -c
+    # was omitted -- yet CLAUDE.md tells a caller to pass the routed clearance
+    # explicitly, which is exactly the case where the board's own silence went
+    # unrecorded. Measured on tigard (no .kicad_pro): every floor accessor
+    # returns None, a whole baseline was graded against fallbacks, and
+    # `grep -icE "no sibling|no .kicad_pro|no project"` over the log returned 0.
+    # Report-only: no floor and no exit code changes here. The flag is computed
+    # even under -q, because the JSON below carries it too.
+    _board_declares_no_floor = False
+    try:
+        from list_nets import board_floor_declaration
+        _decl = board_floor_declaration(args.pcb)
+        _board_declares_no_floor = bool(_decl['declares_nothing'])
+        if _board_declares_no_floor and not args.quiet:
+            print(f"  NOTE: {os.path.basename(args.pcb)} declares NO net class "
+                  f"and NO board constraint (no sibling .kicad_pro, no "
+                  f"(net_class) block). Every floor here is a FALLBACK, not "
+                  f"this board's own: clearance {args.clearance:.4g} mm"
+                  + (" (--clearance)" if _explicit_clearance
+                     else " (check_drc default)")
+                  + f", hole-to-hole {args.hole_to_hole_clearance:.4g} mm, "
+                  f"board-edge {args.board_edge_clearance:.4g} mm. Whether "
+                  f"they match what the copper was routed to is unverified "
+                  f"HERE -- read the route step's --clearance from "
+                  f"redo_commands.sh.")
+    except Exception as _e:
+        if not args.quiet:
+            print(f"  (board floor declaration not read: {_e})")
 
     # Issue #326: per-netclass clearances -- KiCad grades every pair at the
     # max of the two items' netclass values, so read the board's classes
@@ -3296,6 +3327,11 @@ if __name__ == "__main__":
                 'board_edge_clearance': args.board_edge_clearance,
                 'per_net_clearances': bool(net_clearances),
                 'size_checks': not args.no_size_checks,
+                # run-12 Tier 1.3: True when the BOARD declared no net class
+                # and no constraint, so every floor above is this tool's
+                # fallback rather than the board's own. A reader comparing
+                # `graded_at` across boards cannot otherwise tell the two apart.
+                'board_declares_no_floor': _board_declares_no_floor,
             },
             'violations': len(_real),
             'accepted': len(violations) - len(_real),

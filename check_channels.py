@@ -35,6 +35,41 @@ def _starved_faces(ledgers, min_demand):
     return out
 
 
+def _deficit_faces(ledgers):
+    """Every face that owes more nets than it can carry AT THE FINEST GRID.
+
+    The absolute-deficit report the ledger has always computed
+    (`deficit_finest_grid`, placement/routability.py) and never surfaced
+    anywhere a caller could read: the per-face lines print it, the JSON did
+    not, and the gate counts only STARVED faces -- `supply == 0` and
+    `demand >= --min-demand`.
+
+    Those predicates miss the shape that actually bounds a run. Measured, run
+    11: U5's east face was `demand 3 / supply 1` -- a deficit of 2, at a part
+    that turned out to bound the whole board's routing -- and it sat outside
+    the gate's predicate entirely, on both counts.
+
+    DELIBERATELY NOT GATED. `tests/test_run8_starved_face_gate.py` records the
+    calibration that forbids it: at `demand >= 5` six of 33 healthy in-repo
+    boards fire, and on one run the HUMAN control fires the same face as the
+    tool's output. A face in deficit is often a property of the DESIGN -- a
+    dense part hard against an edge -- not of the placement under test. So this
+    is a report, sorted worst-first, and the exit code is untouched.
+    """
+    out = []
+    for ref, rows in sorted((ledgers or {}).items()):
+        for r in rows:
+            if r['deficit_finest_grid'] > 0:
+                out.append({'ref': ref, 'face': r['face'],
+                            'demand_nets': r['demand_nets'],
+                            'supply_finest_grid': r['supply_finest_grid'],
+                            'deficit_finest_grid': r['deficit_finest_grid'],
+                            'deficit_routed_grid': r['deficit_routed_grid'],
+                            'eaten_by': r['eaten_by'][:3]})
+    out.sort(key=lambda e: (-e['deficit_finest_grid'], e['ref'], e['face']))
+    return out
+
+
 def lost_last_lane(ledgers, base_ledgers):
     """(ref, face, demand, was) for faces whose supply fell to ZERO.
 
@@ -146,6 +181,27 @@ def main():
                   f"supply {r['supply_routed_grid']}@routed"
                   f"/{r['supply_finest_grid']}@finest{eaten}{flag}")
 
+    # The absolute deficit, summarised (run-12 Tier 3.6). Printed whether or
+    # not --baseline was given, and never gated -- see _deficit_faces.
+    deficit = _deficit_faces(ledgers)
+    if deficit:
+        _worst = deficit[0]
+        print(f"Faces in DEFICIT at the finest legal grid: {len(deficit)} "
+              f"(worst {_worst['ref']} {_worst['face']}: demand "
+              f"{_worst['demand_nets']} vs supply "
+              f"{_worst['supply_finest_grid']}). A deficit here is a "
+              f"floorplan/placement fact no routing parameter can fix; it is "
+              f"REPORTED, not gated, because a dense part hard against an edge "
+              f"produces one on healthy boards and on human originals too.")
+        for e in deficit[:8]:
+            eaten = (' eaten_by ' + ', '.join(f'{n}({v})' for n, v in e['eaten_by'])
+                     if e['eaten_by'] else '')
+            print(f"  {e['ref']} {e['face']}: short {e['deficit_finest_grid']} "
+                  f"lane(s) (demand {e['demand_nets']}, supply "
+                  f"{e['supply_finest_grid']}){eaten}")
+    elif ledgers:
+        print("Faces in DEFICIT at the finest legal grid: 0")
+
     starved = _starved_faces(ledgers, args.min_demand)
     new_starved = None
     if args.baseline:
@@ -210,6 +266,10 @@ def main():
                        'taps_not_modeled': True,
                        'ledgers': ledgers, 'channels': channels,
                        'starved_faces': starved,
+                       # run-12 Tier 3.6: the ABSOLUTE deficit, which the gate's
+                       # starvation predicate (supply == 0 AND demand >=
+                       # --min-demand) does not cover. Report-only.
+                       'deficit_faces': deficit,
                        'baseline': args.baseline,
                        'new_starved_faces': new_starved},
                       f, indent=1, sort_keys=True)
