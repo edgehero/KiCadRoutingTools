@@ -278,6 +278,69 @@ def emit(report: Optional[Dict[str, Any]], *, complete: bool = True,
     return True
 
 
+def seal() -> bool:
+    """Declare the JSON_SUMMARY already published, WITHOUT printing one.
+
+    For a tool whose engine prints its own summary. `route.py` and
+    `route_diff.py` are the cases: `batch_route` builds a large summary and
+    `print`s it directly, and it does so once per pass (the reconciliation
+    self-invoke prints a second), so routing them through `emit()` -- which
+    fires at most once -- would swallow every summary after the first.
+
+    Without this the atexit flush would see `_emitted` still False on a
+    perfectly successful run and publish the contentless partial report armed
+    at `--deadline` time, printing a SECOND, contradicting
+    `{"complete": false, "status": "incomplete"}` line after the real one. That
+    is a measured defect, not a hypothetical: it shipped in
+    `route_disconnected_planes` (run 11, v6_r7) and any consumer keying on the
+    LAST JSON_SUMMARY read a good run as a failed one.
+
+    Returns True if this call did the sealing.
+    """
+    global _emitted
+    if _emitted:
+        return False
+    _emitted = True
+    return True
+
+
+def stamp(report: Dict[str, Any]) -> Dict[str, Any]:
+    """Stamp THIS PROCESS's spent budget onto a summary someone else prints.
+
+    The companion to `seal()`, and the reason neither is a new engine kwarg:
+    `batch_route`'s summary is the only one `route.py` emits, and
+    `place_route_loop` already refuses a `complete: false` tally
+    (`place_route_loop.py:162`) while `route_summary.merge_summaries` already
+    makes incompleteness sticky across passes. The one missing piece was the
+    stamp itself, and it is read through `current()` rather than threaded
+    through the signature -- so the GUI, which never arms a budget, is inert
+    here and no parity gate is involved.
+
+    A no-op unless a budget was armed AND actually cut the work short, so a
+    summary from a run that finished inside its budget is byte-identical to
+    before.
+
+    "Cut short" is `stopped_in or expired()`, not `expired()` alone. A caller
+    using a RESERVE band (`cancel_check(label, reserve=...)`, which
+    route_planes and route_disconnected_planes both need so the bounded tail
+    still has clock) trips its loops at `deadline - reserve` -- and if that
+    tail then finishes before the wall clock runs out, the run is past its
+    cancel and NOT past its deadline. Testing `expired()` alone would report
+    that partial board as complete, which is precisely the confusion this
+    module exists to remove. `stopped_in` is set by `Deadline.check` at the
+    moment the cancel fires, so it is the durable record.
+    """
+    dl = _current
+    if dl is None or not (dl.stopped_in or dl.expired()):
+        return report
+    report['complete'] = False
+    report['status'] = 'deadline'
+    report['deadline_s'] = dl.seconds
+    report['elapsed_s'] = round(dl.elapsed(), 1)
+    report['stopped_in'] = dl.stopped_in
+    return report
+
+
 def mark(report: Dict[str, Any], dl: Deadline, **partial: Any
          ) -> Dict[str, Any]:
     """Stamp `report` as a partial result, in the shape consumers rely on.
