@@ -744,6 +744,12 @@ Examples:
           f"{final['hole_conflicts']} hole conflict(s), "
           f"{final['oob_pad_count']} part(s) with pad copper off-board, "
           f"{body['blocking']} blocking body pair(s)")
+    _oc = __import__('placement.legality', fromlist=['x']).format_oob_clause(final)
+    if _oc:
+        # Printed BEFORE the edge_connectors advice below, because that advice
+        # tells the reader to declare a by-design overhang -- and this measure
+        # fires on a part sitting INSIDE the board by a clearance band.
+        print(f"  off-board parts: {_oc}")
     for q in body['blocking_pairs']:
         print(f"  BODY STACK: {q.a} <-> {q.b} {q.kind} {q.area_mm2}mm2 "
               f"side {q.side} -- not physically buildable")

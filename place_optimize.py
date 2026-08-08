@@ -209,14 +209,17 @@ Examples:
     # Exact pad/hole legality of the INPUT (file poses): the before half of
     # the report pair. Gate-currency tallies live inside the quench; this is
     # the phantom-free number an auditor compares.
-    from placement.legality import grade_pad_legality
+    from placement.legality import (grade_pad_legality,
+                                    format_oob_clause as _oob_clause)
     legality_before = None
     if not args.courtyard_only:
         legality_before = grade_pad_legality(pcb_data, args.clearance)
         print(f"Pad legality before: {legality_before['pad_conflicts']} "
               f"conflict pair(s), {legality_before['hole_conflicts']} hole "
               f"conflict(s), {legality_before['oob_pad_count']} part(s) with "
-              f"pad copper off-board")
+              f"pad copper off-board"
+              + (": " + _oob_clause(legality_before)
+                 if _oob_clause(legality_before) else ""))
 
     ratsnest = {}
     import krt_deadline
@@ -312,7 +315,9 @@ Examples:
         print(f"Pad legality after: {legality_after['pad_conflicts']} "
               f"conflict pair(s), {legality_after['hole_conflicts']} hole "
               f"conflict(s), {legality_after['oob_pad_count']} part(s) with "
-              f"pad copper off-board")
+              f"pad copper off-board"
+              + (": " + _oob_clause(legality_after)
+                 if _oob_clause(legality_after) else ""))
         for key in ('pad_conflicts', 'hole_conflicts', 'oob_pad_count'):
             summary[f'{key}_before'] = legality_before[key]
             summary[f'{key}_after'] = legality_after[key]

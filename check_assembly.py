@@ -159,9 +159,12 @@ def main():
               "standoff, a panel cut-out). A placement search may not settle "
               "this by moving the other part somewhere it likes better, and a "
               "waiver class chosen for unlocked parts does not apply here.")
+    from placement.legality import format_oob_clause
+    _clause = format_oob_clause(leg)
     print(f"  pad/hole/oob echo: {leg['pad_conflicts']} pad pair(s), "
           f"{leg['hole_conflicts']} hole conflict(s), "
-          f"{leg['oob_pad_count']} part(s) with pad copper off-board")
+          f"{leg['oob_pad_count']} part(s) with pad copper off-board"
+          + (": " + _clause if _clause else ""))
     verdict = ('NOT BUILDABLE' if (g['blocking'] or locked_contact)
                else 'buildable (blocking 0)')
     print(f"  VERDICT: {verdict}")
@@ -194,6 +197,14 @@ def main():
             'hole_conflicts': leg['hole_conflicts'],
             'oob_pad_count': leg['oob_pad_count'],
             'oob_pad_amount': leg['oob_pad_amount'],
+            # The MACHINE path, which is the one that matters here: this doc is
+            # what loop_driver's L2 gate reads, and that gate refuses with "N
+            # part(s) carry pad copper OFF the board -- their nets cannot be
+            # routed at all". It could not name the part, and the count it
+            # gates on moves with --clearance, so a clearance-band graze reads
+            # as copper in the air. Both facts now travel with the number.
+            'oob_pad_refs': leg.get('oob_pad_refs') or [],
+            'oob_pad_basis': leg.get('oob_pad_basis'),
             'locked_contact_pairs': [q._asdict() for q in locked_contact],
         }
         if new_advisory is not None:
