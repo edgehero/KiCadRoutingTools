@@ -189,7 +189,19 @@ def main(argv=None):
             print(f'fence_audit: manifest unreadable ({exc}); every '
                   f'truth-carrying board is reported as a LEAK', file=sys.stderr)
 
+    if args.mode == 'audit' and manifest is None:
+        # SAY it. The unreadable-manifest path above warns; the ABSENT one said
+        # nothing, so audit silently became strict where create had been silent
+        # -- and a reader could not tell "no board carried truth" from "there
+        # was no record to check against".
+        print('fence_audit: no creation manifest in this work dir, so no board '
+              'has provenance. Every truth-carrying board will be reported as '
+              'a LEAK. Run --mode create BEFORE the run to record one.',
+              file=sys.stderr)
+
     at_creation = set((manifest or {}).get('files', []))
+    at_creation_shas = (manifest or {}).get('shas') or {}
+    control_sha = (manifest or {}).get('control_sha256')
     leaks, recovered, errors = [], [], []
     for row in rows:
         if 'error' in row:
@@ -198,9 +210,28 @@ def main(argv=None):
             continue
         elif args.mode == 'create':
             leaks.append(row)
-        elif manifest is None or row['file'] in at_creation:
-            row['reason'] = ('present at work-dir creation' if manifest
-                             else 'no creation manifest -- provenance unknown')
+        elif manifest is None:
+            row['reason'] = 'no creation manifest -- provenance unknown'
+            leaks.append(row)
+        elif row['file'] in at_creation \
+                and at_creation_shas.get(row['file']) == row.get('sha256'):
+            # UNCHANGED since creation, so it is an input that already carried
+            # truth. The sha is what makes that testable: this branch used to
+            # key on the PATH alone, which meant a board the run REWROTE in
+            # place -- a recovery landing on the control's poses -- was
+            # reported as "present at work-dir creation". The better the run
+            # did, the more certainly it fired. `shas` was recorded here for
+            # exactly this and was never read.
+            row['reason'] = 'present at work-dir creation, unchanged since'
+            leaks.append(row)
+        elif control_sha and row.get('sha256') == control_sha:
+            # A BYTE COPY OF THE CONTROL is not a reconstruction. A real
+            # recovery differs in copper, UUIDs and netclasses even when every
+            # pose matches; identical bytes mean the file was copied, not
+            # rebuilt. Without this, `cp control.kicad_pcb r4_final.kicad_pcb`
+            # was classed "produced by the run" and exited 0.
+            row['reason'] = ('byte-identical to the control -- copied, not '
+                             'reconstructed')
             leaks.append(row)
         else:
             row['reason'] = 'produced by the run (recovery reaching truth)'
@@ -228,6 +259,17 @@ def main(argv=None):
         'verdict': 'LEAK' if leaks else 'CLEAN',
     }
     if args.json:
+        if args.mode == 'create':
+            # CREATE runs with the fence UP. `worst_mm` IS the applied dose and
+            # `match_frac` is the block size -- the two things the staging
+            # script captures stdout to conceal. A leak verdict needs neither.
+            _strip = ('match_frac', 'worst_mm', 'refs_shared', 'mtime')
+            for _b in ('leaks', 'recovered_to_truth'):
+                report[_b] = [{k: v for k, v in r.items() if k not in _strip}
+                              for r in report[_b]]
+            report['note'] = ('create mode: per-board metrics withheld -- they '
+                              'disclose the perturbation dose and block size '
+                              'while the fence is still up')
         print(json.dumps(report, indent=1, sort_keys=True))
     else:
         print(f'fence_audit [{args.mode}] {args.workdir}: '

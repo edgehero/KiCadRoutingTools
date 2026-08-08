@@ -52,8 +52,8 @@ Examples:
     p.add_argument("--ignore-nets", nargs="+", default=None, metavar="NET",
                    help="Net patterns excluded from the polish's airwire "
                         "scoring (plane-routed rails)")
-    p.add_argument("--clearance", type=float, default=defaults.CLEARANCE)
-    p.add_argument("--board-edge-clearance", type=float, default=0.55)
+    p.add_argument("--clearance", type=float, default=None)
+    p.add_argument("--board-edge-clearance", type=float, default=None)
     p.add_argument("--grid-step", type=float, default=defaults.GRID_STEP)
     p.add_argument("--max-displacement", type=float, default=3.0,
                    help="Polish displacement cap in mm (default: 3.0)")
@@ -123,6 +123,17 @@ Examples:
                    help="With --repair/--reseat: print the move list and "
                         "grades, write nothing")
     args = p.parse_args()
+
+    # Run-7 S1 / run-13 F6: unset floors come from the BOARD, not a constant.
+    # A fixed 0.25 on a board declaring 0.2 measured 34% more shortfall and
+    # double the oob count -- and these tools VETO candidate moves on it, so a
+    # wrong floor steers the search, it does not merely mis-report.
+    from list_nets import board_floor_knobs
+    args.clearance, args.board_edge_clearance, _knobs = board_floor_knobs(
+        args.input_file, args.clearance, args.board_edge_clearance)
+    print(f"legality at clearance {args.clearance} "
+          f"({_knobs['clearance']['source']}), edge {args.board_edge_clearance} "
+          f"({_knobs['board_edge_clearance']['source']})")
     if (args.repair or args.reseat is not None) and args.force:
         p.error("--repair/--reseat and --force are mutually exclusive (they "
                 "move only the parts that need it; force re-derives "

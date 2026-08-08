@@ -37,6 +37,28 @@ BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 CLEAN, LEAK = 0, 4
 
 
+def _sha(path):
+    import hashlib
+    return hashlib.sha256(open(path, 'rb').read()).hexdigest()
+
+
+def _reserialise(src, dst):
+    """Same poses, different bytes -- the shape a real recovery has.
+
+    A `shutil.copy` fixture cannot distinguish a reconstruction from a copy,
+    which is precisely the hole the audit used to have. Writing the board back
+    out through the writer reproduces every footprint pose and changes the
+    file, so the fixture tests the property the audit now tests.
+    """
+    from kicad_parser import parse_kicad_pcb
+    from placement.writer import write_placed_output
+    pcb = parse_kicad_pcb(src)
+    write_placed_output(src, dst, [
+        {'reference': ref, 'new_x': fp.x, 'new_y': fp.y,
+         'new_rotation': fp.rotation}
+        for ref, fp in sorted(pcb.footprints.items())])
+
+
 def run_audit(control, workdir, mode):
     proc = subprocess.run(
         [sys.executable, '-X', 'utf8', AUDIT, '--control', control,
@@ -91,8 +113,28 @@ def main():
         check('create writes the manifest',
               os.path.isfile(os.path.join(wd, '.fence-manifest.json')), out)
 
+        # A byte-identical COPY of the control is not a reconstruction, and
+        # used to be reported as one: `shutil.copy` + a name not in the
+        # manifest was classed 'produced by the run' and exited 0. That is the
+        # laundering route -- copy the control, and the audit congratulates
+        # you. A real recovery differs in copper, UUIDs and netclasses even
+        # when every pose matches, which is exactly what `control_sha256` in
+        # the manifest is for.
+        laundered = os.path.join(wd, 'r4_copied.kicad_pcb')
+        shutil.copy(control, laundered)
+        code, out = run_audit(control, wd, 'audit')
+        check('a byte-identical copy of the control is a LEAK, not a recovery',
+              code == LEAK, out)
+        check('...and says it was copied rather than rebuilt',
+              'copied, not reconstructed' in out, out)
+        os.remove(laundered)
+
+        # A GENUINE reconstruction: same poses, different bytes. Re-serialising
+        # through the writer reproduces every pose and changes the file, which
+        # is the shape a real recovery has.
         recovered = os.path.join(wd, 'r4_final.kicad_pcb')
-        shutil.copy(control, recovered)          # a perfect reconstruction
+        _reserialise(control, recovered)
+        assert _sha(recovered) != _sha(control), 'fixture must differ in bytes'
         code, out = run_audit(control, wd, 'audit')
         check('a board produced BY the run that reaches truth is not a leak',
               code == CLEAN, out)

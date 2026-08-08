@@ -928,8 +928,11 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
         f.write("\n")
     os.replace(_tmp_pro, out_pro)
     if verbose:
-        print(f"  DRC settings: updated {len(changes)} value(s) in {out_pro} "
-              f"to match the routed floors (close+reopen in KiCad if it is open)")
+        print(f"  DRC settings: wrote {len(changes)} value(s) to {out_pro} "
+              f"to match the routed floors (close+reopen in KiCad if it "
+              f"is open). WRITES, not changes: a key the project never "
+              f"declared counts here, and one logical value is written once "
+              f"per net class -- see the FAB FLOOR line for what moved")
     for line in _fab_floor_disclosure(output_pcb, _rules_before, proj):
         print(line)
     return out_pro

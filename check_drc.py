@@ -3003,7 +3003,21 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
             # (issue #93: a fixed cap silently dropped most of a long list).
             limit = len(violations) if max_print is not None and max_print <= 0 else max_print
             for vtype, vlist in by_type.items():
-                print(f"\n{vtype.upper()} violations ({len(vlist)}):")
+                # CONTACT count per type. `[SHORT]` is printed at exactly one
+                # place in this file, inside the pad-pad branch, so it cannot
+                # name a track touching a pad -- two boards differing by a
+                # power-rail short reported identical totals AND identical
+                # pad-pad short counts, because every differing contact was
+                # pad-segment. Only a per-type contact figure separates them,
+                # and the JSON already carries it as `contacts_by_type`.
+                _nc = sum(1 for v in vlist
+                          if isinstance(v.get('overlap_mm'), (int, float))
+                          and v['overlap_mm'] >= (
+                              v['required_mm']
+                              if isinstance(v.get('required_mm'), (int, float))
+                              else clearance))
+                _ct = f" -- {_nc} in CONTACT" if _nc else ""
+                print(f"\n{vtype.upper()} violations ({len(vlist)}){_ct}:")
                 print("-" * 40)
                 for v in vlist[:limit]:  # Show first `limit` of each type
                     if vtype in ('segment-segment', 'segment-segment-track-rule'):

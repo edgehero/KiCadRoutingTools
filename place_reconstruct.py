@@ -102,11 +102,20 @@ Examples:
                         "boundary partners are home (run-4 F2/F4). Each "
                         "round is gated and pruned; the loop stops early "
                         "when a round moves nothing")
+    p.add_argument("--lock", nargs="+", default=None, metavar="REF",
+                   help="Reference globs this run may NOT move, on top of the "
+                        "board's own (locked yes) stamps. Every sibling "
+                        "placement tool has this and reconstruct did not -- "
+                        "the tool whose whole job is moving parts was the one "
+                        "with no way to say which parts it may not move. "
+                        "Scoping it therefore meant stamping temporary lock "
+                        "bits INTO the board being measured, which "
+                        "check_assembly then waives on and #521 reads.")
     p.add_argument("--max-move", type=float, default=5.0,
                    help="Legalize-stage displacement cap ladder tops out here "
                         "(default: 5.0)")
-    p.add_argument("--clearance", type=float, default=defaults.CLEARANCE)
-    p.add_argument("--board-edge-clearance", type=float, default=0.55)
+    p.add_argument("--clearance", type=float, default=None)
+    p.add_argument("--board-edge-clearance", type=float, default=None)
     p.add_argument("--grid-step", type=float, default=defaults.GRID_STEP)
     p.add_argument("--dry-run", action="store_true",
                    help="Print the stage reports and move list; write nothing")
@@ -120,6 +129,17 @@ Examples:
                         "determinism). ANY harness with an external timeout "
                         "should pass this at ~0.8x its own. Env: KRT_DEADLINE_S")
     args = p.parse_args()
+
+    # Run-7 S1 / run-13 F6: unset floors come from the BOARD, not a constant.
+    # A fixed 0.25 on a board declaring 0.2 measured 34% more shortfall and
+    # double the oob count -- and these tools VETO candidate moves on it, so a
+    # wrong floor steers the search, it does not merely mis-report.
+    from list_nets import board_floor_knobs
+    args.clearance, args.board_edge_clearance, _knobs = board_floor_knobs(
+        args.input_file, args.clearance, args.board_edge_clearance)
+    print(f"legality at clearance {args.clearance} "
+          f"({_knobs['clearance']['source']}), edge {args.board_edge_clearance} "
+          f"({_knobs['board_edge_clearance']['source']})")
     stages = {s.strip() for s in args.stages.split(',') if s.strip()}
     # A misspelt stage used to be accepted silently and gate nothing, so
     # `--stages legalise` ran no legalize and exited 0 with a clean-looking
@@ -177,10 +197,20 @@ Examples:
               file=sys.stderr)
         return UNPLACED_EXIT
 
+    # Two lock sources, resolved once so every consumer agrees: the file's
+    # own (locked yes) stamps (read inside QuenchState) and these globs.
+    _extra_locked = set()
+    if args.lock:
+        import fnmatch as _fn
+        _extra_locked = {r for r in pcb.footprints
+                         if any(_fn.fnmatch(r, pat) for pat in args.lock)}
+        print(f"Locked via --lock: {len(_extra_locked)} ref(s)"
+              + (f": {', '.join(sorted(_extra_locked)[:8])}"
+                 if _extra_locked else " -- NO ref matched, check the globs"))
     state = pose_score.make_state(
         pcb, args.input_file, clearance=args.clearance,
         board_edge_clearance=args.board_edge_clearance,
-        grid_step=args.grid_step)
+        grid_step=args.grid_step, extra_locked_refs=_extra_locked or None)
     if state.legality_ctx is None:
         print("place_reconstruct: pad legality layer unavailable on this "
               "state; refusing to run blind.", file=sys.stderr)

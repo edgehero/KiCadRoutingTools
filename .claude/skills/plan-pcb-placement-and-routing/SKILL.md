@@ -70,29 +70,7 @@ Its guards are the three this skill exists to enforce:
 | `L2` route | a placement close-out | routing cannot start on a placement nobody proved, and a board with a blocking pair fails for a reason routing cannot fix |
 | `L3` classify | a routing score | a retry without a classification is a guess |
 | `L4` re-enter | a measured `--shape` | the three shapes re-enter at three different points, and the cost of guessing is asymmetric |
-| `L5` close out | a routing close-out that **agrees** with `converge` | L2 refused to START routing without a placement close-out and nothing refused to FINISH, so a run reached the terminal artifact having never entered routing's own V1–V5 loop, and shipped a power-rail-to-signal short |
-
-**The L5 gate is an AGREEMENT check, not a paperwork check.** It refuses when
-`converge verdict` says `DONE-EXHAUSTED` while `check_complete.py` says
-`INCOMPLETE` or `UNSOUND` — because `converge` gets to DONE from `blocking == 0`,
-and `blocking == 0` is exactly the number `check_complete` exists to distrust
-(it has no component at all for orphan stubs, weird copper or cross-footprint
-pad overlaps, so a defect can sit in the gap between them with every published
-number reading clean). `STUCK`/`BUDGET` alongside `INCOMPLETE` is a *consistent*
-pair and passes. Only the contradiction refuses.
-
-```bash
-python3 -X utf8 check_complete.py <board> \
-    --authored-from <the board this chain STARTED from> \
-    --json wk/routing_close.json
-```
-
-`--authored-from` is not bookkeeping: without it the fab-floor check cannot run
-and `UNSOUND` is unreachable, so a `DONE` cannot tell "the copper is right" from
-"the rule moved". Waive a named check with `--accept-unclosed
-instruments|fab_floors|ungraded|agreement` — deliberately a different flag from
-L2's `--accept-residue`, so a waiver granted for placement can never silently
-waive a routing check.
+| `L5` close out | a `check_complete` close-out that **agrees** with `converge` | nothing refused to FINISH, so a run reached the terminal artifact having never entered routing's own V1–V5 loop, and shipped a power-to-signal short. Only the *contradiction* refuses: `DONE-EXHAUSTED` against `INCOMPLETE`/`UNSOUND` |
 
 **Delegation is automatic, and the rule is one number per half.** You do not
 decide it and you cannot forget it — the driver reads the board and says which
