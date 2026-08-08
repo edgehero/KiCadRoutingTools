@@ -710,3 +710,55 @@ they interoperate with `--compare` and `--regrade`.
 - **Wave dirs are write-once** (`ab_<what>_MMDD` + same-day `a`/`b`/`c`): re-running
   into an existing dir reads back the sibling `.kicad_pro` DRC floor and silently
   changes the routing — it looks like non-determinism but isn't.
+
+## Staging a perturbed subject (#411 recovery rig)
+
+A recovery experiment measures how close a repaired placement lands to the
+original, and that number means nothing if the tools could have read the
+original. So the staging has exactly one rule:
+
+**Ground truth never enters the work dir. Stage it into a SIBLING `_truth/`
+from the start, and audit by CONTENT before the run.**
+
+```
+wk/<run>/<subject>/         <- THE WORK DIR. every tool runs here.
+    board.kicad_pcb         <- the damaged board, the only input
+wk/<run>/_truth/<subject>/  <- fenced, OUTSIDE the work dir. nothing reads it.
+    control.kicad_pcb       <- the human placement, pose for pose
+    board.perturb.json      <- the record: it embeds `original_poses`
+```
+
+`placement.perturb.perturb(..., control_out=...)` puts both there in one call —
+the record follows the control — and prints where each landed:
+
+```python
+P.perturb(src, 'wk/run12/tigard/board.kicad_pcb',
+          kind=kind, dose_mm=dose, seed=seed,
+          control_out='wk/run12/_truth/tigard/control.kicad_pcb')
+```
+
+**Omitting `control_out` is the unsafe default and is kept only for
+compatibility.** It writes `<out>.control.kicad_pcb` beside the damaged board —
+the human placement, inside the directory the run then works in, where any glob
+or `--before` can reach it. `perturb()` prints a WARNING when it does this;
+`tests/stress/perturb_batch.py` shows the fenced form (`_truth/` a sibling of
+the dose cells).
+
+Audit before the run and again after, by content, never by name:
+
+```bash
+python3 -X utf8 tests/stress/fence_audit.py \
+    --control wk/run12/_truth/tigard/control.kicad_pcb \
+    --workdir wk/run12/tigard --mode create        # exit 4 == a leak
+# ... the run ...
+python3 -X utf8 tests/stress/fence_audit.py \
+    --control wk/run12/_truth/tigard/control.kicad_pcb \
+    --workdir wk/run12/tigard --mode audit
+```
+
+`--mode create` writes `.fence-manifest.json`, which is what later tells a
+*recovered* board (produced by the run, reaching truth — the experiment
+succeeding) apart from a *leaked* one (present at creation). There is no
+name-based exemption for `*.control.kicad_pcb`: a control inside the work dir is
+a leak whatever it is called, because the next carrier will have a different
+name.

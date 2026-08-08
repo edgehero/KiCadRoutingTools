@@ -62,11 +62,27 @@ from placement import recovery  # noqa: E402
 
 MANIFEST_NAME = '.fence-manifest.json'
 
-# Carriers the protocol declares as truth ON PURPOSE. They are audit-only
-# inputs the workers may not read; this audit's job is finding the ones nobody
-# declared, so these are excluded from the leak report by name.
+# Carriers the protocol declares as truth ON PURPOSE, excluded from the leak
+# report by name.
+#
+# `*.control.kicad_pcb` USED TO BE HERE AND IS GONE (run-12 Tier 0). It made
+# the same bytes a LEAK or CLEAN depending only on the filename: a copy of the
+# control under any other name was reported, the control itself was not --
+# while `perturb()` wrote it into the output directory by default, so the most
+# likely carrier of all was the one carrier this audit ignored. That
+# contradicts the docstring above ("Naming cannot close that hole ... So this
+# audit ignores names"), and a name-based exemption for the single most likely
+# carrier is exactly the hole the module exists to close. A control INSIDE the
+# work dir is now a LEAK, which is what this module says it believes.
+#
+# The legitimate cases are still covered: `control_real` (below) never reports
+# the audit's OWN reference, and `--allow` remains for a caller that genuinely
+# means it.
+#
+# `*.perturb.json` is inert here -- `scan()` only walks `.kicad_pcb` -- and is
+# kept as the declaration it is. NOTE that the record carries `original_poses`,
+# so it is ground truth too; keep it out of the work dir for the same reason.
 DEFAULT_ALLOW = (
-    '*.control.kicad_pcb',
     '*.perturb.json',
 )
 

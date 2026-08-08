@@ -360,7 +360,8 @@ def perturb(board: str, out_board: str, *, kind: str = 'translate',
             max_fanout: int = 20, grid_step: float = 0.1,
             clearance: float = 0.25, board_edge_clearance: float = 0.55,
             on_overflow: str = 'clip', seed: int = 0,
-            write_record: bool = True) -> Dict:
+            write_record: bool = True,
+            control_out: Optional[str] = None) -> Dict:
     """Write a perturbed board plus its ground-truth record. Returns the record.
 
     The CONTROL is the `--dose 0` pass of this same writer, never the raw input
@@ -368,6 +369,18 @@ def perturb(board: str, out_board: str, *, kind: str = 'translate',
     `move_copper_text_to_silkscreen` over the whole file and can inject via
     moves -- so comparing a perturbed output against the raw input would differ
     by a text transformation nobody accounted for.
+
+    `control_out` IS THE FENCE, and the default is the unsafe one kept only for
+    compatibility. The control is the human placement pose-for-pose, so writing
+    it beside `out_board` -- which is what happens when this is None -- drops
+    ground truth INSIDE the directory the run then works in, where any glob, any
+    `--before`, any tool taking a directory can read it. Run 12 caught it by
+    reading a directory listing and moved the file out by hand; a run that did
+    not look would have been fenced on paper and open in fact. Pass a path
+    outside the work dir (`<subject>/_truth/`, see tests/stress/RUNBOOK.md).
+
+    Either way the destination is PRINTED, so a staging script cannot be
+    unaware of where truth landed -- silence was the other half of the defect.
     """
     if kind not in KINDS:
         raise ValueError(f'unknown kind {kind!r}; have {", ".join(KINDS)}')
@@ -508,9 +521,24 @@ def perturb(board: str, out_board: str, *, kind: str = 'translate',
                                                    grid_step=grid_step))
 
     # The control: the SAME writer, dose 0.
-    control = os.path.splitext(out_board)[0] + '.control.kicad_pcb'
+    control = (control_out or
+               os.path.splitext(out_board)[0] + '.control.kicad_pcb')
+    _cdir = os.path.dirname(os.path.abspath(control))
+    if _cdir:
+        os.makedirs(_cdir, exist_ok=True)
     write_placed_output(board, control, [])
     copy_siblings(board, control)
+    # Say where truth went, ALWAYS. This board carries the original placement
+    # pose-for-pose; a caller that does not know its path cannot fence it.
+    _inside = (os.path.dirname(os.path.abspath(control)) ==
+               os.path.dirname(os.path.abspath(out_board)))
+    print(f"CONTROL (GROUND TRUTH) -> {os.path.abspath(control)}", flush=True)
+    if _inside and control_out is None:
+        print("  WARNING: that is the SAME directory as the perturbed output, "
+              "so the human placement is inside the work dir the run will "
+              "read. Pass control_out=<somewhere outside> (the staging recipe "
+              "uses a sibling _truth/), or fence_audit --mode create will "
+              "report it as a LEAK -- which it is.", flush=True)
     write_placed_output(board, out_board, placements)
     copy_siblings(board, out_board)
 
@@ -561,8 +589,20 @@ def perturb(board: str, out_board: str, *, kind: str = 'translate',
         'perturbed_pad_rms']
 
     if write_record:
-        with open(os.path.splitext(out_board)[0] + '.perturb.json', 'w',
-                  encoding='utf-8') as fh:
+        # THE RECORD FOLLOWS THE CONTROL, because it carries `original_poses`
+        # and is therefore ground truth just as literally as the control board
+        # is. Leaving it in the work dir while the control was fenced would move
+        # the leak rather than close it (run 12 moved it out by hand for exactly
+        # this reason). With `control_out` unset the control sits beside
+        # `out_board`, so this resolves to the historical path unchanged.
+        _stem = os.path.splitext(os.path.basename(out_board))[0]
+        record_path = (os.path.splitext(out_board)[0] + '.perturb.json'
+                       if control_out is None
+                       else os.path.join(os.path.dirname(os.path.abspath(control)),
+                                         _stem + '.perturb.json'))
+        with open(record_path, 'w', encoding='utf-8') as fh:
             json.dump(record, fh, indent=1, sort_keys=True)
             fh.write('\n')
+        print(f"RECORD (GROUND TRUTH) -> {os.path.abspath(record_path)}",
+              flush=True)
     return record
