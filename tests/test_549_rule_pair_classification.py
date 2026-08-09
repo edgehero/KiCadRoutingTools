@@ -72,9 +72,17 @@ with tempfile.TemporaryDirectory() as d:
         [sys.executable, os.path.join(REPO, "check_drc.py"), out,
          "--no-size-checks", "--max-print", "0"],
         capture_output=True, text=True, timeout=600)
-    m_rule = re.search(r'^SEGMENT-SEGMENT-TRACK-RULE violations \((\d+)\):',
+    # `[^\n]*` between the count and the colon: check_drc's per-type header
+    # carries an OPTIONAL contact suffix -- `SEGMENT-SEGMENT violations (12)
+    # -- 3 in CONTACT:` (check_drc.py `_ct`). Pinning `):` matched nothing on
+    # any board with a contact-grade violation, and the two failures pointed
+    # OPPOSITE ways: n_rule fell to 0 and failed the check below, while n_phys
+    # fell to 0 and PASSED it -- silently masking exactly the physical grazes
+    # this test exists to catch.
+    m_rule = re.search(r'^SEGMENT-SEGMENT-TRACK-RULE violations \((\d+)\)[^\n]*:',
                        dr.stdout, re.M)
-    m_phys = re.search(r'^SEGMENT-SEGMENT violations \((\d+)\):', dr.stdout, re.M)
+    m_phys = re.search(r'^SEGMENT-SEGMENT violations \((\d+)\)[^\n]*:',
+                       dr.stdout, re.M)
     n_rule = int(m_rule.group(1)) if m_rule else 0
     n_phys = int(m_phys.group(1)) if m_phys else 0
     check("rule-governed pairs classified as their own type", n_rule > 0,

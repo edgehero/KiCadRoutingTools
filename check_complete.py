@@ -125,13 +125,23 @@ def fab_floor_integrity(board, authored_from):
         return {'ran': False, 'reason': f'unreadable project: {exc}'}
     now = scan_board_minima(board) or {}
     relaxed = []
+    unmeasured = []
     for key, label in FAB_FLOOR_KEYS:
         was, is_ = authored.get(key), now.get(key)
+        if isinstance(was, (int, float)) and not isinstance(is_, (int, float)):
+            # The board DECLARES this floor and nothing here can measure it --
+            # scan_board_minima reads object sizes only, no pairwise geometry,
+            # so copper-to-hole has no measured counterpart. Silently skipping
+            # it made `relaxed: []` read as "every declared floor is honoured"
+            # when one of them had never been looked at. Name it instead.
+            unmeasured.append({'key': key, 'label': label, 'authored': was})
+            continue
         if isinstance(was, (int, float)) and isinstance(is_, (int, float)) \
                 and is_ < was - 1e-9:
             relaxed.append({'key': key, 'label': label, 'authored': was,
                             'on_board': is_})
-    return {'ran': True, 'relaxed': relaxed, 'authored_from': authored_from}
+    return {'ran': True, 'relaxed': relaxed, 'unmeasured': unmeasured,
+            'authored_from': authored_from}
 
 
 def _grade(a, doc):
@@ -267,6 +277,17 @@ def _grade(a, doc):
         elif r.get('clean') is False:
             reasons.append(f'{name}: not clean (exit {r.get("exit")})')
 
+    # An UNMEASURED declared floor is not a pass. It does not make the board
+    # UNSOUND on its own -- nothing measured a violation -- but it must not
+    # vanish, because `fab_floors.relaxed == []` is exactly the sentence a
+    # reader takes for "every declared floor is honoured". Append it to the
+    # INCOMPLETE reasons so it travels with the verdict.
+    if floors.get('unmeasured'):
+        _um = ', '.join(f'{r["label"]} (declared {r["authored"]})'
+                        for r in floors['unmeasured'])
+        reasons.append(f'declared fab floor(s) NOT measured by this check, so '
+                       f'unknown rather than honoured: {_um} -- grade with '
+                       f'check_drc.py, which reads them')
     if floors.get('relaxed'):
         worst = ', '.join(f'{r["label"]} {r["authored"]} -> {r["on_board"]}'
                           for r in floors['relaxed'])

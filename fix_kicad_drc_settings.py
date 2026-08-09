@@ -371,7 +371,29 @@ FAB_FLOOR_KEYS = (
     ("min_via_annular_width", "via annular ring"),
     ("min_via_drill", "via drill"),
     ("min_through_hole_diameter", "hole diameter"),
+    # Copper-to-hole. It belongs here and not with the aspirational netclass
+    # clearances: it is a drill-REGISTRATION constraint, the same family as
+    # annular ring above, and relaxing it is a claim about what the fab can
+    # make. Measured on neo6502: a chain lowered it 0.25 -> 0.20 and the
+    # disclosure said nothing, because this tuple did not list it, so
+    # `relaxed: []` was a blind pass over three NPTH holes carrying copper at
+    # 0.2126/0.2263/0.2263 mm.
+    #
+    # NOTE it is DECLARATION-only: scan_board_minima measures object sizes and
+    # no pairwise geometry, so no measured counterpart exists for this key.
+    # `_fab_floor_disclosure` (declared-vs-declared) covers it; consumers that
+    # compare against a measured board minimum cannot, and must say so rather
+    # than skip it in silence -- see check_complete's `unmeasured` list.
+    ("min_hole_clearance", "copper-to-hole clearance"),
 )
+
+#: Subset of :data:`FAB_FLOOR_KEYS` that :func:`scan_board_minima` can actually
+#: measure off the copper. Anything outside this set can be compared between two
+#: DECLARATIONS but never against the board itself.
+FAB_FLOOR_KEYS_MEASURABLE = frozenset({
+    "min_track_width", "min_via_diameter", "min_via_annular_width",
+    "min_via_drill", "min_through_hole_diameter",
+})
 
 
 def _fab_floor_disclosure(output_pcb: str, rules_before: dict, proj: dict,

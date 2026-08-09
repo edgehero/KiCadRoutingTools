@@ -36,6 +36,7 @@ import io
 import json
 import os
 import random
+import re
 import shutil
 import statistics
 import subprocess
@@ -79,15 +80,23 @@ def _gates(board, clearance):
         [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'check_drc.py'), board,
          '--clearance', str(clearance), '--check-pad-edge'],
         capture_output=True, text=True)
+    # check_drc emits exactly two summary shapes -- `FOUND {n} DRC VIOLATIONS:`
+    # and `NO DRC VIOLATIONS FOUND!`. It has never printed "Total violations",
+    # so the old scan for that string was dead code that ALWAYS fell through to
+    # a fallback counting every line containing "VIOLATION" -- the FOUND banner
+    # plus one per type header, i.e. `1 + n_types`, never the real count (a
+    # 40-violation board read as 3). It only ever fed a `> 0` boolean, so the
+    # verdicts were right by luck rather than by measurement.
     nv = 0
     if 'NO DRC VIOLATIONS' not in drc.stdout:
-        for line in drc.stdout.splitlines():
-            if line.strip().startswith('Total violations'):
-                nv = int(''.join(c for c in line if c.isdigit()) or 0)
-                break
+        m = re.search(r'^FOUND (\d+) DRC VIOLATIONS', drc.stdout, re.M)
+        if m:
+            nv = int(m.group(1))
         else:
-            nv = sum(1 for line in drc.stdout.splitlines()
-                     if 'VIOLATION' in line.upper())
+            # No recognisable summary: do not invent a number. -1 is "unknown",
+            # which is still truthy for the `> 0` gate but cannot be mistaken
+            # for a measured count if this is ever read quantitatively.
+            nv = -1
     asm = subprocess.run(
         [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'check_assembly.py'),
          board, '--clearance', str(clearance)],
