@@ -941,7 +941,15 @@ def _dump_all():
             '--locks-json', wrote('l.json', {'findings': [],
                                              'lock_patterns': []}),
             '--assembly-json', wrote('as.json', {'blocking': 1}),
-            '--render-json', wrote('r.json', _fake_render(board)),
+            '--render-json', wrote('r.json', _fake_render(
+                board, halo=50.0, crossings=60.0, hpwl=900.0)),
+            # P-close's congestion gate needs a before/after pair, and the
+            # pair must PASS: halo closed 50% of its gap and crossings 40%, so
+            # the repair was proportionate. Fabricated here for the same reason
+            # every other guard's evidence is -- the point of --dump-all is to
+            # show the instructions, not to act on them.
+            '--congestion-before', wrote('cb.json', _fake_render(
+                before, halo=100.0, crossings=100.0, hpwl=1000.0)),
             '--intent-json', wrote('i.json', {'rules_run': ['envelope'],
                                               'parts_covered': 7,
                                               'violations': []}),
