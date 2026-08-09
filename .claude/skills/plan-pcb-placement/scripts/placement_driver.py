@@ -75,8 +75,14 @@ that can.
 
   python3 -X utf8 check_drc.py {a.board} --clearance <the board's own floor>
   echo "EXIT=$?"
-  python3 -X utf8 check_assembly.py {a.board} --json wk/assembly0.json
+  python3 -X utf8 check_assembly.py {a.board} --clearance <the board's own floor> \
+      --json wk/assembly0.json
   echo "EXIT=$?"
+
+check_assembly needs the floor SPELLED OUT: it defaults to 0.25 and does not
+read the board. On a 0.2 board that grades stricter than the thing it is
+grading -- measured, one board: pad_conflicts 96 at the default vs 39 at its own
+floor.
 
 Read the floor off the board (its .kicad_pro netclass or .kicad_dru), never a
 round number you chose.
@@ -317,9 +323,15 @@ broken at the cap is NAMED with its measurement, not carried silently.
 MEASURE (all four, every lap, on the copper-free board):
 
   python3 -X utf8 check_drc.py {a.board} --clearance <floor> --clearance-margin 0
-  python3 -X utf8 check_assembly.py {a.board} --baseline {a.before}
-  python3 -X utf8 check_channels.py {a.board} --baseline {a.before} --gate
+  python3 -X utf8 check_assembly.py {a.board} --clearance <floor> --baseline {a.before}
+  python3 -X utf8 check_channels.py {a.board} --clearance <floor> --track-width <floor> \
+      --baseline {a.before} --gate
   python3 -X utf8 check_rigid_consistency.py {a.before} {a.board}
+
+Pass <floor> to ALL of them. check_assembly defaults to 0.25 and check_channels
+to --track-width 0.3, and neither reads the board: on a 0.2 board that default
+width invented a "U2 N short 1 lane" deficit that does not exist (supply 14,
+demand 12), and it was handed forward as floorplan-shaped residue.
 
 The last three are DELTAS against the board you started from, deliberately.
 Each has an absolute form that was measured and refused: a starved escape face,
@@ -476,6 +488,33 @@ def p_close(a):
             _iw[0].split(':', 1)[1].strip() if ':' in _iw[0] else ''):
         return err('--waive intent: needs a REASON after the colon. "No '
                    'intent" with no cause is the gap, not the fix.')
+    # --intent-json was tested for TRUTHINESS only: any string satisfied it, so
+    # the gate that exists to stop a vacuous intent could itself be satisfied
+    # vacuously -- by a path to nothing. Open it, and require that rules
+    # actually ran, which is what the error text above already tells the reader
+    # to produce (`--require-rules 1`).
+    if a.intent_json:
+        _idoc, _ierr = _load(a.intent_json, 'The floorplan intent (--intent-json)')
+        if _ierr:
+            return err(_ierr + '\n\nThis gate opens the file now; it used to '
+                               'accept the ARGUMENT and never the document, so '
+                               'a path to nothing satisfied it.')
+        _ran = _idoc.get('rules_run')
+        if isinstance(_ran, int) and _ran <= 0:
+            return err(
+                f'That intent graded {_ran} rules, so it constrained nothing.\n\n'
+                f'One run shipped `rules_run: 0` and a second covered 0 of 266 '
+                f'parts; nothing objected either time, because this gate only '
+                f'checked that a path was PASSED. Edit the intent down to the '
+                f'clauses this board must satisfy, then:\n'
+                f'  python3 -X utf8 check_floorplan.py {a.board} '
+                f'--intent {a.intent_json} --require-rules 1 '
+                f'--json wk/intent_result.json')
+    # LAST, because it is the only gate here answerable by doing more placement
+    # work rather than by producing more evidence about work already done.
+    _cok, _cwhy = _guard_congestion(a)
+    if not _cok:
+        return err(_cwhy)
     return f'''<stage_instructions stage="P-close" name="close out" of="7">
 Prove the placement, then hand it on.
 
@@ -644,6 +683,130 @@ def _guard_render(a):
     return True, ''
 
 
+def _metrics_of(path, what):
+    """(metrics dict, error) from a render_placement --json-out document."""
+    doc, derr = _load(path, what)
+    if derr:
+        return None, derr
+    m = doc.get('metrics')
+    if not isinstance(m, dict):
+        return None, (f'{what} carries no `metrics` block, so it cannot say '
+                      f'what the arrangement costs. That is a bare --json '
+                      f'render; re-render with --json-out.')
+    return m, ''
+
+
+def _guard_congestion(a):
+    """A placement may not close out having repaired legality and nothing else.
+
+    Every gate this stage ran before today is a LEGALITY gate -- check_drc,
+    check_assembly, check_channels, check_rigid_consistency. So a run that
+    cleared every blocking pad pair satisfied its close-out and stopped, no
+    matter what it had done to the arrangement. Measured on neo6502 (run 15),
+    against the undamaged control the run could not see:
+
+        halo       869.1 -> 440.1   64.9% of the damage repaired
+        crossings   1871 -> 1827     8.0% of the damage repaired
+
+    It fixed the symptoms and left the board harder to route than it found it
+    (+38% crossings against the original). Routing then failed on 29 nets, and
+    the classifier said `parameter` -- correctly, by its own tests, which are
+    all per-net and cannot see global capacity. The loop spent a router
+    iteration on an arrangement problem.
+
+    THE CONTROL IS NOT AVAILABLE to a blind run, so this gate does not use it.
+    What it uses is the DISPARITY, which needs only the board this run started
+    from: if halo closed most of its gap while crossings closed almost none of
+    theirs, the repair was local and the arrangement was left alone. On a board
+    that was barely damaged both gains are small and the ratio is not
+    meaningful, so a small absolute legality gain does not trip this at all.
+
+    The ratio is PROVISIONAL. It is a threshold nobody has calibrated on a
+    corpus yet, and it is a flag precisely so that calibrating it is a
+    measurement rather than an edit. Do not tune it to make a run pass.
+    """
+    if any(w.split(':', 1)[0].strip() == 'congestion' for w in (a.waive or [])):
+        _cw = [w for w in a.waive if w.split(':', 1)[0].strip() == 'congestion']
+        if not (_cw[0].split(':', 1)[1].strip() if ':' in _cw[0] else ''):
+            return False, ('--waive congestion: needs a REASON after the '
+                           'colon. An unexplained waiver is the gap, not the '
+                           'fix.')
+        return True, ''
+    if not a.congestion_before:
+        return False, (
+            'The close-out has no congestion comparison (--congestion-before).\n\n'
+            'Every other gate here is a LEGALITY gate, so without this one a '
+            'placement that cleared its blocking pairs and left the board just '
+            'as tangled as it found it closes out clean -- which is exactly '
+            'what happened on neo6502: 64.9% of the halo damage repaired, 8.0% '
+            'of the crossings damage, and the routing half then failed on 29 '
+            'nets that no router parameter could have saved.\n\n'
+            'Render the board this run STARTED from, then pass it:\n'
+            f'  python3 -X utf8 render_placement.py {a.before} \\\n'
+            '      --clearance <the board\'s own floor> '
+            '--ignore-nets <the poured nets> \\\n'
+            '      --json-out wk/congestion_before.json -o wk/congestion_before.png\n'
+            f'  ... --stage P-close --congestion-before wk/congestion_before.json\n\n'
+            'If this board genuinely has no congestion to compare (a handful of '
+            'parts, no buses), put that on the record: '
+            '--waive congestion:<why>.')
+    before, berr = _metrics_of(a.congestion_before, 'The --congestion-before render')
+    if berr:
+        return False, berr
+    after, aerr = _metrics_of(a.render_json, 'The close-out render (--render-json)')
+    if aerr:
+        return False, aerr
+
+    def _gain(key):
+        b, n = before.get(key), after.get(key)
+        if not isinstance(b, (int, float)) or not isinstance(n, (int, float)):
+            return None
+        if b <= 0:
+            return None
+        return (b - n) / float(b)
+
+    halo_gain, cross_gain = _gain('halo'), _gain('crossings')
+    if halo_gain is None or cross_gain is None:
+        return False, (
+            'The two renders do not both carry numeric `halo` and `crossings` '
+            'metrics, so the congestion comparison cannot be made. Re-render '
+            'both with --json-out against the same --clearance.')
+    # A run that barely moved legality has nothing to be disproportionate TO.
+    if halo_gain < 0.25:
+        return True, ''
+    if cross_gain >= a.congestion_ratio * halo_gain:
+        return True, ''
+    return False, (
+        f'This placement repaired LEGALITY and left the ARRANGEMENT.\n\n'
+        f'  halo       {before.get("halo"):.1f} -> {after.get("halo"):.1f}'
+        f'   ({halo_gain * 100:.1f}% of its gap closed)\n'
+        f'  crossings  {before.get("crossings"):.0f} -> '
+        f'{after.get("crossings"):.0f}   ({cross_gain * 100:.1f}% of its gap '
+        f'closed)\n'
+        f'  hpwl       {before.get("hpwl", float("nan")):.1f} -> '
+        f'{after.get("hpwl", float("nan")):.1f}\n\n'
+        f'Congestion closed {cross_gain * 100:.1f}% where legality closed '
+        f'{halo_gain * 100:.1f}%, below the {a.congestion_ratio:g} ratio this '
+        f'gate holds. Every other gate here is a legality gate, so this is the '
+        f'only one that can see it -- and a board that is legal but no easier '
+        f'to route hands the routing half a failure it cannot fix, which the '
+        f'classifier will then read as `parameter` because its own tests are '
+        f'per-net and global capacity is invisible to them.\n\n'
+        f'`crossings` is ALREADY in the quench objective '
+        f'(placement/quench.py, crossing_penalty). This is not asking for a new '
+        f'term -- it is asking for another lap that is allowed to move parts '
+        f'for routability rather than only to clear a named violation. P4 with '
+        f'the corridor/affinity levers, or P5 for a different arrangement.\n\n'
+        f'If this arrangement is genuinely the best available -- a dense board '
+        f'hard against its outline, every lever pulled -- then say so on the '
+        f'record and it will be believed: --waive congestion:<the measurement '
+        f'that says so>.\n\n'
+        f'NOTE the {a.congestion_ratio:g} ratio is PROVISIONAL and uncalibrated. '
+        f'--congestion-ratio moves it, but calibrate on a corpus '
+        f'(tests/stress/ab_replay_grade.py); choosing it by what lets this run '
+        f'through is how a gate becomes decoration.')
+
+
 STAGES = {
     'P0': p0, 'P1': p1, 'P2': p2, 'P3': p3, 'P4': p4, 'P5': p5, 'P6': p6,
     'P-close': p_close,
@@ -686,6 +849,19 @@ def _args(argv=None):
                          'P0-P4-P-close and declare nothing: two laps were '
                          'once graded against an intent running ZERO rules, '
                          'and every tool consuming it said nothing.')
+    ap.add_argument('--congestion-before', default=None, metavar='PATH',
+                    help='render_placement --json-out of the --before board. '
+                         'P-close compares its crossings/halo against the '
+                         'close-out render, because a placement can clear every '
+                         'legality gate while leaving the arrangement as '
+                         'congested as it found it.')
+    ap.add_argument('--congestion-ratio', type=float, default=0.25,
+                    metavar='R',
+                    help='PROVISIONAL (see P-close): the least share of the '
+                         'legality gain that congestion must also deliver. '
+                         '0.25 = "crossings must close at least a quarter as '
+                         'much of their gap as halo closed of its own". '
+                         'Calibrate on a corpus; do not tune it to pass a run.')
     ap.add_argument('--waive', action='append', default=[], metavar='REF:reason')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
@@ -712,15 +888,20 @@ def main(argv=None):
     return 4 if out.startswith('<error>') else 0
 
 
-def _fake_render(board):
+def _fake_render(board, halo=100.0, crossings=100.0, hpwl=1000.0):
     """The minimum render document `_guard_render` accepts, for the fixtures.
 
     Deliberately the REAL shape render_placement emits (`instrument.board` +
     a `checklist` with mandate 8's keys), not a stub that happens to pass:
     a fixture that satisfies a guard by a shape the real tool never produces
     would let the guard drift away from its instrument unnoticed.
+
+    `metrics` is here for the same reason -- `_guard_congestion` reads
+    halo/crossings/hpwl out of exactly this block, so a fixture without one
+    would let that guard drift too.
     """
     return {
+        'metrics': {'halo': halo, 'crossings': crossings, 'hpwl': hpwl},
         'instrument': {'board': os.path.abspath(board)},
         'checklist': {
             'a_off_outline': {'pad_copper': [], 'courtyard': []},
@@ -844,6 +1025,73 @@ def _self_test():
         want(out.startswith('<error>') and 'do not parse' in out,
              'P3 refuses a waiver with no reason (REF, not REF:reason)')
 
+    # P-close's congestion gate. The numbers are neo6502's own (run 15): a
+    # placement that closed 49% of its halo gap and 2% of its crossings gap
+    # closed out CLEAN, and the routing half then failed on 29 nets no router
+    # parameter could reach. Each case below is a way that could go wrong.
+    with tempfile.TemporaryDirectory() as tmp3:
+        _pb = os.path.join(tmp3, 'b.kicad_pcb')
+        _pa = os.path.join(tmp3, 'a.kicad_pcb')
+        for _p in (_pb, _pa):
+            open(_p, 'w', encoding='utf-8').close()
+
+        def _wr(name, doc):
+            p = os.path.join(tmp3, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        _int = _wr('i.json', {'rules_run': ['envelope'], 'violations': []})
+
+        def _close(after, before=None, extra=()):
+            argv = ['--board', _pb, '--before', _pa,
+                    '--render-json', _wr('ra.json', after),
+                    '--intent-json', _int]
+            if before is not None:
+                argv += ['--congestion-before', _wr('rb.json', before)]
+            return STAGES['P-close'](_args(argv + list(extra)))
+
+        _dmg = _fake_render(_pa, halo=869.1, crossings=1871.0, hpwl=4193.6)
+        _r15 = _fake_render(_pb, halo=440.1, crossings=1827.0, hpwl=4062.2)
+
+        out = _close(_r15, _dmg)
+        want(out.startswith('<error>') and 'left the ARRANGEMENT' in out,
+             'P-close refuses run 15\'s arm: legality 49%, congestion 2%')
+        out = _close(_r15)
+        want(out.startswith('<error>') and '--congestion-before' in out,
+             'P-close refuses with no congestion comparison at all')
+        # Proportionate repair: both gaps close together. Must NOT trip.
+        out = _close(_fake_render(_pb, halo=400.0, crossings=1200.0),
+                     _fake_render(_pa, halo=800.0, crossings=1800.0))
+        want(out.startswith('<stage_instructions'),
+             'P-close passes a repair that moved congestion too')
+        # Barely-damaged board: a small legality gain has nothing to be
+        # disproportionate to, so the ratio must not be applied at all.
+        out = _close(_fake_render(_pb, halo=95.0, crossings=100.0),
+                     _fake_render(_pa, halo=100.0, crossings=100.0))
+        want(out.startswith('<stage_instructions'),
+             'P-close does not apply the ratio when legality barely moved')
+        out = _close(_r15, _dmg, ('--waive', 'congestion:U2 locked, measured'))
+        want(out.startswith('<stage_instructions'),
+             'P-close accepts a congestion waiver WITH a reason')
+        out = _close(_r15, _dmg, ('--waive', 'congestion:'))
+        want(out.startswith('<error>') and 'needs a REASON' in out,
+             'P-close refuses a congestion waiver with no reason')
+        # The intent gate used to accept any string as a path.
+        out = STAGES['P-close'](_args(
+            ['--board', _pb, '--before', _pa,
+             '--render-json', _wr('ra2.json', _r15),
+             '--intent-json', os.path.join(tmp3, 'nope.json'),
+             '--congestion-before', _wr('rb2.json', _dmg)]))
+        want(out.startswith('<error>') and 'intent' in out.lower(),
+             'P-close opens --intent-json instead of trusting the argument')
+        out = STAGES['P-close'](_args(
+            ['--board', _pb, '--before', _pa,
+             '--render-json', _wr('ra3.json', _r15),
+             '--intent-json', _wr('i0.json', {'rules_run': 0}),
+             '--congestion-before', _wr('rb3.json', _dmg)]))
+        want(out.startswith('<error>') and 'constrained nothing' in out,
+             'P-close refuses an intent that graded 0 rules')
+
     # Banned shapes: hedging, and a subagent prompt the model might obey itself.
     # The evidence must be REAL files: this used to pass bare names ('b', 'a',
     # 'd'), so every stage with an existence check dumped its refusal instead of
@@ -865,7 +1113,15 @@ def _self_test():
                      '--drc-json', _w('d.json', {'violations': 3}),
                      '--locks-json', _w('l.json', {'findings': []}),
                      '--assembly-json', _w('as.json', {'blocking': 1}),
-                     '--render-json', _w('r.json', _fake_render(_b)),
+                     '--render-json', _w('r.json', _fake_render(
+                         _b, halo=50.0, crossings=60.0, hpwl=900.0)),
+                     # A run that closed half its legality gap AND 40% of its
+                     # crossings gap -- proportionate, so `_guard_congestion`
+                     # lets it through. The fixture must pass the gate, not
+                     # dodge it: it carries a real `metrics` block on both
+                     # sides, so if the gate's arithmetic changes this notices.
+                     '--congestion-before', _w('cb.json', _fake_render(
+                         _a, halo=100.0, crossings=100.0, hpwl=1000.0)),
                      '--intent-json', _w('i.json', {'rules_run': ['envelope'],
                                                     'parts_covered': 7,
                                                     'violations': []}),
