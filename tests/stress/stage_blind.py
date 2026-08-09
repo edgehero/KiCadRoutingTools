@@ -108,9 +108,25 @@ def board_scale_mm(pcb):
     return min(w, h) if w > 0 and h > 0 else None
 
 
-def main(src, workdir, truthdir):
+def main(src, workdir, truthdir, kinds=None):
+    """`kinds` narrows the draw to a subset of KINDS, or None for all of them.
+
+    NARROWING IS A DISCLOSURE, and the run must say so. The kinds displace very
+    different fractions of a board -- measured on neo6502, `pile` moves 67% of
+    the parts and `translate` 27% -- so a run that wants the placement half
+    exercised has a legitimate reason to ask for one. What it costs is exactly
+    one bit of the fence: the run is still blind to the block, the dose and the
+    seed, but it knows the kind. Report it that way rather than implying a full
+    blind draw.
+    """
     os.makedirs(workdir, exist_ok=True)
     os.makedirs(truthdir, exist_ok=True)
+
+    pool = tuple(kinds) if kinds else P.KINDS
+    bad = [k for k in pool if k not in P.KINDS]
+    if bad:
+        raise SystemExit('stage_blind: unknown kind(s) %s. Valid: %s'
+                         % (', '.join(bad), ' '.join(P.KINDS)))
 
     rng = random.Random(int.from_bytes(os.urandom(16), 'big'))
 
@@ -142,7 +158,7 @@ def main(src, workdir, truthdir):
                 'back to a constant -- a silent constant is what this script '
                 'shipped for three runs.')
         for _ in range(MAX_DRAWS):
-            k = rng.choice(P.KINDS)
+            k = rng.choice(pool)
             s = int.from_bytes(os.urandom(4), 'big')
             d = max(3.0, scale * rng.uniform(*DOSE_BAND))
             # control_out FENCES BOTH HALVES OF TRUTH IN ONE CALL. Without it
@@ -215,6 +231,19 @@ def main(src, workdir, truthdir):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
-        raise SystemExit(__doc__.strip().splitlines()[2].strip())
-    main(sys.argv[1], sys.argv[2], sys.argv[3])
+    import argparse
+    ap = argparse.ArgumentParser(
+        description=__doc__.strip().splitlines()[0],
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('src'); ap.add_argument('workdir'); ap.add_argument('truthdir')
+    ap.add_argument('--kind', action='append', metavar='KIND',
+                    help='narrow the draw to this perturbation kind '
+                         '(repeatable). Valid: ' + ' '.join(P.KINDS) + '. The '
+                         'kinds displace very different fractions of a board '
+                         '(measured: pile 67%%, translate 27%%), so a run that '
+                         'wants the PLACEMENT half exercised has a reason to '
+                         'ask. It costs one bit of the fence -- still blind to '
+                         'block, dose and seed, but not to kind -- so SAY SO '
+                         'in the report.')
+    _a = ap.parse_args()
+    main(_a.src, _a.workdir, _a.truthdir, _a.kind)
