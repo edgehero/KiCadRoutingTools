@@ -7,6 +7,18 @@ Linux distros). On Windows, if `python3` is missing, fall back to `py -3`
 or `python` — don't retry blindly. Add `-X utf8` when a script prints
 special characters (Ω etc.) to avoid Windows encoding errors.
 
+**On Windows/Git Bash, `export MSYS2_ARG_CONV_EXCL='*'` before any command
+carrying NET NAMES.** MSYS2 rewrites any argument starting with `/` into a
+Windows path, and **every KiCad net name is `/`-prefixed**: `/+1V1` reaches the
+tool as `C:/Program Files/Git/+1V1`. Nothing warns, because a tool cannot tell a
+mangled net name from a net that does not exist. Measured: 61 nets passed to
+`--ignore-nets`, 4 survived (the four not starting with `/`), and the resulting
+render reported 1315 crossings where the truth was 357. It hits `--nets`,
+`--ignore-nets`, `--power-nets`, `--rip-existing-nets` — every net-name argument.
+**The variable is not free**: it also disables conversion for legitimate paths,
+so `~/Documents/...` then arrives as an unusable `/c/Users/...`. Pass
+Windows-style paths (`C:/Users/...`) in the same command.
+
 ## Building the Rust Router
 
 Use `build_router.py` to build the Rust router:

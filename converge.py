@@ -606,12 +606,27 @@ def _half_is_flat(rows, half, flat):
     plateau detectable at all -- but it is not evidence that the half can still
     move, or every rejection would reset the counter and the loop would never
     stop.
+
+    Returns (is_flat, n_laps, reason). The REASON matters because `False` has
+    two completely different causes and the caller could not tell them apart:
+    "this half improved recently" and "this half has not run `flat` laps, so
+    the question is not answerable yet". They call for opposite actions -- keep
+    pulling levers, versus recognise a half that finished early -- and the
+    verdict sentence fused them into "it improved ... or has not run that many
+    yet", which is two diagnoses in one breath.
+
+    Measured (neo6502, run 15): the placement half satisfied its OWN close-out
+    in 4 accepted laps -- every gate clean, residue named -- against a --flat of
+    5. It could never plateau, so L5 returned CONTINUE forever while reporting
+    the half as "still improving", which it was not. A half that does its job
+    efficiently should not be indistinguishable from one that stalled.
     """
     keys = [_score_key(r.get('score')) for r in rows
             if r.get('accepted') and _HALF.get(r.get('kind')) == half]
     keys = [k for k in keys if k is not None]
     if len(keys) <= flat:
-        return False, len(keys)          # not enough laps to call it a plateau
+        # NOT the same as "still improving" -- say which.
+        return False, len(keys), 'too-few-laps'
     # Did this half improve ACROSS ITS OWN last `flat` laps?
     #
     # `best_before = min(keys[:-flat])` asked a different question: has the
@@ -628,7 +643,8 @@ def _half_is_flat(rows, half, flat):
     # 6-lap ledger that IS the 297. The baseline has to be the window's own
     # first lap.)
     window = keys[-flat:]
-    return min(window) >= window[0], len(keys)
+    _flat = min(window) >= window[0]
+    return _flat, len(keys), ('plateau' if _flat else 'improving')
 
 
 def cmd_verdict(a):
@@ -666,8 +682,8 @@ def cmd_verdict(a):
     scored = [r for r in rows if _score_key(r.get('score')) is not None]
     key = _score_key(score)
     blocking = key[0]
-    flat_p, laps_p = _half_is_flat(rows, 'placement', a.flat)
-    flat_r, laps_r = _half_is_flat(rows, 'routing', a.flat)
+    flat_p, laps_p, why_p = _half_is_flat(rows, 'placement', a.flat)
+    flat_r, laps_r, why_r = _half_is_flat(rows, 'routing', a.flat)
 
     doc = {'ledger_rows': len(rows), 'scored_rows': len(scored),
            'budget': a.budget, 'flat': a.flat,
@@ -675,8 +691,10 @@ def cmd_verdict(a):
            'quality': score.get('quality'),
            'ungraded': sorted(score.get('ungraded') or []),
            'unknown': sorted(score.get('unknown') or []),
-           'placement': {'accepted_laps': laps_p, 'flat': flat_p},
-           'routing': {'accepted_laps': laps_r, 'flat': flat_r}}
+           'placement': {'accepted_laps': laps_p, 'flat': flat_p,
+                         'why': why_p},
+           'routing': {'accepted_laps': laps_r, 'flat': flat_r,
+                       'why': why_r}}
 
     if len(rows) >= a.budget:
         doc.update(verdict='BUDGET', reason=(
@@ -687,12 +705,31 @@ def cmd_verdict(a):
     elif not (flat_p and flat_r):
         still = [h for h, f in (('placement', flat_p), ('routing', flat_r))
                  if not f]
-        doc.update(verdict='CONTINUE', improving=still, reason=(
-            f'{" and ".join(still)} has not plateaued: it improved within its '
-            f'last {a.flat} accepted lap(s), or has not run that many yet. '
-            f'Reaching blocking == 0 is the floor, not the finish -- keep '
-            f'pulling levers on quality until neither half can improve '
-            f'either key.'))
+        # Say WHICH of the two causes applies, per half. They call for opposite
+        # actions and the old sentence offered both at once.
+        _laps = {'placement': laps_p, 'routing': laps_r}
+        _why = {'placement': why_p, 'routing': why_r}
+        _parts = []
+        for h in still:
+            if _why[h] == 'too-few-laps':
+                _parts.append(
+                    f'{h} has run {_laps[h]} accepted lap(s), fewer than the '
+                    f'{a.flat} this test needs, so whether it plateaued is NOT '
+                    f'YET ANSWERABLE -- which is not the same as "it is still '
+                    f'improving". If it stopped because its own close-out was '
+                    f'satisfied, that is a half that finished early, and the '
+                    f'lever is to give it something further to optimise (or to '
+                    f'say on the record that there is nothing), never to lower '
+                    f'--flat until the gate agrees')
+            else:
+                _parts.append(
+                    f'{h} improved within its last {a.flat} accepted laps, so '
+                    f'it has more to give')
+        doc.update(verdict='CONTINUE', improving=still,
+                   why={h: _why[h] for h in still}, reason=(
+            '; '.join(_parts) + '. Reaching blocking == 0 is the floor, not '
+            'the finish -- keep pulling levers on quality until neither half '
+            'can improve either key.'))
         code = CONTINUE
     elif blocking == 0:
         doc.update(verdict='DONE-EXHAUSTED', reason=(

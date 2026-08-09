@@ -2410,7 +2410,19 @@ python3 -X utf8 route_disconnected_planes.py board_step4.kicad_pcb board_step5_r
     --clearance <floor> --via-size <V> --via-drill <D> --track-width <signal_track> --grid-step <G> \
     --rip-blocker-nets --net-layers <json> --track-width-floor <spec floor> \
     --power-nets <PWR...> --power-nets-widths <W...> [--no-bga-zone] \
+    --deadline <BELOW the smallest cap in your stack> \
     2>&1 | tee /tmp/step5_plane_repair.txt
+
+**`--deadline` is not optional here**, and this template omitted it for long
+enough to cost two runs. The table in "Every bound in this stack" above lists
+this tool WITHOUT a deadline as *runs forever → shell 124, no output, no
+`JSON_SUMMARY`*, and that is what happened: 40 min with `--rip-blocker-nets`
+and 25 min plain on a 217-part board, no board written either time (run 9), and
+it fired again on a **113**-part board (run 15) — so do not assume a small board
+is safe. The cancel is cooperative, so the tool overshoots the number; give it
+room under your real cap rather than matching it. With it you get a partial
+repair, `status: deadline`, and exit 7 — all three are results. Without it you
+get a shell code and nothing to read.
 
 **If it reports `Pads still unconnected` on fine-pitch (BGA/QFN ≤0.5 mm-pitch)
 pads, retry the repair in this order — cheapest/safest first:**

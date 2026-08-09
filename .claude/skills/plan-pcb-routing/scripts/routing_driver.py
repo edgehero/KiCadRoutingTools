@@ -520,7 +520,16 @@ Next: --stage R7 --board board_R6.kicad_pcb --coverage {a.coverage or 'wk/covera
 def r7(a, f):
     return f'''<stage_instructions stage="R7" name="repair plane regions">
   python3 -X utf8 route_disconnected_planes.py board_R6.kicad_pcb board_R7.kicad_pcb \\
-      --nets {' '.join(f['plane_candidates'])} --clearance <floor>
+      --nets {' '.join(f['plane_candidates'])} --clearance <floor> \\
+      --deadline <BELOW the smallest cap in your stack>
+
+`--deadline` is REQUIRED, not advisory. This tool's outer repair loop is bounded
+by the board and by nothing else: without it, 40 min and 25 min on a 217-part
+board with no board written either time (run 9), and it fired again on a
+113-part board (run 15) -- a small board is not safe. The cancel is cooperative
+so it overshoots; leave room under your real cap instead of matching it. With a
+deadline you get a partial repair, `status: deadline` and exit 7, which are
+results you can act on. Without one you get shell 124 and nothing to read.
 
 This step's reconnect runs at THIS step's parameters, so restate every per-net
 constraint that matters (widths, layers, power-net widths) -- none of them
