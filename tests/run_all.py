@@ -76,7 +76,7 @@ def main():
               f'({sum(is_integration(f) for f in tests)} integration).')
         return 0
 
-    passed, failed, skipped = [], [], []
+    passed, failed, skipped, timed_out = [], [], [], []
     t0 = time.time()
     for f in tests:
         name = os.path.basename(f)
@@ -89,7 +89,9 @@ def main():
                                capture_output=True, text=True, timeout=args.timeout)
         except subprocess.TimeoutExpired:
             failed.append(name)
-            print(f'FAIL  {name}  (timeout after {args.timeout:.0f}s)')
+            timed_out.append(name)
+            print(f'TIME  {name}  (timeout after {args.timeout:.0f}s -- NOT a '
+                  f'failed assertion; re-run it alone before treating it as one)')
             continue
         if r.returncode == 0:
             passed.append(name)
@@ -100,10 +102,22 @@ def main():
             print(f'FAIL  {name}  (exit {r.returncode})\n{tail}')
 
     dt = time.time() - t0
-    print(f'\n{len(passed)} passed, {len(failed)} failed, {len(skipped)} skipped '
-          f'in {dt:.1f}s')
-    if failed:
-        print('Failed: ' + ', '.join(failed))
+    # A TIMEOUT AND A FAILED ASSERTION ARE DIFFERENT FACTS, and the summary used
+    # to render them identically -- one `failed` list, one "N failed" count. A
+    # clean baseline run reported "336 passed, 8 failed"; two of those eight
+    # were slow integration tests that PASS when run alone with headroom, and
+    # finding that out took a manual re-run of each. Anyone comparing a run
+    # against a recorded baseline needs the split, because a timeout moving in
+    # or out of the list is a machine-speed fact, not a code fact.
+    _real = [n for n in failed if n not in timed_out]
+    print(f'\n{len(passed)} passed, {len(_real)} failed, '
+          f'{len(timed_out)} timed out, {len(skipped)} skipped in {dt:.1f}s')
+    if _real:
+        print('Failed: ' + ', '.join(_real))
+    if timed_out:
+        print(f'Timed out at {args.timeout:.0f}s: ' + ', '.join(timed_out))
+        print('  A timeout is not evidence of a broken test. Re-run each one '
+              'alone (or raise --timeout) before recording it as a failure.')
     return 1 if failed else 0
 
 

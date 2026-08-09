@@ -1149,6 +1149,12 @@ def grade(intent: Intent, pcb_data, pcb_file: str, *,
                'outside_fraction': (None if st.outside_fraction is None
                                     else round(st.outside_fraction, 4)),
                'stacked_refs': list(st.stacked_refs),
+               # The subset `partially_unplaced` is actually decided on, and
+               # the one place_seed scopes its seed from. Without it a reader
+               # sees `partially_unplaced: false` beside a non-empty
+               # `stacked_refs` and has no way to tell "suppressed as markers /
+               # opposite sides" from a bug in the check.
+               'stacked_suspect_refs': list(st.stacked_suspect_refs),
                'segments': st.segments, 'vias': st.vias},
         health=health_out,
         rules_run=tuple(ran), rules_skipped=skipped,

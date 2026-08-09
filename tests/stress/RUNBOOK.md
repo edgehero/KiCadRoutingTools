@@ -762,3 +762,15 @@ succeeding) apart from a *leaked* one (present at creation). There is no
 name-based exemption for `*.control.kicad_pcb`: a control inside the work dir is
 a leak whatever it is called, because the next carrier will have a different
 name.
+
+**And none for `*.perturb.json` either — `DEFAULT_ALLOW` is empty.** The audit
+now opens `.json` files and reads `original_poses` out of them, so a
+perturbation record is caught by content like anything else. That exemption
+existed while the scan walked only `.kicad_pcb`, i.e. while it exempted a file
+the tool could not open; making the scan live turned it into a working blind
+spot. This is the *default* path, not a corner case — `perturb()` without
+`control_out` writes the record beside the damaged board, inside the fence, and
+that record embeds the human placement pose-for-pose. Stage with `control_out=`
+pointing at a **sibling** `_truth/` (never a child of the work dir — the audit
+recurses into it) and neither file ever enters. The record test reads bytes, so
+re-saving it as UTF-16 does not evade it.

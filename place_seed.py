@@ -366,10 +366,47 @@ Examples:
     # re-derive; --force widens the scope back to everything unlocked.
     seed_refs = None
     if st.partially_unplaced and not st.unplaced and not args.force:
-        seed_refs = set(st.stacked_refs)
+        # SCOPE FOLLOWS THE GATE. `partially_unplaced` is now decided on the
+        # SUSPECT subset -- co-located parts that are not markers and not on
+        # opposite sides -- so scoping the seed from the full `stacked_refs`
+        # would re-seed the very parts the gate had just exonerated. A
+        # front/back fiducial pair shares a coordinate BY DESIGN; a run that
+        # tripped over one genuine pile would have moved every such pair on the
+        # board as a side effect, and nothing downstream would attribute it.
+        seed_refs = set(st.stacked_suspect_refs)
+        _benign = len(set(st.stacked_refs) - seed_refs)
         print(f"place_seed: partially unplaced -- seeding only the "
-              f"{len(seed_refs)} stacked part(s); the rest stand as placed "
-              f"(--force re-seeds everything unlocked)")
+              f"{len(seed_refs)} stacked part(s) that look like a pile; the "
+              f"rest stand as placed (--force re-seeds everything unlocked)"
+              + (f". {_benign} other co-located part(s) are left alone "
+                 f"(markers, or opposite sides of the board)" if _benign else ""))
+        # ...unless every one of them is (locked yes) IN THE FILE, in which
+        # case `seed_from_intent` treats them as authoritatively placed
+        # (seeder.py:396-400) and THE PILE CANNOT BE SEEDED AT ALL. Not exotic:
+        # this toolchain STAMPS its own locks (seeder.stamp_locked, on
+        # place_seed's own output), so a pile created by an earlier seeding run
+        # arrives here locked and gets announced as the scope of a run that
+        # then cannot touch it.
+        #
+        # Care with the claim: this is NOT "the run does nothing". The polish
+        # pass is on by default and moves plenty -- measured on a 65-part
+        # fixture, 41 parts moved while all three piled refs stayed put. That
+        # is exactly why refusing is right rather than pedantic: continuing
+        # would exit 0 having rearranged two thirds of the board and left the
+        # one thing this branch exists to fix untouched.
+        _movable = [r for r in sorted(seed_refs)
+                    if not getattr(pcb.footprints.get(r), 'locked', False)]
+        if not _movable:
+            print(f"place_seed: all {len(seed_refs)} of those part(s) are "
+                  f"(locked yes) in the file, so the pile CANNOT be seeded -- "
+                  f"seed_from_intent treats a file-locked ref as already "
+                  f"placed. Continuing would still move other parts (the "
+                  f"polish pass is on by default) and exit 0 with the pile "
+                  f"exactly as it is, so this refuses instead. Unlock those "
+                  f"refs to seed them; --force re-seeds the WHOLE board and "
+                  f"discards the existing placement; place_optimize.py is the "
+                  f"tool if polish was all you wanted.", file=sys.stderr)
+            return UNPLACED_EXIT
 
     rng = random.Random(f"{args.seed}")
     result = seeder.seed_from_intent(

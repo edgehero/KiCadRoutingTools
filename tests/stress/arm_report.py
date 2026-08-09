@@ -191,12 +191,14 @@ def main(argv=None):
     ap.add_argument('--result', required=True,
                     help='the board this run produced')
     ap.add_argument('--control', default=None,
-                    help='the control board (default <workdir>/'
-                         'perturbed.control.kicad_pcb) -- used for the fence '
+                    help='the control board (default: the sibling '
+                         '<workdir>/../_truth/, else .../_truth/<subject>/, '
+                         'else the legacy <workdir>/) -- used for the fence '
                          'audit only; the poses come from the perturb record')
     ap.add_argument('--record', default=None,
-                    help='the perturb record (default <workdir>/'
-                         'perturbed.perturb.json)')
+                    help='the perturb record (same search as --control; '
+                         'a record found INSIDE the work dir is a fence leak '
+                         'and the audit below will say so)')
     ap.add_argument('--damaged', default=None,
                     help='the damaged input (default <workdir>/'
                          'perturbed.kicad_pcb)')
@@ -213,9 +215,53 @@ def main(argv=None):
         print(f'no such work dir: {wd}', file=sys.stderr)
         return 2
     damaged = a.damaged or os.path.join(wd, 'perturbed.kicad_pcb')
-    control = a.control or os.path.join(wd, 'perturbed.control.kicad_pcb')
-    record_p = a.record or os.path.join(wd, 'perturbed.perturb.json')
-    for p in (damaged, a.result, record_p):
+    # TRUTH DEFAULTS LOOK OUTSIDE THE FENCE, WHICH MEANS A SIBLING.
+    #
+    # These used to default straight into the work dir -- the layout
+    # `perturb(control_out=None)` produces and the one the staging recipe
+    # exists to avoid. `fence_audit` now treats a pose RECORD inside the fence
+    # as a leak the same way it already treated the control, so this tool's own
+    # defaults named a directory that the audit it runs below reports as a LEAK
+    # (measured on wk/run8/glasgow_revC: exit 0 before, exit 4 after).
+    #
+    # `<workdir>/_truth` would be no better: it is still INSIDE the work dir,
+    # so `fence_audit` walks straight into it and reports both files. Every
+    # real staged run puts truth in a SIBLING of the work dir, in one of two
+    # shapes, and `stage_blind.py` takes the path as an argument rather than
+    # deriving it -- so try both known shapes, then fall back to the legacy
+    # in-dir location so an old work dir still reports at all (the audit will
+    # name it, which is the point).
+    #
+    #     wk/run13/glasgow  + wk/run13/_truth/            <- sibling
+    #     wk/run10/smartknob + wk/run10/_truth/smartknob/ <- sibling, per subject
+    _parent = os.path.dirname(os.path.abspath(wd))
+    _subject = os.path.basename(os.path.abspath(wd))
+
+    def _truth(name, *alts):
+        """First existing candidate: sibling _truth, per-subject, then legacy.
+
+        `alts` are alternative FILE names for the same artifact. stage_blind
+        writes `control.kicad_pcb` for its own dose-0 copy and
+        `perturbed.control.kicad_pcb` for perturb's, and run 12's truth dir
+        carries both -- so a single hardcoded name resolved on some staged runs
+        and not others, for a reason that has nothing to do with the layout.
+        """
+        for nm in (name,) + alts:
+            for cand in (os.path.join(_parent, '_truth', nm),
+                         os.path.join(_parent, '_truth', _subject, nm),
+                         os.path.join(wd, nm)):
+                if os.path.isfile(cand):
+                    return cand
+        return os.path.join(wd, name)          # for the missing-input message
+
+    control = a.control or _truth('perturbed.control.kicad_pcb',
+                                  'control.kicad_pcb')
+    record_p = a.record or _truth('perturbed.perturb.json',
+                                  'board.perturb.json')
+    # `control` is checked too. It was the one input that could go missing
+    # silently: the fence row degraded to "fence_audit exit 2" in the report,
+    # which reads like the audit ran and found nothing.
+    for p in (damaged, a.result, record_p, control):
         if not os.path.isfile(p):
             print(f'missing input: {p}', file=sys.stderr)
             return 2

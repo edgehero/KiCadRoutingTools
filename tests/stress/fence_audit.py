@@ -15,7 +15,14 @@ Naming cannot close that hole, because the next carrier will have a different
 name (a `.bak`, a `board_orig.kicad_pcb`, a candidate copied out of an archive).
 So this audit ignores names and asks the only question that matters:
 
-    does any board in this work dir carry the control's poses?
+    does any FILE in this work dir carry the control's poses?
+
+Boards, and pose RECORDS: a perturbation record embeds `original_poses`
+verbatim, so it is ground truth in JSON clothing and gets no name exemption
+either. This matters on the default path, not a contrived one --
+`perturb(..., control_out=None)` writes that record BESIDE the output board,
+i.e. inside the fence. Stage with `control_out=<a dir outside the work dir>`
+and the record never enters.
 
 Two modes, because the same content means opposite things before and after a run:
 
@@ -79,12 +86,27 @@ MANIFEST_NAME = '.fence-manifest.json'
 # the audit's OWN reference, and `--allow` remains for a caller that genuinely
 # means it.
 #
-# `*.perturb.json` is inert here -- `scan()` only walks `.kicad_pcb` -- and is
-# kept as the declaration it is. NOTE that the record carries `original_poses`,
-# so it is ground truth too; keep it out of the work dir for the same reason.
-DEFAULT_ALLOW = (
-    '*.perturb.json',
-)
+# DEFAULT_ALLOW IS EMPTY, AND THAT IS THE POINT.
+#
+# It used to hold `*.perturb.json`. That was harmless only while it was a lie:
+# `scan()` walked `.kicad_pcb` alone, so the entry exempted a file the module
+# could not open anyway. Teaching the scan to read `.json` turned an inert
+# declaration into a working blind spot -- and not a hypothetical one.
+# `placement.perturb.perturb(...)` with `control_out` unset writes the record
+# BESIDE THE OUTPUT BOARD (perturb.py:596-602), i.e. inside the work dir, and
+# that record embeds `original_poses` verbatim. So the default perturbation
+# path drops complete ground truth into the fence, and this tuple told the
+# audit to walk past it.
+#
+# The module's thesis is that a leak is CONTENT, not a filename; it already
+# applies that to the control ("A control INSIDE the work dir is now a LEAK",
+# above). A record is the same truth in JSON clothing, so it gets the same
+# answer. The declared record lives in `_truth/`, OUTSIDE the work dir, which
+# is what `control_out` is for and what the staging recipe does -- a record
+# inside the fence is a staging mistake, and this is the tool that says so.
+#
+# `--allow` remains for a caller who genuinely means it.
+DEFAULT_ALLOW = ()
 
 # A board counts as truth-carrying when this fraction of its shared refs sit
 # within POSE_TOL of the control. Not 1.0: a leak is still a leak when one
@@ -122,12 +144,65 @@ def pose_match(poses_a, poses_b):
     return hits / len(shared), len(shared), worst
 
 
+def _json_poses(path):
+    """{ref: (x, y, rot)} out of a perturbation RECORD, or None.
+
+    The record embeds `original_poses` verbatim -- it is ground truth in JSON
+    clothing, and the scan filtered on the extension before opening anything,
+    so this module named a carrier it structurally could not see.
+
+    Read BYTES and let `json.loads` sniff the encoding. Opening as utf-8 text
+    made the audit defeatable by re-saving the record as UTF-16 -- same keys,
+    same truth, `UnicodeDecodeError` into the bare `except`, waved through as
+    "ordinary JSON". `json.loads` applies RFC-4627 BOM detection and accepts
+    utf-8, utf-8-sig, utf-16 and utf-32 alike (verified), so the content test
+    stops depending on how the file was saved.
+    """
+    try:
+        with open(path, 'rb') as fh:
+            doc = json.loads(fh.read())
+    except Exception:                                   # noqa: BLE001
+        return None
+    if not isinstance(doc, dict):
+        return None
+    # `original_poses` ONLY. A `poses` alias was tried and dropped: across 561
+    # real driver-output JSONs in this repo it matched nothing (no writer emits
+    # a top-level ref->[x,y,rot] dict under that name), so it bought no
+    # coverage -- while the `kind == 'record'` branch in main() is
+    # unconditional, meaning anything this function claims can NEVER be classed
+    # as recovery. A future tool writing its RESULT as {"poses": {...}} would
+    # therefore have had a perfect reconstruction -- the case the module
+    # docstring insists must not be a breach ("one run-7 board did, at
+    # d1 = 0.000000") -- reported as a LEAK. Speculative coverage is not worth
+    # a mechanism that misclassifies the experiment succeeding.
+    for key in ('original_poses',):
+        raw = doc.get(key)
+        if isinstance(raw, dict) and raw:
+            out = {}
+            for ref, v in raw.items():
+                if isinstance(v, (list, tuple)) and len(v) >= 3:
+                    try:
+                        out[ref] = (float(v[0]), float(v[1]),
+                                    float(v[2]) % 360.0)
+                    except (TypeError, ValueError):
+                        continue
+            if out:
+                return out
+    return None
+
+
+#: Extensions the scan opens. This module's thesis -- "the next carrier will
+#: have a different name" -- applies to EXTENSIONS exactly as it does to stems,
+#: and the scan used to stop at `.kicad_pcb`.
+SCANNED_EXT = ('.kicad_pcb', '.json')
+
+
 def scan(workdir, control_poses, allow):
-    """Every .kicad_pcb in workdir, scored against the control's poses."""
+    """Every scannable file in workdir, scored against the control's poses."""
     rows = []
     for root, _dirs, files in os.walk(workdir):
         for name in sorted(files):
-            if not name.endswith('.kicad_pcb'):
+            if not name.endswith(SCANNED_EXT):
                 continue
             path = os.path.join(root, name)
             rel = os.path.relpath(path, workdir).replace('\\', '/')
@@ -135,13 +210,20 @@ def scan(workdir, control_poses, allow):
                    for pat in allow):
                 continue
             try:
-                poses = recovery.board_poses(parse_kicad_pcb(path))
+                if name.endswith('.json'):
+                    poses = _json_poses(path)
+                    if poses is None:
+                        continue        # ordinary JSON, not a pose carrier
+                else:
+                    poses = recovery.board_poses(parse_kicad_pcb(path))
             except Exception as exc:                    # unparseable is not a leak
                 rows.append({'file': rel, 'error': str(exc)[:120]})
                 continue
             frac, shared, worst = pose_match(poses, control_poses)
+            _kind = 'record' if name.endswith('.json') else 'board'
             rows.append({
                 'file': rel,
+                'kind': _kind,
                 'match_frac': round(frac, 6),
                 'refs_shared': shared,
                 'worst_mm': None if worst is None else round(worst, 6),
@@ -210,6 +292,19 @@ def main(argv=None):
             continue
         elif args.mode == 'create':
             leaks.append(row)
+        elif row.get('kind') == 'record':
+            # FIRST among the audit branches, because it is the one reason that
+            # holds no matter what the manifest says. Ordered after them it was
+            # unreachable in the commonest case -- no manifest -- and the row
+            # came back "provenance unknown", which invites someone to fix it
+            # by running --mode create. That would record the record and make
+            # it permanently exempt. A pose RECORD carries `original_poses`
+            # verbatim and no placement run reconstructs one, so provenance is
+            # not the question.
+            row['reason'] = ('a pose RECORD inside the fence -- records are '
+                             'never reconstructed, so this is truth arriving, '
+                             'not recovery')
+            leaks.append(row)
         elif manifest is None:
             row['reason'] = 'no creation manifest -- provenance unknown'
             leaks.append(row)
@@ -252,7 +347,10 @@ def main(argv=None):
         'mode': args.mode,
         'workdir': args.workdir.replace('\\', '/'),
         'control': args.control.replace('\\', '/'),
-        'boards_scanned': len(rows),
+        # `files_scanned`, not `boards_scanned`: the scan reads pose RECORDS as
+        # well as boards, and a count that says "boards" while including
+        # records is the same category error the name exemption was.
+        'files_scanned': len(rows),
         'leaks': leaks,
         'recovered_to_truth': recovered,
         'unparseable': errors,
@@ -273,7 +371,7 @@ def main(argv=None):
         print(json.dumps(report, indent=1, sort_keys=True))
     else:
         print(f'fence_audit [{args.mode}] {args.workdir}: '
-              f'{len(rows)} board(s) scanned against {args.control}')
+              f'{len(rows)} file(s) scanned against {args.control}')
         for row in errors:
             print(f'  UNPARSEABLE {row["file"]}: {row["error"]}')
         for row in recovered:
@@ -285,12 +383,17 @@ def main(argv=None):
                   f'within {POSE_TOL_MM}mm)'
                   + (f' -- {row["reason"]}' if row.get('reason') else ''))
         if leaks:
-            print(f'  VERDICT: LEAK -- {len(leaks)} board(s) carry ground truth '
-                  f'inside the work dir. Move them outside the fence before the '
-                  f'run, or declare them with --allow.')
+            _nb = sum(1 for r in leaks if r.get('kind') != 'record')
+            _nr = len(leaks) - _nb
+            _what = ' + '.join(([f'{_nb} board(s)'] if _nb else [])
+                               + ([f'{_nr} pose record(s)'] if _nr else []))
+            print(f'  VERDICT: LEAK -- {_what} carry ground truth inside the '
+                  f'work dir. Move them outside the fence before the run -- '
+                  f'that is what perturb(control_out=...) is for -- or declare '
+                  f'them with --allow.')
         else:
-            print('  VERDICT: CLEAN (no undeclared board carries the control\'s '
-                  'placement)')
+            print('  VERDICT: CLEAN (no undeclared board OR pose record '
+                  'carries the control\'s placement)')
     return 4 if leaks else 0
 
 

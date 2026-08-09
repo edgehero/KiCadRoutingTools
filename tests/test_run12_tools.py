@@ -408,6 +408,193 @@ def test_deficit_faces(tmp):
                '--gate'])[0] == 0)
 
 
+def test_stacked_suspect(tmp):
+    """A co-located PAIR is a pile or a design; the warning must tell them apart.
+
+    The stacked-footprint warning blamed a netlist re-import for front/back
+    fiducial pairs -- parts that share a coordinate BY DESIGN. Three ways to get
+    this wrong, and all three were live at some point:
+
+      * suppress on "every one is a marker" -- but tested group-wide, so one
+        back-side part exonerated an arbitrarily large front-side pile;
+      * suppress on "every one is locked" -- but this toolchain STAMPS its own
+        locks (seeder.stamp_locked, on place_seed's output), so a pile the
+        tools created would be invisible to the check meant to catch piles;
+      * suppress on a marker test that never ran (it read `.kind` off a
+        namedtuple whose field is `.name`, into a bare except).
+
+    Silence is the failure mode here, so every case below asserts the DIRECTION,
+    not just that something was reported.
+    """
+    from kicad_parser import parse_kicad_pcb
+    from placement.placement_state import assess_placement
+    from placement.part_class import classify_part
+
+    MARKERS = ('fiducial', 'mount_hole', 'testpoint')
+
+    def board():
+        return parse_kicad_pcb(BOARD)
+
+    def pick(pcb, layer, n, marker=False):
+        out = []
+        for ref, fp in pcb.footprints.items():
+            if (fp.layer or '') != layer or fp.locked or not fp.pads:
+                continue
+            if (classify_part(fp, ref).name in MARKERS) != marker:
+                continue
+            out.append(ref)
+            if len(out) == n:
+                break
+        return out
+
+    def stack(pcb, refs, at=(40.0, 40.0)):
+        for r in refs:
+            pcb.footprints[r].x, pcb.footprints[r].y = at
+
+    st = assess_placement(board(), 'x')
+    check('a healthy board reports no stacked suspects',
+          not st.stacked_suspect_refs and not st.partially_unplaced,
+          f'suspect={sorted(st.stacked_suspect_refs)}')
+    check('...and suspects are always a subset of stacked_refs',
+          set(st.stacked_suspect_refs) <= set(st.stacked_refs))
+
+    # THE HEADLINE CHANGE, on the board where the two formulas DISAGREE.
+    # `partially_unplaced` used to key on any duplicate position at all; it now
+    # keys on the suspect subset. Every synthetic case above stacks parts that
+    # ARE suspect, so `stacked` and `suspect` coincide and the old and new
+    # formulas agree -- which means none of them can detect a revert. glasgow
+    # is the case that separates them: three front/back FIDUCIAL PAIRS, so
+    # `stacked_refs` is non-empty (the old formula says partially unplaced,
+    # which is the false alarm this whole filter exists to remove) while
+    # `stacked_suspect_refs` is empty.
+    gl = os.path.join(ROOT, 'kicad_files', 'glasgow_revC.kicad_pcb')
+    if os.path.isfile(gl):
+        st = assess_placement(parse_kicad_pcb(gl), gl)
+        check('fixture: glasgow HAS co-located parts', bool(st.stacked_refs),
+              f'stacked={sorted(st.stacked_refs)}')
+        check('...all explicable, so partially_unplaced is False',
+              not st.stacked_suspect_refs and not st.partially_unplaced,
+              f'stacked={sorted(st.stacked_refs)} '
+              f'suspect={sorted(st.stacked_suspect_refs)} '
+              f'partially={st.partially_unplaced}')
+        check('...and no reason mentions a netlist re-import',
+              not any('re-import' in r for r in st.reasons), st.reasons)
+
+    p = board()
+    pair = pick(p, 'F.Cu', 2)
+    stack(p, pair)
+    st = assess_placement(p, 'x')
+    check('two same-side non-marker parts at one spot are suspect',
+          set(pair) <= set(st.stacked_suspect_refs) and st.partially_unplaced,
+          f'pair={pair} suspect={sorted(st.stacked_suspect_refs)}')
+
+    # THE SIDE-PARTITION CASE. One back-side part must not exonerate the pile.
+    # It needs a board with parts on BOTH sides -- splitflap has none on the
+    # back, and a fixture that quietly skips is the failure mode this whole
+    # function is about, so the precondition is asserted rather than guarded.
+    p = parse_kicad_pcb(NO_FLOOR_BOARD)          # tigard: JP1/JP2 on B.Cu
+    front = pick(p, 'F.Cu', 3)
+    back = [r for r, f in p.footprints.items()
+            if (f.layer or '') == 'B.Cu' and f.pads][:1]
+    check('fixture: the side-partition case has parts on both sides',
+          len(front) == 3 and len(back) == 1, f'front={front} back={back}')
+    stack(p, front + back, at=(50.0, 50.0))
+    st = assess_placement(p, 'x')
+    check('one back-side part does not exonerate a front-side pile',
+          set(front) <= set(st.stacked_suspect_refs),
+          f'front={front} back={back} '
+          f'suspect={sorted(st.stacked_suspect_refs)}')
+
+    # THE DRILLED CASE, and the one corpus row it moves. A through-hole part
+    # occupies BOTH sides, so `fp.layer` alone is the wrong partition: tigard's
+    # J2 (F.Cu, nine 1.0mm drilled pads) and JP1 (B.Cu) each ended up alone on
+    # their side and both were exonerated, while `grade_pad_legality` reports
+    # their copper colliding. `legality.footprint_has_through_pads` is
+    # deliberately `drill > 0` -- physical obstruction, not layer-tying -- and
+    # this check asks the physical question.
+    p = parse_kicad_pcb(NO_FLOOR_BOARD)
+    stack(p, ['J2', 'JP1'], at=(40.0, 30.0))
+    st = assess_placement(p, NO_FLOOR_BOARD)
+    check('a DRILLED part co-located with a far-side part is suspect',
+          {'J2', 'JP1'} <= set(st.stacked_suspect_refs),
+          f'suspect={sorted(st.stacked_suspect_refs)}')
+
+    # The corpus row this moved, recorded so it stays a decision. rp2350's J2
+    # (B.Cu connector, three NPTH holes) and U3 (F.Cu) share an origin exactly;
+    # they were suppressed as "opposite sides" until drilled parts started
+    # counting on both.
+    #
+    # Be precise about the corroboration, because the first version of this
+    # comment overstated it: ONE other instrument agrees --
+    # `grade_body_overlap` reports a J2/U3 `courtyard` pair of 6.6mm2. There is
+    # NO pad conflict between them (rp2350's single pad conflict is C18/C19,
+    # and J2's three NPTH holes at x 145.96/151.04 clear U3's pads at
+    # 147.78-149.22), and `blocking` is 0. So this is an advisory-strength
+    # agreement, which is the right strength for a co-location warning.
+    #
+    # Net corpus effect of the whole change is still fewer alarms, not more:
+    # HEAD keyed `partially_unplaced` on any duplicate position at all and so
+    # flagged all three co-located boards; this flags one. If it ever needs to
+    # go quiet, change it here rather than by narrowing the through-pad test --
+    # that test is what catches tigard J2/JP1, where the pad copper really does
+    # collide.
+    rp = os.path.join(ROOT, 'kicad_files',
+                      'rp2350_fpga_eensy_prePlane.kicad_pcb')
+    if os.path.isfile(rp):
+        st = assess_placement(parse_kicad_pcb(rp), rp)
+        check('rp2350 J2/U3 (drilled, shared origin) is reported',
+              {'J2', 'U3'} <= set(st.stacked_suspect_refs),
+              f'suspect={sorted(st.stacked_suspect_refs)}')
+
+    # THE STAMPED-LOCK CASE. `locked` is a decision about WHERE a part goes; it
+    # does not make two parts able to occupy one space.
+    p = board()
+    lockpile = pick(p, 'F.Cu', 3)
+    stack(p, lockpile, at=(55.0, 55.0))
+    for r in lockpile:
+        p.footprints[r].locked = True
+    st = assess_placement(p, 'x')
+    check('a pile whose parts are all LOCKED is still a pile',
+          set(lockpile) <= set(st.stacked_suspect_refs),
+          f'pile={lockpile} suspect={sorted(st.stacked_suspect_refs)}')
+
+    # ...and the case the whole filter exists for.
+    p = board()
+    marks = pick(p, 'F.Cu', 2, marker=True)
+    check('fixture: the board has two same-side markers', len(marks) >= 2,
+          f'markers={marks}')
+    stack(p, marks, at=(60.0, 60.0))
+    st = assess_placement(p, 'x')
+    check('co-located MARKERS are not reported as a pile',
+          not (set(marks) & set(st.stacked_suspect_refs)),
+          f'markers={marks} suspect={sorted(st.stacked_suspect_refs)}')
+
+    # A MIXED group is a pile. The suppression is `all(marker)`, and `any`
+    # would read almost the same while meaning the opposite: one fiducial in
+    # the group would excuse every real part sitting on top of it. Nothing
+    # pinned the difference, so the two spellings were interchangeable.
+    p = board()
+    mixed = pick(p, 'F.Cu', 1, marker=True) + pick(p, 'F.Cu', 1)
+    check('fixture: the mixed group is one marker and one ordinary part',
+          len(mixed) == 2, f'mixed={mixed}')
+    stack(p, mixed, at=(62.0, 62.0))
+    st = assess_placement(p, 'x')
+    check('a marker does NOT excuse a real part stacked on it',
+          set(mixed) <= set(st.stacked_suspect_refs),
+          f'mixed={mixed} suspect={sorted(st.stacked_suspect_refs)}')
+
+    # The field must reach the one document that carries this state.
+    intent = os.path.join(tmp, 'fp_intent.json')
+    out = os.path.join(tmp, 'fp_state.json')
+    run(['check_floorplan.py', BOARD, '--emit-intent', intent])
+    rc, log = run(['check_floorplan.py', BOARD, '--intent', intent,
+                   '--json', out])
+    doc = json.load(open(out, encoding='utf-8')) if os.path.isfile(out) else {}
+    check('check_floorplan publishes stacked_suspect_refs',
+          'stacked_suspect_refs' in doc.get('state', {}),
+          f'rc={rc} state keys={sorted(doc.get("state", {}))} {log[-300:]}')
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix='run12_') as tmp:
         test_fence(os.path.join(tmp, 'fence'))
@@ -419,6 +606,7 @@ def main():
         test_loop_diagnoses_the_deadline(tmp)
         test_undeclared_floor(tmp)
         test_deficit_faces(tmp)
+        test_stacked_suspect(tmp)
 
     print()
     if _failures:

@@ -473,6 +473,12 @@ def static_metrics(pcb_data, board_path: str, record: Optional[Dict] = None
         'block_displacement_ran': bool(bd),
         'state': {'unplaced': state.unplaced,
                   'partially_unplaced': state.partially_unplaced,
+                  # The refs the flag above is actually decided on. Without it
+                  # a scorecard shows `partially_unplaced: false` beside a
+                  # non-zero `signals.duplicate_fraction` and a reader cannot
+                  # tell "suppressed as markers / far side" from a broken
+                  # check. Same reason floorplan's `state` block carries it.
+                  'stacked_suspect_refs': list(state.stacked_suspect_refs),
                   'has_copper': state.has_copper,
                   'signals': state.signals},
     }
