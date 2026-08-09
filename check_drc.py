@@ -2852,6 +2852,14 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
                   "on a board whose PLACEMENT may have moved a part off the "
                   "outline.")
         if check_pad_edge:
+            if not quiet:
+                # The OFF branch above announces itself and the ON branch used
+                # to print nothing, so a log showed a line when the check was
+                # skipped and silence when it ran. That is backwards for
+                # anyone reading the log later to find out whether the
+                # top-priority placement defect was looked for at all.
+                print("Checking pad-to-board-edge clearances "
+                      "(--check-pad-edge is on)...")
             for pad_net, pads in pads_by_net.items():
                 if matching_pad_nets is not None and pad_net not in matching_pad_nets:
                     continue

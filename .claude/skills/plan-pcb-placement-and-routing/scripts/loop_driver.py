@@ -484,6 +484,27 @@ def l2(a):
             f'declare it in the floorplan intent (edge_connectors), which '
             f'exempts it and makes the exemption reviewable, and then re-run '
             f'with --accept-residue oob_pad_count.')
+    # The PLACED board must be in the ledger, the same way L3 checks the routed
+    # one. It never was, so a delegated placement half could do the whole thing
+    # and record nothing, and the first stage to notice would be L4's staleness
+    # list printing "none recorded" at the one moment it mattered.
+    if _recorded(a.board, a.ledger) is False:
+        return err(
+            f'{a.board} is not in {a.ledger}: no lap records a board with this '
+            f'content hash.\n\nThe placement half was asked to record every '
+            f'accepted lap with converge.py --kind placement, and the board it '
+            f'handed over is not one of them. Either it recorded nothing, or '
+            f'the board changed after the last lap was recorded -- and both '
+            f'are the same problem for everything downstream, because the '
+            f'ledger is what step-back, the film and the staleness list all '
+            f'read.\n\nRecord it:\n  python3 -X utf8 converge.py record '
+            f'--ledger {a.ledger} \\\n      --board {a.board} --kind placement '
+            f'--argv <the command that produced it>')
+    # Deliberately NOT refusing on an empty or absent ledger. `_recorded`
+    # returns None there, and this gate's own refusal text documents the case:
+    # a board placed by someone else, handed straight to routing, has no
+    # placement lap to record and never will. "I could not check" must not
+    # become "you failed", or the legitimate path stops working.
     delegate, why = _delegation(a, half='routing')
     freeze = '''FREEZE first. Lock the refs whose poses are decisions -- mechanically fixed
 parts, anything a spec pins, anything the placement half moved deliberately. A
@@ -1142,6 +1163,22 @@ def _close_out(a, name):
                    'a spurious refusal also waives the one check that was '
                    'load-bearing.'))
 
+    # THE SUCCESS PATH SKIPS L3. On a clean route the loop goes L2 -> L5
+    # directly, so `_recorded` -- the only check that the routing half actually
+    # wrote laps -- never ran on the board being shipped. That is the run-13
+    # failure (two placement laps, zero routing ones, nothing noticed)
+    # reappearing on the path where nothing looks wrong.
+    if _recorded(a.board, a.ledger) is False:
+        return err(
+            f'{a.board} is not in {a.ledger}: no lap records a board with this '
+            f'content hash.\n\nThis is the board about to ship. The ledger is '
+            f'what the film, step-back and every re-entry read, and a board '
+            f'that never entered it cannot be reproduced or reverted to. A '
+            f'clean route is exactly the case where this goes unnoticed, '
+            f'because nothing else complains.\n\n  python3 -X utf8 converge.py '
+            f'record --ledger {a.ledger} \\\n      --board {a.board} --kind '
+            f'completion --argv <the command that produced it>')
+
     doc, e = _load(getattr(a, 'routing_close', None),
                    'The routing close-out (--routing-close)')
     if e:
@@ -1598,6 +1635,25 @@ def _self_test():
                 out = STAGES[k](_args(auto + ['--no-delegate']))
                 want('INLINE:' in out and '<subagent_prompt' not in out,
                      f'{k}: --no-delegate is the escape hatch and still works')
+            # A delegated placement half could do the whole thing and record
+            # nothing: L2 checks the PLACED board by content hash, the way L3
+            # already checked the routed one.
+            _lg = os.path.join(_t, 'wrong.jsonl')
+            with open(_lg, 'w', encoding='utf-8') as _fh:
+                _fh.write(json.dumps({'iteration': 0, 'kind': 'placement',
+                                      'accepted': True,
+                                      'result_sha': '0' * 64}) + '\n')
+            # Anchor on the REFUSAL's wording, not on "is not in": the
+            # delegated prompt itself contains "refuses a board that is not in
+            # the ledger", so the loose phrase matches the happy path too.
+            _norec = 'no lap records a board with this content hash'
+            want(_norec in STAGES['L2'](_args(auto + ['--ledger', _lg])),
+                 'L2 refuses a placed board that no lap recorded')
+            # ...and "no ledger at all" is NOT that: a board placed by someone
+            # else, handed straight to routing, has no lap to record.
+            want(_norec not in STAGES['L2'](_args(
+                     auto + ['--ledger', os.path.join(_t, 'none.jsonl')])),
+                 'L2 does not turn "could not check" into "you failed"')
         # An unreadable board no longer changes the decision -- it only changes
         # what can be SAID about it.
         out = STAGES['L1'](_args(['--board', os.path.join(_t, 'nope.kicad_pcb'),
@@ -1683,9 +1739,22 @@ def _self_test():
             d.update(over)
             return scored(d, name)
 
-        flat = ([{'kind': 'placement', 'accepted': True,
+        # The rows carry the fixture board's REAL content hash, because the
+        # close-out now checks that the board it is about to ship is in the
+        # ledger -- on the success path L2 goes straight to L5, so this was the
+        # one route where nothing verified that the routing half recorded
+        # anything. A fixture without result_sha would be a fixture no real
+        # ledger produces.
+        try:
+            sys.path.insert(0, ROOT)
+            from board_store import sha256_file as _sha256_file
+            _b5sha = _sha256_file(_b5)
+        except Exception:                                   # noqa: BLE001
+            _b5sha = None
+        flat = ([{'kind': 'placement', 'accepted': True, 'result_sha': _b5sha,
                   'score': {'blocking': 0, 'quality': {}}}] * 6
                 + [{'kind': 'completion', 'accepted': True,
+                    'result_sha': _b5sha,
                     'score': {'blocking': 0, 'quality': {}}}] * 6)
         out = STAGES['L5'](_args(base + [
             '--ledger', ledger_of([], 'fresh.jsonl'),
@@ -1700,6 +1769,17 @@ def _self_test():
         _fl = ledger_of(flat, 'flat.jsonl')
         _z2 = scored({'blocking': 0}, 'z2.json')
         done_args = base + ['--ledger', _fl, '--score', _z2]
+
+        # THE SUCCESS PATH IS THE ONE THAT SKIPPED THIS. A clean route goes
+        # L2 -> L5 with no L3 in between, so until now nothing ever checked
+        # that the routing half recorded the board it is shipping.
+        if _b5sha:
+            _wrong = ledger_of([dict(r, result_sha='0' * 64) for r in flat],
+                               'wrongsha.jsonl')
+            want('is not in' in STAGES['L5'](_args(
+                     base + ['--ledger', _wrong, '--score', _z2,
+                             '--routing-close', closed('rc_unrec.json')])),
+                 'the close-out refuses to ship a board no lap recorded')
         out = STAGES['L5'](_args(done_args))
         want(out.startswith('<error>') and 'routing close-out' in out,
              'close-out refuses to SHIP without a routing close-out')

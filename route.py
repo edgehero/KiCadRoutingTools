@@ -2869,6 +2869,25 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
         _kdl.stamp(summary)
     except Exception:
         pass
+    # WHICH SUMMARY IS THIS? A run that fires the reconciliation sub-pass emits
+    # a SECOND JSON_SUMMARY, scoped to that subset, and the only thing saying so
+    # was a prose "Note:" printed after it. Anything that scrapes the last
+    # JSON_SUMMARY -- a tail, a grep, a person -- then reads the subset's tally
+    # as the run's. Measured on run 14: one A/B arm emitted two summaries and
+    # the other one, so the arms were compared at `routed_single: 1` against
+    # `121` and the wrong arm looked catastrophic.
+    #
+    # Derived from the sink rather than a new kwarg, because the sink's own
+    # contract already IS this distinction: "the first pass and, when it fires,
+    # the reconciliation sub-run's".
+    summary['scope'] = 'run' if not _SUMMARY_SINK else 'reconciliation-subset'
+    if summary['scope'] != 'run':
+        # These are recomputed over the WHOLE board even in the subset pass, so
+        # a reader merging tallies must not add them twice.
+        summary['board_scoped_keys'] = [k for k in ('stacked_copper',
+                                                    'power_trace_ampacity',
+                                                    'min_clearance_used')
+                                        if k in summary]
     print(f"JSON_SUMMARY: {json.dumps(summary)}")
     _SUMMARY_SINK.append(summary)
 
@@ -3177,8 +3196,11 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                 _rok, _rfail, _rt = batch_route(
                     output_file, output_file, _rec_names, **_rk)
             print("Note: the JSON_SUMMARY above covers only the "
-                  "reconciliation subset; the run's full tally is the "
-                  "earlier JSON_SUMMARY plus these recoveries.")
+                  "reconciliation subset (it carries scope="
+                  "\"reconciliation-subset\"); the run's full tally is the "
+                  "earlier JSON_SUMMARY, the one with scope=\"run\", plus "
+                  "these recoveries. Never scrape the LAST JSON_SUMMARY of a "
+                  "route log -- count them, or read the scope.")
             if _rok:
                 successful += _rok
                 failed = max(0, failed - _rok)

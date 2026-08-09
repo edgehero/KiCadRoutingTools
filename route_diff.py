@@ -1372,6 +1372,20 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
     if single_ended_diff_pairs:
         print(f"  Single-ended:  {len(single_ended_diff_pairs)} (electrically short - "
               f"deferred to single-ended routing)")
+        # ...and say how those members ACTUALLY came out. The headline above
+        # reads `Diff pairs: 0/2 routed` on a step where every member net got
+        # copper and connected, so a log tail -- which is what a grep, a CI
+        # summary or a person reads -- shows total failure off a fully
+        # successful step. Run 14 had to open the JSON to find out otherwise.
+        _fb = se_fallback_summary or {}
+        _rt, _pt, _fl = (len(_fb.get('routed') or []),
+                         len(_fb.get('partial') or []),
+                         len(_fb.get('failed') or []))
+        if _rt or _pt or _fl:
+            _tail = (f", {_pt} partial" if _pt else '') + \
+                    (f", {RED}{_fl} FAILED{RESET}" if _fl else '')
+            print(f"  SE fallback:   {_rt}/{_rt + _pt + _fl} member net(s) "
+                  f"routed{_tail}")
     if skipped_bad_fanout:
         print(f"  {RED}Skipped:       {len(skipped_bad_fanout)} (fanout stubs self-overlap - "
               f"fix the fanout, #242){RESET}")

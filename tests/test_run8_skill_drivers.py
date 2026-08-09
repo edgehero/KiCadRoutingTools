@@ -119,9 +119,16 @@ def test_loop_driver():
         bd = os.path.join(td, 'b.kicad_pcb')
         open(bd, 'w', encoding='utf-8').close()
         lp = os.path.join(td, 'l.jsonl')
-        rows = ([{'kind': 'placement', 'accepted': True,
+        # The rows carry the board's REAL content hash. L5 now checks that the
+        # board it is about to ship is in the ledger -- on a clean route the
+        # loop goes L2 -> L5 with no L3 between, so that was the one path where
+        # nothing verified the routing half had recorded anything. A fixture
+        # with no result_sha is a fixture no real ledger produces.
+        import hashlib
+        _sha = hashlib.sha256(open(bd, 'rb').read()).hexdigest()
+        rows = ([{'kind': 'placement', 'accepted': True, 'result_sha': _sha,
                   'score': {'blocking': 0, 'quality': {}}}] * 6
-                + [{'kind': 'completion', 'accepted': True,
+                + [{'kind': 'completion', 'accepted': True, 'result_sha': _sha,
                     'score': {'blocking': 0, 'quality': {}}}] * 6)
         with open(lp, 'w', encoding='utf-8') as fh:
             for i, r in enumerate(rows):

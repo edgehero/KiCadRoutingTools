@@ -4732,7 +4732,7 @@ Examples:
                              "is refused against the board's own copper layers.")
 
     # Via and track geometry
-    parser.add_argument("--via-size", type=float, default=None, help="Via outer diameter in mm (default: the board Default net-class via, else 0.5)")
+    parser.add_argument("--via-size", type=float, default=None, help="Via outer diameter in mm (default: the board Default net-class via, else 0.5). NOT a hard floor: a tap into a fine-pitch pad field can escalate to the --fab-tier via and print a per-via warning, because a 0.5mm via does not fit a 0.5mm-pitch TQFP. Pass --fab-overrides to forbid the escalation -- at the cost of the taps that then cannot be made")
     parser.add_argument("--via-drill", type=float, default=None, help="Via drill size in mm (default: the board Default net-class via drill, else 0.3)")
     parser.add_argument("--track-width", type=float, default=None, help="Track width for via-to-pad connections in mm (default: the board Default net-class width, else 0.3)")
     parser.add_argument("--clearance", type=float, default=None, help="Copper clearance CEILING in mm. When given, every net class (Default included) is capped at min(class, this) and the writeback clamps. When OMITTED, each net routes at its own net-class clearance (base = the board's Default class, else 0.25).")
