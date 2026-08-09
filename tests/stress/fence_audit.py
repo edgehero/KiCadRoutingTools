@@ -197,7 +197,104 @@ def _json_poses(path):
 SCANNED_EXT = ('.kicad_pcb', '.json')
 
 
-def scan(workdir, control_poses, allow):
+#: A pad centre and a track end are "the same point" within this. Run 14
+#: measured 301 of 569 netted pads sitting within 5 um of their own track
+#: endpoint, so the coincidence is exact, not approximate.
+COPPER_TOL_MM = 0.01
+#: Below this many displaced pads the fraction is noise, not a signal.
+COPPER_MIN_PADS = 5
+#: Fraction of DISPLACED control pads that must still have copper at the
+#: control's position. Deliberately low: on an honestly routed board the
+#: expected value is ZERO, because copper laid down for a pad that has since
+#: moved does not stay behind at the old coordinate. Anything materially above
+#: zero is the signal, and the baseline test below is what keeps a densely
+#: routed board from tripping it.
+COPPER_FRAC = 0.15
+
+
+def _netted_pad_xy(pcb):
+    """Rounded (x, y) of every pad that carries a net."""
+    out = set()
+    for fp in (pcb.footprints or {}).values():
+        for pad in fp.pads:
+            if pad.net_id:
+                out.add((round(pad.global_x, 3), round(pad.global_y, 3)))
+    return out
+
+
+def _copper_points(pcb):
+    """Every point copper touches: segment ends and via centres."""
+    pts = set()
+    for s in (pcb.segments or []):
+        pts.add((round(s.start_x, 3), round(s.start_y, 3)))
+        pts.add((round(s.end_x, 3), round(s.end_y, 3)))
+    for v in (pcb.vias or []):
+        pts.add((round(v.x, 3), round(v.y, 3)))
+    return pts
+
+
+def copper_carries_poses(pcb, control_pads):
+    """(displaced, hits, frac) -- does this board's COPPER mark the control's pads?
+
+    `scan()` compares POSES and never opens copper, and that is a hole with a
+    measured size. A subject staged from a routed corpus board keeps the human
+    routing while the parts move out from under it, so the track ends go on
+    marking where each part BELONGS. Run 14 shipped exactly that: fence_audit
+    said CLEAN on a board whose copper located 301 of 569 pads to within 5 um,
+    and the leak was only closed later, by a copper strip done for an unrelated
+    reason.
+
+    THE TRAP THIS AVOIDS: a board whose placement was successfully RECOVERED
+    has its pads back at the control's coordinates, so "copper sits on control
+    pads" is true of the best possible outcome as well as the worst. The
+    discriminator is displacement. Score only the control pads this board has
+    moved AWAY from -- if copper still sits where those pads used to be, the
+    copper is telling you where they belong, and that is the leak. A recovered
+    board has almost no displaced pads to score, and a board routed honestly at
+    NEW positions has no copper at the old ones.
+    """
+    own = _netted_pad_xy(pcb)
+    displaced = control_pads - own
+    stayed = control_pads & own
+    if len(displaced) < COPPER_MIN_PADS:
+        return len(displaced), 0, 0.0, 0.0
+    pts = _copper_points(pcb)
+    if not pts:
+        return len(displaced), 0, 0.0, 0.0
+
+    step = int(round(COPPER_TOL_MM * 1000))
+
+    def _covered(pads):
+        """How many of these coordinates have copper sitting on them."""
+        n = 0
+        for (px, py) in pads:
+            bx, by = int(round(px * 1000)), int(round(py * 1000))
+            for dx in range(-step, step + 1):
+                for dy in range(-step, step + 1):
+                    if ((bx + dx) / 1000.0, (by + dy) / 1000.0) in pts:
+                        n += 1
+                        break
+                else:
+                    continue
+                break
+        return n
+
+    hits = _covered(displaced)
+    rate = hits / float(len(displaced))
+    # THE BASELINE. Boards differ enormously in how often a track actually
+    # terminates on a pad CENTRE -- one fixture here does it for 18% of pads,
+    # run 14's board for 53% -- so a bare fraction is not comparable across
+    # boards and any fixed threshold is arbitrary. The pads that did NOT move
+    # give the board's own rate for free, and the comparison is scale-free:
+    # copper laid out on the CONTROL's placement covers displaced pads at least
+    # as often as it covers the ones that stayed put, while copper laid out
+    # honestly on THIS placement covers the displaced positions essentially
+    # never.
+    base = (_covered(stayed) / float(len(stayed))) if stayed else 0.0
+    return len(displaced), hits, rate, base
+
+
+def scan(workdir, control_poses, allow, control_pads=None):
     """Every scannable file in workdir, scored against the control's poses."""
     rows = []
     for root, _dirs, files in os.walk(workdir):
@@ -209,28 +306,49 @@ def scan(workdir, control_poses, allow):
             if any(fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(name, pat)
                    for pat in allow):
                 continue
+            _copper = None
             try:
                 if name.endswith('.json'):
                     poses = _json_poses(path)
                     if poses is None:
                         continue        # ordinary JSON, not a pose carrier
                 else:
-                    poses = recovery.board_poses(parse_kicad_pcb(path))
+                    _pcb = parse_kicad_pcb(path)
+                    poses = recovery.board_poses(_pcb)
+                    if control_pads:
+                        _copper = copper_carries_poses(_pcb, control_pads)
             except Exception as exc:                    # unparseable is not a leak
                 rows.append({'file': rel, 'error': str(exc)[:120]})
                 continue
             frac, shared, worst = pose_match(poses, control_poses)
             _kind = 'record' if name.endswith('.json') else 'board'
-            rows.append({
+            _by_pose = frac >= MATCH_FRAC and shared > 0
+            # Materially above zero AND no rarer than on the pads that stayed
+            # put. The second half is what stops a densely routed board that
+            # happens to terminate on many pad centres from tripping it.
+            _by_copper = bool(_copper and _copper[2] >= COPPER_FRAC
+                              and _copper[2] >= _copper[3])
+            row = {
                 'file': rel,
                 'kind': _kind,
                 'match_frac': round(frac, 6),
                 'refs_shared': shared,
                 'worst_mm': None if worst is None else round(worst, 6),
-                'carries_truth': frac >= MATCH_FRAC and shared > 0,
+                'carries_truth': _by_pose or _by_copper,
+                # WHICH channel carries it, because the two have different
+                # fixes: poses mean a control board got copied in, copper means
+                # the subject was staged from a routed board and never stripped.
+                'truth_channel': ('poses' if _by_pose else
+                                  'copper' if _by_copper else None),
                 'sha256': _sha256(path),
                 'mtime': os.path.getmtime(path),
-            })
+            }
+            if _copper is not None:
+                row['copper_displaced_pads'] = _copper[0]
+                row['copper_hits_on_control'] = _copper[1]
+                row['copper_frac'] = round(_copper[2], 6)
+                row['copper_baseline_frac'] = round(_copper[3], 6)
+            rows.append(row)
     return rows
 
 
@@ -254,12 +372,14 @@ def main(argv=None):
         return 2
 
     allow = list(DEFAULT_ALLOW) + list(args.allow)
-    control_poses = recovery.board_poses(parse_kicad_pcb(args.control))
+    _control_pcb = parse_kicad_pcb(args.control)
+    control_poses = recovery.board_poses(_control_pcb)
+    control_pads = _netted_pad_xy(_control_pcb)
     # The control may itself live inside the work dir under any name; never
     # report the audit's own reference as a leak.
     control_real = os.path.realpath(args.control)
 
-    rows = [r for r in scan(args.workdir, control_poses, allow)
+    rows = [r for r in scan(args.workdir, control_poses, allow, control_pads)
             if os.path.realpath(os.path.join(args.workdir, r['file'])) != control_real]
 
     manifest_path = os.path.join(args.workdir, MANIFEST_NAME)
@@ -361,7 +481,13 @@ def main(argv=None):
             # CREATE runs with the fence UP. `worst_mm` IS the applied dose and
             # `match_frac` is the block size -- the two things the staging
             # script captures stdout to conceal. A leak verdict needs neither.
-            _strip = ('match_frac', 'worst_mm', 'refs_shared', 'mtime')
+            #
+            # `copper_displaced_pads` is the block size too, stated even more
+            # directly: it counts the pads the perturbation moved. It was added
+            # to this report and had to be added here in the same breath.
+            _strip = ('match_frac', 'worst_mm', 'refs_shared', 'mtime',
+                      'copper_displaced_pads', 'copper_hits_on_control',
+                      'copper_frac', 'copper_baseline_frac')
             for _b in ('leaks', 'recovered_to_truth'):
                 report[_b] = [{k: v for k, v in r.items() if k not in _strip}
                               for r in report[_b]]
@@ -378,9 +504,30 @@ def main(argv=None):
             print(f'  ok  {row["file"]}: matches the control '
                   f'({row["match_frac"]:.3f}) -- {row["reason"]}')
         for row in leaks:
-            print(f'  LEAK {row["file"]}: carries the control\'s placement '
-                  f'({row["match_frac"]:.3f} of {row["refs_shared"]} refs '
-                  f'within {POSE_TOL_MM}mm)'
+            # NAME THE CHANNEL. The two leaks have different causes and
+            # different fixes, and printing the pose fraction for a copper leak
+            # describes a number that did not fire: run 14's own board matched
+            # only 0.874 of refs, well under the pose threshold, and was caught
+            # entirely by its copper.
+            if row.get('truth_channel') == 'copper':
+                # The COUNTS are the block size, so they are withheld while the
+                # fence is still up -- exactly like match_frac in the JSON. The
+                # channel is what the operator needs; the number is what the
+                # run must not see.
+                _cnt = ('' if args.mode == 'create' else
+                        f' ({row.get("copper_hits_on_control")} of '
+                        f'{row.get("copper_displaced_pads")} displaced pads '
+                        f'still have copper at the control\'s position)')
+                _how = (f'its COPPER marks the control\'s placement{_cnt}. '
+                        f'This board was staged from a ROUTED board and never '
+                        f'stripped -- the tracks point at where each part '
+                        f'belongs. Strip it with '
+                        f'tests/stress/strip_copper_only.py')
+            else:
+                _how = (f'carries the control\'s placement '
+                        f'({row["match_frac"]:.3f} of {row["refs_shared"]} '
+                        f'refs within {POSE_TOL_MM}mm)')
+            print(f'  LEAK {row["file"]}: {_how}'
                   + (f' -- {row["reason"]}' if row.get('reason') else ''))
         if leaks:
             _nb = sum(1 for r in leaks if r.get('kind') != 'record')

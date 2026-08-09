@@ -325,6 +325,46 @@ def _placements(state, offsets: Dict[str, Tuple[float, float]]) -> List[Dict]:
     return out
 
 
+def _all_at_current(state, placements: List[Dict], pcb_data=None) -> List[Dict]:
+    """Every part, so the FORMATTING of `(at)` says nothing about the draw.
+
+    `placement.writer.write_placed_output` rewrites `(at x y)` with six decimals
+    for exactly the footprints it is handed, and leaves every other one
+    byte-identical. That makes the moved set readable straight off the output
+    text, with no tooling and no truth: run 14's perturbed block was recovered
+    by counting six-decimal `(at)` forms -- 24 of 235, against 0 on two
+    untouched corpus boards -- and it survived a copper strip. This module's own
+    docstring says the kind, dose, seed and block are "disclosed nowhere", and
+    the block was in the file the whole time. Every past run leaked its the same
+    way.
+
+    So hand the writer EVERY part: the members at their new pose, everyone else
+    at the pose they already have. One formatter, one precision, no subset to
+    count. Poses are unchanged for non-members -- only their formatting is.
+    """
+    by_ref = {p['reference']: p for p in placements}
+    fps = (pcb_data.footprints or {}) if pcb_data is not None else {}
+    out = []
+    for ref in sorted(state.parts):
+        if ref in by_ref:
+            out.append(by_ref[ref])
+            continue
+        # The pose AS PARSED, not the state's. `make_state` normalises rotation
+        # into [0, 360), so a footprint written `-90` comes back as `270` -- the
+        # same angle, and a 360 delta to anything that compares the numbers
+        # without normalising. These parts did not move; nothing about them
+        # should change but the number of decimals.
+        fp = fps.get(ref)
+        if fp is not None:
+            out.append({'reference': ref, 'new_x': round(fp.x, 6),
+                        'new_y': round(fp.y, 6), 'new_rotation': fp.rotation})
+            continue
+        p = state.parts[ref]
+        out.append({'reference': ref, 'new_x': round(p.x, 6),
+                    'new_y': round(p.y, 6), 'new_rotation': p.rot})
+    return out
+
+
 def _pile_placements(state, members: Sequence[str], pcb_data) -> List[Dict]:
     """Collapse `members` onto ONE coordinate.
 
@@ -526,7 +566,10 @@ def perturb(board: str, out_board: str, *, kind: str = 'translate',
     _cdir = os.path.dirname(os.path.abspath(control))
     if _cdir:
         os.makedirs(_cdir, exist_ok=True)
-    write_placed_output(board, control, [])
+    # EVERY part, not none: same reason the perturbed board below gets the
+    # full list. A control formatted differently from its subject is itself a
+    # comparison anyone could make.
+    write_placed_output(board, control, _all_at_current(st, [], pcb))
     copy_siblings(board, control)
     # Say where truth went, ALWAYS. This board carries the original placement
     # pose-for-pose; a caller that does not know its path cannot fence it.
@@ -539,7 +582,7 @@ def perturb(board: str, out_board: str, *, kind: str = 'translate',
               "read. Pass control_out=<somewhere outside> (the staging recipe "
               "uses a sibling _truth/), or fence_audit --mode create will "
               "report it as a LEAK -- which it is.", flush=True)
-    write_placed_output(board, out_board, placements)
+    write_placed_output(board, out_board, _all_at_current(st, placements, pcb))
     copy_siblings(board, out_board)
 
     ctrl_pcb = parse_kicad_pcb(control)

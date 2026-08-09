@@ -49,6 +49,16 @@ def _reserialise(src, dst):
     which is precisely the hole the audit used to have. Writing the board back
     out through the writer reproduces every footprint pose and changes the
     file, so the fixture tests the property the audit now tests.
+
+    THE WRITER IS NOW IDEMPOTENT ON ITS OWN OUTPUT. `perturb` hands it every
+    footprint rather than only the moved ones -- the `(at)` formatting used to
+    fingerprint the perturbed block -- so a control it produced is already in
+    writer form and re-serialising it changes nothing. The byte difference a
+    real recovery has (fresh uuids, different copper) is not reproduced by a
+    pose rewrite any more, so the fixture states it explicitly: a trailing
+    newline is legal s-expression whitespace, invisible to the parser, and
+    keeps this test about the AUDIT's sha-vs-pose logic rather than about how
+    the writer happens to format.
     """
     from kicad_parser import parse_kicad_pcb
     from placement.writer import write_placed_output
@@ -57,6 +67,8 @@ def _reserialise(src, dst):
         {'reference': ref, 'new_x': fp.x, 'new_y': fp.y,
          'new_rotation': fp.rotation}
         for ref, fp in sorted(pcb.footprints.items())])
+    with open(dst, 'a', encoding='utf-8') as fh:
+        fh.write('\n')
 
 
 def run_audit(control, workdir, mode):

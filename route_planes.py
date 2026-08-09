@@ -5255,6 +5255,19 @@ Examples:
         "min_clearance_used": _cl.effective(args.clearance),
         "plane_nets": sorted(set(args.nets)),
     }
+    # `plane_nets` is a de-duplicated NAME list, and --nets/--plane-layers are
+    # matched POSITIONALLY, so `--nets GND GND --plane-layers In1.Cu In2.Cu`
+    # collapses two poured zones into one entry and the second one vanishes from
+    # the record entirely. Run 14 poured GND on both inner layers and its
+    # summary said `"plane_nets": ["GND"]`. Keep that key as it was -- consumers
+    # read it -- and state the actual zones alongside.
+    try:
+        _layers = list(getattr(args, 'plane_layers', None) or [])
+        _summary["plane_zones"] = [
+            {"net": _n, "layer": (_layers[_i] if _i < len(_layers) else None)}
+            for _i, _n in enumerate(args.nets)]
+    except Exception:                                       # noqa: BLE001
+        pass
     # #487: the plane resistance/ampacity numbers used to live only in stdout
     # ("report-only ... print and discard"). Fold the per-net results the
     # engine noted into the machine-readable summary so chains/graders/skills
@@ -5265,6 +5278,12 @@ Examples:
     _pt = consume_pad_tally()
     if _pt:
         _summary["pads"] = _pt
+        # SAY that this is one tally over every zone. The engine aggregates, so
+        # `failed_pads: 12` on a two-zone pour does not say which zone failed,
+        # and a reader pairing it with a single-entry `plane_nets` would
+        # reasonably assume it was scoped to that one net.
+        _summary["pads_scope"] = ("all zones in this run, summed -- not per "
+                                  "zone; see plane_zones for what was poured")
         if _pt.get('failed_pads') or _pt.get('geometric_failed'):
             _summary["status"] = "incomplete-pads"
 
