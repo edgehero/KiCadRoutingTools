@@ -630,10 +630,27 @@ Then classify the SHAPE of the failure:
   parameter-shaped   grid, rip-up depth, layer costs, width -> re-enter at the
                      failing ROUTING stage with the parameter changed
   placement-shaped   a starved escape face, a part its net cannot reach ->
-                     STOP. No router setting adds a lane. Go to
-                     /plan-pcb-placement, and restart the chain from its output
+                     STOP. No router setting adds a lane.
   floorplan-shaped   the arrangement cannot satisfy the clause -> a different
                      arrangement, not another retry
+
+THE SHAPE ALSO DECIDES WHO ACTS ON IT, and that depends on how you were
+started. If a parent loop dispatched you -- you were handed a ledger and told
+the placement is frozen -- then you own `parameter` and nothing else:
+
+  parameter    yours. Re-enter your failing R stage, record the lap, carry on.
+  placement    NOT yours. Report the shape and STOP.
+  floorplan    NOT yours. Report the shape and STOP.
+
+Both of those mean changing halves, which invalidates every routed board
+including the one you just made, and that decision belongs to the loop that can
+see both halves. A half that re-places locally is doing the outer loop's job
+invisibly: measured on run 14, the outer L3 and L4 never fired once because
+this stage's own conclusion never left this stage.
+
+If nobody dispatched you -- you are driving this skill directly -- then all
+three are yours, and a placement-shaped failure means going to
+/plan-pcb-placement and restarting the chain from its output.
 
 Next: --stage V3 --board {a.board} --score {a.score}
 </stage_instructions>'''

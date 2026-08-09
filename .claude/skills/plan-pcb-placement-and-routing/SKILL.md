@@ -72,29 +72,36 @@ Its guards are the three this skill exists to enforce:
 | `L4` re-enter | a measured `--shape` | the three shapes re-enter at three different points, and the cost of guessing is asymmetric |
 | `L5` close out | a `check_complete` close-out that **agrees** with `converge` | nothing refused to FINISH, so a run reached the terminal artifact having never entered routing's own V1–V5 loop, and shipped a power-to-signal short. Only the *contradiction* refuses: `DONE-EXHAUSTED` against `INCOMPLETE`/`UNSOUND` |
 
-**Delegation is automatic, and the rule is one number per half.** You do not
-decide it and you cannot forget it — the driver reads the board and says which
-way it went, with the value and the threshold, every time:
+**Both inner halves go to a teammate. Always, at every board size.** You do not
+decide it and you cannot forget it — the driver reads the board, delegates, and
+prints the size it measured as context.
 
-| half | goes to a teammate when | why that number |
-|---|---|---|
-| `L1` placement | **parts > 200** (`--delegate-above-parts`) | its output scales with parts: the repair sweep visits violators, the legalize ladder visits them again, every render draws all of them |
-| `L2` routing | **nets > 300** (`--delegate-above-nets`) | its output scales with nets: the route log is per-net, and the score and connectivity reports enumerate them |
+**This used to be a CONTEXT decision on two size thresholds, and it is now a
+CORRECTNESS one.** The thresholds are gone. Run 14 is why: 191 pad-bearing
+parts against a 200 cut and 150 nets against 300, so both halves ran inline —
+and the routing half, holding far more context than the orchestrator,
+classified its own failure in its V2 stage and acted on it. The classification
+never travelled up, `L3` and `L4` never fired, and a full re-run of the routing
+chain happened that the outer loop never authorised and never saw.
 
-Override in either direction: `--delegate` forces a teammate, `--no-delegate`
-forces inline. A board that cannot be read is run **inline** and says so — a
-failed read is not evidence the board is small.
+That is not a threshold set wrong. **An inline inner loop can silently do the
+outer loop's job**, because it always knows more than the parent does, and no
+number separates the boards where it will from the boards where it will not. A
+teammate cannot: the only thing crossing the boundary is a document the parent
+has to read.
 
-Both thresholds are judgements, not calibrations, and the driver's source says
-so. What is measured is only the two ends: a 65-part / 83-net 2-layer board ran
-both halves inline comfortably; a 216-part / 266-net 4-layer board produces a
-per-net route log plus a fanout stage per fine-pitch part.
+`--no-delegate` is the escape hatch and is load-bearing — the self-test, the
+parity gates and headless CI need one process. `--delegate` is the explicit
+form of the default and changes nothing. A board that cannot be read still
+delegates; the size was never the decision, so failing to measure it changes
+only what can be said about it.
 
-**It is a CONTEXT decision, never a correctness one** — the guards are identical
-either way and both halves record into the same ledger. When it does delegate,
-the driver emits a prompt for a **teammate**, not a plain subagent: each half
-spawns its own verification subagents at its close-out, and a subagent cannot
-spawn one.
+Spawn the teammate with an agent type that **has the Agent tool** — `claude` or
+`general-purpose`, never `Explore` or `Plan`, whose definitions exclude it. Each
+half dispatches its own verification subagents at its close-out, and a half that
+cannot spawn cannot verify itself. (The older wording here said a subagent
+cannot spawn a subagent. That is false in this harness and has been retired; the
+constraint is the agent *type*.)
 
 State crosses the boundary on DISK, in the converge ledger, never in a head.
 That is what makes a re-entry able to say what was already tried.

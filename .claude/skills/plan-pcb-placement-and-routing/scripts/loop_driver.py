@@ -103,30 +103,47 @@ def _ledger_rows(path):
 # stages
 # --------------------------------------------------------------------------
 
-#: When a half runs in a teammate instead of here. ONE rule per half, on ONE
-#: number each, because "when the output would crowd the other half" is a thing
-#: nobody can evaluate at the moment they have to decide.
+#: There used to be two size thresholds here, DELEGATE_ABOVE_PARTS = 200 and
+#: DELEGATE_ABOVE_NETS = 300, deciding when a half ran in a teammate instead of
+#: in the orchestrator's own context. They are gone, and `_delegation` explains
+#: why: the thing they were proxying for (context volume) is not the thing that
+#: actually goes wrong. What goes wrong is that an inline inner loop absorbs the
+#: outer loop's stage, and that happens at any size.
 #:
-#: The two halves are sized by different things, which is why there are two
-#: numbers rather than one:
-#:
-#:   PLACEMENT output scales with PARTS -- the repair sweep visits violators,
-#:   the legalize ladder visits them again, and every render draws all of them.
-#:   ROUTING output scales with NETS -- the route log is per-net, and the score
-#:   and connectivity reports enumerate them.
-#:
-#: Both are proxies for context volume and both are JUDGEMENTS, not
-#: calibrations. What is measured is only the two ends: a 65-part / 83-net
-#: 2-layer board ran both halves inline comfortably, and a 216-part / 266-net
-#: 4-layer board produces a per-net route log plus a fanout stage per
-#: fine-pitch part. The thresholds sit between those, and both are flags
-#: because the right value depends on what else is already in the context.
-#:
-#: What would calibrate them: record, per run, the half that forced a
-#: compaction and the board's parts/nets. Nothing measures that today, so
-#: these stay judgements and say so here rather than in the emission.
-DELEGATE_ABOVE_PARTS = 200
-DELEGATE_ABOVE_NETS = 300
+#: The counts are still read and still printed. They are context in the
+#: emission, not a decision, so there is no number left to tune and no split
+#: decision left to reconcile between the two halves.
+
+
+def _work(a):
+    """The run's work dir -- where the PARENT names the handback artifacts.
+
+    A contract where the teammate chooses the paths is not checkable: the parent
+    has nothing to compare against, so every downstream gate degrades to
+    trusting a message. Naming them here inverts that. The teammate fills paths
+    the parent already knows, verifying a handback becomes os.path.isfile() plus
+    the bindings that already exist, and a teammate that died mid-chain produces
+    "these files do not exist" instead of a plausible paragraph.
+    """
+    # As GIVEN, not absolutised: every other path this driver emits is echoed
+    # in the form the caller used, and a Windows abspath spliced onto a
+    # forward-slash suffix produces a mixed-separator path nobody can paste.
+    if getattr(a, 'ledger', None):
+        return os.path.dirname(a.ledger).replace('\\', '/') or '.'
+    return 'wk'
+
+
+#: Never open anything but the board you were given. A delegated half is a fresh
+#: agent with Read and Glob, and on the perturbed corpus the control board and
+#: the pose record sit one directory above the subject. The fence has always
+#: been behavioural; before delegation it relied on ONE agent declining to look,
+#: and now it relies on three. Naming the carriers is what closes the path.
+FENCE_CLAUSE = '''
+The ONLY board you may open is the one named above. If you come across a
+control board, a `_truth/` directory, a `*.perturb.json` pose record, a `.bak`
+or any other board file in or near the work dir, do NOT open it: say that you
+found it and carry on without it. Reading one silently invalidates the whole
+run, and nothing downstream can detect that it happened.'''
 
 
 def _board_size(board):
@@ -153,71 +170,63 @@ def _part_count(board):
 
 
 def _delegation(a, half='placement'):
-    """(delegate?, why) -- flags first, then the one number for THIS half.
+    """(delegate?, why) -- BOTH halves go to a teammate, and the size is context.
 
-    Delegation is a CONTEXT decision, never a correctness one: the guards are
-    identical either way and both halves record into the same ledger. But
-    leaving it to judgement means it gets judged on the board where judging it
-    was already too late, so the number is read off the board and the default
-    decides. Either flag overrides, and the reason is ALWAYS printed with the
-    value, the threshold and the flag that changes it -- a run that silently
-    spawned a teammate would be worse than one that never did.
+    Delegation used to be decided by board size. Run 14 is why it is not any
+    more. That board measured 191 pad-bearing parts against a 200 threshold and
+    150 nets against 300, so both halves ran inline -- and the routing half,
+    holding far more context than the orchestrator, classified its own failure
+    in its V2 stage and acted on it. The classification never travelled up, L3
+    and L4 never fired, and a full re-run of the routing chain happened that the
+    outer loop never authorised and never saw.
+
+    That is not a threshold being set wrong. **An inline inner loop can silently
+    do the outer loop's job**, because it always knows more than the parent
+    does, and no number distinguishes the boards where it will from the boards
+    where it will not. A teammate cannot: the only thing that crosses the
+    boundary is a document the parent has to read.
+
+    So the default is delegate, both halves, every size. Uniformity is also what
+    keeps the delegated path exercised -- until now it was covered by nothing
+    but a text-emission assertion, so a handback could not have been wrong in
+    any way a test would notice.
+
+    The size is still MEASURED and still printed, because "191 parts <= 200" is
+    the line that told run 14 what it had chosen. It is context now, not a
+    decision, and an unreadable board therefore changes nothing.
+
+    `--no-delegate` is the escape hatch and is load-bearing: the self-test, the
+    parity gates and any headless CI have to run in one process.
     """
-    if getattr(a, 'no_delegate', False):
-        return False, '--no-delegate was passed, so this half runs here'
     parts, nets = _board_size(a.board)
-    if getattr(a, 'delegate', False):
-        return True, '--delegate was passed, so this half goes to a teammate'
-    if parts is None:
-        return False, (f'{a.board} could not be read to size it. A failed read '
-                       f'is not evidence the board is small, so this half runs '
-                       f'here rather than guessing -- pass --delegate if it is '
-                       f'in fact large')
     if half == 'routing':
-        val, lim, unit, flag = nets, a.delegate_above_nets, 'nets', \
-            '--delegate-above-nets'
-        other = f'{parts} parts'
+        val, unit, other, other_unit = nets, 'nets', parts, 'parts'
     else:
-        val, lim, unit, flag = parts, a.delegate_above_parts, 'parts', \
-            '--delegate-above-parts'
-        other = f'{nets} nets'
-    if val is not None and val > lim:
-        return True, (f'{val} {unit} > {lim} ({flag}), so this half goes to a '
-                      f'teammate. {other.capitalize()} for context')
-
-    # THE TWO THRESHOLDS MUST NOT SPLIT THE DECISION. They are independent
-    # proxies for the same thing, so a board can land over one and under the
-    # other -- and that split is what run 13 was: 264 parts (delegate) and 251
-    # nets (inline). Placement went to a teammate and followed its driver rung
-    # by rung; routing stayed with the orchestrator, which by then was also
-    # holding the outer loop, two watchers, the journal and the report -- and
-    # never entered routing's own V1-V5 convergence loop at all.
-    #
-    # So: if the board was big enough to need a teammate for PLACEMENT, it is
-    # big enough for one for ROUTING. The orchestrator has been coordinating
-    # rather than executing, and handing it a loop to drive directly at that
-    # point is the transition that failed. Costs no new state to ask.
-    if half == 'routing' and _delegation(a, half='placement')[0]:
-        return True, (f'{val} {unit} <= {lim} ({flag}), but PLACEMENT was '
-                      f'delegated, so routing goes to a teammate too rather '
-                      f'than splitting the decision. The two thresholds are '
-                      f'independent proxies for one thing; the half that '
-                      f'skipped its own convergence loop was the inline half '
-                      f'of exactly such a split. --no-delegate overrides')
-    return False, (f'{val} {unit} <= {lim} ({flag}), so this half runs here. '
-                   f'{other.capitalize()} for context')
+        val, unit, other, other_unit = parts, 'parts', nets, 'nets'
+    if val is None:
+        size = (f'{a.board} could not be read to size it, which changes '
+                f'nothing -- the decision no longer depends on the size')
+    else:
+        size = f'{val} {unit}, {other} {other_unit} for context'
+    if getattr(a, 'no_delegate', False):
+        return False, f'--no-delegate was passed, so this half runs here ({size})'
+    return True, (f'this half goes to a TEAMMATE. Always, not because of a '
+                  f'threshold ({size}). --no-delegate runs it here instead')
 
 
 def l1(a):
-    """Place. Delegated or inline -- correctness is the same either way."""
+    """Place. Delegated by default; --no-delegate is the escape hatch."""
     delegate, why = _delegation(a)
+    work = _work(a)
     if delegate:
         return f'''<stage_instructions stage="L1" name="place (delegated)" of="5">
 DELEGATING: {why}.
 
-Delegate the placement half to a TEAMMATE, not a plain subagent: the placement
-skill spawns its own verification subagents at its close-out, and a subagent
-cannot spawn one. Give it the prompt below verbatim.
+Delegate the placement half to a TEAMMATE spawned with an agent type that HAS
+the Agent tool -- `claude` or `general-purpose`, never `Explore` or `Plan`,
+whose definitions exclude it. The placement skill dispatches its own
+verification subagent at its close-out, and a half that cannot spawn cannot
+verify itself. Give it the prompt below verbatim.
 
 <subagent_prompt agent="claude" description="place {os.path.basename(a.board)}">
 Drive the placement half of this board to its close-out, and do not route.
@@ -231,21 +240,43 @@ Use /plan-pcb-placement. Ask its driver for one stage at a time:
 and follow the stage it prints, including its refusals -- an <error> means a
 gate is holding, so produce what it asks for rather than working around it.
 
-Record every accepted lap with converge.py into the ledger above.
+Record every accepted lap with converge.py --kind placement into the ledger
+above. The next stage checks the board against that ledger BY CONTENT HASH, so
+a lap you did not record is a lap that did not happen.
+
+WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
+chosen by you, because the next gate opens the files; it does not read your
+message.
+
+  placed board : {work}/placed.kicad_pcb
+  close-out    : {work}/assembly_close.json
+                 python3 -X utf8 check_assembly.py {work}/placed.kicad_pcb \\
+                     --clearance <the board's own floor> \\
+                     --json {work}/assembly_close.json
+  render       : {work}/place_close_render.json
+                 the render_placement.py --json-out you actually READ
+
+`assembly_close.json` must be check_assembly.py's output and nothing else.
+board_score.py publishes a field called `blocking` too and means something
+entirely different by it; handing that over silently disables three of the four
+checks the gate runs.
+{FENCE_CLAUSE}
 
 Return, and return ONLY:
-  1. the path of the placed board;
-  2. the four close-out measurements with their numbers;
-  3. what remains unfixed, each with the measurement that says it is unfixable
+  1. confirmation that each of the three paths above exists, or WHICH does not;
+  2. what remains unfixed, each with the measurement that says it is unfixable
      at this stage;
-  4. the refs you locked and why.
-Do not summarise the process. The next stage needs the board and the numbers.
+  3. the refs you locked and why.
+Do not summarise the process, and do not retype the numbers -- the gate
+re-reads them from the files.
 </subagent_prompt>
 
-When it returns, continue here with --stage L2 and the board it produced.
+When it returns, continue here with --stage L2 on the paths named above.
 
-Next: python3 -X utf8 {sys.argv[0]} --stage L2 --board <placed board> \\
-          --ledger {a.ledger} --placement-report <its close-out json>
+Next: python3 -X utf8 {sys.argv[0]} --stage L2 \\
+          --board {work}/placed.kicad_pcb \\
+          --ledger {a.ledger} \\
+          --placement-report {work}/assembly_close.json
 </stage_instructions>'''
     return f'''<stage_instructions stage="L1" name="place" of="5">
 INLINE: {why}.
@@ -271,6 +302,7 @@ Next: python3 -X utf8 {sys.argv[0]} --stage L2 --board <placed board> \\
 
 def l2(a):
     """Freeze what placement decided, then route."""
+    work = _work(a)
     _res = getattr(a, 'accept_residue', None)
     if _res is not None:
         _bad = [n for n in _res if n not in L2_CHECKS]
@@ -467,11 +499,13 @@ Freeze BEFORE you hand it over -- the locks are a decision from the placement
 half, and a teammate that receives an unfrozen board cannot know which poses
 were deliberate.
 
-Then delegate the routing half to a TEAMMATE, for the same reason L1 does: the
-routing skill spawns its own verification subagents at close-out, and a
-subagent cannot spawn one. This half is the one that produces the most output
-of anything in the loop -- a route log on a board this size runs to thousands
-of lines -- so it is the half most worth keeping out of this context.
+Then delegate the routing half to a TEAMMATE, for the same reason L1 does: use
+an agent type that HAS the Agent tool (`claude` or `general-purpose`, never
+`Explore` or `Plan`), because the routing skill fans out three verification
+subagents at close-out and a half that cannot spawn cannot verify itself. This
+half also produces the most output of anything in the loop -- a route log on a
+board this size runs to thousands of lines -- so it is the one most worth
+keeping out of this context.
 
 <subagent_prompt agent="claude" description="route {os.path.basename(a.board)}">
 Route this board to its close-out. The placement is FROZEN: do not move a
@@ -490,25 +524,72 @@ time:
 and follow it, including its refusals -- an <error> means a gate is holding,
 so produce what it asks for rather than working around it.
 
+TAKE THE HAND-OFF PICTURE before your first route. This is the last moment the
+board is copper-free, so it is the only render that shows the placement ALONE --
+afterwards every panel is placement plus whatever the router did:
+
+  python3 -X utf8 render_placement.py {a.board} \\
+      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
+      --json-out wk/handoff.json -o wk/handoff.png
+
+Anything its WHAT THIS PANEL SHOWS block names as off the outline, stacked or
+hole-conflicting will still be there after the route, and no router setting
+removes it. Keep that board: it is the baseline `check_channels --baseline`
+needs, and you return its path below.
+
+Set `--deadline` on every searching step, BELOW THE SMALLEST CAP IN THE STACK,
+your harness's included. A 2400s deadline inside a 600s window can never fire:
+the harness SIGTERMs, the tool's own shutdown never runs, and you get exit 143
+with no partial board and no summary. 143 and 124 are the SHELL's codes, not a
+tool's. Run long steps detached rather than raising the number.
+
 Record EVERY accepted iteration into the ledger above with converge.py, and
 every rejected one with --rejected before stepping back. The stage after this
 one refuses a board that is not in the ledger, by content hash.
 
+WHEN YOU CLASSIFY A FAILURE, THE CLASSIFICATION DECIDES WHO FIXES IT:
+  - `parameter`  -- yours. Re-enter your own failing R stage, record the lap,
+                    carry on.
+  - `placement`  -- NOT yours. Stop and return it. Fixing it means moving a
+                    part, which you are forbidden to do anyway.
+  - `floorplan`  -- NOT yours. Stop and return it. Fixing it means a different
+                    arrangement, which is the other half's job.
+A `placement` or `floorplan` verdict ends your turn. Do not spend router
+parameters on it: that is the most expensive mistake available here, and a half
+that fixes it locally is a half doing the outer loop's job invisibly.
+
+WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
+chosen by you, because every gate after this opens the files; none of them
+reads your message.
+
+  routed board : {work}/routed.kicad_pcb
+  score        : {work}/score.json          board_score.py --json
+  route log    : {work}/route.log           the one carrying JSON_SUMMARY
+  close-out    : {work}/routing_close.json
+                 python3 -X utf8 check_complete.py {work}/routed.kicad_pcb \\
+                     --authored-from {a.board} \\
+                     --json {work}/routing_close.json
+
+`--authored-from` is given to you above because only this loop knows it, and it
+is not bookkeeping: without it check_complete's fab-floor check cannot run at
+all, so UNSOUND becomes unreachable and a board that ships copper below its own
+declared floor reads clean. The writeback only ever loosens, so the board you
+were handed is the last thing left to compare against.
+{FENCE_CLAUSE}
+
 Return, and return ONLY:
-  1. the path of the routed board;
-  2. its score JSON path, and `blocking` with its `blocking_by` breakdown;
-  3. the failing nets BY NAME, not counted;
-  4. anything left UNGRADED, named as unexamined rather than clean.
-Do not summarise the process. The next stage classifies from those numbers.
+  1. confirmation that each of the four paths above exists, or WHICH does not;
+  2. the three routed-board VERDICT= lines, verbatim, one per line -- the
+     ledger's own --final refuses without connectivity, drc and spec;
+  3. SHAPE=<parameter|placement|floorplan>, or `none` if nothing failed;
+  4. the failing nets BY NAME, not counted;
+  5. anything left UNGRADED, named as unexamined rather than clean.
+
+Do not summarise the process, and do not retype the numbers.
 </subagent_prompt>
 
-When it returns, continue here with the board and score it produced.
-
-Set `--deadline` on every searching step, BELOW THE SMALLEST CAP IN THE STACK
--- your harness's included. A 2400s deadline inside a 600s window can never
-fire: the harness SIGTERMs, the tool's own shutdown never runs, and you get
-exit 143 with no partial board and no summary. 143 and 124 are the SHELL's
-codes, not a tool's. Run long steps detached rather than raising the number.
+When it returns, continue here with the paths it named. Do not retype its
+numbers -- the gates re-read them from disk.
 
 Two rules that are only true HERE, where the halves meet:
   - copper is not evidence about placement. A route that completed does not
@@ -516,21 +597,7 @@ Two rules that are only true HERE, where the halves meet:
   - every routed board produced from THIS placement is valid only while this
     placement stands.
 
-TAKE THE HAND-OFF PICTURE before the first route. This is the last moment the
-board is copper-free, so it is the only render that shows the placement ALONE --
-afterwards every panel is placement plus whatever the router did, and the two
-become hard to separate by eye:
-
-  python3 -X utf8 render_placement.py {a.board} \\
-      --clearance <the board's own floor> --ignore-nets <the poured nets> \\
-      --json-out wk/handoff.json -o wk/handoff.png
-
-Its WHAT THIS PANEL SHOWS block is what routing is being given. Anything it
-names as off the outline, stacked, or hole-conflicting will still be there after
-the route, and no router setting removes it -- so if that list is not empty,
-read this stage's refusals again before spending a routing pass on it.
-
-Next, on success: --stage L5. On a failure: --stage L3 --score <score json>
+Next, on success: --stage L5. On a failure: --stage L3 --score <SCORE_JSON>
          --render-json <a --focus render; L3 will not open without one>
 </stage_instructions>'''
     return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
@@ -1217,22 +1284,15 @@ def _args(argv=None):
     ap.add_argument('--flat', type=int, default=5,
                     help='accepted laps a half may go without improving '
                          'before it counts as blocked (default 5, ditto)')
-    ap.add_argument('--delegate-above-parts', type=int,
-                    default=DELEGATE_ABOVE_PARTS, metavar='N',
-                    help=f'parts above which the PLACEMENT half goes to a '
-                         f'teammate (default {DELEGATE_ABOVE_PARTS}): its '
-                         f'output scales with parts')
-    ap.add_argument('--delegate-above-nets', type=int,
-                    default=DELEGATE_ABOVE_NETS, metavar='N',
-                    help=f'nets above which the ROUTING half goes to a '
-                         f'teammate (default {DELEGATE_ABOVE_NETS}): its '
-                         f'output scales with nets')
     ap.add_argument('--no-delegate', action='store_true',
-                    help='force both halves inline whatever the board size')
+                    help='run both halves in THIS context instead of handing '
+                         'them to teammates. The escape hatch: the self-test, '
+                         'the parity gates and headless CI need one process. '
+                         'Everything else should delegate')
     ap.add_argument('--delegate', action='store_true',
-                    help='hand a half to a TEAMMATE (not a plain subagent -- '
-                         'each half spawns its own verifiers). A context '
-                         'decision, not a correctness one')
+                    help='explicit form of the default (both halves go to a '
+                         'teammate). Accepted so existing invocations keep '
+                         'working; it changes nothing on its own')
     ap.add_argument('--accept-residue', nargs='*', metavar='CHECK',
                     default=None,
                     help='proceed to routing with a NAMED, measured-unfixable '
@@ -1495,14 +1555,20 @@ def _self_test():
     inline = STAGES['L1'](_args(base + ['--no-delegate']))
     deleg = STAGES['L1'](_args(base + ['--delegate']))
     want('<subagent_prompt' in deleg and '<subagent_prompt' not in inline,
-         'delegation is a choice, and only the delegated form dispatches')
-    want('TEAMMATE' in deleg and 'cannot spawn' in deleg,
-         'delegation says a teammate is required, and why')
+         'only the delegated form dispatches, and --no-delegate suppresses it')
+    want('TEAMMATE' in deleg and 'Agent tool' in deleg,
+         'delegation names the agent-type constraint, not a folk rule')
+    # The old text said "a subagent cannot spawn one", which is false in this
+    # harness: `claude` and `general-purpose` carry the Agent tool and can. The
+    # real constraint is the agent TYPE -- `Explore` and `Plan` are defined
+    # without it -- so a half spawned as one of those cannot verify itself.
+    want('cannot spawn one' not in deleg,
+         'the retired claim that a subagent cannot spawn is gone')
 
-    # The size decides by default, so that it is not left to be remembered on
-    # the board where remembering it was already too late. Both halves, because
-    # routing is the one that produces the most output and used to have no
-    # escape hatch at all.
+    # DELEGATION IS THE DEFAULT, at every size. Run 14 measured 191 parts and
+    # 150 nets, ran both halves inline under the old thresholds, and the
+    # routing half then classified its own failure and acted on it without the
+    # outer loop's L3/L4 ever firing. The size is still printed, as context.
     import tempfile as _tf
     with _tf.TemporaryDirectory() as _t:
         rep = os.path.join(_t, 'p.json')
@@ -1523,25 +1589,21 @@ def _self_test():
             auto = ['--board', small, '--placement-report', rep]
             for k in ('L1', 'L2'):
                 out = STAGES[k](_args(auto))
-                want('INLINE:' in out and '<subagent_prompt' not in out,
-                     f'{k} runs a small board inline, and says why')
-                out = STAGES[k](_args(auto + ['--delegate-above-parts', '1',
-                                              '--delegate-above-nets', '1']))
                 want('DELEGATING:' in out and '<subagent_prompt' in out,
-                     f'{k} delegates once the board is over the threshold')
+                     f'{k} delegates by default, whatever the board size')
                 want(str(n) in out,
-                     f'{k} names the count it decided on, not just the verdict')
-                out = STAGES[k](_args(auto + ['--delegate-above-parts', '1',
-                                              '--delegate-above-nets', '1',
-                                              '--no-delegate']))
-                want('<subagent_prompt' not in out,
-                     f'{k}: --no-delegate overrides the size')
-        # A board that cannot be read is not evidence that it is small.
+                     f'{k} still names the measured size, as context')
+                want('not because of a threshold' in out,
+                     f'{k} says the size did not decide it')
+                out = STAGES[k](_args(auto + ['--no-delegate']))
+                want('INLINE:' in out and '<subagent_prompt' not in out,
+                     f'{k}: --no-delegate is the escape hatch and still works')
+        # An unreadable board no longer changes the decision -- it only changes
+        # what can be SAID about it.
         out = STAGES['L1'](_args(['--board', os.path.join(_t, 'nope.kicad_pcb'),
-                                  '--delegate-above-parts', '1',
-                                              '--delegate-above-nets', '1']))
-        want('could not be read' in out and '<subagent_prompt' not in out,
-             'an unreadable board does not auto-delegate, and says so')
+                                  '--placement-report', rep]))
+        want('could not be read' in out and '<subagent_prompt' in out,
+             'an unreadable board still delegates, and says it could not size it')
 
     # Assemble the emitted text from stages whose guards are SATISFIED --
     # otherwise this scans refusals and reports the instructions are missing

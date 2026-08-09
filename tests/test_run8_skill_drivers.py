@@ -149,14 +149,30 @@ def test_loop_driver():
 
     code, out = run_loop(['--stage', 'L1', '--board', 'b.kicad_pcb',
                           '--delegate'])
-    check('delegation dispatches a TEAMMATE, not a plain subagent',
-          'TEAMMATE' in out and 'cannot spawn' in out, out[:400])
+    check('delegation dispatches a TEAMMATE, and names the agent-type rule',
+          'TEAMMATE' in out and 'Agent tool' in out, out[:400])
+    # The retired claim: "a subagent cannot spawn one" is false in this harness
+    # (`claude` and `general-purpose` carry the Agent tool; `Explore` and `Plan`
+    # do not), so the rule is about the TYPE, not about subagents as such.
+    check('...and no longer claims a subagent cannot spawn',
+          'cannot spawn one' not in out, out[:400])
+
+    # Delegation is the DEFAULT now, at every size -- run 14 ran both halves
+    # inline at 191 parts / 150 nets and the routing half then absorbed the
+    # outer loop's classify stage.
+    code, out = run_loop(['--stage', 'L1', '--board', 'b.kicad_pcb'])
+    check('both halves delegate by default, with no flag',
+          'DELEGATING:' in out and '<subagent_prompt' in out, out[:400])
+    code, out = run_loop(['--stage', 'L1', '--board', 'b.kicad_pcb',
+                          '--no-delegate'])
+    check('--no-delegate is still the escape hatch',
+          'INLINE:' in out and '<subagent_prompt' not in out, out[:400])
 
     text = open(LOOP_SKILL, encoding='utf-8').read()
     check('the combined skill points at its driver',
           'loop_driver.py' in text and '--stage L1' in text)
-    check('...and says delegation is a context decision, not correctness',
-          'CONTEXT decision' in text)
+    check('...and says delegation is now a correctness decision',
+          'CORRECTNESS one' in text)
 
 
 def main():
