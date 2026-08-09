@@ -711,6 +711,107 @@ they interoperate with `--compare` and `--regrade`.
   into an existing dir reads back the sibling `.kicad_pro` DRC floor and silently
   changes the routing — it looks like non-determinism but isn't.
 
+## Choosing a subject BEFORE you stage it (read this first)
+
+Four perturbed-corpus runs have posted a recovery near zero, and only one of
+them (run 8, the corner-only slot model) was the placer's fault. Run 7 was a
+wrong basin, run 9 was three tools failing to terminate, run 14 was a dose
+clipped to 0.100 mm. **Three of the four were the measurement rig, and each one
+cost an hour of chain time to discover.** Most of that is avoidable, because the
+questions are cheap to ask up front and nobody was asking them.
+
+### 0. You need UNROUTED candidates, and the corpus is nearly empty
+
+`boards_unrouted_set1/` currently holds exactly one board. Qualify against
+unrouted twins, not against `boards_set1/`: a routed board is refused by
+`placement_driver --stage P0`, and its copper encodes the original poses (run 14
+measured 301 of 569 pads sitting within 5 um of their own track endpoint, which
+`fence_audit` cannot see because it compares poses and never opens copper).
+
+```bash
+python3 -X utf8 tests/stress/strip_copper_only.py \
+    $STRESS/boards_set1/<name>.kicad_pcb $STRESS/boards_unrouted_set1/<name>.kicad_pcb
+```
+
+**Do NOT use `strip_routing.py` or `prep_set2.py` for this.** They are corpus
+normalizers and they rewrite `Edge.Cuts`, so the subject would no longer share an
+outline with the human reference it is graded against. `strip_copper_only.py`
+drops exactly four form types (top-level `segment`, `arc`, `via`, and
+`filled_polygon` inside zones) and leaves poses, pads, zones, stackup and outline
+untouched; verified on castor_pollux, 14241 segments and 358 vias to zero with an
+identical pose digest and identical bounds.
+
+### 1. Qualify the board (seconds, not an hour)
+
+```bash
+python3 -X utf8 tests/stress/qualify_subject.py \
+    $STRESS/boards_unrouted_set1/*.kicad_pcb --draws 8
+```
+
+It perturbs to a temp dir, grades copper-free, and prints aggregates only (rates
+and medians, never the kind, block, seed or direction), so it is safe to run on a
+board you then intend to stage blind. Three verdicts:
+
+| verdict | meaning |
+|---|---|
+| `REJECT` | the rig cannot damage this board. Draws clip to nothing, so `recovery` and `home /N` will read near-perfect whatever the run does. |
+| `WEAK` | usable, but a coin flip decides whether the run gets a subject. Redraw and never assume the dose landed. |
+| `GOOD` | the dose lands nearly every time AND the copper-free gates fire. Only this is a subject. |
+
+Run 14's board scores **WEAK** on this test (6 of 8 draws land; applied dose
+ranges 0.100 to 57.2 mm, and the 0.100 is the draw the run actually got). Had
+anyone run it, run 14 would have picked a different board or expected the
+redraw. `stage_blind` now redraws by itself, but that only rescues an unlucky
+draw; it cannot rescue an unsuitable board.
+
+### 2. Run a positive control first
+
+The series has no control arm, so every null is ambiguous between "the placer
+failed" and "the rig failed". **tigard is the known positive**: run 3 delivered
+recovery +0.133 with 26 of 51 parts home. Re-run it whenever the rig changes.
+If it reproduces, a null elsewhere means something. If it does not, you have
+found the next rig bug for the price of a board you already understand.
+
+### 3. Confirm the damage actually threatens ROUTABILITY
+
+`qualify_subject.py` stops at the copper-free gates because routing is the
+expensive half. The question it cannot answer is the one that decides whether a
+placement run can succeed at all:
+
+```bash
+# the original must route ...
+python3 -X utf8 route.py <control>.kicad_pcb /tmp/ctl.kicad_pcb --nets "*" --deadline 900
+python3 -X utf8 check_connected.py /tmp/ctl.kicad_pcb
+# ... and the damaged one must NOT
+python3 -X utf8 route.py <staged>.kicad_pcb  /tmp/dmg.kicad_pcb --nets "*" --deadline 900
+python3 -X utf8 check_connected.py /tmp/dmg.kicad_pcb
+```
+
+**A placement-focused subject is one where a material dose makes the board
+unroutable and recovery makes it routable again.** That is falsifiable, it is
+what the tool is actually for, and it is the doctrine's own metric: lead on
+`blocking`, keep `recovery` as a diagnostic. On run 14 the damaged board routed
+to `blocking 0` unaided, which means the placement half had nothing to prove
+even before the dose was found to be 0.1 mm.
+
+### 4. Do not pay for a full route per trial
+
+Placement science needs many trials; a full chain costs about an hour and most
+of that is routing that tells you nothing new. Grade trials with the copper-free
+battery plus `tests/test_placement_probe.py`, which scopes the route CAUSALLY
+(the nets `net_affinity` flagged plus the declared corridor nets, fixed from the
+OFF board) rather than by which parts moved. Scoping by moved parts is circular:
+a term that moves nothing scores a perfect null. Run the full chain once, at the
+end, on the arm you intend to keep.
+
+### 5. Report shape
+
+Lead with `blocking`. Report `recovery` and `home /N` as diagnostics, and state
+the applied dose next to them every time, because a recovery number without the
+dose that produced it is uninterpretable. `collateral_pad_rms` is the one
+recovery figure that signals a real defect: it means parts nothing had damaged
+were moved (run 9: 0.000 to 1.171 mm; run 10: 0.000 to 3.670 mm).
+
 ## Staging a perturbed subject (#411 recovery rig)
 
 A recovery experiment measures how close a repaired placement lands to the

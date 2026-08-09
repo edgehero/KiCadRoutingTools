@@ -42,6 +42,20 @@ the board. `perturb()` independently clips whatever is asked for
 (`on_overflow='clip'`), and the APPLIED dose is recorded in the record as
 `max_feasible_dose_mm` / `clipped` -- so the truth dir holds what landed, not
 what was requested.
+
+AND THE APPLIED DOSE IS NOW CHECKED, which is the other half of that sentence
+and was missing. Recording what landed in the truth dir is no use to a run that
+is told "damage applied" either way. Run 14 staged castor_pollux with a
+requested dose of >= 4.248 mm and an applied dose of 0.100 mm -- the mutation's
+own `grid_step` -- because the block was hard against the outline and
+`on_overflow='clip'` ate 98% of it. Nothing in this file read `rec['clipped']`,
+`rec['status']` or `rec['dose_mm_applied']`, so it exited 0. The run then spent
+an hour proving, correctly, that an undamaged board was undamaged.
+
+A draw is now accepted only if it MEASURABLY landed (see MIN_MATERIAL_MM /
+MATERIAL_FRAC below), and otherwise redrawn up to MAX_DRAWS times before the
+script refuses outright. The disclosure stays fence-safe: one line saying a
+redraw happened, with no count, no kind, no block and no dose.
 """
 import contextlib
 import io
@@ -61,6 +75,23 @@ import placement.perturb as P  # noqa: E402
 #: has to be material (a 1 mm nudge on an 80 mm board is not a recovery test)
 #: and the high end has to leave the board recognisable.
 DOSE_BAND = (0.06, 0.22)
+
+#: A draw is only a subject if the damage ACTUALLY LANDED. `perturb()` clips to
+#: the outline (`on_overflow='clip'`), so a block hard against an edge can be
+#: asked for 4 mm and moved 0.1 mm -- and the old code printed "damage applied"
+#: and exited 0 regardless, because it never read `rec['clipped']`,
+#: `rec['status']` or `rec['dose_mm_applied']`. Run 14 (castor_pollux) was
+#: staged that way: 24 parts displaced by 0.100 mm, which is exactly the
+#: mutation's own `grid_step`. Every placement instrument reported the board
+#: clean, correctly, and the recovery half of the run was void before it began.
+#:
+#: So the draw is now CHECKED and, if it did not land, REDRAWN. The bar is
+#: measured off `dose_mm_applied` -- the grader's own perturbed-pad RMS, which
+#: is what `recovery` later divides by -- and not off the requested dose, which
+#: is the number that lied.
+MIN_MATERIAL_MM = 1.0      #: absolute floor; 10x the 0.1 mm legalize grid step
+MATERIAL_FRAC = 0.35       #: ...and at least this much of what was asked for
+MAX_DRAWS = 12             #: redraw budget before refusing outright
 
 
 def board_scale_mm(pcb):
@@ -82,8 +113,6 @@ def main(src, workdir, truthdir):
     os.makedirs(truthdir, exist_ok=True)
 
     rng = random.Random(int.from_bytes(os.urandom(16), 'big'))
-    kind = rng.choice(P.KINDS)
-    seed = int.from_bytes(os.urandom(4), 'big')
 
     # The AUDIT reference: a plain copy of the source. The perturbation writes
     # its own dose-0 control below, straight into the truth dir -- it must
@@ -98,8 +127,11 @@ def main(src, workdir, truthdir):
 
     out = os.path.join(workdir, 'board.kicad_pcb')
 
-    # Computed under capture -- the scale is itself a size tell.
+    # Computed under capture -- the scale is itself a size tell, and so is
+    # every rejected draw.
     buf = io.StringIO()
+    attempts = []
+    rec = kind = seed = dose = None
     with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
         pcb = parse_kicad_pcb(src)
         scale = board_scale_mm(pcb)
@@ -109,20 +141,48 @@ def main(src, workdir, truthdir):
                 'dose cannot be scaled to it. Refusing rather than falling '
                 'back to a constant -- a silent constant is what this script '
                 'shipped for three runs.')
-        dose = max(3.0, scale * rng.uniform(*DOSE_BAND))
-        # control_out FENCES BOTH HALVES OF TRUTH IN ONE CALL. Without it the
-        # tool writes `board.control.kicad_pcb` -- the human placement, pose
-        # for pose -- and `board.perturb.json` (it embeds `original_poses`)
-        # beside the damaged board, INSIDE the work dir the run then reads.
-        rec = P.perturb(src, out, kind=kind, dose_mm=dose, seed=seed,
-                        write_record=True,
-                        control_out=os.path.join(truthdir,
-                                                 'perturbed.control.kicad_pcb'))
+        for _ in range(MAX_DRAWS):
+            k = rng.choice(P.KINDS)
+            s = int.from_bytes(os.urandom(4), 'big')
+            d = max(3.0, scale * rng.uniform(*DOSE_BAND))
+            # control_out FENCES BOTH HALVES OF TRUTH IN ONE CALL. Without it
+            # the tool writes `board.control.kicad_pcb` -- the human placement,
+            # pose for pose -- and `board.perturb.json` (it embeds
+            # `original_poses`) beside the damaged board, INSIDE the work dir
+            # the run then reads.
+            r = P.perturb(src, out, kind=k, dose_mm=d, seed=s,
+                          write_record=True,
+                          control_out=os.path.join(
+                              truthdir, 'perturbed.control.kicad_pcb'))
+            applied = float(r.get('dose_mm_applied') or 0.0)
+            need = max(MIN_MATERIAL_MM, MATERIAL_FRAC * d)
+            landed = r.get('status') == 'ok' and applied >= need
+            attempts.append({'kind': k, 'seed': s, 'dose_mm_requested': d,
+                             'dose_mm_applied': applied, 'required': need,
+                             'clipped': bool(r.get('clipped')),
+                             'status': r.get('status'), 'accepted': landed})
+            if landed:
+                rec, kind, seed, dose = r, k, s, d
+                break
+
+    if rec is None:
+        # Same shape as the outline guard: refuse rather than hand back a cell
+        # that looks like a result and is not one. The message names no kind,
+        # no block and no dose -- only that this BOARD would not take one.
+        raise SystemExit(
+            'stage_blind: no draw landed a material dose on this board after '
+            '%d attempts, so there is no subject to stage. Refusing rather '
+            'than emitting a board whose damage is at the grid step -- that '
+            'is what voided run 14.' % MAX_DRAWS)
 
     with open(os.path.join(truthdir, 'draw.json'), 'w', encoding='utf-8') as f:
         json.dump({'kind': kind, 'dose_mm': dose, 'seed': seed,
+                   'dose_mm_applied': rec.get('dose_mm_applied'),
+                   'clipped': bool(rec.get('clipped')),
                    'board_scale_mm': scale, 'dose_band': list(DOSE_BAND),
-                   'source': src}, f, indent=1)
+                   'material_floor_mm': MIN_MATERIAL_MM,
+                   'material_frac': MATERIAL_FRAC,
+                   'draws': attempts, 'source': src}, f, indent=1)
     written = os.path.join(truthdir, 'board.perturb.json')
     want = os.path.join(truthdir, 'perturbed.perturb.json')
     if os.path.exists(written):
@@ -144,6 +204,12 @@ def main(src, workdir, truthdir):
           f"({', '.join(p.board_info.copper_layers)}) | bbox "
           f"{b[2]-b[0]:.1f} x {b[3]-b[1]:.1f}")
     print(f"segments {len(p.segments)} | vias {len(p.vias)}")
+    if len(attempts) > 1:
+        # Fence-safe: says a redraw happened and why, and nothing about the
+        # kind, the block, the seed or the dose. Deliberately carries no count
+        # -- how MANY draws a board rejects is a property of the board, and the
+        # run does not need it. The full attempt list is in the truth dir.
+        print("stage_blind: redrew (dose infeasible for this board)")
     print("damage applied; kind/dose/seed/block written to the truth dir "
           "and disclosed nowhere")
 
