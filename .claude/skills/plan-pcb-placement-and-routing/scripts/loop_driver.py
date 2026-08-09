@@ -153,6 +153,128 @@ def _guard_route_render(a):
     return True, None
 
 
+def _score_board_mismatch(board, payload):
+    """The score's `board_sha` when it is NOT this board's, else None.
+
+    Shared by L3 and L5 so the two cannot drift: L5 had this binding from the
+    start and L3 did not, which is exactly how a classification got made about
+    one board from another board's score. Returns None when the question is
+    unanswerable (no sha, no board, board_store unimportable) -- an absent
+    answer must not read as a mismatch.
+    """
+    if not board or not os.path.isfile(board) or not isinstance(payload, dict):
+        return None
+    psha = payload.get('board_sha')
+    if not psha:
+        return None
+    try:
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file
+        return None if sha256_file(board) == psha else psha
+    except Exception:                                           # noqa: BLE001
+        return None
+
+
+# How much of its crossings gap the placement must have closed before a
+# `parameter` verdict is believable. PROVISIONAL and uncalibrated -- it is a
+# constant here rather than a flag on purpose: a threshold you can move from the
+# command line is one you will move to make a run pass.
+_CONGESTION_RATIO = 0.25
+
+
+def _guard_congestion(a):
+    """`parameter` is the DEFAULT ANSWER of a classifier that cannot see
+    congestion, so it has to be the one that carries evidence.
+
+    Both placement tests L3 names are per-NET. `check_reachability` asks whether
+    ONE pad can reach ITS net; `check_channels` asks whether ONE face has lane
+    supply. Both can pass on every net of a board that no router can finish,
+    because simultaneous routability is a GLOBAL property and neither test looks
+    at more than one net at a time.
+
+    Measured on neo6502 (run 15): 0 starved faces, every probed pad PASSABLE on
+    the copper-free board -- and 1827 airwire crossings against the undamaged
+    original's 1324, +38%. The verdict was `parameter`, the loop spent its
+    authorised iteration on rip-up depth, and `blocking` did not move, because
+    the arrangement was the problem and no parameter addresses an arrangement.
+
+    So: a `parameter` re-entry must show that congestion is NOT the story. That
+    is one number from a render both halves already produce.
+    """
+    if not a.congestion_json:
+        return False, (
+            'A `parameter` verdict needs a congestion comparison, and there is '
+            'none (--congestion-json).\n\n'
+            'Every placement test L3 names is per-NET -- check_reachability asks '
+            'if ONE pad reaches ITS net, check_channels if ONE face has supply. '
+            'A board can pass both on every net and still be unroutable, because '
+            'routing them SIMULTANEOUSLY is a global property that neither test '
+            'can see. `parameter` is what a blind classifier returns by default, '
+            'so it is the verdict that has to prove itself.\n\n'
+            'Measured (neo6502, run 15): 0 starved faces, every probed pad '
+            'PASSABLE -- and crossings 1827 against the original board\'s 1324. '
+            'The `parameter` iteration that followed moved `blocking` by nothing.\n\n'
+            'Render the COPPER-FREE board the route ran on, and the board '
+            'placement started from:\n'
+            '  python3 -X utf8 render_placement.py <the placed board> \\\n'
+            '      --clearance <floor> --ignore-nets <poured nets> \\\n'
+            '      --json-out wk/cong_now.json -o wk/cong_now.png\n'
+            '  python3 -X utf8 render_placement.py <the pre-placement board> \\\n'
+            '      --clearance <floor> --ignore-nets <poured nets> \\\n'
+            '      --json-out wk/cong_base.json -o wk/cong_base.png\n'
+            '  ... --stage L4 --shape parameter \\\n'
+            '      --congestion-json wk/cong_now.json '
+            '--congestion-baseline wk/cong_base.json\n\n'
+            'Render the COPPER-FREE board deliberately: on a routed board a '
+            'CAGED verdict means the ROUTER\'S OWN COPPER boxed the pad in -- '
+            'rip-up depth -- not geometry. Run 15 had three genuine CAGED pads '
+            'on the routed board and ALL THREE were PASSABLE once the copper '
+            'was gone.')
+    now, nerr = _load(a.congestion_json, 'The congestion render (--congestion-json)')
+    if nerr:
+        return False, nerr
+    m_now = (now or {}).get('metrics')
+    if not isinstance(m_now, dict) or not isinstance(
+            m_now.get('crossings'), (int, float)):
+        return False, (
+            'That render carries no numeric `metrics.crossings`, so it cannot '
+            'answer the congestion question. Re-render with --json-out (not a '
+            'bare --json).')
+    if not a.congestion_baseline:
+        return False, (
+            'A crossings count on its own is not evidence -- 1827 is neither '
+            'good nor bad without the board it came from. Pass '
+            '--congestion-baseline <render of the pre-placement board>.')
+    base, berr = _load(a.congestion_baseline, 'The congestion baseline')
+    if berr:
+        return False, berr
+    m_base = (base or {}).get('metrics')
+    if not isinstance(m_base, dict) or not isinstance(
+            m_base.get('crossings'), (int, float)):
+        return False, ('The congestion baseline carries no numeric '
+                       '`metrics.crossings`. Re-render it with --json-out.')
+    b, n = float(m_base['crossings']), float(m_now['crossings'])
+    if b <= 0:
+        return True, None
+    gain = (b - n) / b
+    if gain >= _CONGESTION_RATIO:
+        return True, None
+    return False, (
+        f'This looks PLACEMENT-shaped, not parameter-shaped.\n\n'
+        f'  crossings  {b:.0f} -> {n:.0f}   ({gain * 100:.1f}% of the gap '
+        f'closed)\n\n'
+        f'The placement left {(1 - gain) * 100:.1f}% of the congestion it '
+        f'started with, so the nets that will not route are competing for space '
+        f'that no router parameter creates. Every per-net test can still pass '
+        f'here -- that is precisely the blind spot: on neo6502 the classifier '
+        f'saw 0 starved faces and every pad PASSABLE, returned `parameter`, and '
+        f'the iteration it bought moved `blocking` by nothing.\n\n'
+        f'Re-enter at PLACEMENT (--shape placement), or -- if the arrangement '
+        f'is genuinely forced and you can show it -- re-run this stage once you '
+        f'have a congestion render that says so. Do not spend a routing '
+        f'iteration to find out; that is the expensive direction.')
+
+
 def _ledger_rows(path):
     if not path or not os.path.isfile(path):
         return []
@@ -759,6 +881,22 @@ def l3(a):
             'anything:\n  python3 -X utf8 '
             '.claude/skills/plan-pcb-routing/scripts/board_score.py <board> '
             '--json wk/score.json')
+    # Bind the score to the board, exactly as L5 does. L3 named `--board` in
+    # every command it emitted and never checked that `--score` described the
+    # same file, so a classification could be made about one board from another
+    # board's numbers -- and it was: run 15 passed
+    # `--board routed.kicad_pcb --score r_R5k_i2_score.json`, two different
+    # boards, and this stage accepted it without a word. board_score writes
+    # `board_sha` precisely so this cannot happen.
+    _sha_bad = _score_board_mismatch(a.board, score)
+    if _sha_bad:
+        return err(
+            f'The score was taken on a DIFFERENT board than --board names.\n\n'
+            f'  --board        : {os.path.abspath(a.board)}\n'
+            f'  score board_sha: {str(_sha_bad)[:16]}...\n\n'
+            f'Classifying board A from board B\'s failures is a guess wearing a '
+            f'measurement\'s clothes. Re-score the board you are classifying, '
+            f'then come back.')
     if _recorded(a.board, a.ledger) is False:
         return err(
             f'This routed board is not in the ledger.\n\n  board:  {a.board}\n'
@@ -833,13 +971,16 @@ asymmetric.
 
   parameter-shaped   grid, rip-up depth, layer costs, width. The router had a
                      path and did not take it.
-                     Evidence: the failing nets have lane supply at their
-                     escape faces, and the diagnosis names a knob.
+                     Evidence: lane supply at the escape faces, congestion near
+                     the pre-placement baseline, and a diagnosis naming a knob.
 
-  placement-shaped   a starved escape face, a part its net cannot reach. No
-                     router setting adds a lane.
-                     Evidence: check_channels shows the face carrying demand
-                     with zero supply; check_reachability says CAGED.
+  placement-shaped   a starved escape face, a part its net cannot reach, OR an
+                     arrangement too tangled to route as a whole. No router
+                     setting adds a lane or removes a crossing.
+                     Evidence: check_channels shows a face carrying demand with
+                     zero supply; check_reachability says CAGED on the
+                     COPPER-FREE board; or crossings sit far above the board
+                     placement started from.
 
   floorplan-shaped   a clause no arrangement at this placement satisfies.
                      Evidence: the constraint survives every parameter and
@@ -847,16 +988,38 @@ asymmetric.
 
 Measure it, do not infer it from how the failure feels:
 
-  python3 -X utf8 check_channels.py {a.board} --baseline <the pre-route board>
-  python3 -X utf8 check_reachability.py {a.board} --pad <REF.PAD> --json
+  python3 -X utf8 check_channels.py {a.board} --baseline <the pre-route board> \\
+      --clearance <the board's own floor> --track-width <the board's own floor>
+  python3 -X utf8 check_reachability.py <the COPPER-FREE board> --pad <REF.PAD> --json
+  python3 -X utf8 render_placement.py <the COPPER-FREE board> --json-out wk/cong_now.json
+  python3 -X utf8 render_placement.py <the pre-placement board> --json-out wk/cong_base.json
+
+Three things that have each cost a run:
+
+  * PASS check_channels the board's OWN track width. At its 0.3 default it
+    reported a face "short 1 lane" that at the board's real 0.2 had supply 14
+    for demand 12 -- an invented deficit, handed on as floorplan-shaped residue.
+
+  * Run check_reachability on the COPPER-FREE board. On a routed board its
+    geometry includes the ROUTER'S OWN copper, so CAGED there means rip-up
+    depth, not placement. Measured: three genuine CAGED pads, all three
+    PASSABLE once the copper was removed. Read the EXIT CODE, not the JSON
+    `verdict` alone -- rc=2 is NO-TARGET, "the question was not answerable",
+    and it is not a CAGED.
+
+  * Both those tests are PER-NET, and simultaneous routability is not. A board
+    can pass every one of them and still be unroutable. That is why `parameter`
+    -- the answer a blind classifier gives by default -- is the verdict L4 makes
+    you evidence: --congestion-json plus --congestion-baseline.
 
 check_reachability answers about ONE pad per run -- give it a pad on a failing
-net (or --net <id> --at <x,y>). Run it for each failing net you are
-classifying; a single CAGED verdict is enough to make the shape placement.
+net (or --net <id> --at <x,y>). A single genuine CAGED (exit 1) on the
+copper-free board is enough to make the shape placement.
 
 Then re-run this stage with the shape you measured:
   --stage L4 --shape <parameter|placement|floorplan> --board {a.board} \\
-      --score {a.score} --ledger {a.ledger}
+      --score {a.score} --ledger {a.ledger} \\
+      [--congestion-json wk/cong_now.json --congestion-baseline wk/cong_base.json]
 </stage_instructions>'''
 
 
@@ -871,6 +1034,9 @@ def l4(a):
             'sending a parameter-shaped failure back to placement throws away '
             'a routed board for nothing. L3 tells you how to measure it.')
     if a.shape == 'parameter':
+        _cok, _cwhy = _guard_congestion(a)
+        if not _cok:
+            return err(_cwhy)
         return f'''<stage_instructions stage="L4" name="re-enter: parameter" of="5">
 Re-enter the FAILING ROUTING STEP with the parameter changed. Nothing before it
 is invalidated, and the routed board stands.
@@ -1387,6 +1553,16 @@ def _args(argv=None):
     ap.add_argument('--ledger', default='wk/ledger.jsonl')
     ap.add_argument('--placement-report', default=None)
     ap.add_argument('--score', default=None)
+    ap.add_argument('--congestion-json', default=None, metavar='PATH',
+                    help='render_placement --json-out of the COPPER-FREE board '
+                         'the route ran on, plus (--congestion-baseline) the '
+                         'board placement started from. L4 refuses '
+                         '--shape parameter without it: every placement test '
+                         'the classifier runs is per-NET, so global capacity '
+                         'is invisible to all of them.')
+    ap.add_argument('--congestion-baseline', default=None, metavar='PATH',
+                    help='render_placement --json-out of the pre-placement '
+                         'board, to compare --congestion-json against.')
     ap.add_argument('--render-json', default=None, metavar='PATH',
                     help='render_placement --json-out document. L3 requires '
                          'one when there is a failure to classify: "one pocket '
@@ -1662,11 +1838,47 @@ def _self_test():
         want('nothing to classify' in out,
              'a clean score has no failure to classify')
 
-    for shape, needle in (('parameter', 'the routed board stands'),
-                          ('floorplan', 'different ARRANGEMENT'),
-                          ('placement', 'stale')):
-        out = STAGES['L4'](_args(base + ['--shape', shape]))
-        want(needle in out, f'{shape}-shaped re-entry says what it costs')
+    with tempfile.TemporaryDirectory() as _ct:
+        def _cong(name, crossings):
+            p = os.path.join(_ct, name)
+            json.dump({'metrics': {'crossings': crossings, 'halo': 10.0,
+                                   'hpwl': 100.0}},
+                      open(p, 'w', encoding='utf-8'))
+            return p
+        # A placement that closed most of its crossings gap: `parameter` is
+        # then a believable verdict and L4 emits its body.
+        _cbase, _cgood = _cong('cb.json', 1000.0), _cong('cg.json', 600.0)
+        _cbad = _cong('cn.json', 980.0)          # neo6502's shape: 2% closed
+        _cong_ok = ['--congestion-json', _cgood, '--congestion-baseline', _cbase]
+
+        for shape, needle in (('parameter', 'the routed board stands'),
+                              ('floorplan', 'different ARRANGEMENT'),
+                              ('placement', 'stale')):
+            extra = _cong_ok if shape == 'parameter' else []
+            out = STAGES['L4'](_args(base + ['--shape', shape] + extra))
+            want(needle in out, f'{shape}-shaped re-entry says what it costs')
+
+        # The guard itself. `parameter` is the answer a classifier gives when
+        # it cannot see congestion, so it is the one that must carry evidence.
+        out = STAGES['L4'](_args(base + ['--shape', 'parameter']))
+        want(out.startswith('<error>') and '--congestion-json' in out,
+             'a parameter re-entry refuses without a congestion comparison')
+        out = STAGES['L4'](_args(base + ['--shape', 'parameter',
+                                         '--congestion-json', _cbad,
+                                         '--congestion-baseline', _cbase]))
+        want(out.startswith('<error>') and 'PLACEMENT-shaped' in out,
+             'a parameter re-entry refuses when congestion barely moved')
+        out = STAGES['L4'](_args(base + ['--shape', 'parameter',
+                                         '--congestion-json', _cgood]))
+        want(out.startswith('<error>') and '--congestion-baseline' in out,
+             'a crossings count with no baseline is not evidence')
+        # placement/floorplan must NOT be gated on it -- they are the verdicts
+        # that cost a routed board, and making them harder to reach than
+        # `parameter` would invert the whole point.
+        for shape in ('placement', 'floorplan'):
+            out = STAGES['L4'](_args(base + ['--shape', shape]))
+            want(not out.startswith('<error>'),
+                 f'{shape}-shaped re-entry is NOT gated on congestion evidence')
 
     inline = STAGES['L1'](_args(base + ['--no-delegate']))
     deleg = STAGES['L1'](_args(base + ['--delegate']))
