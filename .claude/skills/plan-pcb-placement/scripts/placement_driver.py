@@ -765,38 +765,55 @@ def _guard_congestion(a):
             return None
         return (b - n) / float(b)
 
-    halo_gain, cross_gain = _gain('halo'), _gain('crossings')
-    if halo_gain is None or cross_gain is None:
+    # GATE ON HPWL, NOT ON CROSSINGS. Non-negotiable 4 of this skill: "REPORT
+    # crossings and aggregate courtyard overlap; never gate on them -- both
+    # correlate POSITIVELY with distance-to-truth." Measured across 29
+    # candidates on one board, r(crossings) = +0.780 against
+    # distance-to-the-correct-placement, and one candidate reached 233 crossings
+    # -- better than the human original's 276 -- while sitting 18.7 mm out of
+    # position. A gate on crossings pressures the search toward LOWER crossings,
+    # which by that correlation is pressure toward a WORSE placement. hpwl is
+    # the wirelength metric whose minimum is at the truth, so it is the one that
+    # can carry a gate. crossings is printed below and never tested.
+    halo_gain, hpwl_gain = _gain('halo'), _gain('hpwl')
+    if halo_gain is None or hpwl_gain is None:
         return False, (
-            'The two renders do not both carry numeric `halo` and `crossings` '
-            'metrics, so the congestion comparison cannot be made. Re-render '
+            'The two renders do not both carry numeric `halo` and `hpwl` '
+            'metrics, so the routability comparison cannot be made. Re-render '
             'both with --json-out against the same --clearance.')
     # A run that barely moved legality has nothing to be disproportionate TO.
     if halo_gain < 0.25:
         return True, ''
-    if cross_gain >= a.congestion_ratio * halo_gain:
+    if hpwl_gain >= a.congestion_ratio * halo_gain:
         return True, ''
+    _cx = _gain('crossings')
     return False, (
-        f'This placement repaired LEGALITY and left the ARRANGEMENT.\n\n'
+        f'This placement repaired LEGALITY and left ROUTABILITY.\n\n'
         f'  halo       {before.get("halo"):.1f} -> {after.get("halo"):.1f}'
-        f'   ({halo_gain * 100:.1f}% of its gap closed)\n'
+        f'   ({halo_gain * 100:.1f}% of its gap closed)   [gated]\n'
+        f'  hpwl       {before.get("hpwl"):.1f} -> {after.get("hpwl"):.1f}'
+        f'   ({hpwl_gain * 100:.1f}% of its gap closed)   [gated]\n'
         f'  crossings  {before.get("crossings"):.0f} -> '
-        f'{after.get("crossings"):.0f}   ({cross_gain * 100:.1f}% of its gap '
-        f'closed)\n'
-        f'  hpwl       {before.get("hpwl", float("nan")):.1f} -> '
-        f'{after.get("hpwl", float("nan")):.1f}\n\n'
-        f'Congestion closed {cross_gain * 100:.1f}% where legality closed '
+        f'{after.get("crossings"):.0f}'
+        + (f'   ({_cx * 100:.1f}% of its gap closed)' if _cx is not None else '')
+        + f'   [REPORTED, never gated]\n\n'
+        f'hpwl closed {hpwl_gain * 100:.1f}% where legality closed '
         f'{halo_gain * 100:.1f}%, below the {a.congestion_ratio:g} ratio this '
         f'gate holds. Every other gate here is a legality gate, so this is the '
         f'only one that can see it -- and a board that is legal but no easier '
         f'to route hands the routing half a failure it cannot fix, which the '
         f'classifier will then read as `parameter` because its own tests are '
         f'per-net and global capacity is invisible to them.\n\n'
-        f'`crossings` is ALREADY in the quench objective '
-        f'(placement/quench.py, crossing_penalty). This is not asking for a new '
-        f'term -- it is asking for another lap that is allowed to move parts '
-        f'for routability rather than only to clear a named violation. P4 with '
-        f'the corridor/affinity levers, or P5 for a different arrangement.\n\n'
+        f'crossings is shown and NOT tested, per non-negotiable 4: it '
+        f'correlates POSITIVELY with distance-to-truth (r = +0.780 over 29 '
+        f'candidates), so a gate on it would push the search away from the '
+        f'right answer. hpwl is the wirelength metric whose minimum is at the '
+        f'truth.\n\n'
+        f'`length` and `crossings` are ALREADY in the quench objective '
+        f'(placement/quench.py). This is not asking for a new term -- it is '
+        f'asking for another lap that is allowed to move parts for routability '
+        f'rather than only to clear a named violation. P4 with the '
+        f'corridor/affinity levers, or P5 for a different arrangement.\n\n'
         f'If this arrangement is genuinely the best available -- a dense board '
         f'hard against its outline, every lever pulled -- then say so on the '
         f'record and it will be believed: --waive congestion:<the measurement '
@@ -942,7 +959,7 @@ def _dump_all():
                                              'lock_patterns': []}),
             '--assembly-json', wrote('as.json', {'blocking': 1}),
             '--render-json', wrote('r.json', _fake_render(
-                board, halo=50.0, crossings=60.0, hpwl=900.0)),
+                board, halo=50.0, crossings=60.0, hpwl=800.0)),
             # P-close's congestion gate needs a before/after pair, and the
             # pair must PASS: halo closed 50% of its gap and crossings 40%, so
             # the repair was proportionate. Fabricated here for the same reason
@@ -1062,14 +1079,27 @@ def _self_test():
         _r15 = _fake_render(_pb, halo=440.1, crossings=1827.0, hpwl=4062.2)
 
         out = _close(_r15, _dmg)
-        want(out.startswith('<error>') and 'left the ARRANGEMENT' in out,
-             'P-close refuses run 15\'s arm: legality 49%, congestion 2%')
+        want(out.startswith('<error>') and 'left ROUTABILITY' in out,
+             'P-close refuses run 15\'s arm: halo closed 49%, hpwl 3%')
+        # The gate reads HPWL and only reports crossings -- non-negotiable 4.
+        # Pin both halves: a board whose crossings collapsed but whose hpwl did
+        # not must STILL be refused, because that is precisely the shape the
+        # r=+0.780 correlation warns about (crossings improving while the
+        # placement drifts further from the truth).
+        want('[REPORTED, never gated]' in out,
+             'P-close prints crossings and marks it ungated')
+        out = _close(_fake_render(_pb, halo=440.1, crossings=200.0, hpwl=4062.2),
+                     _dmg)
+        want(out.startswith('<error>'),
+             'P-close is NOT satisfied by crossings alone collapsing')
         out = _close(_r15)
         want(out.startswith('<error>') and '--congestion-before' in out,
              'P-close refuses with no congestion comparison at all')
         # Proportionate repair: both gaps close together. Must NOT trip.
-        out = _close(_fake_render(_pb, halo=400.0, crossings=1200.0),
-                     _fake_render(_pa, halo=800.0, crossings=1800.0))
+        out = _close(_fake_render(_pb, halo=400.0, crossings=1200.0,
+                                  hpwl=700.0),
+                     _fake_render(_pa, halo=800.0, crossings=1800.0,
+                                  hpwl=1000.0))
         want(out.startswith('<stage_instructions'),
              'P-close passes a repair that moved congestion too')
         # Barely-damaged board: a small legality gain has nothing to be
@@ -1122,7 +1152,7 @@ def _self_test():
                      '--locks-json', _w('l.json', {'findings': []}),
                      '--assembly-json', _w('as.json', {'blocking': 1}),
                      '--render-json', _w('r.json', _fake_render(
-                         _b, halo=50.0, crossings=60.0, hpwl=900.0)),
+                         _b, halo=50.0, crossings=60.0, hpwl=800.0)),
                      # A run that closed half its legality gap AND 40% of its
                      # crossings gap -- proportionate, so `_guard_congestion`
                      # lets it through. The fixture must pass the gate, not

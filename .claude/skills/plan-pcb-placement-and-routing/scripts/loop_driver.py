@@ -235,35 +235,47 @@ def _guard_congestion(a):
         return False, nerr
     m_now = (now or {}).get('metrics')
     if not isinstance(m_now, dict) or not isinstance(
-            m_now.get('crossings'), (int, float)):
+            m_now.get('hpwl'), (int, float)):
         return False, (
-            'That render carries no numeric `metrics.crossings`, so it cannot '
-            'answer the congestion question. Re-render with --json-out (not a '
+            'That render carries no numeric `metrics.hpwl`, so it cannot '
+            'answer the routability question. Re-render with --json-out (not a '
             'bare --json).')
     if not a.congestion_baseline:
         return False, (
-            'A crossings count on its own is not evidence -- 1827 is neither '
-            'good nor bad without the board it came from. Pass '
+            'An hpwl figure on its own is not evidence -- it is neither good '
+            'nor bad without the board it came from. Pass '
             '--congestion-baseline <render of the pre-placement board>.')
     base, berr = _load(a.congestion_baseline, 'The congestion baseline')
     if berr:
         return False, berr
     m_base = (base or {}).get('metrics')
     if not isinstance(m_base, dict) or not isinstance(
-            m_base.get('crossings'), (int, float)):
+            m_base.get('hpwl'), (int, float)):
         return False, ('The congestion baseline carries no numeric '
-                       '`metrics.crossings`. Re-render it with --json-out.')
-    b, n = float(m_base['crossings']), float(m_now['crossings'])
+                       '`metrics.hpwl`. Re-render it with --json-out.')
+    # hpwl, NOT crossings. The placement skill's non-negotiable 4 is explicit:
+    # report crossings, never gate on it, because it correlates POSITIVELY with
+    # distance-to-truth (r = +0.780 over 29 candidates; one candidate beat the
+    # human original's crossings while sitting 18.7 mm out of position). A gate
+    # on crossings is pressure toward a worse board. hpwl's minimum is at the
+    # truth, so it is the one that can carry a gate.
+    b, n = float(m_base['hpwl']), float(m_now['hpwl'])
     if b <= 0:
         return True, None
     gain = (b - n) / b
     if gain >= _CONGESTION_RATIO:
         return True, None
+    _cx_b = m_base.get('crossings')
+    _cx_n = m_now.get('crossings')
+    _cx = (f'  crossings  {float(_cx_b):.0f} -> {float(_cx_n):.0f}'
+           f'   [REPORTED, never gated -- non-negotiable 4]\n'
+           if isinstance(_cx_b, (int, float))
+           and isinstance(_cx_n, (int, float)) else '')
     return False, (
         f'This looks PLACEMENT-shaped, not parameter-shaped.\n\n'
-        f'  crossings  {b:.0f} -> {n:.0f}   ({gain * 100:.1f}% of the gap '
-        f'closed)\n\n'
-        f'The placement left {(1 - gain) * 100:.1f}% of the congestion it '
+        f'  hpwl       {b:.1f} -> {n:.1f}   ({gain * 100:.1f}% of the gap '
+        f'closed)   [gated]\n' + _cx + f'\n'
+        f'The placement left {(1 - gain) * 100:.1f}% of the wirelength it '
         f'started with, so the nets that will not route are competing for space '
         f'that no router parameter creates. Every per-net test can still pass '
         f'here -- that is precisely the blind spot: on neo6502 the classifier '
@@ -1839,14 +1851,16 @@ def _self_test():
              'a clean score has no failure to classify')
 
     with tempfile.TemporaryDirectory() as _ct:
-        def _cong(name, crossings):
+        def _cong(name, hpwl, crossings=500.0):
             p = os.path.join(_ct, name)
-            json.dump({'metrics': {'crossings': crossings, 'halo': 10.0,
-                                   'hpwl': 100.0}},
+            json.dump({'metrics': {'hpwl': hpwl, 'crossings': crossings,
+                                   'halo': 10.0}},
                       open(p, 'w', encoding='utf-8'))
             return p
-        # A placement that closed most of its crossings gap: `parameter` is
-        # then a believable verdict and L4 emits its body.
+        # A placement that closed most of its HPWL gap: `parameter` is then a
+        # believable verdict and L4 emits its body. hpwl and not crossings --
+        # the placement skill's non-negotiable 4, r(crossings) = +0.780 against
+        # distance-to-truth.
         _cbase, _cgood = _cong('cb.json', 1000.0), _cong('cg.json', 600.0)
         _cbad = _cong('cn.json', 980.0)          # neo6502's shape: 2% closed
         _cong_ok = ['--congestion-json', _cgood, '--congestion-baseline', _cbase]
