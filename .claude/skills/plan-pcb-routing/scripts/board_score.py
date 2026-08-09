@@ -75,7 +75,14 @@ SIZE_TYPES = frozenset({'track-width', 'via-size', 'via-drill-size'})
 RULE_PAIR_TYPES = frozenset({'segment-segment-track-rule'})
 
 _DRC_TOTAL = re.compile(r'^FOUND (\d+) DRC VIOLATIONS', re.M)
-_DRC_TYPE = re.compile(r'^([A-Z0-9-]+) violations \((\d+)\):', re.M)
+# The per-type header carries an OPTIONAL suffix between the count and the
+# colon -- `PAD-PAD violations (40) -- 32 in CONTACT:` (check_drc.py's `_ct`,
+# added in 8d084b4). This regex pinned `):` and so matched nothing on any board
+# with a contact-grade violation, while `_DRC_TOTAL` kept matching happily: the
+# guard below saw a summary, `by_type` came back empty, and the drc component
+# reported a confident `count: 0` on a board with 40 pad-pad shorts. Anything
+# up to the newline is allowed between the `)` and the `:` for that reason.
+_DRC_TYPE = re.compile(r'^([A-Z0-9-]+) violations \((\d+)\)[^\n]*:', re.M)
 _CONN_TOTAL = re.compile(r'^FOUND (\d+) ISSUES', re.M)
 _CONN_UNROUTED = re.compile(r'^\s+Unrouted nets \((\d+)\):', re.M)
 _CONN_BROKEN = re.compile(r'^\s+Connectivity issues \((\d+)\):', re.M)
@@ -268,7 +275,8 @@ def unrouted_shape(board: str, unrouted_names) -> dict:
             'open': sorted(open_nets)}
 
 
-def score_assembly(root: str, board: str, intent: str, tmp: str) -> dict:
+def score_assembly(root: str, board: str, intent: str, tmp: str,
+                   clearance=None) -> dict:
     """Blocking BODY pairs (run-6): two footprints' pad copper in the same
     space -- physically unbuildable, invisible to every copper checker (the
     shipped C14-on-R14 stack). Runs check_assembly.py, which needs NO
@@ -279,6 +287,16 @@ def score_assembly(root: str, board: str, intent: str, tmp: str) -> dict:
     args = [board, '--json', out]
     if intent:
         args += ['--intent', intent]
+    # Forward --clearance, exactly as score_drc does one function below. Without
+    # it check_assembly falls back to routing_defaults.CLEARANCE (a flat 0.25)
+    # and does NOT read the board, so every assembly component this scorer has
+    # ever published was graded at 0.25 regardless of the board's own floor --
+    # stricter than the thing being graded on any board below 0.25 (measured
+    # elsewhere: pad_conflicts 96 at the default vs 39 at the board's floor).
+    # `blocking` itself is largely clearance-insensitive, which is why this went
+    # unnoticed; `advisory_pairs` and `waived_pairs` are not.
+    if clearance is not None:
+        args += ['--clearance', str(clearance)]
     rc, text = run_tool(root, 'check_assembly.py', *args)
     if rc not in (0, 4) or not os.path.exists(out):
         return skipped(f'check_assembly rc {rc}: {text.strip()[-200:]}')
@@ -329,6 +347,27 @@ def score_drc(root: str, board: str, clearance=None, sizes=None) -> tuple:
         r = skipped(f'check_drc.py produced no summary (rc={rc})')
         return r, dict(r), dict(r)
     by_type = {t.lower(): int(n) for t, n in _DRC_TYPE.findall(out)}
+    # FAIL CLOSED on a parse that disagrees with itself. `_DRC_TOTAL` and
+    # `_DRC_TYPE` read the SAME output, so a positive total with no per-type
+    # lines means this parser no longer understands check_drc's format -- not
+    # that the board is clean. Reporting 0 there is the worst available answer:
+    # `blocking` is the routing half's accept rule and this report's headline,
+    # so a silently-zeroed drc component lets a run "improve" while shorts pile
+    # up unseen. That is exactly how a 40-violation board scored drc 0.
+    _total = int(_DRC_TOTAL.search(out).group(1))
+    if _total > 0 and not by_type:
+        # ran=True with count=None routes this to UNKNOWN (blocking None,
+        # exit 4) -- the same idiom score_impedance uses, and for the same
+        # reason. `skipped()` would be WRONG here: it sets ran=False, which
+        # `unknown` filters out, so blocking would sum without this component
+        # and hand back the very number the drift produced (264 on the board
+        # that motivated this). A parser that cannot read its input must make
+        # the scalar unusable, not merely annotate it.
+        r = {'ran': True, 'count': None, 'by_type': {},
+             'reason': f'check_drc.py reported {_total} violations but this '
+                       f'parser matched no per-type header -- format drift, '
+                       f'NOT a clean board (rc={rc})'}
+        return r, dict(r), dict(r)
     size = {t: n for t, n in by_type.items() if t in SIZE_TYPES}
     rule = {t: n for t, n in by_type.items() if t in RULE_PAIR_TYPES}
     clear = {t: n for t, n in by_type.items()
@@ -658,7 +697,8 @@ def main():
         conn = score_connectivity(root, args.board)
         drc, undersized, rule_pairs = score_drc(root, args.board, args.clearance, sizes)
         floorplan = score_floorplan(root, args.board, args.intent, tmp)
-        assembly = score_assembly(root, args.board, args.intent, tmp)
+        assembly = score_assembly(root, args.board, args.intent, tmp,
+                                  args.clearance)
         _imp_nets = ([g for tok in args.impedance_nets for g in tok.split(',') if g]
                      if args.impedance_nets else args.impedance_nets)
         imped = score_impedance(root, args.board, _imp_nets, tmp)
