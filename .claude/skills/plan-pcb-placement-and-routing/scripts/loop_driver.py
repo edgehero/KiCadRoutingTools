@@ -84,6 +84,75 @@ def _recorded(board, ledger):
     return any(r.get('result_sha') == sha for r in _ledger_rows(ledger))
 
 
+def _guard_route_render(a):
+    """(ok, why) -- L3's --focus render, checked the way L2 checks its document.
+
+    L3 used to test `if not a.render_json:` and nothing else, so ANY path that
+    existed satisfied the stage that classifies the failure -- the decision the
+    whole loop turns on. L2 and L5 both load, shape-test and board-bind their
+    documents; this one took a filename.
+
+    Ported from placement_driver._guard_render, with two checks that only make
+    sense on a ROUTED board:
+
+      * `instrument.summary_json` -- render_placement silently falls back to
+        clustering LEGALITY findings when it gets no --summary-json, so a focus
+        render without one is a picture of a different question. On a routed
+        board that is the difference between "where did routing fail" and
+        "where is the placement untidy".
+      * `moved_refs` -- the freeze was pure prose and had no mechanism at all.
+        A render made with --before names every footprint that moved, so if the
+        routing half moved a part despite being told not to, this is where it
+        surfaces. Nothing else in the chain looks.
+    """
+    doc, derr = _load(getattr(a, 'render_json', None),
+                      'The focus render (--render-json)')
+    if derr:
+        return False, derr
+    inst = doc.get('instrument') or {}
+    shown = inst.get('board')
+    if not shown:
+        return False, (
+            'That render carries no `instrument.board`, so it cannot say WHICH '
+            'board it looked at. Re-render with --json-out, not bare --json.')
+    if os.path.normcase(os.path.abspath(shown)) != \
+            os.path.normcase(os.path.abspath(a.board)):
+        return False, (
+            f'That render is of a DIFFERENT board:\n'
+            f'      rendered: {shown}\n'
+            f'      classifying: {os.path.abspath(a.board)}\n\n'
+            f'An earlier lap\'s render does not prove this one was looked at, '
+            f'and classifying from it classifies the wrong failure.')
+    if not isinstance(doc.get('checklist'), dict):
+        return False, (
+            'That render has no `checklist` block, so it answers none of the '
+            'questions the read exists to ask. Re-render with --json-out.')
+    if not inst.get('summary_json'):
+        return False, (
+            'That render was made without --summary-json, so its --focus '
+            'panels cluster the LEGALITY findings, not the routing failures. '
+            'render_placement falls back silently, which is why this has to be '
+            'checked rather than assumed: the picture looks right and answers '
+            'the wrong question.\n\nRe-render with --summary-json pointed at '
+            'the route log carrying JSON_SUMMARY. If the routing half did not '
+            'keep one, that is the finding -- say so rather than classifying '
+            'from the legality clusters.')
+    moved = doc.get('moved_refs')
+    if inst.get('before') and moved:
+        return False, (
+            f'THE FREEZE DID NOT HOLD. That render was made against a --before '
+            f'board and reports {len(moved)} footprint(s) moved: '
+            f'{", ".join(sorted(map(str, moved))[:8])}'
+            f'{" ..." if len(moved) > 8 else ""}.\n\nThe routing half is told '
+            f'the placement is frozen and that if it concludes a part must '
+            f'move it should stop and say so. A routed board whose parts moved '
+            f'is not a routing result: every placement measurement taken '
+            f'before it is now stale, and the classification below would be '
+            f'about a board nobody graded.\n\nGo back to the placement half '
+            f'with what moved, or revert those parts and re-route.')
+    return True, None
+
+
 def _ledger_rows(path):
     if not path or not os.path.isfile(path):
         return []
@@ -303,6 +372,9 @@ Next: python3 -X utf8 {sys.argv[0]} --stage L2 --board <placed board> \\
 def l2(a):
     """Freeze what placement decided, then route."""
     work = _work(a)
+    # Same separator as the paths beside it. A command block that mixes
+    # C:\a\b with C:/a/b in one invocation is one nobody can paste.
+    board_fwd = (a.board or '').replace('\\', '/')
     _res = getattr(a, 'accept_residue', None)
     if _res is not None:
         _bad = [n for n in _res if n not in L2_CHECKS]
@@ -588,7 +660,7 @@ reads your message.
   route log    : {work}/route.log           the one carrying JSON_SUMMARY
   close-out    : {work}/routing_close.json
                  python3 -X utf8 check_complete.py {work}/routed.kicad_pcb \\
-                     --authored-from {a.board} \\
+                     --authored-from {board_fwd} \\
                      --json {work}/routing_close.json
 
 `--authored-from` is given to you above because only this loop knows it, and it
@@ -741,6 +813,13 @@ Next: --stage L5 --board {a.board} --score {a.score} --ledger {a.ledger}
             f'The render prints WHAT THIS PANEL SHOWS and THE WORST N with a '
             f'crop command each; one pocket means a local fix, scattered means '
             f'systemic, and that is the classification below.')
+    # A path that exists is not a render of THIS board, made from the route
+    # log, on a board whose parts stayed put. L2 and L5 both shape-test and
+    # bind their documents; the stage that makes the classification took a
+    # filename and asked nothing else of it.
+    _rok, _rwhy = _guard_route_render(a)
+    if not _rok:
+        return err(_rwhy)
     return f'''<stage_instructions stage="L3" name="classify the failure" of="5">
 blocking = {blocking}. Name the SHAPE before choosing anything.
 
@@ -1680,9 +1759,45 @@ def _self_test():
         ok_score = os.path.join(tmp, 's.json')
         json.dump({'blocking': 4}, open(ok_score, 'w', encoding='utf-8'))
         ok_rj = os.path.join(tmp, 'rj.json')
-        json.dump({'instrument': {'board': _bf},
+        # L3 now shape-tests and binds this the way L2 and L5 bind theirs, so
+        # the fixture has to be a render a real run produces: made from the
+        # route log (`summary_json`, or --focus clusters legality instead) and
+        # reporting that nothing moved (`moved_refs`, which is the only place
+        # a broken freeze surfaces).
+        json.dump({'instrument': {'board': _bf,
+                                  'summary_json': os.path.join(tmp, 'r.log'),
+                                  'before': _bf},
+                   'moved_refs': [],
                    'checklist': {'d_moved': {'match': None}}},
                   open(ok_rj, 'w', encoding='utf-8'))
+        # The three ways a focus render can exist and still be worthless. L3
+        # used to accept any path that resolved.
+        def _rj(name, **over):
+            d = {'instrument': {'board': _bf,
+                                'summary_json': os.path.join(tmp, 'r.log'),
+                                'before': _bf},
+                 'moved_refs': [], 'checklist': {'d_moved': {'match': None}}}
+            d['instrument'].update(over.pop('instrument', {}))
+            d.update(over)
+            p = os.path.join(tmp, name)
+            json.dump(d, open(p, 'w', encoding='utf-8'))
+            return p
+
+        def _l3(rj):
+            return STAGES['L3'](_args(['--board', _bf, '--score', ok_score,
+                                       '--render-json', rj]))
+
+        want('DIFFERENT board' in _l3(
+                 _rj('rj_other.json',
+                     instrument={'board': os.path.join(tmp, 'other.kicad_pcb')})),
+             'L3 refuses a focus render of another board')
+        want('without --summary-json' in _l3(
+                 _rj('rj_nosum.json', instrument={'summary_json': None})),
+             'L3 refuses a focus render that clustered legality, not failures')
+        want('FREEZE DID NOT HOLD' in _l3(
+                 _rj('rj_moved.json', moved_refs=['R1', 'C7'])),
+             'L3 refuses a routed board whose parts moved, and names them')
+
         full = ['--board', _bf,
                 '--score', ok_score, '--placement-report', ok_rep,
                 '--render-json', ok_rj, '--shape', 'placement']
