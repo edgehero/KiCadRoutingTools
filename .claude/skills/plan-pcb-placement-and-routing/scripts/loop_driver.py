@@ -286,10 +286,22 @@ def _guard_congestion(a):
            f'   [REPORTED, never gated -- non-negotiable 4]\n'
            if isinstance(_cx_b, (int, float))
            and isinstance(_cx_n, (int, float)) else '')
-    return True, (
-        f'  CONGESTION READ -- this may be PLACEMENT-shaped, not parameter:\n'
+    if a.accept_congestion and str(a.accept_congestion).strip():
+        return True, (
+            f'  CONGESTION READ (accepted): hpwl {b:.1f} -> {n:.1f} '
+            f'({gain * 100:+.1f}% of the gap closed).\n'
+            f'  Reason on the record: {str(a.accept_congestion).strip()}\n')
+    # BINDING on a DISPOSITION, not on the numbers -- the same shape as
+    # P-close's. Printing this and proceeding would have changed nothing about
+    # run 15 except that the evidence would have been on screen while the
+    # routing iteration was spent anyway. The driver does not claim the
+    # placement is wrong; it claims nobody has said which it is.
+    return False, (
+        f'The congestion read says this may be PLACEMENT-shaped, and nothing '
+        f'has said otherwise.\n\n'
         f'    hpwl       {b:.1f} -> {n:.1f}   ({gain * 100:+.1f}% of the gap '
         f'closed)\n' + _cx.replace('  crossings', '    crossings') +
+        f'\n'
         f'    The placement left {(1 - gain) * 100:.1f}% of the wirelength it '
         f'started with.\n'
         f'    Every per-net test can still pass here -- that is the blind spot: '
@@ -298,8 +310,17 @@ def _guard_congestion(a):
         f'returned `parameter`,\n'
         f'    and the iteration it bought moved `blocking` by nothing. If a '
         f'placement lever is\n'
-        f'    left, it is cheaper than a routing iteration. NOT a refusal -- see '
-        f'wk/calibration/RESULT.md.\n')
+        f'    left, it is cheaper than a routing iteration.\n\n'
+        f'The numbers are NOT a verdict on the placement and cannot be: on one '
+        f'corpus board a\n'
+        f'PERFECT repair scores worse than the damage it repaired, because '
+        f'`swap` shortens nets\n'
+        f'on a regular matrix (wk/calibration/RESULT.md). What is missing is a '
+        f'DECISION.\n\n'
+        f'Either re-enter at PLACEMENT -- --shape placement, which is the '
+        f'cheaper direction --\n'
+        f'or say why parameter is right anyway:\n'
+        f'    --accept-congestion "<the measurement, or the reason>"\n')
 
 
 def _ledger_rows(path):
@@ -1594,6 +1615,17 @@ def _args(argv=None):
     ap.add_argument('--congestion-baseline', default=None, metavar='PATH',
                     help='render_placement --json-out of the pre-placement '
                          'board, to compare --congestion-json against.')
+    ap.add_argument('--accept-congestion', default=None, metavar='REASON',
+                    help='Proceed with --shape parameter even though the '
+                         'congestion read says the failure may be '
+                         'placement-shaped. Needs a REASON: the numbers are not '
+                         'judged (they cannot be -- see '
+                         'wk/calibration/RESULT.md), so what is being recorded '
+                         'is that somebody decided, not that the board passed. '
+                         'Deliberately NOT part of --accept-residue: that flag '
+                         'speaks the L2 placement gate\'s vocabulary, and a '
+                         'waiver that covers two gates at once waives the one '
+                         'that was working.')
     ap.add_argument('--render-json', default=None, metavar='PATH',
                     help='render_placement --json-out document. L3 requires '
                          'one when there is a failure to classify: "one pocket '
@@ -1919,13 +1951,23 @@ def _self_test():
         # threshold was withdrawn on measurement: the premise (damage raises
         # hpwl) inverts on 1 of 3 corpus boards, where a perfect repair scores
         # a negative gain -- wk/calibration/RESULT.md.
+        # A poor read binds on a DISPOSITION, not on the numbers: `parameter`
+        # must not be spent unacknowledged, but the driver never claims the
+        # placement is wrong -- it cannot, since a perfect repair scores like
+        # this on piantor (wk/calibration/RESULT.md).
         out = STAGES['L4'](_args(base + ['--shape', 'parameter',
                                          '--congestion-json', _cbad,
                                          '--congestion-baseline', _cbase]))
-        want(not out.startswith('<error>'),
-             'a parameter re-entry does NOT refuse on the congestion numbers')
-        want('CONGESTION READ' in out and 'PLACEMENT-shaped' in out,
-             'a parameter re-entry REPORTS the congestion read when it is poor')
+        want(out.startswith('<error>') and 'may be PLACEMENT-shaped' in out,
+             'a parameter re-entry refuses a poor read until it is dispositioned')
+        want('NOT a verdict' in out and '--accept-congestion' in out,
+             'the refusal says the numbers are not a verdict, and names the out')
+        out = STAGES['L4'](_args(base + ['--shape', 'parameter',
+                                         '--congestion-json', _cbad,
+                                         '--congestion-baseline', _cbase,
+                                         '--accept-congestion', 'edge parts locked']))
+        want(not out.startswith('<error>') and 'accepted' in out,
+             'a written disposition lets the parameter re-entry proceed')
         out = STAGES['L4'](_args(base + ['--shape', 'parameter',
                                          '--congestion-json', _cgood,
                                          '--congestion-baseline', _cbase]))

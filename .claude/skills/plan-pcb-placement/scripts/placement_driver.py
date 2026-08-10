@@ -814,22 +814,52 @@ def _guard_congestion(a):
            else ''),
     ]
     if halo_gain >= 0.25 and hpwl_gain < 0.25 * halo_gain:
+        # BINDING -- but on a DISPOSITION, not on the numbers. The driver does
+        # not judge whether this placement is good; it judges whether anybody
+        # ANSWERED. That distinction is the whole lesson of the calibration: a
+        # gate that scored the board refused a PERFECT repair on piantor,
+        # because hpwl inverts under `swap` there. A gate that asks for a
+        # written decision cannot make that mistake -- the perfect repair
+        # records why the read looks poor and proceeds.
+        #
+        # Merely PRINTING this was not enough, and that was a real regression
+        # while it lasted: every other gate here is a legality gate, so a run in
+        # exactly run 15's shape closed out clean with the evidence on screen
+        # and nothing asked of it. Advisory is what the close-out already had
+        # too much of.
         lines += [
             '',
-            '  READ THIS: legality closed a large share of its gap and hpwl '
-            'closed almost none.',
-            '  That is the shape of a repair that fixed the violations and left '
-            'the arrangement',
-            '  as tangled as it found it -- measured on neo6502, that board '
-            'routed to 29 unrouted',
-            '  nets the classifier then read as `parameter`, because every '
-            'per-net test can pass',
-            '  on a board no router can finish. It is NOT a refusal: see '
-            'wk/calibration/RESULT.md.',
-            '  If you have a lever left (P4 corridor/affinity, or P5 for a '
-            'different arrangement),',
-            '  this is the moment it is worth pulling.',
+            'DISPOSITION REQUIRED. Legality closed a large share of its gap and '
+            'hpwl closed almost',
+            'none. That is the shape of a repair that fixed the violations and '
+            'left the arrangement',
+            'as tangled as it found it -- on neo6502 that board routed to 29 '
+            'unrouted nets, which',
+            'the classifier then read as `parameter`, because every per-net test '
+            'can pass on a board',
+            'no router can finish.',
+            '',
+            'This is NOT a claim that your placement is wrong. The numbers are '
+            'not judged -- they',
+            'cannot be, and wk/calibration/RESULT.md says why: on one corpus '
+            'board a PERFECT repair',
+            'scores worse than the damage it repaired, because `swap` shortens '
+            'nets on a regular',
+            'matrix. What is required is that somebody decided.',
+            '',
+            'Either PULL A LEVER -- P4 with the corridor/affinity terms, or P5 '
+            'for a different',
+            'arrangement -- and close out on the result, or record why none '
+            'applies:',
+            '    --waive congestion:<the measurement, or the reason>',
+            '',
+            'Good reasons exist and are believed: the board is dense against its '
+            'outline and every',
+            'lever is spent; the parts that would move are locked; hpwl is known '
+            'to invert on this',
+            'damage kind. Say which.',
         ]
+        return False, chr(10).join(lines)
     return True, chr(10).join(lines)
 
 
@@ -1094,12 +1124,19 @@ def _self_test():
         # shortens nets -- it would have refused a PERFECT repair, one that
         # restored the pristine board exactly. See wk/calibration/RESULT.md.
         out = _close(_r15, _dmg)
-        want(not out.startswith('<error>'),
-             'P-close does NOT refuse on the routability numbers')
+        # It binds on a DISPOSITION, not on the numbers: run 15's shape must not
+        # close out unacknowledged, but the driver never says the placement is
+        # wrong -- it cannot, since a perfect repair scores like this on piantor.
+        want(out.startswith('<error>') and 'DISPOSITION REQUIRED' in out,
+             'P-close refuses run 15\'s shape until somebody dispositions it')
         want('ROUTABILITY, measured against' in out and 'hpwl' in out,
-             'P-close REPORTS the routability read in its instructions')
-        want('legality closed a large share' in out,
-             'P-close still NAMES run 15\'s shape when it sees it')
+             'the refusal SHOWS the read it is asking about')
+        want('not judged' in out and 'PERFECT repair' in out,
+             'the refusal says the numbers are not a verdict on the placement')
+        want(not _close(_r15, _dmg,
+                        ('--waive', 'congestion:every lever spent')
+                        ).startswith('<error>'),
+             'a written disposition closes it out')
         # crossings is printed and never tested -- non-negotiable 4,
         # r(crossings) = +0.780 against distance-to-truth.
         want('crossings' in out, 'P-close prints crossings alongside')
