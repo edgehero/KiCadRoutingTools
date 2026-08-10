@@ -175,19 +175,17 @@ def _score_board_mismatch(board, payload):
         return None
 
 
-# How much of its HPWL gap the placement must have closed before a `parameter`
-# verdict is believable. PROVISIONAL and uncalibrated -- a constant rather than a
-# flag on purpose: a threshold you can move from the command line is one you will
-# move to make a run pass.
+# The hpwl gain below which the congestion READ is worth pointing at. It decides
+# whether to print a warning beside the numbers -- it does NOT decide anything.
+# It used to gate, and the calibration withdrew that (wk/calibration/RESULT.md):
+# the premise "damage raises hpwl, so a repair lowers it" INVERTS on 1 of 3
+# corpus boards, where a perfect repair scores a negative gain and the gate
+# refused the correct answer.
 #
-# NOT THE SAME QUANTITY as placement_driver's --congestion-ratio, despite both
-# being 0.25 today. That one is a RATIO -- hpwl_gain >= ratio * halo_gain, "did
-# routability improve in proportion to legality". This one is an ABSOLUTE gain
-# -- hpwl_gain >= 0.25, "did routability improve at all, materially". They
-# answer different questions and there is no reason their numbers should match;
-# they do only because nobody has measured either yet. Calibrate them
-# separately, and if you unify them, say so on purpose rather than by
-# coincidence.
+# Being only a reporting cut is why it can stay an uncalibrated round number. It
+# is also why placement_driver's matching flag was removed rather than tuned:
+# that one gated, this one annotates, and a threshold nobody acts on does not
+# need to be right -- it needs to be roughly where the interesting cases are.
 _CONGESTION_RATIO = 0.25
 
 
@@ -272,6 +270,14 @@ def _guard_congestion(a):
     if b <= 0:
         return True, None
     gain = (b - n) / b
+    # REPORT, do not refuse. The threshold that used to live here was withdrawn
+    # on measurement (wk/calibration/RESULT.md): the same premise -- damage
+    # raises hpwl, so a repair lowers it -- INVERTS on 1 of 3 corpus boards,
+    # where a perfect repair scores a negative gain. A gate that refuses the
+    # correct answer must not refuse. What survives is the requirement above:
+    # you must LOOK at global congestion before calling a failure
+    # `parameter`-shaped, because every per-net test can pass on a board no
+    # router can finish. That part needs no threshold.
     if gain >= _CONGESTION_RATIO:
         return True, None
     _cx_b = m_base.get('crossings')
@@ -280,20 +286,20 @@ def _guard_congestion(a):
            f'   [REPORTED, never gated -- non-negotiable 4]\n'
            if isinstance(_cx_b, (int, float))
            and isinstance(_cx_n, (int, float)) else '')
-    return False, (
-        f'This looks PLACEMENT-shaped, not parameter-shaped.\n\n'
-        f'  hpwl       {b:.1f} -> {n:.1f}   ({gain * 100:.1f}% of the gap '
-        f'closed)   [gated]\n' + _cx + f'\n'
-        f'The placement left {(1 - gain) * 100:.1f}% of the wirelength it '
-        f'started with, so the nets that will not route are competing for space '
-        f'that no router parameter creates. Every per-net test can still pass '
-        f'here -- that is precisely the blind spot: on neo6502 the classifier '
-        f'saw 0 starved faces and every pad PASSABLE, returned `parameter`, and '
-        f'the iteration it bought moved `blocking` by nothing.\n\n'
-        f'Re-enter at PLACEMENT (--shape placement), or -- if the arrangement '
-        f'is genuinely forced and you can show it -- re-run this stage once you '
-        f'have a congestion render that says so. Do not spend a routing '
-        f'iteration to find out; that is the expensive direction.')
+    return True, (
+        f'  CONGESTION READ -- this may be PLACEMENT-shaped, not parameter:\n'
+        f'    hpwl       {b:.1f} -> {n:.1f}   ({gain * 100:+.1f}% of the gap '
+        f'closed)\n' + _cx.replace('  crossings', '    crossings') +
+        f'    The placement left {(1 - gain) * 100:.1f}% of the wirelength it '
+        f'started with.\n'
+        f'    Every per-net test can still pass here -- that is the blind spot: '
+        f'on neo6502\n'
+        f'    the classifier saw 0 starved faces and every pad PASSABLE, '
+        f'returned `parameter`,\n'
+        f'    and the iteration it bought moved `blocking` by nothing. If a '
+        f'placement lever is\n'
+        f'    left, it is cheaper than a routing iteration. NOT a refusal -- see '
+        f'wk/calibration/RESULT.md.\n')
 
 
 def _ledger_rows(path):
@@ -1055,10 +1061,14 @@ def l4(a):
             'sending a parameter-shaped failure back to placement throws away '
             'a routed board for nothing. L3 tells you how to measure it.')
     if a.shape == 'parameter':
+        # Refuses only when the congestion evidence is MISSING. The numbers
+        # themselves report and never refuse -- see _guard_congestion.
         _cok, _cwhy = _guard_congestion(a)
         if not _cok:
             return err(_cwhy)
+        _cread = f'\n{_cwhy}\n' if _cwhy else ''
         return f'''<stage_instructions stage="L4" name="re-enter: parameter" of="5">
+{_cread}
 Re-enter the FAILING ROUTING STEP with the parameter changed. Nothing before it
 is invalidated, and the routed board stands.
 
@@ -1905,11 +1915,22 @@ def _self_test():
         out = STAGES['L4'](_args(base + ['--shape', 'parameter']))
         want(out.startswith('<error>') and '--congestion-json' in out,
              'a parameter re-entry refuses without a congestion comparison')
+        # It REPORTS the congestion read and does NOT refuse on it. The
+        # threshold was withdrawn on measurement: the premise (damage raises
+        # hpwl) inverts on 1 of 3 corpus boards, where a perfect repair scores
+        # a negative gain -- wk/calibration/RESULT.md.
         out = STAGES['L4'](_args(base + ['--shape', 'parameter',
                                          '--congestion-json', _cbad,
                                          '--congestion-baseline', _cbase]))
-        want(out.startswith('<error>') and 'PLACEMENT-shaped' in out,
-             'a parameter re-entry refuses when congestion barely moved')
+        want(not out.startswith('<error>'),
+             'a parameter re-entry does NOT refuse on the congestion numbers')
+        want('CONGESTION READ' in out and 'PLACEMENT-shaped' in out,
+             'a parameter re-entry REPORTS the congestion read when it is poor')
+        out = STAGES['L4'](_args(base + ['--shape', 'parameter',
+                                         '--congestion-json', _cgood,
+                                         '--congestion-baseline', _cbase]))
+        want('CONGESTION READ' not in out,
+             'a healthy congestion gain adds no warning')
         out = STAGES['L4'](_args(base + ['--shape', 'parameter',
                                          '--congestion-json', _cgood]))
         want(out.startswith('<error>') and '--congestion-baseline' in out,

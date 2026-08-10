@@ -510,13 +510,17 @@ def p_close(a):
                 f'  python3 -X utf8 check_floorplan.py {a.board} '
                 f'--intent {a.intent_json} --require-rules 1 '
                 f'--json wk/intent_result.json')
-    # LAST, because it is the only gate here answerable by doing more placement
-    # work rather than by producing more evidence about work already done.
+    # The routability read. It REFUSES only when the evidence is missing, never
+    # on the numbers themselves -- see _guard_congestion and
+    # wk/calibration/RESULT.md for why the threshold that used to live here was
+    # withdrawn.
     _cok, _cwhy = _guard_congestion(a)
     if not _cok:
         return err(_cwhy)
     return f'''<stage_instructions stage="P-close" name="close out" of="7">
 Prove the placement, then hand it on.
+
+{_cwhy}
 
 1. RE-MEASURE, exactly as P4 does, and put the numbers in the report. A verdict
    with no numbers beside it is an opinion.
@@ -697,33 +701,49 @@ def _metrics_of(path, what):
 
 
 def _guard_congestion(a):
-    """A placement may not close out having repaired legality and nothing else.
+    """Put the routability numbers in front of the close-out. Do NOT refuse on them.
 
-    Every gate this stage ran before today is a LEGALITY gate -- check_drc,
-    check_assembly, check_channels, check_rigid_consistency. So a run that
-    cleared every blocking pad pair satisfied its close-out and stopped, no
-    matter what it had done to the arrangement. Measured on neo6502 (run 15),
-    against the undamaged control the run could not see:
+    Returns (ok, text). `ok` is False ONLY when the evidence is missing --
+    the numbers themselves never refuse. The text is a REPORT that p_close
+    prints inside its instructions.
 
-        halo       869.1 -> 440.1   64.9% of the damage repaired
-        crossings   1871 -> 1827     8.0% of the damage repaired
-
-    It fixed the symptoms and left the board harder to route than it found it
-    (+38% crossings against the original). Routing then failed on 29 nets, and
+    Why the report exists. Every other gate here is a LEGALITY gate --
+    check_drc, check_assembly, check_channels, check_rigid_consistency -- so a
+    run that cleared every blocking pad pair satisfied its close-out and
+    stopped, whatever it had done to the arrangement. Measured on neo6502
+    (run 15), against the undamaged control the run could not see: halo closed
+    64.9% of the damage, crossings 8.0%. It fixed the symptoms and handed on a
+    board harder to route than it found it; routing then failed on 29 nets, and
     the classifier said `parameter` -- correctly, by its own tests, which are
-    all per-net and cannot see global capacity. The loop spent a router
-    iteration on an arrangement problem.
+    all per-net and cannot see global capacity.
 
-    THE CONTROL IS NOT AVAILABLE to a blind run, so this gate does not use it.
-    What it uses is the DISPARITY, which needs only the board this run started
-    from: if halo closed most of its gap while crossings closed almost none of
-    theirs, the repair was local and the arrangement was left alone. On a board
-    that was barely damaged both gains are small and the ratio is not
-    meaningful, so a small absolute legality gain does not trip this at all.
+    WHY IT IS NOT A REFUSAL, and this is measured, not a preference
+    (wk/calibration/RESULT.md, three boards, three populations each):
 
-    The ratio is PROVISIONAL. It is a threshold nobody has calibrated on a
-    corpus yet, and it is a flag precisely so that calibrating it is a
-    measurement rather than an edit. Do not tune it to make a run pass.
+      * At the shipped ratio of 0.25 the gate refused neo6502's FULL repair --
+        the one that took blocking 18 -> 0. It refused every outcome the corpus
+        could produce, correct ones included.
+      * The premise inverts. The gate assumed damage RAISES hpwl so a repair
+        should lower it; on piantor the `swap` damage LOWERED hpwl (2263.6 ->
+        1965.1), because swapping parts on a regular matrix shortens nets. There
+        a PERFECT repair -- restoring the pristine board exactly -- scores
+        hpwl_gain -0.152 and would have been REFUSED. A gate that refuses the
+        correct answer must not refuse.
+      * Only ONE of three boards yielded a calibration pair at all (`swap` gave
+        18 blocking pairs on neo6502 and 1 on the other two), so any threshold
+        would have been fitted to n=1 -- the same kind of number as the one it
+        replaced.
+      * Even the best-fitting ratio would not have done the job: neo6502's two
+        populations separate at 0.093 vs 0.0095, and run 15's own arm scored
+        0.064 -- above any splitting value, so the calibrated gate would have
+        PASSED the board it was built to catch.
+
+    What survives is the reading, which needs no threshold: if legality closed
+    most of its gap while hpwl closed almost none, that is worth seeing at the
+    moment a lever could still be pulled. The executor decides.
+
+    hpwl and not crossings, still: non-negotiable 4, r(crossings) = +0.780
+    against distance-to-truth. crossings is printed and never tested.
     """
     if any(w.split(':', 1)[0].strip() == 'congestion' for w in (a.waive or [])):
         _cw = [w for w in a.waive if w.split(':', 1)[0].strip() == 'congestion']
@@ -777,51 +797,40 @@ def _guard_congestion(a):
     # can carry a gate. crossings is printed below and never tested.
     halo_gain, hpwl_gain = _gain('halo'), _gain('hpwl')
     if halo_gain is None or hpwl_gain is None:
-        return False, (
-            'The two renders do not both carry numeric `halo` and `hpwl` '
-            'metrics, so the routability comparison cannot be made. Re-render '
-            'both with --json-out against the same --clearance.')
-    # A run that barely moved legality has nothing to be disproportionate TO.
-    if halo_gain < 0.25:
-        return True, ''
-    if hpwl_gain >= a.congestion_ratio * halo_gain:
-        return True, ''
+        return True, ('  routability: NOT COMPARABLE -- the two renders do not '
+                      'both carry numeric `halo` and `hpwl`. Re-render both '
+                      'with --json-out at the same --clearance if you want '
+                      'this read.')
     _cx = _gain('crossings')
-    return False, (
-        f'This placement repaired LEGALITY and left ROUTABILITY.\n\n'
-        f'  halo       {before.get("halo"):.1f} -> {after.get("halo"):.1f}'
-        f'   ({halo_gain * 100:.1f}% of its gap closed)   [gated]\n'
-        f'  hpwl       {before.get("hpwl"):.1f} -> {after.get("hpwl"):.1f}'
-        f'   ({hpwl_gain * 100:.1f}% of its gap closed)   [gated]\n'
-        f'  crossings  {before.get("crossings"):.0f} -> '
-        f'{after.get("crossings"):.0f}'
-        + (f'   ({_cx * 100:.1f}% of its gap closed)' if _cx is not None else '')
-        + f'   [REPORTED, never gated]\n\n'
-        f'hpwl closed {hpwl_gain * 100:.1f}% where legality closed '
-        f'{halo_gain * 100:.1f}%, below the {a.congestion_ratio:g} ratio this '
-        f'gate holds. Every other gate here is a legality gate, so this is the '
-        f'only one that can see it -- and a board that is legal but no easier '
-        f'to route hands the routing half a failure it cannot fix, which the '
-        f'classifier will then read as `parameter` because its own tests are '
-        f'per-net and global capacity is invisible to them.\n\n'
-        f'crossings is shown and NOT tested, per non-negotiable 4: it '
-        f'correlates POSITIVELY with distance-to-truth (r = +0.780 over 29 '
-        f'candidates), so a gate on it would push the search away from the '
-        f'right answer. hpwl is the wirelength metric whose minimum is at the '
-        f'truth.\n\n'
-        f'`length` and `crossings` are ALREADY in the quench objective '
-        f'(placement/quench.py). This is not asking for a new term -- it is '
-        f'asking for another lap that is allowed to move parts for routability '
-        f'rather than only to clear a named violation. P4 with the '
-        f'corridor/affinity levers, or P5 for a different arrangement.\n\n'
-        f'If this arrangement is genuinely the best available -- a dense board '
-        f'hard against its outline, every lever pulled -- then say so on the '
-        f'record and it will be believed: --waive congestion:<the measurement '
-        f'that says so>.\n\n'
-        f'NOTE the {a.congestion_ratio:g} ratio is PROVISIONAL and uncalibrated. '
-        f'--congestion-ratio moves it, but calibrate on a corpus '
-        f'(tests/stress/ab_replay_grade.py); choosing it by what lets this run '
-        f'through is how a gate becomes decoration.')
+    lines = [
+        '  ROUTABILITY, measured against the board this run started from:',
+        f'    halo       {before.get("halo"):9.1f} -> {after.get("halo"):9.1f}'
+        f'   ({halo_gain * 100:+.1f}% of its gap closed)',
+        f'    hpwl       {before.get("hpwl"):9.1f} -> {after.get("hpwl"):9.1f}'
+        f'   ({hpwl_gain * 100:+.1f}% of its gap closed)',
+        f'    crossings  {before.get("crossings"):9.0f} -> '
+        f'{after.get("crossings"):9.0f}'
+        + (f'   ({_cx * 100:+.1f}% of its gap closed)' if _cx is not None
+           else ''),
+    ]
+    if halo_gain >= 0.25 and hpwl_gain < 0.25 * halo_gain:
+        lines += [
+            '',
+            '  READ THIS: legality closed a large share of its gap and hpwl '
+            'closed almost none.',
+            '  That is the shape of a repair that fixed the violations and left '
+            'the arrangement',
+            '  as tangled as it found it -- measured on neo6502, that board '
+            'routed to 29 unrouted',
+            '  nets the classifier then read as `parameter`, because every '
+            'per-net test can pass',
+            '  on a board no router can finish. It is NOT a refusal: see '
+            'wk/calibration/RESULT.md.',
+            '  If you have a lever left (P4 corridor/affinity, or P5 for a '
+            'different arrangement),',
+            '  this is the moment it is worth pulling.',
+        ]
+    return True, chr(10).join(lines)
 
 
 STAGES = {
@@ -872,16 +881,13 @@ def _args(argv=None):
                          'close-out render, because a placement can clear every '
                          'legality gate while leaving the arrangement as '
                          'congested as it found it.')
-    ap.add_argument('--congestion-ratio', type=float, default=0.25,
-                    metavar='R',
-                    help='PROVISIONAL and UNCALIBRATED (see P-close): the least '
-                         'share of the legality gain that ROUTABILITY must also '
-                         'deliver. 0.25 = "hpwl must close at least a quarter as '
-                         'much of its gap as halo closed of its own". This is a '
-                         'RATIO -- loop_driver._CONGESTION_RATIO is an ABSOLUTE '
-                         'hpwl gain and happens to carry the same number for no '
-                         'reason. Calibrate on a corpus of damaged/repaired '
-                         'pairs; never tune it to make a run pass.')
+    # --congestion-ratio is GONE. It set a threshold P-close refused on, and the
+    # calibration withdrew that refusal (wk/calibration/RESULT.md): the premise
+    # inverts on 1 of 3 corpus boards, where a perfect repair scores a negative
+    # hpwl gain and the gate refused the correct answer. A flag that no longer
+    # reaches a decision is the same lie as render_placement's --metrics was --
+    # it reads as a knob somebody thought about. The routability numbers are
+    # REPORTED at P-close now, and 0.25 is baked nowhere.
     ap.add_argument('--waive', action='append', default=[], metavar='REF:reason')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
@@ -1081,20 +1087,28 @@ def _self_test():
         _dmg = _fake_render(_pa, halo=869.1, crossings=1871.0, hpwl=4193.6)
         _r15 = _fake_render(_pb, halo=440.1, crossings=1827.0, hpwl=4062.2)
 
+        # Run 15's arm is REPORTED and NOT refused. The threshold that used to
+        # refuse here was withdrawn on measurement: at 0.25 it also refused
+        # neo6502's successful repair (blocking 18 -> 0), and on piantor -- where
+        # `swap` LOWERS hpwl, because swapping parts on a regular matrix
+        # shortens nets -- it would have refused a PERFECT repair, one that
+        # restored the pristine board exactly. See wk/calibration/RESULT.md.
         out = _close(_r15, _dmg)
-        want(out.startswith('<error>') and 'left ROUTABILITY' in out,
-             'P-close refuses run 15\'s arm: halo closed 49%, hpwl 3%')
-        # The gate reads HPWL and only reports crossings -- non-negotiable 4.
-        # Pin both halves: a board whose crossings collapsed but whose hpwl did
-        # not must STILL be refused, because that is precisely the shape the
-        # r=+0.780 correlation warns about (crossings improving while the
-        # placement drifts further from the truth).
-        want('[REPORTED, never gated]' in out,
-             'P-close prints crossings and marks it ungated')
-        out = _close(_fake_render(_pb, halo=440.1, crossings=200.0, hpwl=4062.2),
-                     _dmg)
-        want(out.startswith('<error>'),
-             'P-close is NOT satisfied by crossings alone collapsing')
+        want(not out.startswith('<error>'),
+             'P-close does NOT refuse on the routability numbers')
+        want('ROUTABILITY, measured against' in out and 'hpwl' in out,
+             'P-close REPORTS the routability read in its instructions')
+        want('legality closed a large share' in out,
+             'P-close still NAMES run 15\'s shape when it sees it')
+        # crossings is printed and never tested -- non-negotiable 4,
+        # r(crossings) = +0.780 against distance-to-truth.
+        want('crossings' in out, 'P-close prints crossings alongside')
+        # A proportionate repair gets the numbers and none of the warning.
+        out = _close(_fake_render(_pb, halo=400.0, crossings=1200.0, hpwl=700.0),
+                     _fake_render(_pa, halo=800.0, crossings=1800.0, hpwl=1000.0))
+        want('ROUTABILITY, measured against' in out
+             and 'legality closed a large share' not in out,
+             'P-close reports without the warning when hpwl moved too')
         out = _close(_r15)
         want(out.startswith('<error>') and '--congestion-before' in out,
              'P-close refuses with no congestion comparison at all')
