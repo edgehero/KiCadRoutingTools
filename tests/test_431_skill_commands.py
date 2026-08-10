@@ -388,12 +388,22 @@ def test_driver_commands_supply_required_options_and_values():
                 continue          # covered by the flag test's own <parser> row
             import argparse as _ap
             # store_true/store_false/count/help consume nothing; every other
-            # action stores a value and argparse errors without one.
-            takes_value = {s: not isinstance(a, (_ap._StoreTrueAction,
-                                                 _ap._StoreFalseAction,
-                                                 _ap._StoreConstAction,
-                                                 _ap._CountAction,
-                                                 _ap._HelpAction))
+            # action stores a value and argparse errors without one -- EXCEPT
+            # when its nargs makes zero values legal. `nargs='*'` and `'?'`
+            # both accept none, so `--reseat --clearance 0.2` parses to
+            # `{'reseat': [], 'clearance': 0.2}` and is the documented calling
+            # convention ("bare --reseat = auto scope"). Without this the check
+            # reported a correct, working command as dying at argparse, and the
+            # false positive outlived several attempts to fix the driver that
+            # was never wrong. `nargs='+'` and a fixed count still need values.
+            def _optional_value(a):
+                return getattr(a, 'nargs', None) in ('*', '?', 0)
+            takes_value = {s: (not isinstance(a, (_ap._StoreTrueAction,
+                                                  _ap._StoreFalseAction,
+                                                  _ap._StoreConstAction,
+                                                  _ap._CountAction,
+                                                  _ap._HelpAction))
+                               and not _optional_value(a))
                            for a in parser._actions for s in a.option_strings}
             required = [tuple(a.option_strings) for a in parser._actions
                         if getattr(a, 'required', False) and a.option_strings]

@@ -1663,8 +1663,16 @@ def main(argv=None):
                                           'verdict': 'buildable (blocking 0)',
                                           'locked_contacts': 0,
                                           'board': _bd}),
+                           # `summary_json` is load-bearing, not decoration:
+                           # _guard_route_render refuses without it, because a
+                           # --focus render made with no route summary clusters
+                           # the LEGALITY findings instead of the routing
+                           # failures. This fixture predated that guard (df9e81d)
+                           # and so dumped L3's refusal instead of its
+                           # instructions.
                            '--render-json', wrote('rj.json', {
-                               'instrument': {'board': _bd},
+                               'instrument': {'board': _bd,
+                                              'summary_json': 'wk/summary.json'},
                                'checklist': {'d_moved': {'match': None}}}),
                            '--shape', 'placement'])
             for k in sorted(STAGES):
@@ -1690,9 +1698,20 @@ def main(argv=None):
             # --final record and the film -- so dumping only CONTINUE leaves
             # them unscanned by anything that reads this output. Drive the
             # real verdict with real ledgers rather than faking the branch.
+            # `result_sha` is what _close_out's _recorded() matches the board
+            # against, and it fires BEFORE the close-out is even loaded. Rows
+            # without it are rows no real ledger produces -- the self-test
+            # already says exactly that and threads the sha; this fixture was
+            # not updated when the guard landed (a25ccf7), so all three
+            # terminal L5 branches dumped refusals.
+            sys.path.insert(0, ROOT)
+            from board_store import sha256_file as _sha_of
+            _bdsha = _sha_of(_bd)
             flat = ([{'kind': 'placement', 'accepted': True,
+                      'result_sha': _bdsha,
                       'score': {'blocking': 0, 'quality': {}}}] * 6
                     + [{'kind': 'completion', 'accepted': True,
+                        'result_sha': _bdsha,
                         'score': {'blocking': 0, 'quality': {}}}] * 6)
             stuck = [dict(r, score={'blocking': 4, 'quality': {}})
                      for r in flat]
