@@ -874,11 +874,14 @@ def _args(argv=None):
                          'congested as it found it.')
     ap.add_argument('--congestion-ratio', type=float, default=0.25,
                     metavar='R',
-                    help='PROVISIONAL (see P-close): the least share of the '
-                         'legality gain that congestion must also deliver. '
-                         '0.25 = "crossings must close at least a quarter as '
-                         'much of their gap as halo closed of its own". '
-                         'Calibrate on a corpus; do not tune it to pass a run.')
+                    help='PROVISIONAL and UNCALIBRATED (see P-close): the least '
+                         'share of the legality gain that ROUTABILITY must also '
+                         'deliver. 0.25 = "hpwl must close at least a quarter as '
+                         'much of its gap as halo closed of its own". This is a '
+                         'RATIO -- loop_driver._CONGESTION_RATIO is an ABSOLUTE '
+                         'hpwl gain and happens to carry the same number for no '
+                         'reason. Calibrate on a corpus of damaged/repaired '
+                         'pairs; never tune it to make a run pass.')
     ap.add_argument('--waive', action='append', default=[], metavar='REF:reason')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')

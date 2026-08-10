@@ -1154,7 +1154,6 @@ Examples:
                    help='draw EVERY net, not just the moved/attributed ones. The '
                         'hairball switch: on a dense board this reproduces exactly '
                         'the unreadable ratsnest KiCad already shows')
-    p.add_argument('--metrics', choices=('exact', 'none'), default='exact')
     p.add_argument('--clearance', type=float, default=None)
     # Same spelling and semantics as place_optimize's. Without it this tool
     # cannot reproduce a run's crossings/hpwl whenever the optimizer was given
@@ -1261,6 +1260,14 @@ def main(argv=None):
         if not args.quiet:
             print(f"Ignoring {len(ignore_ids)} nets for airwire scoring")
 
+    # exact=True is not a default here, it is a requirement: the render path
+    # below reads `model.state` unconditionally (`state.parts`), so a stateless
+    # model raises AttributeError before anything is drawn. There used to be a
+    # `--metrics {exact,none}` flag suggesting otherwise; it was never read, and
+    # wiring it up produced exactly that crash. Removed rather than left
+    # lying -- a flag that accepts a value and changes nothing reads as a knob
+    # somebody already thought about. Making `none` real means teaching the
+    # render path to draw without a state, which is a different change.
     model = PlacementModel(pcb, args.board, exact=True,
                            quench_kwargs={'clearance': args.clearance,
                                           'ignore_net_ids': ignore_ids})

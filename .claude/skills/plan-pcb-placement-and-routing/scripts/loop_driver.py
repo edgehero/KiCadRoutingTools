@@ -175,10 +175,19 @@ def _score_board_mismatch(board, payload):
         return None
 
 
-# How much of its crossings gap the placement must have closed before a
-# `parameter` verdict is believable. PROVISIONAL and uncalibrated -- it is a
-# constant here rather than a flag on purpose: a threshold you can move from the
-# command line is one you will move to make a run pass.
+# How much of its HPWL gap the placement must have closed before a `parameter`
+# verdict is believable. PROVISIONAL and uncalibrated -- a constant rather than a
+# flag on purpose: a threshold you can move from the command line is one you will
+# move to make a run pass.
+#
+# NOT THE SAME QUANTITY as placement_driver's --congestion-ratio, despite both
+# being 0.25 today. That one is a RATIO -- hpwl_gain >= ratio * halo_gain, "did
+# routability improve in proportion to legality". This one is an ABSOLUTE gain
+# -- hpwl_gain >= 0.25, "did routability improve at all, materially". They
+# answer different questions and there is no reason their numbers should match;
+# they do only because nobody has measured either yet. Calibrate them
+# separately, and if you unify them, say so on purpose rather than by
+# coincidence.
 _CONGESTION_RATIO = 0.25
 
 
