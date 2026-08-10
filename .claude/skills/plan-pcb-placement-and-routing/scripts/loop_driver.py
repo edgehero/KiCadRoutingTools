@@ -138,11 +138,18 @@ def _guard_route_render(a):
             'keep one, that is the finding -- say so rather than classifying '
             'from the legality clusters.')
     moved = doc.get('moved_refs')
+    # render_placement serialises moved_refs as {'reference', 'dist'} DICTS,
+    # and has since it was added. `map(str, ...)` on those printed
+    # "{'reference': 'C7', 'dist': 2.0}, ..." into the one refusal whose whole
+    # job is to NAME the parts that moved -- so the message that catches a
+    # broken freeze was unreadable exactly when it fired.
+    _names = sorted(m.get('reference', m) if isinstance(m, dict) else m
+                    for m in (moved or []))
     if inst.get('before') and moved:
         return False, (
             f'THE FREEZE DID NOT HOLD. That render was made against a --before '
             f'board and reports {len(moved)} footprint(s) moved: '
-            f'{", ".join(sorted(map(str, moved))[:8])}'
+            f'{", ".join(map(str, _names[:8]))}'
             f'{" ..." if len(moved) > 8 else ""}.\n\nThe routing half is told '
             f'the placement is frozen and that if it concludes a part must '
             f'move it should stop and say so. A routed board whose parts moved '
@@ -494,6 +501,12 @@ message.
                      --json {work}/assembly_close.json
   render       : {work}/place_close_render.json
                  the render_placement.py --json-out you actually READ
+  freeze refs  : {work}/freeze_refs.json
+                 a JSON list of the refs whose pose is a DECISION -- moved
+                 deliberately, or mechanically pinned. WRITE it: a pose diff
+                 cannot tell a deliberate re-seat from a sweep, and it froze 76
+                 moved parts where 24 were ever named. Not `must_lock`, which
+                 `place_seed --repair` LIFTS.
 
 `assembly_close.json` must be check_assembly.py's output and nothing else.
 board_score.py publishes a field called `blocking` too and means something
@@ -502,7 +515,7 @@ checks the gate runs.
 {FENCE_CLAUSE}
 
 Return, and return ONLY:
-  1. confirmation that each of the three paths above exists, or WHICH does not;
+  1. confirmation that each of the four paths above exists, or WHICH does not;
   2. what remains unfixed, each with the measurement that says it is unfixable
      at this stage;
   3. the refs you locked and why.
@@ -544,7 +557,6 @@ def l2(a):
     work = _work(a)
     # Same separator as the paths beside it. A command block that mixes
     # C:\a\b with C:/a/b in one invocation is one nobody can paste.
-    board_fwd = (a.board or '').replace('\\', '/')
     _res = getattr(a, 'accept_residue', None)
     if _res is not None:
         _bad = [n for n in _res if n not in L2_CHECKS]
@@ -748,10 +760,25 @@ def l2(a):
     # placement lap to record and never will. "I could not check" must not
     # become "you failed", or the legitimate path stops working.
     delegate, why = _delegation(a, half='routing')
-    freeze = '''FREEZE first. Lock the refs whose poses are decisions -- mechanically fixed
-parts, anything a spec pins, anything the placement half moved deliberately. A
-later step that moves them silently undoes the placement work, and nothing
-downstream will report it.'''
+    freeze = f'''FREEZE first, INTO A NEW FILE. Lock the refs whose poses are decisions and
+write the result to {work}/frozen.kicad_pcb (with its .kicad_pro -- use
+copy_board.py). Take the list from {work}/freeze_refs.json, which the placement
+half wrote; do not re-derive it by diffing poses.
+
+  python3 -X utf8 copy_board.py {work}/placed.kicad_pcb {work}/frozen.kicad_pcb
+  ... stamp (locked yes) on the refs freeze_refs.json names ...
+  python3 -X utf8 converge.py record --ledger {a.ledger} \\
+      --board {work}/frozen.kicad_pcb --kind placement \\
+      --lever "L2 freeze: <n> refs the placement half named as decisions"
+
+A later step that moves a decided pose silently undoes the placement work, and
+nothing downstream will report it -- that is why the freeze exists.
+
+DO NOT FREEZE IN PLACE. Writing locks back into placed.kicad_pcb changes its
+content hash, and the placement half may still be running: measured, one did,
+saw the hash move under it, read that as corruption, reverted the file, and had
+to restore it from the content-addressed store. The placed board is that half's
+artifact and its ledger binding; leave it alone and hand on the new file.'''
     if delegate:
         return f'''<stage_instructions stage="L2" name="freeze, then route (delegated)" of="5">
 DELEGATING: {why}.
@@ -775,15 +802,15 @@ Route this board to its close-out. The placement is FROZEN: do not move a
 footprint, and if you conclude one must move, stop and say so rather than
 moving it.
 
-  board:  {a.board}
+  board:  {work}/frozen.kicad_pcb
   ledger: {a.ledger}
 
 Use /plan-pcb-routing. Ask its driver for the chain and then one stage at a
 time:
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --plan --board {a.board}
+      --plan --board {work}/frozen.kicad_pcb
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --stage A1 --board {a.board}
+      --stage A1 --board {work}/frozen.kicad_pcb
 and follow it, including its refusals -- an <error> means a gate is holding,
 so produce what it asks for rather than working around it.
 
@@ -791,7 +818,7 @@ TAKE THE HAND-OFF PICTURE before your first route. This is the last moment the
 board is copper-free, so it is the only render that shows the placement ALONE --
 afterwards every panel is placement plus whatever the router did:
 
-  python3 -X utf8 render_placement.py {a.board} \\
+  python3 -X utf8 render_placement.py {work}/frozen.kicad_pcb \\
       --clearance <the board's own floor> --ignore-nets <the poured nets> \\
       --json-out wk/handoff.json -o wk/handoff.png
 
@@ -830,7 +857,7 @@ reads your message.
   route log    : {work}/route.log           the one carrying JSON_SUMMARY
   close-out    : {work}/routing_close.json
                  python3 -X utf8 check_complete.py {work}/routed.kicad_pcb \\
-                     --authored-from {board_fwd} \\
+                     --authored-from {work}/frozen.kicad_pcb \\
                      --json {work}/routing_close.json
 
 `--authored-from` is given to you above because only this loop knows it, and it
@@ -872,9 +899,9 @@ Then route, driven, so the routing loop's rules are the only ones in front of
 you:
 
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --plan --board {a.board}
+      --plan --board {work}/frozen.kicad_pcb
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --stage A1 --board {a.board}
+      --stage A1 --board {work}/frozen.kicad_pcb
 
 Its Step 0 gate will pass: you just did that work, and the close-out is the
 evidence.
@@ -896,7 +923,7 @@ board is copper-free, so it is the only render that shows the placement ALONE --
 afterwards every panel is placement plus whatever the router did, and the two
 become hard to separate by eye:
 
-  python3 -X utf8 render_placement.py {a.board} \\
+  python3 -X utf8 render_placement.py {work}/frozen.kicad_pcb \\
       --clearance <the board's own floor> --ignore-nets <the poured nets> \\
       --json-out wk/handoff.json -o wk/handoff.png
 
@@ -1273,6 +1300,33 @@ def l5(a):
             'Every stop RULE in this toolchain was already written down and '
             'none of them had a mechanism, so "done" and "stuck" came out '
             'looking identical. This is that mechanism.')
+    # AN ABSENT LEDGER POISONS THE VERDICT ITSELF, so this refuses before the
+    # branch rather than inside the terminal one. `_verdict` reads the ledger
+    # to tell "finished" from "stuck"; with no file it sees no history and
+    # answers CONTINUE -- an ungated branch. So a run that simply never created
+    # the ledger got a confident "go round again" derived from nothing, and
+    # every gate that checks recording was skipped on the way. That is the
+    # run-13 shape at its purest: not a lap recorded wrong, a spine that was
+    # never there.
+    #
+    # L2 and L3 deliberately still pass in this case -- `_recorded` answers
+    # None and their comments explain why (a board placed elsewhere has no
+    # placement lap and never will). By L5 that reasoning is spent: the routing
+    # half was asked in writing to record every accepted iteration.
+    if not os.path.isfile(a.ledger or ''):
+        return err(
+            f'There is no ledger at {a.ledger or "<none given>"}, and L5 '
+            f'decides whether the loop is over BY READING IT.\n\nWith no file '
+            f'there is no history, so the measurement below would not be a '
+            f'measurement -- it would be this stage reporting that a run which '
+            f'recorded nothing has nothing left to improve.\n\nL2 and L3 let a '
+            f'missing ledger pass on purpose: a board placed elsewhere has no '
+            f'placement lap to record. That does not apply here -- the routing '
+            f'half was asked to record every accepted iteration, and every '
+            f're-entry, the film and step-back all read this file.\n\n'
+            f'  python3 -X utf8 converge.py record --ledger {a.ledger} \\\n'
+            f'      --board {a.board} --kind completion \\\n'
+            f'      --argv <the command that produced it>')
     name, doc, _code = got
     why = doc.get('reason', '')
 
@@ -1465,6 +1519,29 @@ def _close_out(a, name):
     # wrote laps -- never ran on the board being shipped. That is the run-13
     # failure (two placement laps, zero routing ones, nothing noticed)
     # reappearing on the path where nothing looks wrong.
+    #
+    # AND AN ABSENT LEDGER REFUSES *HERE*, unlike at L2 and L3. `_recorded`
+    # returns None for "no ledger file at all", and those two stages must not
+    # turn that into a refusal -- a board somebody else placed, handed straight
+    # to routing, has no placement lap to record and never will. By the ship
+    # gate that reasoning is spent: the routing half was told in writing to
+    # record every accepted iteration, so a ledger that does not exist is not
+    # an unanswerable question, it is the answer. Without this, the run-13
+    # shape survives in its purest form -- never create the ledger, and every
+    # gate that checks it degrades to silence.
+    if not os.path.isfile(a.ledger or ''):
+        return err(
+            f'There is no ledger at {a.ledger}. This is the board about to '
+            f'ship, and nothing recorded how it got here.\n\nL2 and L3 let a '
+            f'missing ledger pass, deliberately: a board placed elsewhere has '
+            f'no placement lap to record. That does not apply now -- the '
+            f'routing half was asked to record every accepted iteration, so an '
+            f'absent ledger means either none were recorded or they went '
+            f'somewhere else. The film, step-back and every re-entry read this '
+            f'file; without it the run cannot be reproduced or reverted.\n\n'
+            f'  python3 -X utf8 converge.py record --ledger {a.ledger} \\\n'
+            f'      --board {a.board} --kind completion \\\n'
+            f'      --argv <the command that produced it>')
     if _recorded(a.board, a.ledger) is False:
         return err(
             f'{a.board} is not in {a.ledger}: no lap records a board with this '
@@ -1706,7 +1783,17 @@ def main(argv=None):
             # opposite of what a dump is for.
             _bd = os.path.join(tmp, 'b.kicad_pcb')
             open(_bd, 'w', encoding='utf-8').close()
-            loose = _args(['--board', _bd,
+            # ...and a LEDGER carrying that board's sha. L5 now refuses without
+            # one, because its verdict is computed from the ledger and an empty
+            # history reads as "still improving".
+            sys.path.insert(0, ROOT)
+            from board_store import sha256_file as _shad
+            _ld = os.path.join(tmp, 'ledger.jsonl')
+            with open(_ld, 'w', encoding='utf-8') as _fh:
+                _fh.write(json.dumps({'iteration': 0, 'kind': 'completion',
+                                      'accepted': True,
+                                      'result_sha': _shad(_bd)}) + '\n')
+            loose = _args(['--board', _bd, '--ledger', _ld,
                            '--score', wrote('s.json', {'blocking': 2}),
                            '--placement-report', wrote(
                                'p.json', {'blocking': 0, 'oob_pad_count': 0,
@@ -2115,7 +2202,19 @@ def _self_test():
                  _rj('rj_moved.json', moved_refs=['R1', 'C7'])),
              'L3 refuses a routed board whose parts moved, and names them')
 
-        full = ['--board', _bf,
+        # The LEDGER is evidence too, now that L5 refuses without one -- it is
+        # the file L5's verdict is computed from. This fixture asserts every
+        # stage emits "once its evidence exists", so the ledger has to be part
+        # of what exists; without it the assertion silently tested the default
+        # path `wk/ledger.jsonl`, which is not in the repo.
+        ok_led = os.path.join(tmp, 'ledger.jsonl')
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file as _sha
+        with open(ok_led, 'w', encoding='utf-8') as _fh:
+            _fh.write(json.dumps({'iteration': 0, 'kind': 'completion',
+                                  'accepted': True,
+                                  'result_sha': _sha(_bf)}) + '\n')
+        full = ['--board', _bf, '--ledger', ok_led,
                 '--score', ok_score, '--placement-report', ok_rep,
                 '--render-json', ok_rj, '--shape', 'placement']
         everything = '\n'.join(STAGES[k](_args(full)) for k in sorted(STAGES))
@@ -2212,6 +2311,30 @@ def _self_test():
                      base + ['--ledger', _wrong, '--score', _z2,
                              '--routing-close', closed('rc_unrec.json')])),
                  'the close-out refuses to ship a board no lap recorded')
+        # An ABSENT ledger is a refusal HERE and a pass at L2/L3. `_recorded`
+        # answers None for both, so a run that simply never created the file
+        # walked every gate that checks it -- the run-13 shape in its purest
+        # form. Both directions are asserted, because a gate that refused a
+        # missing ledger everywhere would break the board-placed-elsewhere path
+        # that L2's None policy exists to keep working.
+        _gone = os.path.join(tmp, 'no-such-ledger.jsonl')
+        want('no ledger at' in STAGES['L5'](_args(
+                 base + ['--ledger', _gone, '--score', _z2,
+                         '--routing-close', closed('rc_noled.json')])),
+             'L5 refuses when the ledger does not exist at all')
+        # ...on the CONTINUE branch too, which is the one it reaches: an empty
+        # history reads as "still improving", and that branch is ungated.
+        want('no ledger at' in STAGES['L5'](_args(
+                 base + ['--ledger', _gone, '--score', _z2])),
+             '...including on the ungated CONTINUE branch')
+        _pr5 = scored({'board': _b5, 'buildable': True,
+                       'verdict': 'buildable (blocking 0)',
+                       'locked_contacts': 0, 'blocking': 0,
+                       'oob_pad_count': 0}, 'pr_noled.json')
+        want(not STAGES['L2'](_args(
+                 base + ['--ledger', _gone,
+                         '--placement-report', _pr5])).startswith('<error>'),
+             '...while L2 still passes with no ledger (placed elsewhere)')
         out = STAGES['L5'](_args(done_args))
         want(out.startswith('<error>') and 'routing close-out' in out,
              'close-out refuses to SHIP without a routing close-out')

@@ -46,6 +46,7 @@ VERBS
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -482,6 +483,11 @@ def cmd_record(a):
              'score': json.loads(a.score) if a.score else None,
              'renders': list(a.render_json) if a.render_json else None,
              'lenses': list(a.lens) if a.lens else None,
+             # Split on whitespace and commas so `--scope-refs "$(cat locks.txt)"`
+             # records 45 refs rather than one 45-ref string.
+             'scope_refs': ([t for chunk in a.scope_refs
+                             for t in re.split(r'[\s,]+', chunk) if t]
+                            or None) if a.scope_refs else None,
              'accepted': not a.rejected}
     # A placement lap moved parts. The skill mandates the move be LOOKED AT,
     # and run 9 skipped that for an entire campaign without anything noticing
@@ -851,6 +857,17 @@ def build_parser():
                         'reason as --render-json: a verdict that lives in '
                         'free-text --lever cannot be told from a lens nobody '
                         'ran. --final requires the three routed-board lenses.')
+    r.add_argument('--scope-refs', action='append', default=None,
+                   metavar='REF',
+                   help='the refs this lap was ALLOWED to move -- its search '
+                        'scope. Repeatable; a whitespace/comma-separated list '
+                        'is split, so a lock file reads straight in. Stored as '
+                        'entry["scope_refs"]. Same reason as --lens and '
+                        '--render-json: a scope that lives in free-text '
+                        '--lever cannot be told from a lap that scoped nothing '
+                        'and swept the board. Run 16 moved 76 of 113 parts '
+                        'across laps whose scopes existed only as loose '
+                        'lock_*.txt files nothing reads.')
     r.add_argument('--rejected', action='store_true')
     r.add_argument('--final', action='store_true',
                    help='mark the run-closing record; requires --stop-condition')

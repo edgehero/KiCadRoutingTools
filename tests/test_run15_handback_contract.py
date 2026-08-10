@@ -149,10 +149,37 @@ class HandbackContractTest(unittest.TestCase):
 
     def test_l2_hands_down_authored_from_because_only_it_knows(self):
         placed, out = self._l2_prompt()
-        self.assertIn('--authored-from ' + placed.replace('\\', '/'), out,
-                      'the teammate cannot know the board the chain started '
-                      'from; without it check_complete cannot run its '
-                      'fab-floor check and UNSOUND becomes unreachable')
+        w = self.work.replace('\\', '/')
+        # --authored-from is "the board you were HANDED", which is the FROZEN
+        # board, not the placed one. L2 no longer stamps locks back into
+        # placed.kicad_pcb: doing so changed its content hash while the
+        # placement half was still running, which read that as corruption and
+        # reverted the file. The fab floors ride across intact because the
+        # freeze is a copy_board.py + (locked yes) stamp, so this still answers
+        # the question the check exists for -- what did the writeback loosen
+        # against -- while naming a path the teammate could not have known.
+        self.assertIn('--authored-from ' + w + '/frozen.kicad_pcb', out,
+                      'the teammate cannot know the board it was handed; '
+                      'without it check_complete cannot run its fab-floor '
+                      'check and UNSOUND becomes unreachable')
+        self.assertNotIn('--authored-from ' + placed.replace('\\', '/'), out,
+                         'the PLACED board is the placement half\'s artifact '
+                         'and its ledger binding; the routing half is handed '
+                         'the frozen copy and must grade against that')
+
+    def test_l2_freezes_into_a_new_file_never_in_place(self):
+        placed, out = self._l2_prompt()
+        w = self.work.replace('\\', '/')
+        self.assertIn(w + '/frozen.kicad_pcb', out,
+                      'L2 must name the file it freezes INTO')
+        self.assertIn('DO NOT FREEZE IN PLACE', out,
+                      'freezing in place races a still-running placement half')
+        self.assertIn(w + '/freeze_refs.json', out,
+                      'the freeze list is DECLARED by the placement half, not '
+                      'inferred from a pose diff')
+        for want in (w + '/frozen.kicad_pcb --kind placement',):
+            self.assertIn(want, out,
+                          'the freeze is a lap and must be recorded: ' + want)
 
     def test_l2_states_who_owns_each_classification(self):
         _placed, out = self._l2_prompt()

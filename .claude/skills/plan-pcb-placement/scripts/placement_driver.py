@@ -700,6 +700,71 @@ def _metrics_of(path, what):
     return m, ''
 
 
+def _waiver_for(a, name):
+    """The reason given for `--waive <name>:<reason>`.
+
+    None = not waived, '' = waived with no reason (which every caller refuses),
+    otherwise the reason. Three hand-rolled copies of this split predate it;
+    this one exists because the two routability waivers both need it and a
+    fourth copy is where the strip() gets forgotten.
+    """
+    for w in (getattr(a, 'waive', None) or ()):
+        if w.split(':', 1)[0].strip() == name:
+            return w.split(':', 1)[1].strip() if ':' in w else ''
+    return None
+
+
+def _moved_count(path):
+    """How many parts the close-out render says moved, or None.
+
+    `moved_refs` is already in every `--json-out` render made with `--before`
+    (render_placement.py serialises `moved_parts()` straight into it), so the
+    disturbance read costs no new geometry and no second parse. Never refuses:
+    a render made without `--before` legitimately has none.
+    """
+    doc, derr = _load(path, 'render')
+    if derr or not isinstance(doc, dict):
+        return None
+    refs = doc.get('moved_refs')
+    if isinstance(refs, list):
+        return len(refs)
+    n = (doc.get('checklist') or {}).get('d_moved', {}).get('moved')
+    return n if isinstance(n, int) else None
+
+
+def _implicated_refs(paths):
+    """Refs any violation NAMED on the board the run started from.
+
+    Reads check_assembly.py and check_drc.py JSON. This is NOT "the parts the
+    damage displaced" and must never be used as one: a `swap` moves parts that
+    land perfectly legally, and moving those back is the repair, not collateral.
+    It is only "who was complained about", which is what makes a large gap
+    against `moved` a question worth asking rather than an accusation.
+    """
+    refs = set()
+    for p in paths or ():
+        doc, derr = _load(p, 'damage report')
+        if derr or not isinstance(doc, dict):
+            continue
+        for key in ('blocking_pairs', 'advisory_pairs', 'locked_contact_pairs'):
+            for pair in doc.get(key) or ():
+                if not isinstance(pair, dict):
+                    continue
+                for k in ('a', 'b', 'locked_ref'):
+                    if pair.get(k):
+                        refs.add(str(pair[k]))
+        for item in doc.get('items') or ():
+            if not isinstance(item, dict):
+                continue
+            for k in ('pad_ref', 'pad_ref2'):
+                v = str(item.get(k) or '')
+                # "C1.1" -> C1, "RM2.1.2" -> RM2. KiCad references do not
+                # contain dots; pad numbers do.
+                if v:
+                    refs.add(v.split('.', 1)[0])
+    return refs
+
+
 def _guard_congestion(a):
     """Put the routability numbers in front of the close-out. Do NOT refuse on them.
 
@@ -745,14 +810,35 @@ def _guard_congestion(a):
     hpwl and not crossings, still: non-negotiable 4, r(crossings) = +0.780
     against distance-to-truth. crossings is printed and never tested.
     """
-    if any(w.split(':', 1)[0].strip() == 'congestion' for w in (a.waive or [])):
-        _cw = [w for w in a.waive if w.split(':', 1)[0].strip() == 'congestion']
-        if not (_cw[0].split(':', 1)[1].strip() if ':' in _cw[0] else ''):
-            return False, ('--waive congestion: needs a REASON after the '
-                           'colon. An unexplained waiver is the gap, not the '
-                           'fix.')
-        return True, ''
+    # THE WAIVER IS PARSED HERE AND SPENT AT THE BOTTOM. It used to return
+    # (True, '') on the spot, ABOVE the evidence loads -- so a waived gate
+    # printed nothing at all: no numbers, no reason, no trace it had fired.
+    # Measured, run 16 on neo6502: the gate DID fire (halo +54.0%, hpwl +7.8%),
+    # somebody dispositioned it, and the close-out body came out with an empty
+    # routability block. Reading only the artifacts afterwards, the run looked
+    # like a placement that had never been asked the question. A gate that
+    # demands a disposition and then discards it is worse than no gate: it
+    # converts an answer into silence and charges for the ceremony.
+    #
+    # So the waiver now suppresses the REFUSAL and nothing else. The numbers
+    # still print, and the reason prints beside them -- the same shape
+    # loop_driver's --accept-congestion has always had ("Reason on the record").
+    _waiver = _waiver_for(a, 'congestion')
+    if _waiver == '':
+        return False, ('--waive congestion: needs a REASON after the '
+                       'colon. An unexplained waiver is the gap, not the '
+                       'fix.')
+    _coll = _waiver_for(a, 'collateral')
+    if _coll == '':
+        return False, ('--waive collateral: needs a REASON after the colon. '
+                       'An unexplained waiver is the gap, not the fix.')
     if not a.congestion_before:
+        # Waived with no comparison rendered: there is nothing to measure, but
+        # the decision still goes on the record rather than vanishing.
+        if _waiver:
+            return True, ('  ROUTABILITY: not measured -- no --congestion-before '
+                          'render, waived.\n'
+                          f'  Reason on the record: {_waiver}')
         return False, (
             'The close-out has no congestion comparison (--congestion-before).\n\n'
             'Every other gate here is a LEGALITY gate, so without this one a '
@@ -800,7 +886,9 @@ def _guard_congestion(a):
         return True, ('  routability: NOT COMPARABLE -- the two renders do not '
                       'both carry numeric `halo` and `hpwl`. Re-render both '
                       'with --json-out at the same --clearance if you want '
-                      'this read.')
+                      'this read.'
+                      + (f'\n  Reason on the record: {_waiver}'
+                         if _waiver else ''))
     _cx = _gain('crossings')
     lines = [
         '  ROUTABILITY, measured against the board this run started from:',
@@ -813,6 +901,79 @@ def _guard_congestion(a):
         + (f'   ({_cx * 100:+.1f}% of its gap closed)' if _cx is not None
            else ''),
     ]
+    # DISTURBANCE. How much of the board did the repair touch, against how much
+    # anything complained about? Run 16 moved 76 parts on a board where 24 refs
+    # were named by any violation, 7 of those never moved, and NOTHING reported
+    # it: the number was sitting in the mandated close-out render as
+    # `moved_refs`, and the only guard that read it asked `d_moved.match` --
+    # whether the count agreed with what the caller DECLARED. It did (76 == 76),
+    # so the run read clean.
+    #
+    # This is a QUESTION, not an accusation, and the asymmetry is the point: a
+    # `swap` displaces parts that land perfectly legally, so moving them back is
+    # the repair and would show here as "disturbance" too. Nothing blind can
+    # tell those apart -- which is exactly why the resolution is a sentence from
+    # the executor rather than a verdict from the driver.
+    _moved = _moved_count(a.render_json)
+    _named = _implicated_refs(getattr(a, 'damage_json', None))
+    _disturbs = False
+    # WHICH BOARD the render measured against decides what this number MEANS.
+    # P4 mandates each lap's render be made against THE PREVIOUS LAP, so a
+    # close-out render can legitimately carry one lap's disturbance rather than
+    # the run's. Run 16's happened to be run-scoped (76 == the whole run), which
+    # is luck, not a guarantee. Label it rather than refuse: a wrong label on a
+    # real number is the failure this whole gate exists to stop, and a refusal
+    # here would fire on every correctly-rendered multi-lap run.
+    _rb = ((_load(a.render_json, 'render')[0] or {}).get('instrument')
+           or {}).get('before')
+    _scoped = (os.path.normcase(os.path.abspath(_rb))
+               == os.path.normcase(os.path.abspath(a.before))
+               if (_rb and a.before) else False)
+    if _moved is not None and not _scoped:
+        lines.append('    disturbance  NOT RUN-SCOPED -- that render was made '
+                     'against ' + (os.path.basename(_rb) if _rb
+                                   else 'no --before board')
+                     + ', not the board this run started from, so the count '
+                       'below is one lap and the run total is larger.')
+    if _moved is not None and _named:
+        lines.append(f'    disturbance {_moved:9d} part(s) moved; '
+                     f'{len(_named)} ref(s) named by a violation on the board '
+                     f'this run started from')
+        # 2x is a ROUND NUMBER, not a calibration: n=1, and this file already
+        # withdrew one threshold fitted to a single board. It is set where a
+        # one-line answer is cheap and silence is not, and the refusal says so.
+        _disturbs = _moved > 2 * len(_named)
+    elif _moved is not None:
+        lines.append(f'    disturbance {_moved:9d} part(s) moved '
+                     f'(pass --damage-json to compare against what was '
+                     f'actually complained about)')
+    def _tail():
+        """Spend the disturbance read once the congestion read is settled."""
+        if _disturbs and not _coll:
+            return False, chr(10).join(lines + [
+                '',
+                'DISTURBANCE: this repair moved far more of the board than '
+                'anything complained about.',
+                'That is not automatically wrong -- damage that lands legally '
+                'still has to be moved back,',
+                'and nothing here can see which is which. But it is the shape '
+                'of a search that wandered,',
+                'and it must be answered rather than left for the reader: name '
+                'the levers, or say why',
+                'the board needed rearranging that widely.',
+                '    --waive collateral:<the reason>',
+            ])
+        if _coll:
+            lines.append('  DISTURBANCE on the record (--waive collateral): '
+                         f'{_coll}')
+        return True, chr(10).join(lines)
+
+    if halo_gain >= 0.25 and hpwl_gain < 0.25 * halo_gain and _waiver:
+        # Waived, WITH the read still on screen. This is the branch run 16
+        # took, and the branch that used to print nothing whatsoever.
+        lines += ['', '  DISPOSITION on the record (--waive congestion): '
+                  f'{_waiver}']
+        return _tail()
     if halo_gain >= 0.25 and hpwl_gain < 0.25 * halo_gain:
         # BINDING -- but on a DISPOSITION, not on the numbers. The driver does
         # not judge whether this placement is good; it judges whether anybody
@@ -860,7 +1021,12 @@ def _guard_congestion(a):
             'damage kind. Say which.',
         ]
         return False, chr(10).join(lines)
-    return True, chr(10).join(lines)
+    # A waiver on a read that did not trip is not an error, but it should not
+    # vanish either -- somebody expected this to bind and it did not.
+    if _waiver:
+        lines += ['', '  DISPOSITION on the record (--waive congestion, which '
+                  f'this read did not require): {_waiver}']
+    return _tail()
 
 
 STAGES = {
@@ -911,6 +1077,16 @@ def _args(argv=None):
                          'close-out render, because a placement can clear every '
                          'legality gate while leaving the arrangement as '
                          'congested as it found it.')
+    ap.add_argument('--damage-json', action='append', default=None,
+                    metavar='PATH',
+                    help='check_assembly.py / check_drc.py JSON of the board '
+                         'this run STARTED from; repeatable. P-close reads the '
+                         'refs they NAME and reports them beside the count of '
+                         'parts that moved, because a repair that moved far '
+                         'more of the board than anything complained about is '
+                         'a question nothing else in the close-out asks. '
+                         'Omitted, the move count still prints and nothing '
+                         'refuses.')
     # --congestion-ratio is GONE. It set a threshold P-close refused on, and the
     # calibration withdrew that refusal (wk/calibration/RESULT.md): the premise
     # inverts on 1 of 3 corpus boards, where a perfect repair scores a negative
@@ -944,7 +1120,7 @@ def main(argv=None):
     return 4 if out.startswith('<error>') else 0
 
 
-def _fake_render(board, halo=100.0, crossings=100.0, hpwl=1000.0):
+def _fake_render(board, halo=100.0, crossings=100.0, hpwl=1000.0, moved=3):
     """The minimum render document `_guard_render` accepts, for the fixtures.
 
     Deliberately the REAL shape render_placement emits (`instrument.board` +
@@ -954,16 +1130,22 @@ def _fake_render(board, halo=100.0, crossings=100.0, hpwl=1000.0):
 
     `metrics` is here for the same reason -- `_guard_congestion` reads
     halo/crossings/hpwl out of exactly this block, so a fixture without one
-    would let that guard drift too.
+    would let that guard drift too. `moved_refs` likewise, for the disturbance
+    read: it is the real serialised shape (a list of {reference, dist}), and a
+    fixture carrying a bare count would let that read drift away from the
+    render document it is written against.
     """
     return {
         'metrics': {'halo': halo, 'crossings': crossings, 'hpwl': hpwl},
         'instrument': {'board': os.path.abspath(board)},
+        'moved': moved,
+        'moved_refs': [{'reference': f'R{i + 1}', 'dist': 1.0}
+                       for i in range(moved)],
         'checklist': {
             'a_off_outline': {'pad_copper': [], 'courtyard': []},
             'b_pad_clearance_pairs': [], 'b_body_overlap_pairs': [],
             'c_hole_conflicts': [], 'c_locked_refs': [],
-            'd_moved': {'moved': 3, 'expected': None, 'match': None},
+            'd_moved': {'moved': moved, 'expected': None, 'match': None},
         },
     }
 
@@ -1168,6 +1350,54 @@ def _self_test():
         out = _close(_r15, _dmg, ('--waive', 'congestion:'))
         want(out.startswith('<error>') and 'needs a REASON' in out,
              'P-close refuses a congestion waiver with no reason')
+        # A WAIVED gate must still SHOW its read. Run 16 waived this one and the
+        # close-out came out with an empty routability block -- no numbers, no
+        # reason, no trace the gate had fired. The disposition existed and the
+        # tool discarded it, which is how the arrangement question vanished from
+        # a run that had been asked it directly.
+        out = _close(_r15, _dmg, ('--waive', 'congestion:U2 locked, measured'))
+        want('ROUTABILITY, measured against' in out and 'hpwl' in out,
+             'a WAIVED congestion read still prints its numbers')
+        want('U2 locked, measured' in out,
+             '...and the waiver reason is echoed onto the record, not dropped')
+
+        # DISTURBANCE. Run 16's real numbers: 76 parts moved on a board where
+        # 24 refs were named by any violation. It closed out clean.
+        _dmgj = _wr('dmg.json', {
+            'blocking_pairs': [{'a': f'C{i}', 'b': 'Q1'} for i in range(12)]})
+        _moved76 = _fake_render(_pb, halo=440.1, crossings=1827.0, hpwl=4062.2,
+                                moved=76)
+        _prop = _fake_render(_pb, halo=440.1, crossings=1827.0, hpwl=4062.2,
+                             moved=9)
+        out = _close(_moved76, _dmg, ('--damage-json', _dmgj,
+                                      '--waive', 'congestion:spent'))
+        want(out.startswith('<error>') and 'DISTURBANCE' in out,
+             'P-close refuses a repair that moved far more than was complained about')
+        want('76 part(s) moved' in out and '13 ref(s) named' in out,
+             '...and the refusal SHOWS both counts')
+        want('not automatically wrong' in out,
+             '...and disclaims being a verdict: legal damage must move back too')
+        out = _close(_moved76, _dmg, ('--damage-json', _dmgj,
+                                      '--waive', 'congestion:spent',
+                                      '--waive', 'collateral:reseated the swap lattice'))
+        want(out.startswith('<stage_instructions')
+             and 'reseated the swap lattice' in out,
+             'a written disturbance disposition closes it out, and is echoed')
+        out = _close(_moved76, _dmg, ('--damage-json', _dmgj,
+                                      '--waive', 'congestion:spent',
+                                      '--waive', 'collateral:'))
+        want(out.startswith('<error>') and 'needs a REASON' in out,
+             'P-close refuses a disturbance waiver with no reason')
+        out = _close(_prop, _dmg, ('--damage-json', _dmgj,
+                                   '--waive', 'congestion:spent'))
+        want(out.startswith('<stage_instructions'),
+             'P-close passes a repair proportionate to what was complained about')
+        # No --damage-json: the count still prints, and NOTHING refuses. A read
+        # that degrades into a refusal when its optional evidence is absent is a
+        # gate nobody can run.
+        out = _close(_moved76, _dmg, ('--waive', 'congestion:spent'))
+        want(out.startswith('<stage_instructions') and '76 part(s) moved' in out,
+             'without --damage-json the move count prints and does not refuse')
         # The intent gate used to accept any string as a path.
         out = STAGES['P-close'](_args(
             ['--board', _pb, '--before', _pa,
