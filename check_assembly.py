@@ -63,7 +63,22 @@ def main():
     # and the run that motivated this read the numbers, not the note. The
     # re-basing is real but bounded -- it moves the pad/hole ECHO counts toward
     # the truth and leaves `blocking` (the field board_score consumes) alone.
-    # Every board in kicad_files/ declares no floor and so is bit-identical.
+    #
+    # "Every board in kicad_files/ declares no floor and so is bit-identical"
+    # is what stood here, and it is FALSE. Two project siblings are committed:
+    #
+    #     $ git ls-files kicad_files/*.kicad_pro
+    #     kicad_files/flat_hierarchy.kicad_pro     Default clearance 0.2
+    #     kicad_files/routed_output.kicad_pro      Default clearance 0.09
+    #
+    # so on those two this tool re-based from the 0.25 constant to 0.2 and to
+    # 0.09. What IS bit-identical is the VERDICT, which is the weaker claim
+    # that should have been made: measured at 5894b95^ vs HEAD, both boards
+    # report pad_conflicts 0 -> 0 and buildable True -> True; only the graded
+    # clearance and its recorded source moved. Grading at the board's own
+    # clearance is right HERE because this tool grades existing geometry --
+    # check_channels PREDICTS routability and therefore needs a fab floor
+    # instead (see list_nets.board_floor, grade-vs-predict).
     _board_clr = None
     _decl = None
     try:

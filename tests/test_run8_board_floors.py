@@ -435,17 +435,30 @@ def _q4_a_declared_value_must_not_relax_a_fab_floor():
 # D9 was a real, unmeasured behaviour change. Measured here, 5894b95^ vs HEAD,
 # check_channels:
 #
-#     flat_hierarchy   0 faces          -- no change (nothing to measure)
-#     routed_output    supply 390 -> 1084 (+694 lanes), deficit_faces 5 -> 0
+#     routed_output               supply  390 -> 1084, deficit_faces 5 -> 0
+#     flat_hierarchy --refs IC1 U1 U2  supply  128 ->  205, deficit_faces 2 -> 1
+#     flat_hierarchy --refs <all 64>   supply 2350 -> 3683, deficit_faces 20 -> 14
+#
+# THE flat_hierarchy ROW IS A CORRECTION. This block first recorded it as
+# "0 faces -- no change (nothing to measure)", which was an INVOCATION
+# ARTIFACT, not a fact about the board: with no --refs, check_channels
+# auto-detects only QFN/QFP/BGA packages, flat_hierarchy has none, and the
+# empty ledger was read as "D9 did not touch this board". It did. A zero
+# produced by asking the wrong question is not a measurement.
 #
 # BENIGN, and in the direction D9 exists to fix: routed_output's own copper is
 # 1701 segments at track widths 0.1 / 0.111 / 0.178 -- it contains NO 0.3mm
 # track anywhere. The old constant measured a width the board never uses, and
-# the 5 "deficits" it reported (including "IC1 E: DEFICIT AT FINEST GRID
-# (floorplan-shaped)", demand 59 vs supply 25) were phantoms on a board that
-# is routed through those faces. check_assembly: pad_conflicts 0 -> 0 and
-# buildable True -> True on both boards; only the recorded clearance and its
-# source changed.
+# the 5 "deficits" it reported were phantoms on a board that is routed through
+# those faces. The worst of them, IC1 E, read:
+#
+#     IC1 E: demand 59 supply 25@routed/28@finest  <-- DEFICIT AT FINEST GRID
+#
+# i.e. demand 59 against 25 at the ROUTED grid and 28 at the FINEST. This
+# block previously quoted "demand 59 against supply 25" while naming the
+# finest-grid verdict, which mixes the two grids; the finest-grid figure is
+# 28. check_assembly: pad_conflicts 0 -> 0 and buildable True -> True on both
+# boards; only the recorded clearance and its source changed.
 #
 # DIRECTION, stated because it is what makes this safe rather than lucky: for
 # these instruments a LOOSER declared floor is the conservative direction
