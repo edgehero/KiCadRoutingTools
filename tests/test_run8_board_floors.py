@@ -105,9 +105,22 @@ def _d9_shared_resolver():
     # THE 0.0 TRAP, in the OLDER helper. board_floor guards it; board_floor_knobs
     # did not, and render_placement is wired to board_floor_knobs -- so a project
     # declaring `min_copper_edge_clearance: 0.0` (KiCad's "not configured") gave
-    # the placement model a REAL edge floor of zero, collapsing every edge-halo
-    # and oob term, where it had used 0.55 before. The two helpers must agree
-    # about the one trap this module documents.
+    # the placement model a REAL edge floor of zero where it had used 0.55.
+    #
+    # WHAT THAT ACTUALLY COSTS, measured on interf_u_unrouted_placed with a
+    # 0.0-declaring project (NOT the "every edge/halo term collapses" I first
+    # wrote in the commit message -- quench takes max(clearance, edge), so 0.0
+    # degrades to the 0.2 pad clearance rather than to nothing, and `edge` and
+    # `halo` do not move at all):
+    #
+    #     edge  15.516 -> 15.516     halo 303.803 -> 303.803   (unchanged)
+    #     oob_amount  22.039 -> 24.489      oob_area 398.51 -> 445.44
+    #
+    # i.e. it UNDER-REPORTS off-board pad copper by ~11%, which CLAUDE.md names
+    # as the top-priority placement defect ("converts one-for-one into unrouted
+    # and broken"). Under-reporting that is the harm; it is smaller and more
+    # specific than the sweeping claim, and the number is the point.
+    # The two helpers must agree about the one trap this module documents.
     print('a declared 0.0 is UNSET in both floor helpers, not a floor of zero')
     from list_nets import board_floor_knobs
     import tempfile as _tf
