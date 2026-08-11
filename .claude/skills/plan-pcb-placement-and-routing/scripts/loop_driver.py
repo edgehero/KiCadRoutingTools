@@ -37,6 +37,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 
@@ -381,7 +382,7 @@ def _work(a):
     return 'wk'
 
 
-def _cycle_index(ledger):
+def _cycle_index(ledger, starting=False):
     """Which CYCLE of the loop this is, 1-based, read off the ledger.
 
     A cycle ends when the loop re-enters placement after routing -- which is a
@@ -409,22 +410,36 @@ def _cycle_index(ledger):
         it.30's sha -- it read as a third cycle on a ledger whose own levers
         say cycle 2 throughout.
 
-    It still ERRS HIGH by construction, and that is the safe direction: an
-    over-count costs a fresh filename, an under-count costs the provenance the
-    ledger is for.
+    THE STAGE MATTERS, and this is `starting` -- the third thing measurement
+    forced. L1 is asked BEFORE its placement lap exists: at the top of cycle 2
+    the ledger is [placement..., routing...] and no cycle-2 placement row has
+    been written yet, so counting only placement phases returns 1 and L1 names
+    cycle ONE's placed board -- the exact defect this function is for, still
+    live on the one stage that opens a cycle. `starting=True` (L1: about to
+    OPEN a placement phase) therefore counts the phase it is about to create
+    when the ledger currently ends in routing. `starting=False` (L2 and after:
+    about to route the placement that has just been recorded) reports the phase
+    the current board belongs to.
+
+    It does NOT err high: a cycle-2 placement lap that reproduces cycle 1's
+    board byte for byte reads as a disposition and holds the count at 1. That
+    is why the collision note exists beside it -- content-addressed, and it
+    fires whatever this returns.
     """
-    cyc, routed, placed, seen = 1, False, False, set()
+    phases, phase, seen = 0, None, set()
     for r in _ledger_rows(ledger):
         kind, sha = r.get('kind') or '', r.get('result_sha')
         if kind in ('completion', 'routing'):
-            routed = routed or placed
+            if phase == 'placement':
+                phase = 'routing'
         elif kind == 'placement':
-            if routed and sha not in seen:
-                cyc, routed = cyc + 1, False
-            placed = True
+            if phase != 'placement' and sha not in seen:
+                phases, phase = phases + 1, 'placement'
         if sha:
             seen.add(sha)
-    return cyc
+    if starting and phase == 'routing':
+        phases += 1
+    return max(1, phases)
 
 
 def _cyc_name(name, n):
@@ -448,9 +463,14 @@ _ARTIFACTS = ('placed.kicad_pcb', 'assembly_close.json',
               'route.log', 'routing_close.json', 'handoff.json', 'handoff.png')
 
 
-def _paths(a):
-    """(cycle, {name: path}) -- the artifact names for THIS cycle."""
-    work, n = _work(a), _cycle_index(getattr(a, 'ledger', None))
+def _paths(a, starting=False):
+    """(cycle, {name: path}) -- the artifact names for THIS cycle.
+
+    `starting` is L1's: it opens a placement phase, so it must count the phase
+    it is about to create. See _cycle_index.
+    """
+    work = _work(a)
+    n = _cycle_index(getattr(a, 'ledger', None), starting=starting)
     return n, {k: f'{work}/{_cyc_name(k, n)}' for k in _ARTIFACTS}
 
 
@@ -636,7 +656,7 @@ def l1(a):
     """Place. Delegated by default; --no-delegate is the escape hatch."""
     delegate, why = _delegation(a)
     work = _work(a)
-    cyc, P = _paths(a)
+    cyc, P = _paths(a, starting=True)
     _placed, _asm = P['placed.kicad_pcb'], P['assembly_close.json']
     _rend, _refs = P['place_close_render.json'], P['freeze_refs.json']
     _clash = _ledger_collision(a, [_placed, _asm, _rend, _refs])
@@ -672,7 +692,7 @@ Record every accepted lap with converge.py --kind placement into the ledger
 above. The next stage checks the board against that ledger BY CONTENT HASH, so
 a lap you did not record is a lap that did not happen.
 
-WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
+{_clash}WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
 chosen by you, because the next gate opens the files; it does not read your
 message.
 
@@ -1046,7 +1066,7 @@ A `placement` or `floorplan` verdict ends your turn. Do not spend router
 parameters on it: that is the most expensive mistake available here, and a half
 that fixes it locally is a half doing the outer loop's job invisibly.
 
-WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
+{_clash}WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
 chosen by you, because every gate after this opens the files; none of them
 reads your message.
 
@@ -1727,40 +1747,58 @@ def _cross_check(a, name, doc):
     if _accept_close(a, 'agreement'):
         return None
     rows = _ledger_rows(getattr(a, 'ledger', None))
-    # THE LAST final row only. The ledger is append-only, so a run that wrote a
-    # wrong close-out and then wrote the correction has both on file -- and
+    # SUPERSESSION IS PER LENS. The ledger is append-only, so a run that wrote
+    # a wrong close-out and then wrote the correction has both on file, and
     # checking every final row makes the CORRECTION unable to clear the gate,
-    # permanently. Measured on the real ledger: iteration 21 carries the false
-    # PASS and iteration 22 is its signed retraction ("the earlier PASS
-    # answered a mis-scoped prompt"), and that run could then never reach L5 on
-    # any branch. A later final row supersedes an earlier one, exactly as a
-    # later lap supersedes an --exhausted declaration; the current claim is the
-    # one that has to survive scrutiny.
-    finals = [r for r in rows if r.get('final')][-1:]
-    pairs = []
-
+    # permanently: on the real ledger iteration 21 carries the false PASS and
+    # iteration 22 is its signed retraction ("the earlier PASS answered a
+    # mis-scoped prompt"), so that run could never reach L5 on any branch.
+    #
+    # But taking only the LAST final row is too coarse the other way: any later
+    # final row buries the false claim, and a one-lens `--kind systemic --final`
+    # row is trivially writable (the connectivity/drc/spec requirement only
+    # binds `--kind completion`). Measured: a later row carrying nothing but
+    # `VERDICT=PASS:lens=spec` cleared a live false PASS on connectivity.
+    #
+    # So: for each LENS NAME, the live claim is the most recent final row that
+    # says anything about THAT lens, judged against that row's own score. A
+    # retraction supersedes; an unrelated row does not.
+    finals = [r for r in rows if r.get('final')]
+    live = {}
     for r in finals:
-        try:
-            sys.path.insert(0, ROOT)
-            from converge import lens_contradictions
-        except Exception:                                   # noqa: BLE001
-            break
-        for lens, comp, n in lens_contradictions(r.get('lenses'),
-                                                 r.get('score')):
+        for raw in (r.get('lenses') or []):
+            m = re.match(r'^VERDICT=(?:PASS|FAIL):lens=([A-Za-z0-9_-]+)',
+                         str(raw).strip())
+            if m:
+                live[m.group(1).lower()] = (r, str(raw))
+    pairs = []
+    try:
+        sys.path.insert(0, ROOT)
+        from converge import lens_contradictions
+    except Exception:                                       # noqa: BLE001
+        lens_contradictions = None
+    for _name, (r, raw) in (sorted(live.items()) if lens_contradictions else ()):
+        for lens, comp, n in lens_contradictions([raw], r.get('score')):
             pairs.append((
                 f'ledger iteration {r.get("iteration")} (--final)',
                 f'VERDICT=PASS:lens={lens}',
                 f'its OWN score in the same row: {comp} = {n:g}'))
 
     _cv = (doc or {}).get('verdict') if isinstance(doc, dict) else None
-    if _cv in ('INCOMPLETE', 'UNSOUND'):
-        for r in finals:
-            ls = [str(x) for x in (r.get('lenses') or [])]
-            if ls and not any(x.strip().startswith('VERDICT=FAIL') for x in ls):
-                pairs.append((
-                    f'ledger iteration {r.get("iteration")} (--final)',
-                    f'{len(ls)} lens verdict(s), all PASS',
-                    f'check_complete: {_cv} -- {doc.get("reason", "")}'))
+    # ...and the LIVE lens set -- one verdict per lens name, latest wins --
+    # against a close-out that says the board is not done. Reading every final
+    # row here would flag a superseded claim; reading only the last row would
+    # miss a lens that row never mentioned.
+    if _cv in ('INCOMPLETE', 'UNSOUND') and live:
+        _fails = [n for n, (_r, raw) in live.items()
+                  if raw.strip().startswith('VERDICT=FAIL')]
+        if not _fails:
+            _its = sorted({str(r.get('iteration')) for r, _raw in live.values()})
+            pairs.append((
+                f'ledger --final row(s) {", ".join(_its)}',
+                f'{len(live)} live lens verdict(s), all PASS: '
+                f'{", ".join(sorted(live))}',
+                f'check_complete: {_cv} -- {doc.get("reason", "")}'))
     if name == 'DONE-EXHAUSTED' and isinstance(doc, dict) and _cv != 'DONE':
         pairs.append(('converge verdict',
                       'DONE-EXHAUSTED (blocking == 0, and a plateau)',
@@ -2798,6 +2836,17 @@ def _self_test():
                  _l5 + ['--ledger', _led([_false, _honest], 'ret.jsonl')]
              )).startswith('<error>'),
              'a later final row RETRACTS an earlier false one')
+        # ...but ONLY on the lens it speaks to. Taking simply "the last final
+        # row" let ANY later row bury the claim, and a one-lens
+        # `--kind systemic --final` row is trivially writable -- the
+        # connectivity/drc/spec requirement only binds --kind completion.
+        # Measured: a later row carrying nothing but PASS:lens=spec cleared a
+        # live false PASS on connectivity.
+        want(STAGES['L5'](_args(_l5 + ['--ledger', _led(
+                 [_false, dict(_false, kind='systemic',
+                               lenses=['VERDICT=PASS:lens=spec'])],
+                 'bury.jsonl')])).startswith('<error>'),
+             'an unrelated later final row does NOT bury a false lens')
         want(STAGES['L5'](_args(
                  _l5 + ['--ledger', _led([_honest, _false], 'reg.jsonl')]
              )).startswith('<error>'),
@@ -2851,6 +2900,23 @@ def _self_test():
         want(_cycle_index(_led2(_one, 'c1.jsonl')) == 1
              and _cycle_index(_led2(_two, 'c2.jsonl')) == 2,
              'the cycle index is read off the ledger, not assumed')
+        # L1 OPENS a cycle, so it is asked BEFORE its own lap exists. At the
+        # top of cycle 2 the ledger is [placement..., routing...] and counting
+        # only recorded placement phases returns 1 -- so L1, the one stage that
+        # starts a cycle, still named cycle ONE's placed board. Measured on the
+        # fix itself: a 78-line stage whose teammate prompt read
+        # `placed board : wk/placed.kicad_pcb`.
+        _top2 = _led2([{'kind': 'placement', 'accepted': True,
+                        'result_sha': _shaf2(_b)},
+                       {'kind': 'completion', 'accepted': True,
+                        'result_sha': 'c' * 64}], 'top2.jsonl')
+        want(_cycle_index(_top2, starting=True) == 2
+             and _cycle_index(_top2) == 1,
+             'L1 counts the cycle it is about to OPEN; L2 the one it is in')
+        _l1top = STAGES['L1'](_args(['--board', _b, '--placement-report', _rep,
+                                     '--ledger', _top2]))
+        want('placed_c2.kicad_pcb' in _l1top and '/placed.kicad_pcb' not in _l1top,
+             'L1 at the top of cycle 2 names cycle 2\'s board, not cycle 1\'s')
         # A placement row that re-records a board ALREADY in the ledger changed
         # nothing, so it is a disposition and not a lap. Measured: run 17's
         # iteration 33 ("VERIFIER DISPOSITION (no pose change; same board as
@@ -2902,6 +2968,13 @@ def _self_test():
              'a named output already in the ledger is NAMED, not refused')
         want('do not move or rename' in out,
              '...and the note does not recommend destroying the baseline')
+        # ...and the TEAMMATE sees it. The agent that writes these files is the
+        # one that has to be warned; a note living only in the orchestrator's
+        # copy, above a 50-line subagent prompt, is a note the writer never
+        # reads.
+        _pr = out.split('<subagent_prompt', 1)[-1]
+        want('ALREADY IN THE LEDGER' in _pr,
+             '...and the warning rides INSIDE the subagent prompt')
         want('ALREADY IN THE LEDGER' not in STAGES['L2'](_args(
                  ['--board', _b, '--placement-report', _rep,
                   '--ledger', _led2(_two, 'clean.jsonl')])),

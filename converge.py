@@ -998,14 +998,17 @@ def _half_state(rows, half, flat):
     # `plateau` and ended the run at STUCK because the FIRST pair did not
     # compare. Guarding against a false improvement must not manufacture a
     # false plateau; both are the same error.
+    # Comparability is a property of TWO SCORES -- their graded component sets
+    # -- and of nothing else. So a rejection or an unscored lap is simply not
+    # in this sequence; it does not stand BETWEEN two scores and separate them.
+    # Making it break the run was a second false plateau, measured over all
+    # 7776 accept/reject windows of 5: 441 flipped `improving` -> `plateau`
+    # (78, 78, 78, REJ, 40 ended the run at STUCK on a half whose last lap took
+    # blocking 78 -> 40), and 2313 flipped `plateau` -> unanswerable, on the
+    # alternating accept/reject pattern that IS normal routing.
+    seq = [(k, s) for acc, k, s in window if acc and k is not None]
     runs, cur, hints = [], [], []
-    for acc, k, s in window:
-        if not acc or k is None:
-            # A rejection or an unscored lap breaks the chain: there is nothing
-            # to compare it with in either direction.
-            runs.append(cur)
-            cur = []
-            continue
+    for k, s in seq:
         cm = commensurability(cur[-1][1], s) if cur else None
         if cm:
             hints.append(cm[1])
@@ -1028,8 +1031,12 @@ def _half_state(rows, half, flat):
         out.update(flat=True, why='plateau')
     else:
         # Answerable again after one more comparable lap, after `flat`
-        # rejections, or by declaring the half exhausted on the record.
-        out.update(flat=False, why='no-comparison', unjudged=unjudged)
+        # rejections, or by declaring the half exhausted on the record. NAME
+        # the cause: these three call for different actions, and a message
+        # that guesses tells a still-improving half to declare itself finished.
+        out.update(flat=False, why='no-comparison', unjudged=unjudged,
+                   blocked=('unjudged' if unjudged else
+                            'incommensurable' if hints else 'single-lap'))
     if hints:
         out['incommensurable'] = '; '.join(sorted(set(hints)))
         out['compared'] = sum(len(r) for r in runs)
@@ -1153,11 +1160,17 @@ def cmd_verdict(a):
                 _parts.append(
                     f'{h} has {st[h]["laps"]} recorded lap(s) but no two of the '
                     f'last {a.flat} can be COMPARED -- '
-                    + (f'they were not graded over the same components '
-                       f'({st[h]["incommensurable"]})'
-                       if st[h].get('incommensurable') else
-                       'the accepted ones carry no `blocking`, and a lap that '
-                       'measured nothing is evidence in neither direction')
+                    + {'unjudged': (
+                        f'{st[h].get("unjudged")} accepted lap(s) in that '
+                        f'window recorded no `blocking`, and a lap that '
+                        f'measured nothing is evidence in neither direction'),
+                       'incommensurable': (
+                        f'they were not graded over the same components '
+                        f'({st[h].get("incommensurable")})'),
+                       'single-lap': (
+                        'only one of them carries a score, and one number '
+                        'compared with nothing is not a trend')}[
+                           st[h].get('blocked', 'single-lap')]
                     + f'. So whether it plateaued is NOT ANSWERABLE, which is '
                       f'not "it did not". Re-score its laps the same way, or '
                       f'declare the half exhausted on the record:\n'
@@ -1199,7 +1212,8 @@ def cmd_verdict(a):
             doc['reason'] += (
                 f' NOT COMPARABLE: {h} laps in the window were graded over '
                 f'different components ({_ic}), so improvement was judged only '
-                f'across the first {st[h].get("compared", 1)} of them. Measured '
+                f'within the {st[h].get("compared", 0)} lap(s) that do compare '
+                f'with each other. Measured '
                 f'(run 17): two cycles compared as 78 vs 79 were 92 vs 92 once '
                 f'both were graded with --impedance-nets, and the board called '
                 f'worse was one impedance crossing better. Re-score with the '

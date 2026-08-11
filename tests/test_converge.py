@@ -486,9 +486,23 @@ def test_a_plateau_is_never_claimed_over_laps_nothing_measured():
     # where `min(keys[:1]) >= keys[0]` is a tautology.
     st = converge._half_state([rej] * 4 + [acc(40)], 'routing', 5)
     assert st['why'] == 'no-comparison' and st['flat'] is False, st
+    assert st['blocked'] == 'single-lap', st
     # ...while an ALL-rejected window is a definite plateau: a rejection is
     # itself the measurement.
     assert converge._half_state([rej] * 5, 'routing', 5)['why'] == 'plateau'
+
+    # A REJECTION DOES NOT SEPARATE TWO SCORES. Comparability is a property of
+    # two scores' graded component sets and of nothing else, so treating a
+    # rejection as a break in the chain was a second false plateau -- measured
+    # over all 7776 accept/reject windows of 5, 441 flipped `improving` ->
+    # `plateau` and 2313 flipped `plateau` -> unanswerable, on the alternating
+    # accept/reject pattern that IS normal routing.
+    assert converge._half_state(
+        [acc(78), acc(78), acc(78), rej, acc(40)], 'routing', 5
+    )['why'] == 'improving', 'a rejection must not hide the lap after it'
+    assert converge._half_state(
+        [acc(40), rej, acc(40), rej, acc(40)], 'routing', 5
+    )['why'] == 'plateau', 'alternating accept/reject must still be judgeable'
     print("  PASS: a plateau needs every lap in the window to have been judged")
 
 
@@ -526,11 +540,16 @@ def test_the_exhausted_declaration_does_not_leak_between_halves():
            'exhausted': {'half': 'placement', 'reason': 'nothing left'}}
     lap = {'kind': 'completion', 'accepted': True,
            'score': {'blocking': 0, 'quality': {}, 'ungraded': []}}
+    # ON THE DECLARATION ALONE. Asserting on [dec, lap] proved nothing: the
+    # routing lap in that list retracts a leaked declaration, so the assertion
+    # passed even with the half check deleted -- verified by mutation.
+    assert converge._half_state([dec], 'placement', 5)['why'] \
+        == 'declared-exhausted'
+    assert converge._half_state([dec], 'routing', 5)['why'] != \
+        'declared-exhausted', 'a declaration must not cross halves'
     rows = [dec, lap]
     assert converge._half_state(rows, 'placement', 5)['why'] \
-        == 'declared-exhausted'
-    assert converge._half_state(rows, 'routing', 5)['why'] != \
-        'declared-exhausted', 'a declaration must not cross halves'
+        == 'declared-exhausted', 'the other half\'s lap does not retract it'
     # A systemic row after the declaration is not a lap of that half.
     assert converge._half_state(
         [dec, {'kind': 'systemic', 'accepted': True}], 'placement', 5
