@@ -160,14 +160,36 @@ def run_output_conflict(vx, vy, net_id, placed, px=None, py=None, *,
     Net-(U2A-DATA_30) its escape and put a fresh drill where a reuse would have
     served: 28 vias / 12 dropped / 30 tracks became 29 / 13 / 31.
 
-    The via terms are not merely wrong there, they are REDUNDANT. Every entry
-    in `placed` is either a via this run created -- already tested against this
-    reuse target in `via_clears`'s `foreign_vias` loop at exact pairwise sizes
-    (``via_size/2 + fs/2 + clearance``, and ``(via_drill + fd)/2 + h2h`` for
-    same net) -- or another pre-existing via, whose spacing is the board's. So
-    with ``adds_via=False`` only the new STUB is tested, which is the only
-    copper the reuse emits. A stub shorter than POSITION_TOLERANCE emits no
-    track at all (the commit loop skips it), so it conflicts with nothing.
+    The VIA-TO-VIA term is not merely wrong there, it is REDUNDANT. Every
+    entry in `placed` is either a via this run created -- already tested
+    against this reuse target in `via_clears`'s `foreign_vias` loop at exact
+    pairwise sizes (``via_size/2 + fs/2 + clearance``, and
+    ``(via_drill + fd)/2 + h2h`` for same net) -- or another pre-existing via,
+    whose spacing is the board's.
+
+    TERM 1 (the candidate via against a stub this run emitted) is dropped for
+    a different and weaker reason, stated here rather than overclaimed: the
+    reuse target's POSITION is not this run's doing, so a stub grazing it is
+    a defect of that stub, which is already emitted. Rejecting the reuse does
+    not remove the graze -- it only forces a fresh drill elsewhere and leaves
+    the graze in place. It is a false remedy, not a check.
+
+    That it fires at all exposes a REAL and separate gap, measured rather than
+    assumed: an emitted stub is never tested against a pre-existing via on
+    another FANNED net, because `build_base_obstacle_map(nets_to_route=...)`
+    excludes every net being escaped (obstacle_map.py:105), so
+    `check_line_clearance` cannot see it, and `via_clears` tests only the via
+    CENTRE against `foreign_vias`, never the stub. Measured on U2: 5 emitted
+    stubs sit inside a foreign pre-existing via's floor, one of them at
+    0.0000mm, and in all 5 the via's net is a fanned one. That count is
+    IDENTICAL at 715c821 and here, so it is pre-existing and untouched by this
+    change -- and it wants its own fix in the stub check, not an accidental
+    partial cover for the subset of vias that happen to be reuse targets.
+
+    So with ``adds_via=False`` only the new STUB is tested against this run's
+    own output, which is the only copper the reuse emits. A stub shorter than
+    POSITION_TOLERANCE emits no track at all (the commit loop skips it), so it
+    conflicts with nothing.
 
     Returns True when the candidate must be REJECTED.
     """
@@ -197,8 +219,11 @@ def run_output_conflict(vx, vy, net_id, placed, px=None, py=None, *,
         has_stub = (qpx is not None
                     and math.hypot(qpx - qx, qpy - qy) > POSITION_TOLERANCE)
         # 1. the candidate VIA against the stub already emitted for that via.
-        #    Also a reuse no-op: that via is on the INPUT board, so the earlier
-        #    stub was already cleared against it by check_line_clearance.
+        #    Dropped for a reuse because the target's POSITION is not this
+        #    run's doing: the graze belongs to that already-emitted stub, and
+        #    refusing the reuse only buys a fresh drill while leaving it. See
+        #    run_output_conflict's docstring for the separate, measured gap
+        #    this exposes (stub vs pre-existing via on another FANNED net).
         if adds_via and has_stub \
                 and point_to_segment_distance(vx, vy, qpx, qpy, qx, qy) \
                 < via_half + track_half:
