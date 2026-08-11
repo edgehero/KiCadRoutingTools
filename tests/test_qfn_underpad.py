@@ -101,8 +101,11 @@ def _d10_self_blindness():
     # exactly the shape that shipped contacts.
     check('a via sitting on this run\'s own stub is rejected',
           conflict(0.0, 1.0, 2, stub, **KN))
-    check('...and it clears every via CENTRE, so nothing else would catch it',
-          math.hypot(0.0 - 0.0, 1.0 - 2.0) >= KN['via_size'] + KN['clearance'])
+    # ...and it is ONLY the stub that rejects it: with the stub removed from
+    # the entry (a bare via centre, the old 3-tuple shape) the same candidate
+    # is accepted. Asserting the arithmetic instead would test literals.
+    check('...the SAME candidate passes when that stub is not recorded',
+          not conflict(0.0, 1.0, 2, [(0.0, 2.0, 1)], **KN))
 
     # Same net: its own stub is not an obstacle.
     check('a SAME-net via on the same stub is allowed',
@@ -137,6 +140,62 @@ def _d10_self_blindness():
     inpad = [(5.0, 5.0, 1, 5.0, 5.0)]
     check('a zero-length (via-in-pad) stub is not treated as copper',
           not conflict(5.0, 6.0, 2, inpad, **KN))
+
+    bad += _d10_wiring()
+    return bad
+
+
+def _d10_wiring():
+    """The pure function is not the fix -- the WIRING is.
+
+    Testing only `run_output_conflict` leaves the three call-site edits that
+    actually connect it (passing the pad into `via_clears`, and recording the
+    pad origin in `placed` / `placed_global`) completely uncovered: they can
+    all be reverted with every test still green. So assert the wiring itself,
+    by watching what the engine feeds the checker on a real board.
+    """
+    import qfn_fanout as Q
+    bad = []
+
+    def check(name, cond):
+        print(("PASS: " if cond else "FAIL: ") + name)
+        if not cond:
+            bad.append(name)
+
+    if not os.path.exists(BOARD):
+        print("SKIP: corpus board not found (wiring check)")
+        return bad
+
+    seen = {'entries': [], 'with_pad': 0, 'calls': 0}
+    real = Q.run_output_conflict
+
+    def spy(vx, vy, net_id, placed, px=None, py=None, **kw):
+        seen['calls'] += 1
+        if px is not None:
+            seen['with_pad'] += 1
+        seen['entries'].extend(placed)
+        return real(vx, vy, net_id, placed, px, py, **kw)
+
+    Q.run_output_conflict = spy
+    try:
+        pcb = parse_kicad_pcb(BOARD)
+        Q.generate_qfn_fanout(
+            pcb.footprints["U3"], pcb, net_filter=["/USB_DP", "/USB_DN"],
+            layer="F.Cu", track_width=0.1, clearance=CLEARANCE,
+            grid_step=0.05, escape_method="underpad", via_size=VIA_SIZE,
+            via_drill=0.25)
+    finally:
+        Q.run_output_conflict = real
+
+    check('the engine actually consults the in-run conflict test',
+          seen['calls'] > 0)
+    # If via_clears stopped forwarding the pad, this is 0 and the candidate's
+    # own stub goes untested.
+    check("every candidate is offered with its OWN pad (its stub)",
+          seen['calls'] > 0 and seen['with_pad'] == seen['calls'])
+    # If `placed` reverted to 3-tuples, the emitted stubs become invisible.
+    check('recorded placements carry the pad origin, not just the via centre',
+          seen['entries'] and all(len(e) == 5 for e in seen['entries']))
     return bad
 
 

@@ -262,7 +262,17 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
         _own_via_pos.setdefault(v.net_id, []).append((v.x, v.y))
     from kicad_parser import pad_drill_circles as _pdc
     import routing_defaults as _rd
-    _h2h = _rd.HOLE_TO_HOLE_CLEARANCE
+    # BOARD-FIRST, same rule as every other floor: a board declaring
+    # min_hole_to_hole above the packaged default was having its drills spaced
+    # at the default instead. Raise-only in practice, and inert on a board that
+    # declares nothing. Discovered via source_path so the GUI inherits it.
+    from list_nets import board_floor
+    _h2h, _h2h_src = board_floor(
+        getattr(pcb_data, 'source_path', "") or "", 'hole_to_hole',
+        None, _rd.HOLE_TO_HOLE_CLEARANCE)
+    if _h2h_src == 'board constraint' and _h2h > _rd.HOLE_TO_HOLE_CLEARANCE:
+        print(f"  Hole-to-hole {_h2h:g}mm (from the board's own "
+              f"min_hole_to_hole)")
     _drilled_pad_holes = [(hx, hy, hd)
                           for p in foreign_pads if p.drill and p.drill > 0
                           for (hx, hy, hd) in _pdc(p)]
@@ -380,9 +390,27 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
                 _best = (_d, ovx, ovy)
         if _best is not None:
             _rvx, _rvy = _best[1], _best[2]
+            # `check_line_clearance` reads the INPUT-board obstacle map, so on
+            # its own this branch is blind to everything this run has emitted
+            # -- the reuse path was one of two ways a position is returned, and
+            # the only one that never consulted via_clears. The bridging stub
+            # it emits can still cross another net's stub or via laid earlier
+            # in the same run, and the position was then appended to
+            # placed_global as though it had been checked.
+            #
+            # It calls run_output_conflict directly rather than via_clears:
+            # the reused via IS on the board, so it is in `foreign_vias` at
+            # distance 0 from itself, and the full test would reject every
+            # reuse on its own same-net drill floor. Only this run's output is
+            # in question here.
             if (obs_layer_idx is None or
                     check_line_clearance(obstacles, px, py, _rvx, _rvy,
-                                         obs_layer_idx, cfg)):
+                                         obs_layer_idx, cfg)) \
+                    and not run_output_conflict(
+                        _rvx, _rvy, pi.pad.net_id, placed, px, py,
+                        via_size=via_size, via_drill=via_drill,
+                        clearance=clearance, track_width=track_width,
+                        hole_to_hole=_h2h):
                 return (_rvx, _rvy)
         for d in candidate_offsets(pi.pad_width, mode):
             vx, vy = snap(px + ex * d), snap(py + ey * d)
