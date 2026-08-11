@@ -266,6 +266,47 @@ def _q3_routing_half_uses_the_same_resolver():
         check(f'{fn}: no raw board_constraint read of either key',
               not raw, f'raw reads: {raw}')
 
+    # ...and the mains ACTUALLY PRINT it, which the AST check cannot show. Each
+    # runs in ~1.3s on a net that matches nothing, so this is the CLI's own
+    # answer rather than a model of it. At 62f7c13^ these lines read "using the
+    # board min_copper_edge_clearance 0.0mm" and the plane engines resolved 0.0.
+    print('...and each main prints the resolved floor, crediting the right source')
+    import subprocess
+    import tempfile
+    # (flag-shape, edge-floor-expected) per main; hole-to-hole is 0.2 for all.
+    mains = [
+        ('route.py', lambda i, o: [i, o, '--nets', '__none__'], 0.0),
+        ('route_diff.py', lambda i, o: [i, '--output', o, '--nets', '__none__'], 0.0),
+        ('route_planes.py', lambda i, o: [i, '--output', o, '--nets', '__none__',
+                                          '--plane-layers', 'B.Cu'], 0.5),
+        ('route_disconnected_planes.py',
+         lambda i, o: [i, '--output', o, '--nets', '__none__',
+                       '--plane-layers', 'B.Cu'], 0.5),
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        z = _fixture(tmp, extra_rules={'min_copper_edge_clearance': 0.0,
+                                       'min_hole_to_hole': 0.0})
+        for fn, argv, edge in mains:
+            out = os.path.join(tmp, 'o_' + fn.replace('.py', '') + '.kicad_pcb')
+            r = subprocess.run([sys.executable, '-X', 'utf8', fn] + argv(z, out),
+                               cwd=ROOT, capture_output=True, text=True,
+                               timeout=300)
+            lines = [ln.strip() for ln in (r.stdout or '').splitlines()
+                     if ln.startswith('--hole-to-hole-clearance not given')
+                     or ln.startswith('--board-edge-clearance not given')]
+            said = ' '.join(lines)
+            check(f'{fn}: prints both resolved floors',
+                  len(lines) == 2, said or (r.stderr or '')[-300:])
+            check(f'{fn}: hole-to-hole 0.2 [fixed default], not a declared 0.0',
+                  f'--hole-to-hole-clearance not given; using 0.2mm '
+                  f'[fixed default].' in said, said)
+            check(f'{fn}: board edge {edge} [fixed default]',
+                  f'--board-edge-clearance not given; using {edge}mm '
+                  f'[fixed default].' in said, said)
+            check(f'{fn}: does not credit the board for what it left unset',
+                  'min_copper_edge_clearance' not in said
+                  and 'min_hole_to_hole' not in said, said)
+
 
 # --- Q4: board_floor is NOT raise-only, and a drill consumer must wrap it ---
 #
