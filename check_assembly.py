@@ -31,7 +31,10 @@ def main():
     p.add_argument("--intent", default=None, metavar="JSON",
                    help="Floorplan intent; only its overlap_waivers are read")
     p.add_argument("--clearance", type=float, default=None,
-                   help="Pad-model clearance (default: routing_defaults)")
+                   help="Pad-model clearance in mm. Default: the board's own "
+                        "Default net-class clearance, else routing_defaults. "
+                        "The effective value and its source are printed and "
+                        "written to --json")
     p.add_argument("--baseline", default=None, metavar="BOARD",
                    help="Report advisory pairs NEW relative to this board "
                         "(the placement-loop currency)")
@@ -43,24 +46,24 @@ def main():
     from kicad_parser import parse_kicad_pcb
     from placement.legality import grade_body_overlap, grade_pad_legality
 
-    clearance = (args.clearance if args.clearance is not None
-                 else defaults.CLEARANCE)
-    # SAY WHICH FLOOR THIS GRADE USED, AND WHERE IT CAME FROM.
+    # GRADE AT THE BOARD'S OWN FLOOR, and say where that came from.
     #
-    # The default is a flat routing_defaults.CLEARANCE (0.25) -- it does NOT
-    # read the board, while every router resolves the board's own Default
-    # netclass first and prints which source it used. So this tool routinely
-    # grades STRICTER than the board it is grading, and the only trace was a
-    # `clearance` field in the JSON that nothing compared against the board.
-    # Measured on one 0.2mm board: pad_conflicts 96 at the default vs 39 at the
-    # board's own floor -- while `blocking` and `locked_contacts` were
+    # This default USED to be a flat routing_defaults.CLEARANCE (0.25) that did
+    # not read the board, while every router resolves the board's own Default
+    # netclass first. So the tool routinely graded STRICTER than the board it
+    # was grading. Measured on one 0.2mm board: pad_conflicts 96 at the default
+    # vs 39 at the board's own floor -- `blocking` and `locked_contacts` were
     # identical, because those pairs are true pad INTERSECTIONS rather than
-    # clearance grazes. So the choice moves the echo numbers and not the
-    # verdict; that is worth knowing rather than discovering.
+    # clearance grazes, which is why it survived this long.
     #
-    # The default is left alone deliberately: board_score and the stress
-    # harness both shell this tool, and silently re-basing their numbers is a
-    # bigger change than the disclosure that was actually missing.
+    # The previous decision here was to keep the constant and merely DISCLOSE
+    # it, on the grounds that board_score and the stress harness shell this
+    # tool and re-basing their numbers was the bigger change. That trade is now
+    # reversed deliberately: a disclosure only helps a reader who acts on it,
+    # and the run that motivated this read the numbers, not the note. The
+    # re-basing is real but bounded -- it moves the pad/hole ECHO counts toward
+    # the truth and leaves `blocking` (the field board_score consumes) alone.
+    # Every board in kicad_files/ declares no floor and so is bit-identical.
     _board_clr = None
     _decl = None
     try:
@@ -70,8 +73,9 @@ def main():
         _decl = board_floor_declaration(args.board)
     except Exception:                                          # noqa: BLE001
         pass
-    _src = ('--clearance' if args.clearance is not None
-            else 'routing_defaults (this tool does NOT read the board)')
+    from list_nets import board_floor
+    clearance, _src = board_floor(args.board, 'clearance', args.clearance,
+                                  defaults.CLEARANCE)
     print(f"  grading at clearance {clearance}mm  [{_src}]")
     # A board that declares NOTHING is a DIFFERENT case from one whose Default
     # class happens to match (run-12 Tier 1.3). The comparison below can only
@@ -86,14 +90,18 @@ def main():
               f"Pass --clearance <the value the copper was routed to> if you "
               f"know it; the pad/hole ECHO counts move with it, `blocking` "
               f"usually does not.")
-    if args.clearance is None and _board_clr is not None \
+    # The note now fires on the OPPOSITE case, which is the only one left that
+    # can be a mistake: the caller OVERRODE a floor the board does declare.
+    # Before, the tool could silently disagree with the board; now only a human
+    # can, and they should be told they did.
+    if args.clearance is not None and _board_clr is not None \
             and abs(_board_clr - clearance) > 1e-9:
-        print(f"  NOTE: this board's own Default net-class clearance is "
-              f"{_board_clr}mm, so this grade is "
-              f"{'STRICTER' if clearance > _board_clr else 'LOOSER'} than the "
-              f"board asks for. Pass --clearance {_board_clr} to grade at the "
-              f"board's floor. Expect the pad/hole ECHO counts to move; "
-              f"`blocking` usually will not, because blocking pairs are pad "
+        print(f"  NOTE: --clearance {clearance}mm overrides this board's own "
+              f"Default net-class clearance of {_board_clr}mm, so this grade "
+              f"is {'STRICTER' if clearance > _board_clr else 'LOOSER'} than "
+              f"the board asks for. Drop --clearance to grade at the board's "
+              f"floor. Expect the pad/hole ECHO counts to move; `blocking` "
+              f"usually will not, because blocking pairs are pad "
               f"intersections rather than clearance grazes.")
 
     waivers = ()
@@ -173,6 +181,10 @@ def main():
         doc = {
             'board': args.board,
             'clearance': clearance,
+            # 'cli' | 'board netclass' | 'fixed default' -- two grades are
+            # comparable only when this agrees, and the scalar alone cannot
+            # say whether 0.25 was the board's answer or this tool's.
+            'clearance_source': _src,
             # run-12 Tier 1.3: True when `clearance` above is this tool's
             # fallback because the board declared no floor at all -- which a
             # reader comparing the scalar across boards cannot otherwise tell

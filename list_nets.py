@@ -345,6 +345,72 @@ def board_floor_knobs(pcb_path, clearance=None, board_edge_clearance=None,
     return clearance, board_edge_clearance, knobs
 
 
+# Where each floor legitimately comes from: (Default-netclass key, board
+# constraint key). None means "this floor is not expressed there".
+#
+# `clearance` deliberately has NO constraint fallback. `min_clearance` is an
+# unreliable edit-floor -- it is 0.0 on the measured board and stale-large on
+# others (see effective_floors' note at :86) -- so falling back to it would
+# resolve a board declaring a 0.2 netclass to 0.0 and relax every consumer to
+# nothing. The netclass is the honest source for clearance; the constraints are
+# the honest source for the hole/edge floors, which no netclass expresses.
+_FLOOR_SOURCES = {
+    'clearance':            ('clearance',    None),
+    'track_width':          ('track_width',  'min_track_width'),
+    'via_diameter':         ('via_diameter', 'min_via_diameter'),
+    'via_drill':            ('via_drill',    None),
+    'board_edge_clearance': (None,           'min_copper_edge_clearance'),
+    'hole_clearance':       (None,           'min_hole_clearance'),
+    'hole_to_hole':         (None,           'min_hole_to_hole'),
+}
+
+
+def board_floor(pcb_path, name, explicit=None, fallback=None,
+                design_rules=None):
+    """ONE floor, resolved BOARD-FIRST. Returns ``(value, source)``.
+
+    Precedence, the same one `board_floor_knobs` uses and with the same source
+    vocabulary (``'cli'`` | ``'board netclass'`` | ``'board constraint'`` |
+    ``'fixed default'``): an explicit value wins, then the board's own Default
+    netclass, then its board constraint, then the caller's fallback.
+
+    This exists because instruments kept substituting their own constant for a
+    value the board declares, each in its own way, and each wrong in a
+    different direction. Measured: `check_channels` at its 0.25 default
+    understated escape supply by 74 lanes (304 vs 378) on a board whose floor
+    is 0.2, and invented a deficit on a face that had none -- a phantom that
+    would have steered a placement search. `obstacle_map` priced NPTH holes at
+    a hardcoded max(clearance, 0.20) while the board declared
+    ``min_hole_clearance`` 0.25, and a route came within 0.2263 mm of an NPTH:
+    a real 0.0237 mm violation, routing-introduced.
+
+    A non-positive constraint is treated as UNSET rather than as a floor of
+    zero. KiCad writes 0 for "not configured" in these fields, and reading it
+    as a genuine 0 relaxes the consumer to nothing -- the same trap that keeps
+    `min_clearance` out of the table above.
+    """
+    if name not in _FLOOR_SOURCES:
+        raise KeyError(f"unknown floor {name!r}; "
+                       f"known: {', '.join(sorted(_FLOOR_SOURCES))}")
+    if explicit is not None:
+        return float(explicit), 'cli'
+    cls_key, con_key = _FLOOR_SOURCES[name]
+    try:
+        dr = (design_rules if design_rules is not None
+              else read_design_rules(pcb_path))
+    except Exception:                                          # noqa: BLE001
+        return fallback, 'fixed default'
+    if cls_key:
+        v = board_default_netclass_param(pcb_path, cls_key, dr)
+        if v is not None and v > 0:
+            return float(v), 'board netclass'
+    if con_key:
+        v = board_constraint(pcb_path, con_key, dr)
+        if v is not None and v > 0:
+            return float(v), 'board constraint'
+    return fallback, 'fixed default'
+
+
 def net_clearance_map_by_id(pcb_path, nets, design_rules=None):
     """Resolve each net to its net-class clearance (mm) from the sibling
     .kicad_pro netclasses, for the routing CLIs' cross-class clearance map.

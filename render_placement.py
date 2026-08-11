@@ -77,6 +77,9 @@ class PlacementModel:
         self.state = None
         self.no_outline = False
         self.metrics: Dict[str, object] = {}
+        # Which floors this model was built at, and where each came from.
+        # Always present, so a caller never has to guess whether it was set.
+        self.floor_knobs: Dict[str, Dict] = {}
         if exact:
             self.state = self._build_state(quench_kwargs or {})
         if self.state is not None:
@@ -84,7 +87,23 @@ class PlacementModel:
 
     def _build_state(self, kw):
         from placement.quench import QuenchState
-        args = dict(clearance=defaults.CLEARANCE, board_edge_clearance=0.55,
+        from list_nets import board_floor_knobs
+        # BOARD-FIRST floors, resolved HERE rather than in main() so the CLI and
+        # every library caller get the same answer -- and so this instrument
+        # agrees with place_optimize, which has resolved them this way since
+        # run-7 S1 (place_optimize.py:144). Until now it did not: the renderer
+        # hardcoded 0.25/0.55 while the optimizer read the board, so on any
+        # board declaring its own floor the two disagreed about the geometry
+        # they were supposedly sharing. On the measured board that is 0.2 and
+        # 0.5, not 0.25 and 0.55.
+        #
+        # An explicit --clearance still wins: board_floor_knobs takes a non-None
+        # value as 'cli' and returns it unchanged.
+        clr, edge, self.floor_knobs = board_floor_knobs(
+            self.pcb_file, clearance=kw.get('clearance'),
+            board_edge_clearance=kw.get('board_edge_clearance'),
+            clearance_default=defaults.CLEARANCE, edge_default=0.55)
+        args = dict(clearance=clr, board_edge_clearance=edge,
                     crossing_penalty=10.0, halo_base=0.5, halo_coef=0.25,
                     halo_weight=2.0, edge_halo=2.0, edge_weight=2.0,
                     grid_step=defaults.GRID_STEP, length_weight=1.0)
@@ -960,8 +979,13 @@ def describe(model, fnd, moves, args, panel_paths):
 
     board = args.board
     same = []
-    if args.clearance is not None:
-        same.append(f"--clearance {args.clearance:g}")
+    # The EFFECTIVE clearance, always -- this line's whole job is "run this and
+    # get the same numbers", and a run that omitted --clearance reproduces only
+    # if the board's project has not moved since. Naming it pins the render to
+    # a value instead of to a file that can change underneath it.
+    _clr = (model.floor_knobs.get('clearance') or {}).get('value')
+    if _clr is not None:
+        same.append(f"--clearance {_clr:g}")
     if args.ignore_nets:
         same.append("--ignore-nets " + " ".join(args.ignore_nets))
     same_s = (" " + " ".join(same)) if same else ""
@@ -1154,7 +1178,15 @@ Examples:
                    help='draw EVERY net, not just the moved/attributed ones. The '
                         'hairball switch: on a dense board this reproduces exactly '
                         'the unreadable ratsnest KiCad already shows')
-    p.add_argument('--clearance', type=float, default=None)
+    p.add_argument('--clearance', type=float, default=None,
+                   help="pad clearance in mm for the legality/halo metrics. "
+                        "DEFAULT: the board's own Default net-class clearance, "
+                        "else its min_clearance constraint, else "
+                        f"{defaults.CLEARANCE}. The effective value and its "
+                        "source are printed, and land in the JSON as "
+                        "instrument.floors -- this flag documented no default "
+                        "at all, and four renders in one run were graded at a "
+                        "clearance nothing recorded")
     # Same spelling and semantics as place_optimize's. Without it this tool
     # cannot reproduce a run's crossings/hpwl whenever the optimizer was given
     # --ignore-nets -- which is the normal case, since the plane nets have to be
@@ -1330,6 +1362,15 @@ def main(argv=None):
                            quench_kwargs={'clearance': args.clearance,
                                           'ignore_net_ids': ignore_ids})
 
+    # WHICH FLOOR, and WHERE FROM -- the same disclosure board_score makes with
+    # floors.source. Four renders in the measured run omitted --clearance and
+    # nothing in their output said what was used instead.
+    if not args.quiet:
+        _k = model.floor_knobs
+        print("floors     " + ", ".join(
+            f"{n.replace('_', ' ')} {d['value']}mm [{d['source']}]"
+            for n, d in _k.items()))
+
     moves = moved_parts(parse_kicad_pcb(args.before), pcb) if args.before else []
 
     # --pair: build a SECOND model on the before board, with byte-identical
@@ -1347,10 +1388,18 @@ def main(argv=None):
             _bignore = {nid for nid, net in _bpcb.nets.items()
                         if net.name and any(fnmatch.fnmatch(net.name, pat)
                                             for pat in args.ignore_nets)}
+        # Pass the AFTER board's RESOLVED floors explicitly, rather than the
+        # unresolved --clearance. Board-first resolution reads each board's own
+        # project sibling, and the two boards need not agree: a routing chain's
+        # DRC writeback lowers the project's clearance to whatever was routed
+        # (CLAUDE.md, the fab-floor ratchet), so `before` and `after` can carry
+        # different floors and the pair would then be graded at two different
+        # clearances while claiming to be one instrument. Byte-identical
+        # settings is the whole contract of --pair.
+        _pair_floors = {n: d['value'] for n, d in model.floor_knobs.items()}
         before_model = PlacementModel(
             _bpcb, args.before, exact=True,
-            quench_kwargs={'clearance': args.clearance,
-                           'ignore_net_ids': _bignore})
+            quench_kwargs={'ignore_net_ids': _bignore, **_pair_floors})
     failed, blockers, route_metrics = _load_summary(args.summary_json)
     prominent = {m['reference'] for m in moves} | \
         model.refs_of_nets(model.net_ids_for(failed))
@@ -1564,7 +1613,15 @@ def main(argv=None):
                 'before': os.path.abspath(args.before) if args.before else None,
                 'summary_json': (os.path.abspath(args.summary_json)
                                  if args.summary_json else None),
-                'clearance': args.clearance,
+                # `clearance` used to record args.clearance, i.e. None on
+                # every run that did not pass the flag -- so the document
+                # named no clearance at all for the runs most likely to be
+                # graded at the wrong one. It is now the EFFECTIVE value,
+                # with what was requested and where it came from beside it.
+                'clearance': model.floor_knobs.get(
+                    'clearance', {}).get('value'),
+                'clearance_requested': args.clearance,
+                'floors': model.floor_knobs,
                 'ignore_nets': sorted(args.ignore_nets or []),
                 'ratsnest_nets': sorted(args.ratsnest_nets or []),
                 # DECLARED vs MATCHED. Without these there was no field in

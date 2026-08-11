@@ -98,9 +98,18 @@ def main():
     p = argparse.ArgumentParser(
         description="Per-face lane ledger + anchor channel widths.")
     p.add_argument("board")
-    p.add_argument("--clearance", type=float, default=None)
-    p.add_argument("--track-width", type=float, default=None)
-    p.add_argument("--grid-step", type=float, default=None)
+    p.add_argument("--clearance", type=float, default=None,
+                   help="mm. Default: the board's own Default net-class "
+                        "clearance, else routing_defaults. A lane is "
+                        "track+clearance wide, so this decides the supply "
+                        "this tool reports")
+    p.add_argument("--track-width", type=float, default=None,
+                   help="mm. Default: the board's own Default net-class track "
+                        "width, else its min_track_width, else "
+                        "routing_defaults")
+    p.add_argument("--grid-step", type=float, default=None,
+                   help="mm raster step (default: routing_defaults). Not a "
+                        "board floor -- no board declares one")
     p.add_argument("--refs", nargs="*", default=None,
                    help="Parts to ledger (default: auto -- QFN/QFP/BGA "
                         "or pad pitch below 2x the lane pitch)")
@@ -124,12 +133,23 @@ def main():
     from kicad_parser import parse_kicad_pcb, detect_package_type
     from placement import routability
 
-    clearance = (args.clearance if args.clearance is not None
-                 else defaults.CLEARANCE)
-    track = (args.track_width if args.track_width is not None
-             else defaults.TRACK_WIDTH)
+    # BOARD-FIRST. A lane is `track + clearance` wide, so BOTH of these decide
+    # how much escape supply this tool believes a face has -- and it used to
+    # believe two constants. Measured on a board whose floor is 0.2/0.2: at the
+    # 0.25/0.3 defaults it reported supply 304 where the truth was 378 (74 lanes
+    # short) and invented a DEFICIT on a face that had none. A phantom deficit
+    # steers a placement search at the thing that is not wrong.
+    from list_nets import board_floor
+    clearance, clr_src = board_floor(args.board, 'clearance', args.clearance,
+                                     defaults.CLEARANCE)
+    track, trk_src = board_floor(args.board, 'track_width', args.track_width,
+                                 defaults.TRACK_WIDTH)
+    # grid_step is a RASTER setting, not a board floor -- no board declares it,
+    # so it keeps its constant and is not dressed up as resolved.
     grid = (args.grid_step if args.grid_step is not None
             else defaults.GRID_STEP)
+    floors = {'clearance': {'value': clearance, 'source': clr_src},
+              'track_width': {'value': track, 'source': trk_src}}
 
     try:
         pcb = parse_kicad_pcb(args.board)
@@ -157,9 +177,12 @@ def main():
         if not refs:
             print("  (no fine-pitch parts auto-detected; pass --refs)")
 
+    # Name the source, not just the number: a reader cannot otherwise tell a
+    # ledger graded at the board's own floor from one graded at this tool's
+    # fallback, and those are different measurements.
     print(f"Lane ledger of {args.board} "
-          f"(track {track} clearance {clearance} grid {grid}; "
-          f"taps NOT modeled -- v1):")
+          f"(track {track} [{trk_src}] clearance {clearance} [{clr_src}] "
+          f"grid {grid}; taps NOT modeled -- v1):")
     ledgers = {}
     for ref in refs:
         rows = routability.face_lane_ledger(
@@ -263,6 +286,9 @@ def main():
         with open(args.json, 'w', encoding='utf-8') as f:
             json.dump({'board': args.board, 'clearance': clearance,
                        'track_width': track, 'grid_step': grid,
+                       # ...and WHERE each came from, so two ledgers are
+                       # comparable only when they say the same thing here.
+                       'floors': floors,
                        'taps_not_modeled': True,
                        'ledgers': ledgers, 'channels': channels,
                        'starved_faces': starved,
