@@ -758,6 +758,11 @@ def cmd_record(a):
     if a.exhausted:
         entry['exhausted'] = {'half': a.exhausted,
                               'reason': a.exhausted_reason.strip()}
+    if a.accept_incommensurable:
+        # The disposition belongs in the row, not only in the console the
+        # refusal was cleared from. Same shape as --exhausted: what is recorded
+        # is that somebody decided, not that the numbers passed.
+        entry['accepted_incommensurable'] = str(a.accept_incommensurable).strip()
     e = lg.append(entry)
     if a.exhausted:
         print(f"recorded: {a.exhausted} declared EXHAUSTED. `verdict` will "
@@ -989,6 +994,24 @@ def _half_is_flat(rows, half, flat):
     return st['flat'], st['laps'], st['why']
 
 
+def _halves_note(st):
+    """One line naming HOW each half came to be blocked.
+
+    A DONE reached because a half was DECLARED exhausted is a different claim
+    from one reached by five measured laps, and the terminal artifact has to
+    say which -- the declaration carries a human's reason, not a measurement.
+    """
+    bits = []
+    for h in ('placement', 'routing'):
+        s = st[h]
+        if s.get('why') == 'declared-exhausted':
+            bits.append(f'{h}: DECLARED exhausted -- {s.get("declared")}')
+        else:
+            bits.append(f'{h}: {s["laps"]} laps, {s["accepted"]} accepted + '
+                        f'{s["rejected"]} rejected')
+    return '; '.join(bits)
+
+
 def cmd_verdict(a):
     """Continue, or stop -- and say WHICH kind of stop it was.
 
@@ -1096,17 +1119,31 @@ def cmd_verdict(a):
     elif blocking == 0:
         doc.update(verdict='DONE-EXHAUSTED', reason=(
             'blocking == 0 and neither half improved in its last '
-            f'{a.flat} accepted laps. This is the best board these levers '
-            f'found.'))
+            f'{a.flat} recorded laps ({_halves_note(st)}). This is the best '
+            f'board these levers found.'))
         code = DONE
     else:
         doc.update(verdict='STUCK', reason=(
             f'blocking == {doc["blocking"]} and neither half improved in its '
-            f'last {a.flat} accepted laps. Stopping here is legitimate; '
-            f'calling the board finished is not. Itemise every remaining '
-            f'blocker with the measurement that proves it.'))
+            f'last {a.flat} recorded laps ({_halves_note(st)}). Stopping here '
+            f'is legitimate; calling the board finished is not. Itemise every '
+            f'remaining blocker with the measurement that proves it.'))
         code = STUCK
 
+    # LOUD, on every verdict, never only on the one it happened to change.
+    # A plateau or an improvement read off two totals that graded different
+    # components is a claim about the instrument, not about the board.
+    for h in ('placement', 'routing'):
+        _ic = st[h].get('incommensurable')
+        if _ic:
+            doc['reason'] += (
+                f' NOT COMPARABLE: {h} laps in the window were graded over '
+                f'different components ({_ic}), so improvement was judged only '
+                f'across the first {st[h].get("compared", 1)} of them. Measured '
+                f'(run 17): two cycles compared as 78 vs 79 were 92 vs 92 once '
+                f'both were graded with --impedance-nets, and the board called '
+                f'worse was one impedance crossing better. Re-score with the '
+                f'same flags to make the comparison mean anything.')
     if doc['ungraded']:
         # Not fatal: a board with no spec files has nothing to grade those
         # components against, and making it fatal would put every corpus board
@@ -1225,6 +1262,30 @@ def build_parser():
                         'across laps whose scopes existed only as loose '
                         'lock_*.txt files nothing reads.')
     r.add_argument('--rejected', action='store_true')
+    r.add_argument('--exhausted', choices=('placement', 'routing'),
+                   default=None,
+                   help='declare ON THE RECORD that this half has nothing '
+                        'further to optimise. `verdict` then stops asking it '
+                        'to plateau. This is the lever its own too-few-laps '
+                        'text has always named -- "or to say on the record '
+                        'that there is nothing" -- and which no flag '
+                        'implemented: routing accepts only on strict '
+                        'improvement, so an exhausted half cannot produce the '
+                        'accepted lap the counter wanted. Needs '
+                        '--exhausted-reason. A later recorded lap of that half '
+                        'SUPERSEDES it. --kind systemic is the natural kind: '
+                        'the declaration changes no copper.')
+    r.add_argument('--exhausted-reason', default=None, metavar='REASON',
+                   help='what was tried and why nothing is left. Mandatory '
+                        'with --exhausted: the declaration IS the evidence, '
+                        'and an unreasoned one is just a lower --flat.')
+    r.add_argument('--accept-incommensurable', default=None, metavar='REASON',
+                   help='record a lap whose score graded FEWER components than '
+                        'the last accepted lap of its half even though '
+                        '`blocking` fell -- i.e. an improvement that may be an '
+                        'artefact of measuring less. Needs a reason, and the '
+                        'reason is what gets recorded: the numbers are not '
+                        'being judged, a person is.')
     r.add_argument('--final', action='store_true',
                    help='mark the run-closing record; requires --stop-condition')
     r.add_argument('--stop-condition', default=None,
