@@ -257,6 +257,120 @@ def _q3_routing_half_uses_the_same_resolver():
               not raw, f'raw reads: {raw}')
 
 
+# --- Q4: board_floor is NOT raise-only, and a drill consumer must wrap it ---
+#
+# board_floor returns the declared value whenever it is positive, with no
+# max() against the fallback. For most of its table that is exactly right --
+# check_channels / check_assembly must grade at the board's own clearance even
+# when it is BELOW their default. For a DRILL floor it is a fab hazard, and the
+# qfn underpad escape claimed "Raise-only in practice" while doing no such
+# thing: a project declaring `min_hole_to_hole: 0.10` spaced that run's drills
+# at 0.10, under the 0.20 JLC floor. `resolve_hole_clearance` is raise-only
+# only because ITS consumers wrap it; this is the same wrap, and the same
+# demonstration.
+
+def _qfn_fixture(tmp, h2h):
+    """tigard (a real QFN board) with a project declaring min_hole_to_hole."""
+    import shutil
+    import json as _json
+    src = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
+    if not os.path.exists(src):
+        return None
+    dst = os.path.join(tmp, 'h2h.kicad_pcb')
+    shutil.copyfile(src, dst)
+    with open(os.path.splitext(dst)[0] + '.kicad_pro', 'w',
+              encoding='utf-8') as f:
+        _json.dump({'net_settings': {'classes': [
+            {'name': 'Default', 'clearance': 0.2, 'track_width': 0.25}]},
+            'board': {'design_settings': {'rules': {'min_hole_to_hole': h2h}}}},
+            f)
+    return dst
+
+
+def _qfn_effective_h2h(board):
+    """The hole_to_hole the underpad escape actually routes with.
+
+    Read off what the engine FEEDS run_output_conflict, which is where
+    f1dd280 said the value goes -- not re-derived, or the test would only be
+    checking arithmetic it wrote itself.
+    """
+    import io
+    import contextlib
+    from kicad_parser import parse_kicad_pcb
+    import qfn_fanout as Q
+
+    seen = []
+    real = Q.run_output_conflict
+
+    def spy(*a, **kw):
+        seen.append(kw.get('hole_to_hole'))
+        return real(*a, **kw)
+
+    Q.run_output_conflict = spy
+    try:
+        pcb = parse_kicad_pcb(board)
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            Q.generate_qfn_fanout(
+                pcb.footprints["U3"], pcb, net_filter=["/USB_DP", "/USB_DN"],
+                layer="F.Cu", track_width=0.1, clearance=0.1, grid_step=0.05,
+                escape_method="underpad", via_size=0.45, via_drill=0.25)
+    finally:
+        Q.run_output_conflict = real
+    return (set(v for v in seen if v is not None), buf.getvalue())
+
+
+def _q4_a_declared_value_must_not_relax_a_fab_floor():
+    import tempfile
+    from list_nets import board_floor
+    from fab_tiers import fab_floor_min
+
+    print('board_floor is board-authoritative, NOT raise-only')
+    with tempfile.TemporaryDirectory() as tmp:
+        b = _fixture(tmp, extra_rules={'min_hole_to_hole': 0.10})
+        # The CLAIM, corrected: this is the documented behaviour, not a bug to
+        # fix in the helper -- check_channels needs exactly this freedom.
+        check('a declared 0.10 resolves DOWN, and says it came from the board',
+              board_floor(b, 'hole_to_hole', None, 0.2)
+              == (0.1, 'board constraint'),
+              str(board_floor(b, 'hole_to_hole', None, 0.2)))
+
+    fab = fab_floor_min(4).get('hole_to_hole')
+    check('the fab hole-to-hole floor is the thing being protected',
+          fab == 0.20, f'got {fab}')
+
+    print('...so the qfn DRILL consumer wraps it, and discloses the pin')
+    with tempfile.TemporaryDirectory() as tmp:
+        b = _qfn_fixture(tmp, 0.10)
+        if b is None:
+            print('  SKIP  no tigard board (qfn drill floor)')
+            return
+        got, said = _qfn_effective_h2h(b)
+        check('a declared 0.10 does NOT space this run\'s drills at 0.10',
+              got == {0.20}, f'engine used {sorted(got)}')
+        check('...and it is not relaxed SILENTLY',
+              'below the 0.2mm fab hole-to-hole floor' in said, said.strip())
+
+    print('...while a declared value ABOVE the floor still wins')
+    with tempfile.TemporaryDirectory() as tmp:
+        b = _qfn_fixture(tmp, 0.30)
+        got, said = _qfn_effective_h2h(b)
+        check('a declared 0.30 raises the drill spacing to 0.30',
+              got == {0.30}, f'engine used {sorted(got)}')
+        check('...and says the board is where it came from',
+              "from the board's own" in said, said.strip())
+
+    print('...and a board declaring nothing is byte-identical')
+    with tempfile.TemporaryDirectory() as tmp:
+        import shutil
+        src = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
+        dst = os.path.join(tmp, 'silent.kicad_pcb')
+        shutil.copyfile(src, dst)          # no .kicad_pro sibling at all
+        got, said = _qfn_effective_h2h(dst)
+        check('the packaged default stands, unannounced',
+              got == {defaults.HOLE_TO_HOLE_CLEARANCE}
+              and 'hole-to-hole' not in said.lower(), f'{sorted(got)}')
+
+
 class _Boom(dict):
     """A design_rules stand-in that raises when read, to exercise the
     'I could not look' branch without corrupting a real project file."""
@@ -361,6 +475,7 @@ def main():
     _d9_shared_resolver()
     _d9_instruments(board)
     _q3_routing_half_uses_the_same_resolver()
+    _q4_a_declared_value_must_not_relax_a_fab_floor()
 
     print()
     if FAILURES:

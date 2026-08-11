@@ -398,6 +398,26 @@ def board_floor(pcb_path, name, explicit=None, fallback=None,
     zero. KiCad writes 0 for "not configured" in these fields, and reading it
     as a genuine 0 relaxes the consumer to nothing -- the same trap that keeps
     `min_clearance` out of the table above.
+
+    IT IS NOT RAISE-ONLY, and nothing here pretends otherwise. Once a declared
+    value is positive it is returned as-is, with NO max() against `fallback`,
+    so a board can resolve a floor DOWNWARDS. That is the point for most of
+    the table: `check_channels` and `check_assembly` must grade at the board's
+    own clearance even when it sits below their packaged default, or they
+    manufacture phantom violations on copper routed correctly (CLAUDE.md,
+    "Grade DRC at the clearance the board was actually routed to").
+
+    A consumer for which downward is a FAB question must therefore wrap this
+    in its own max(), exactly as `resolve_hole_clearance`'s consumers do
+    (obstacle_map.py:1580, plane_obstacle_builder.py:1208) -- that helper is
+    called "raise-only" only because of those wraps, never on its own.
+    Measured: a project declaring ``min_hole_to_hole: 0.10`` resolves here to
+    ``(0.1, 'board constraint')``, and the qfn underpad escape spaced this
+    run's drills at 0.10 -- below the 0.20 JLC fab floor -- until it grew the
+    wrap (qfn_fanout/__init__.py, ``_h2h_fab``). The routing CLIs get the same
+    protection from `enforce_fab_floors`, which runs on args right after
+    `resolve_cli_floor`; an engine-internal read like the qfn one does not,
+    because that pins a value it never reads.
     """
     if name not in _FLOOR_SOURCES:
         raise KeyError(f"unknown floor {name!r}; "

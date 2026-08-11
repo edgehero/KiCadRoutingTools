@@ -296,15 +296,38 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
     import routing_defaults as _rd
     # BOARD-FIRST, same rule as every other floor: a board declaring
     # min_hole_to_hole above the packaged default was having its drills spaced
-    # at the default instead. Raise-only in practice, and inert on a board that
-    # declares nothing. Discovered via source_path so the GUI inherits it.
+    # at the default instead. Discovered via source_path so the GUI inherits it.
+    #
+    # RAISE-ONLY IN THE CODE, not only in this comment. `board_floor` is
+    # board-AUTHORITATIVE, not raise-only -- it returns whatever the board
+    # declares once it is positive, with no max() against the fallback, and
+    # that is correct for the floors it mostly serves (check_channels and
+    # check_assembly must grade at the board's own clearance even when that is
+    # BELOW their default, or they manufacture phantom violations). It is a
+    # DRILL floor here, so the same freedom is a fab hazard: a project
+    # declaring `min_hole_to_hole: 0.10` resolved to (0.1, 'board constraint')
+    # and spaced this run's drills below the 0.20 JLC floor. `resolve_hole_clearance`
+    # is called raise-only for the same reason, and is raise-only only because
+    # ITS consumers wrap it in a max() (obstacle_map.py:1580,
+    # plane_obstacle_builder.py:1208) -- this is that wrap. The engine cannot
+    # lean on the CLI's enforce_fab_floors: that pins args.hole_to_hole_clearance,
+    # a value this code path never reads.
     from list_nets import board_floor
-    _h2h, _h2h_src = board_floor(
+    _h2h_decl, _h2h_src = board_floor(
         getattr(pcb_data, 'source_path', "") or "", 'hole_to_hole',
         None, _rd.HOLE_TO_HOLE_CLEARANCE)
-    if _h2h_src == 'board constraint' and _h2h > _rd.HOLE_TO_HOLE_CLEARANCE:
+    _h2h_fab = fab_floor_min(_copper).get('hole_to_hole', 0.0)
+    _h2h = max(_h2h_decl, _h2h_fab)
+    if _h2h_src == 'board constraint' and _h2h_decl > _rd.HOLE_TO_HOLE_CLEARANCE:
         print(f"  Hole-to-hole {_h2h:g}mm (from the board's own "
               f"min_hole_to_hole)")
+    elif _h2h_src == 'board constraint' and _h2h_decl < _h2h_fab:
+        # Never SILENTLY relaxed -- the whole point of the guard is that a
+        # board file cannot lower a fab floor without saying so. A user who
+        # genuinely has a finer fab declares it with --fab-tier/--fab-overrides,
+        # which is what fab_floor_min reads.
+        print(f"  Board min_hole_to_hole {_h2h_decl:g}mm is below the "
+              f"{_h2h_fab:g}mm fab hole-to-hole floor; using {_h2h:g}mm.")
     _drilled_pad_holes = [(hx, hy, hd)
                           for p in foreign_pads if p.drill and p.drill > 0
                           for (hx, hy, hd) in _pdc(p)]
