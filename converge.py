@@ -161,7 +161,7 @@ def check_rip_invariants(nets, rip_set, power_nets=(), impedance_nets=()):
 #: which is routinely ungraded, and an ungraded component contradicts nothing.
 LENS_COMPONENTS = {
     'connectivity': ('unrouted', 'broken'),
-    'drc': ('drc', 'undersized'),
+    'drcX': ('drc', 'undersized'),
 }
 
 _LENS_RE = r'^VERDICT=(PASS|FAIL):lens=([A-Za-z0-9_-]+)'
