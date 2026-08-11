@@ -276,6 +276,47 @@ def _q2_reuse_end_to_end():
     return bad
 
 
+def _wiring_spy(ref, net_filter, **kw):
+    """Run the underpad escape with `run_output_conflict` spied on.
+
+    Returns what the engine FED the checker, plus the engine's own per-side pad
+    grouping read back off its own output (not re-derived here -- the point is
+    to observe the run, not to model it).
+    """
+    import io
+    import re
+    import contextlib
+    import qfn_fanout as Q
+
+    seen = {'entries': [], 'with_pad': 0, 'calls': 0, 'max_placed': 0}
+    real = Q.run_output_conflict
+
+    def spy(vx, vy, net_id, placed, px=None, py=None, **kwargs):
+        seen['calls'] += 1
+        if px is not None:
+            seen['with_pad'] += 1
+        seen['entries'].extend(placed)
+        seen['max_placed'] = max(seen['max_placed'], len(placed))
+        return real(vx, vy, net_id, placed, px, py, **kwargs)
+
+    Q.run_output_conflict = spy
+    try:
+        pcb = parse_kicad_pcb(BOARD)
+        with contextlib.redirect_stdout(io.StringIO()) as buf:
+            Q.generate_qfn_fanout(
+                pcb.footprints[ref], pcb, net_filter=net_filter, layer="F.Cu",
+                track_width=0.1, clearance=CLEARANCE, grid_step=0.05,
+                escape_method="underpad", via_size=VIA_SIZE, via_drill=0.25,
+                **kw)
+    finally:
+        Q.run_output_conflict = real
+
+    seen['sides'] = {m.group(1): int(m.group(2)) for m in
+                     (re.match(r'\s+(\w+): (\d+) pads$', ln)
+                      for ln in buf.getvalue().splitlines()) if m}
+    return seen
+
+
 def _d10_wiring():
     """The pure function is not the fix -- the WIRING is.
 
@@ -285,11 +326,11 @@ def _d10_wiring():
     all be reverted with every test still green. So assert the wiring itself,
     by watching what the engine feeds the checker on a real board.
     """
-    import qfn_fanout as Q
     bad = []
 
-    def check(name, cond):
-        print(("PASS: " if cond else "FAIL: ") + name)
+    def check(name, cond, detail=""):
+        print(("PASS: " if cond else "FAIL: ") + name + (f"  [{detail}]"
+                                                         if detail else ""))
         if not cond:
             bad.append(name)
 
@@ -297,27 +338,7 @@ def _d10_wiring():
         print("SKIP: corpus board not found (wiring check)")
         return bad
 
-    seen = {'entries': [], 'with_pad': 0, 'calls': 0}
-    real = Q.run_output_conflict
-
-    def spy(vx, vy, net_id, placed, px=None, py=None, **kw):
-        seen['calls'] += 1
-        if px is not None:
-            seen['with_pad'] += 1
-        seen['entries'].extend(placed)
-        return real(vx, vy, net_id, placed, px, py, **kw)
-
-    Q.run_output_conflict = spy
-    try:
-        pcb = parse_kicad_pcb(BOARD)
-        Q.generate_qfn_fanout(
-            pcb.footprints["U3"], pcb, net_filter=["/USB_DP", "/USB_DN"],
-            layer="F.Cu", track_width=0.1, clearance=CLEARANCE,
-            grid_step=0.05, escape_method="underpad", via_size=VIA_SIZE,
-            via_drill=0.25)
-    finally:
-        Q.run_output_conflict = real
-
+    seen = _wiring_spy("U3", ["/USB_DP", "/USB_DN"])
     check('the engine actually consults the in-run conflict test',
           seen['calls'] > 0)
     # If via_clears stopped forwarding the pad, this is 0 and the candidate's
@@ -327,6 +348,33 @@ def _d10_wiring():
     # If `placed` reverted to 3-tuples, the emitted stubs become invisible.
     check('recorded placements carry the pad origin, not just the via centre',
           seen['entries'] and all(len(e) == 5 for e in seen['entries']))
+
+    # THE CROSS-SIDE HALF, which the fixture above cannot reach. D10's commit
+    # message claims the fix covers stubs "within a side AND across sides via
+    # placed_global" -- but `net_filter=["/USB_DP","/USB_DN"]` yields ONE side
+    # (left: 2 pads), so placed_global is still empty when trial() runs and no
+    # placed_global entry ever reaches the checker. Measured per-mutation
+    # against the combined revert: dropping px/py from the via_clears call
+    # exits 1, a 3-tuple in `trial` exits 1, and a 3-tuple in `placed_global`
+    # exits 0 -- SURVIVES. An unfiltered U3 spans four sides and kills it.
+    wide = _wiring_spy("U3", None)
+    biggest = max(wide['sides'].values() or [0])
+    check('the cross-side fixture really does span more than one side',
+          len(wide['sides']) >= 2, f"sides {wide['sides']}")
+    # WHY THIS BOUND IS EXACT: inside one side's trial, `placed` starts at
+    # len(placed_global) and trial() itself has appended at most (that side's
+    # pads - 1) entries before any given call. So with NO cross-side carry,
+    # max_placed <= biggest - 1. Seeing max_placed >= biggest therefore proves
+    # placed_global was non-empty when a later side ran -- it is a direct
+    # assertion about placed_global, not a proxy for one.
+    check('placed_global carried committed placements INTO a later side',
+          wide['max_placed'] >= biggest,
+          f"max placed {wide['max_placed']}, biggest side {biggest}")
+    # ...and THAT is what kills mutation C: those carried entries are the only
+    # ones that come from placed_global rather than from trial's own append.
+    check('...and the cross-side entries carry the pad origin too',
+          wide['entries'] and all(len(e) == 5 for e in wide['entries']),
+          f"{sorted(set(len(e) for e in wide['entries']))}-tuples seen")
     return bad
 
 
