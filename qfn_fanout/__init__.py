@@ -120,7 +120,7 @@ def _board_edge_model(pcb_data, clearance, board_edge_clearance):
 
 def run_output_conflict(vx, vy, net_id, placed, px=None, py=None, *,
                         via_size, via_drill, clearance, track_width,
-                        hole_to_hole):
+                        hole_to_hole, adds_via=True):
     """Does a candidate via (and its stub) collide with THIS RUN's own output?
 
     D10. The underpad escape's `via_clears` tested a candidate against the
@@ -146,6 +146,29 @@ def run_output_conflict(vx, vy, net_id, placed, px=None, py=None, *,
     over fifteen locals, and a check this consequential should not be reachable
     only by routing a whole board.
 
+    ``adds_via=False`` is the REUSE case (#479 audit gap 2): the position is an
+    existing board via, so this run adds no drill and no via copper -- only the
+    bridging stub. Everything about that via's spacing is a fact of the input
+    board, not something this run creates, so pricing it as a NEW via at
+    ``config.via_size`` judges two vias that already exist, at a size neither
+    has, for a spacing this run does not produce. Measured on
+    kicad_files/routed_output.kicad_pcb U2 (B.Cu, track/clearance 0.1, via
+    0.45/0.25, --escape-method underpad --allow-via-in-pad): with the via terms
+    applied, all 7 reuse candidates were rejected on the different-net floor
+    ``via_size + clearance`` = 0.55 against pre-existing 0.30 vias sitting at
+    0.400 mm -- legal (0.15+0.15+0.10) and already on the board. That cost
+    Net-(U2A-DATA_30) its escape and put a fresh drill where a reuse would have
+    served: 28 vias / 12 dropped / 30 tracks became 29 / 13 / 31.
+
+    The via terms are not merely wrong there, they are REDUNDANT. Every entry
+    in `placed` is either a via this run created -- already tested against this
+    reuse target in `via_clears`'s `foreign_vias` loop at exact pairwise sizes
+    (``via_size/2 + fs/2 + clearance``, and ``(via_drill + fd)/2 + h2h`` for
+    same net) -- or another pre-existing via, whose spacing is the board's. So
+    with ``adds_via=False`` only the new STUB is tested, which is the only
+    copper the reuse emits. A stub shorter than POSITION_TOLERANCE emits no
+    track at all (the commit loop skips it), so it conflicts with nothing.
+
     Returns True when the candidate must be REJECTED.
     """
     from geometry_utils import segment_to_segment_distance
@@ -153,22 +176,31 @@ def run_output_conflict(vx, vy, net_id, placed, px=None, py=None, *,
 
     via_half = via_size / 2 + clearance - 1e-6
     track_half = track_width / 2
+    if not adds_via and (px is None
+                         or math.hypot(px - vx, py - vy) <= POSITION_TOLERANCE):
+        return False                    # reuse with no stub emits no copper
     for entry in placed:
         qx, qy, qn = entry[0], entry[1], entry[2]
         qpx = entry[3] if len(entry) > 3 else None
         qpy = entry[4] if len(entry) > 4 else None
         # Via-to-via. Same-net floor was via_size*0.5 -- BELOW drill
         # hole-to-hole for standard vias (#479 audit gap 2); both are via_drill.
-        floor = (via_size + clearance) if qn != net_id \
-            else max(via_size * 0.5, via_drill + hole_to_hole)
-        if math.hypot(vx - qx, vy - qy) < floor - 1e-6:
-            return True
+        # Skipped for a REUSE: no drill and no via copper is added, so there is
+        # no new pair for this run to space.
+        if adds_via:
+            floor = (via_size + clearance) if qn != net_id \
+                else max(via_size * 0.5, via_drill + hole_to_hole)
+            if math.hypot(vx - qx, vy - qy) < floor - 1e-6:
+                return True
         if qn == net_id:
             continue                           # own-net copper is no obstacle
         has_stub = (qpx is not None
                     and math.hypot(qpx - qx, qpy - qy) > POSITION_TOLERANCE)
-        # 1. the candidate VIA against the stub already emitted for that via
-        if has_stub and point_to_segment_distance(vx, vy, qpx, qpy, qx, qy) \
+        # 1. the candidate VIA against the stub already emitted for that via.
+        #    Also a reuse no-op: that via is on the INPUT board, so the earlier
+        #    stub was already cleared against it by check_line_clearance.
+        if adds_via and has_stub \
+                and point_to_segment_distance(vx, vy, qpx, qpy, qx, qy) \
                 < via_half + track_half:
             return True
         if px is None:
@@ -403,6 +435,14 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
             # distance 0 from itself, and the full test would reject every
             # reuse on its own same-net drill floor. Only this run's output is
             # in question here.
+            #
+            # And `adds_via=False`, because a reuse adds NO drill and NO via
+            # copper -- only the bridging stub. Pricing the existing via as a
+            # new one at config.via_size rejected every reuse on this board:
+            # 0.30 board vias 0.400mm apart (legal at 0.15+0.15+0.10, and
+            # already there) judged against a demanded 0.55. That was measured
+            # as Net-(U2A-DATA_30) losing its escape to a fresh drill --
+            # 28/12/30 vias/dropped/tracks becoming 29/13/31 on U2.
             if (obs_layer_idx is None or
                     check_line_clearance(obstacles, px, py, _rvx, _rvy,
                                          obs_layer_idx, cfg)) \
@@ -410,7 +450,7 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
                         _rvx, _rvy, pi.pad.net_id, placed, px, py,
                         via_size=via_size, via_drill=via_drill,
                         clearance=clearance, track_width=track_width,
-                        hole_to_hole=_h2h):
+                        hole_to_hole=_h2h, adds_via=False):
                 return (_rvx, _rvy)
         for d in candidate_offsets(pi.pad_width, mode):
             vx, vy = snap(px + ex * d), snap(py + ey * d)

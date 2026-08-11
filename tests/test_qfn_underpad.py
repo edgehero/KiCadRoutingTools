@@ -142,6 +142,137 @@ def _d10_self_blindness():
           not conflict(5.0, 6.0, 2, inpad, **KN))
 
     bad += _d10_wiring()
+    bad += _q2_reuse_adds_no_via()
+    return bad
+
+
+# --- Q2: a REUSE adds no drill and no via copper, only the stub -------------
+#
+# The D10 follow-up wired the reuse branch into run_output_conflict -- correctly,
+# because that branch was blind to this run's own output -- but priced the
+# REUSED via as a NEW one. The reuse target is an existing board via; on
+# routed_output.kicad_pcb those are 0.30, and the partners they were judged
+# against are also pre-existing 0.30 vias sitting at 0.400mm: legal
+# (0.15 + 0.15 + 0.10) and already on the board. Priced at config via_size 0.45
+# the test demanded 0.55 and rejected all 7 reuse candidates -- judging two vias
+# that already exist, at a size neither has, for a spacing this run does not
+# create.
+#
+# Measured on kicad_files/routed_output.kicad_pcb, U2, B.Cu, track/clearance
+# 0.1, via 0.45/0.25, --escape-method underpad --allow-via-in-pad:
+#
+#     715c821 (before D10 follow-up)  28 vias / 12 dropped / 30 tracks
+#     f1dd280 (the follow-up)         29 vias / 13 dropped / 31 tracks
+#
+# Net-(U2A-DATA_30) lost its escape and a fresh drill appeared where a reuse
+# would have served -- which is what #479 audit gap 2's reuse path exists to
+# prevent.
+
+# The numbers off that board, so the geometry under test is the measured one.
+REUSE_KN = dict(via_size=0.45, via_drill=0.25, clearance=0.1, track_width=0.1,
+                hole_to_hole=0.2)
+U2_BOARD = os.path.join(ROOT, "kicad_files", "routed_output.kicad_pcb")
+
+
+def _q2_reuse_adds_no_via():
+    from qfn_fanout import run_output_conflict as conflict
+    bad = []
+
+    def check(name, cond, detail=""):
+        print(("PASS: " if cond else "FAIL: ") + name + (f"  [{detail}]"
+                                                         if detail else ""))
+        if not cond:
+            bad.append(name)
+
+    # The BOARD first, deliberately: the checks below pass `adds_via`, which
+    # does not exist before the fix, so on the unfixed engine they raise rather
+    # than measure. Running the counts first makes the pre-fix failure a
+    # measured 29/13/31 instead of a TypeError.
+    bad += _q2_reuse_end_to_end()
+
+    # The exact rejection the verifier isolated, in board coordinates. A
+    # pre-existing 0.30 via on another net at (213.5625, 105.7) fed by a stub
+    # from its pad at (213.5625, 105.5); the reuse candidate is a pre-existing
+    # 0.30 via at (213.5625, 106.1), bridged from the pad at (213.5625, 106.3).
+    placed = [(213.5625, 105.7, 80, 213.5625, 105.5)]
+    cand = (213.5625, 106.1, 107)
+    pad = dict(px=213.5625, py=106.3)
+    gap = 106.1 - 105.7
+
+    check('the measured spacing is the legal one for two 0.30 vias',
+          abs(gap - 0.400) < 1e-9 and 0.400 >= 0.15 + 0.15 + 0.10 - 1e-9,
+          f"gap {gap:.4f}, true floor 0.40, demanded "
+          f"{REUSE_KN['via_size'] + REUSE_KN['clearance']:.2f}")
+    # Pricing it as a NEW via is what rejected it: this is the f1dd280 call.
+    check('priced as a NEW via, the legal reuse is rejected (the regression)',
+          conflict(*cand, placed, **pad, **REUSE_KN))
+    # ...and suppressing the via terms -- which is what "adds no via" means --
+    # accepts it. Only `adds_via` differs between these two lines, so nothing
+    # else can be what changed the verdict.
+    check('a reuse adds no drill and no via copper, so it is accepted',
+          not conflict(*cand, placed, **pad, adds_via=False, **REUSE_KN))
+
+    # The stub is still tested, or the branch would be blind again -- which is
+    # the D10 gap this must not reopen. A reuse whose BRIDGING STUB crosses
+    # another net's stub is rejected even with adds_via=False.
+    crossing = [(0.0, 3.0, 1, 0.0, 0.0)]        # placed stub up x=0, y 0..3
+    check('a reuse whose stub crosses an emitted stub is still rejected',
+          conflict(2.0, 1.5, 2, crossing, px=-2.0, py=1.5, adds_via=False,
+                   **REUSE_KN))
+    # ...and its stub against a placed VIA, the other direction.
+    check('a reuse whose stub runs over a placed via is still rejected',
+          conflict(2.0, 3.0, 2, [(0.0, 3.0, 1, 0.0, 0.0)], px=-2.0, py=3.0,
+                   adds_via=False, **REUSE_KN))
+    # Same net is still exempt.
+    check('a same-net reuse crossing its own stub is allowed',
+          not conflict(2.0, 1.5, 1, crossing, px=-2.0, py=1.5, adds_via=False,
+                       **REUSE_KN))
+    # A reuse landing ON the pad emits no track at all (the commit loop skips
+    # a sub-tolerance stub), so it can conflict with nothing.
+    check('a reuse with no stub to emit conflicts with nothing',
+          not conflict(0.0, 1.0, 2, [(0.0, 1.0, 1, 0.0, 0.0)], px=0.0, py=1.0,
+                       adds_via=False, **REUSE_KN))
+    return bad
+
+
+def _q2_reuse_end_to_end():
+    """The measured board, not just the pure function.
+
+    The pure-function checks above would all pass with `adds_via` accepted and
+    ignored at the call site -- the same "tested the function, left the wiring
+    uncovered" hole D10 was pulled up for. So assert the counts off the board
+    the regression was measured on.
+    """
+    import io
+    import contextlib
+    from qfn_fanout import generate_qfn_fanout as fanout
+    bad = []
+
+    def check(name, cond, detail=""):
+        print(("PASS: " if cond else "FAIL: ") + name + (f"  [{detail}]"
+                                                         if detail else ""))
+        if not cond:
+            bad.append(name)
+
+    if not os.path.exists(U2_BOARD):
+        print("SKIP: corpus board not found (U2 reuse counts)")
+        return bad
+
+    pcb = parse_kicad_pcb(U2_BOARD)
+    with contextlib.redirect_stdout(io.StringIO()):
+        tracks, vias, dropped = fanout(
+            pcb.footprints["U2"], pcb, layer="B.Cu", track_width=0.1,
+            clearance=0.1, grid_step=0.05, escape_method="underpad",
+            via_size=0.45, via_drill=0.25, allow_via_in_pad=True)
+
+    got = (len(vias), len(dropped), len(tracks))
+    check('U2 underpad reuse: 28 vias / 12 dropped / 30 tracks',
+          got == (28, 12, 30), f"got {got[0]} / {got[1]} / {got[2]}")
+    # The specific net the regression cost, named -- a count can drift back
+    # into place for an unrelated reason, this cannot.
+    check('Net-(U2A-DATA_30) keeps its escape (it reuses an existing via)',
+          'Net-(U2A-DATA_30)' not in dropped,
+          f"{len(dropped)} dropped")
     return bad
 
 
