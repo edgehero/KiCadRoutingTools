@@ -34,9 +34,11 @@ teammate; <error> you skipped evidence.
 Exit: 0 emitted, 2 usage, 4 a guard refused.
 """
 import argparse
+import hashlib
 import json
 import os
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(HERE))))

@@ -1202,6 +1202,52 @@ Examples:
     return p
 
 
+def net_pattern_report(pcb, patterns, flag: str) -> dict:
+    """Did the net list this render was given actually MATCH anything?
+
+    There was no field in the `instrument` block where "61 requested, 51
+    matched" could ever appear, and that absence is exactly why a mangled net
+    list went undetected: `board_score` published `--ignore-nets` candidates
+    double-escaped, 10 of 61 matched nothing, and the render came back hpwl
+    +45.6% / crossings +129.5% on a board that had not changed. Both numbers
+    were internally consistent; the render simply scored a different net
+    population than the one asked for, and said nothing.
+
+    A pattern that matches nothing is ALWAYS worth reporting, even when it is
+    intentional (a glob written for a family of boards). The cost of the note
+    is a line; the cost of its absence was measured above.
+
+    Returns per-pattern truth, not just a total, because the total cannot name
+    the offender: `matched` is how many of the given patterns hit >= 1 net.
+    """
+    import fnmatch
+    names = [n.name for n in pcb.nets.values() if n.name]
+    pats = list(patterns or ())
+    hit = {p: sum(1 for nm in names if fnmatch.fnmatch(nm, p)) for p in pats}
+    unmatched = sorted(p for p, c in hit.items() if not c)
+    return {'flag': flag,
+            'requested': len(pats),
+            'matched': len(pats) - len(unmatched),
+            'unmatched': unmatched,
+            'nets_matched': sum(1 for nm in names
+                                if any(fnmatch.fnmatch(nm, p) for p in pats))}
+
+
+def warn_unmatched(report: dict) -> None:
+    """Say it on stderr, where a non-zero result cannot be scrolled past."""
+    if not report.get('unmatched'):
+        return
+    shown = ', '.join(repr(p) for p in report['unmatched'][:8])
+    more = '' if len(report['unmatched']) <= 8 else \
+        f" (+{len(report['unmatched']) - 8} more)"
+    print(f"WARNING: {report['flag']} -- {report['requested']} requested, "
+          f"{report['matched']} matched. These matched NO net on this board: "
+          f"{shown}{more}. The metrics below were computed over a DIFFERENT "
+          f"net population than the one you asked for. A name that is merely "
+          f"misspelled or mis-escaped is indistinguishable here from a net "
+          f"that does not exist -- check it against the board.", file=sys.stderr)
+
+
 def _load_summary(path):
     """Failed + blocker net names from a JSON_SUMMARY file or a route log.
 
@@ -1251,6 +1297,16 @@ def main(argv=None):
     from placement.placement_state import gate_or_exit
     state = gate_or_exit(pcb, args.board, 'render_placement.py', warn_only=True)
 
+    # DECLARED vs MATCHED, for every net list this run was handed. Computed even
+    # when the list is empty so the fields exist unconditionally -- a key that
+    # appears only on failure is a key no reader knows to look for.
+    net_lists = {'ignore_nets': net_pattern_report(pcb, args.ignore_nets,
+                                                   '--ignore-nets'),
+                 'ratsnest_nets': net_pattern_report(pcb, args.ratsnest_nets,
+                                                     '--ratsnest-nets')}
+    for _rep in net_lists.values():
+        warn_unmatched(_rep)
+
     ignore_ids = None
     if args.ignore_nets:
         import fnmatch
@@ -1258,7 +1314,9 @@ def main(argv=None):
                       if any(fnmatch.fnmatch(net.name, pat)
                              for pat in args.ignore_nets)}
         if not args.quiet:
-            print(f"Ignoring {len(ignore_ids)} nets for airwire scoring")
+            _r = net_lists['ignore_nets']
+            print(f"Ignoring {len(ignore_ids)} nets for airwire scoring "
+                  f"({_r['matched']}/{_r['requested']} patterns matched)")
 
     # exact=True is not a default here, it is a requirement: the render path
     # below reads `model.state` unconditionally (`state.parts`), so a stateless
@@ -1509,6 +1567,11 @@ def main(argv=None):
                 'clearance': args.clearance,
                 'ignore_nets': sorted(args.ignore_nets or []),
                 'ratsnest_nets': sorted(args.ratsnest_nets or []),
+                # DECLARED vs MATCHED. Without these there was no field in
+                # this document where "61 requested, 51 matched" could
+                # appear, so a net list that silently missed had to be
+                # checked by hand, outside the tool -- and was not.
+                'net_lists': net_lists,
                 'size': args.size, 'supersample': args.supersample,
             },
             # Mandate 8's four questions, quotable (run-4 G5). Channels are
