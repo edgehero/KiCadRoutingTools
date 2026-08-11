@@ -991,6 +991,13 @@ def l2(a):
     # `copy_board placed.kicad_pcb frozen.kicad_pcb` would freeze cycle 1's
     # board into cycle 1's baseline -- twice wrong in one line.
     _clash = _ledger_collision(a, [_frozen, _routed, _close, _score])
+    # The --authored-from baseline is CYCLE 1's frozen board on EVERY cycle,
+    # exactly as the cycle note below promises. The emitted command used to
+    # pass the current cycle's frozen_cN instead (run-17 audit, D5) -- and the
+    # writeback only ever loosens, so a later cycle's frozen board may already
+    # carry ratcheted floors: grading against it silently weakens the very
+    # check the note says it feeds.
+    _authored = f'{work}/frozen.kicad_pcb'
     _cycnote = ('' if cyc == 1 else
                 f'\nCYCLE {cyc}. The output names below carry a _c{cyc} suffix: '
                 f'cycle 1\'s frozen.kicad_pcb is this chain\'s --authored-from '
@@ -1094,7 +1101,7 @@ reads your message.
   route log    : {_log}           the one carrying JSON_SUMMARY
   close-out    : {_close}
                  python3 -X utf8 check_complete.py {_routed} \\
-                     --authored-from {_frozen} \\
+                     --authored-from {_authored} \\
                      --json {_close}
 
 `--authored-from` is given to you above because only this loop knows it, and it
@@ -1237,6 +1244,11 @@ L5 answers that from the ledger rather than from an impression.
 
 Confirm nothing is merely UNGRADED first -- a component nothing examined is
 reported unexamined, never clean.
+
+(If L5 answers CONTINUE because routing quality is still improving, the lever
+lives in the routing half's own convergence loop -- this stage classifies
+FAILURES and has nothing to offer a board at blocking == 0, so do not bounce
+between here and L5 looking for one.)
 
 Next: --stage L5 --board {a.board} --score {a.score} --ledger {a.ledger}
 </stage_instructions>'''
@@ -1484,9 +1496,16 @@ def _verdict(a):
             except Exception:                                   # noqa: BLE001
                 pass
     import subprocess
+    # ABSPATH BOTH FILES: this subprocess runs with cwd=ROOT while every
+    # isfile() check above resolved against the CALLER's cwd -- so from any
+    # other directory, L5 could validate one file and converge could read
+    # another (a missing ledger reads as empty history, which is a confident
+    # CONTINUE derived from nothing). Same fix shape as check_complete's
+    # relative-path repair; run-17 audit, D4.
     p = subprocess.run(
         [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'converge.py'),
-         'verdict', '--ledger', a.ledger, '--score', a.score,
+         'verdict', '--ledger', os.path.abspath(a.ledger),
+         '--score', os.path.abspath(a.score),
          '--budget', str(a.budget), '--flat', str(a.flat)],
         capture_output=True, text=True, encoding='utf-8', errors='replace',
         cwd=ROOT)
@@ -1586,6 +1605,23 @@ def l5(a):
     name, doc, _code = got
     why = doc.get('reason', '')
 
+    # A score that EXISTS but cannot be read is not a stop verdict -- it is a
+    # missing measurement. This used to fall through to the terminal branch,
+    # so an unparseable score file printed the full ship ceremony (including
+    # `--final --stop-condition "NO-SCORE"`) instead of "re-score". Run-17
+    # audit, D9.
+    if name == 'NO-SCORE':
+        return err(
+            f'The score at {a.score} could not be read ({why or "unparseable"}), '
+            f'and L5 decides whether the loop is over FROM the score. An '
+            f'unreadable measurement is not a stop condition. Re-score the '
+            f'board, then come back:\n'
+            f'  python3 -X utf8 '
+            f'.claude/skills/plan-pcb-routing/scripts/board_score.py '
+            f'{a.board} --json wk/score_final.json\n'
+            f'  python3 -X utf8 {sys.argv[0]} --stage L5 --board {a.board} \\\n'
+            f'      --ledger {a.ledger} --score wk/score_final.json')
+
     if name == 'CONTINUE':
         # THE CROSS-CHECK RUNS HERE TOO. It is still not a REQUIREMENT on this
         # branch -- no close-out is demanded, and a run with neither a final
@@ -1606,8 +1642,12 @@ Go round again. A board that merely routes is the floor -- keep pulling levers
 until neither half can improve either key.
 
   placement still improving -> --stage L1 --board {a.board} --ledger {a.ledger}
-  routing still improving   -> --stage L3 --board {a.board} \\
-                                   --score {a.score} --ledger {a.ledger}
+  routing still improving   -> the lever is pulled INSIDE the routing half
+                               (its own convergence stages -- quality passes,
+                               via count, copper length), not by this driver:
+                               re-enter it on the routed board, record the
+                               lap, then --stage L3 --board {a.board} \\
+                                   --score <the new score> --ledger {a.ledger}
 
 Record the lap you are about to run, accepted or rejected. A rejected lap is
 data: it is what makes the plateau detectable, and without it this stage cannot
@@ -1627,7 +1667,6 @@ tell a finished run from a stalled one.
         'DONE-EXHAUSTED': 'the board is done, and measured to be done',
         'STUCK': 'stopping is legitimate; calling this finished is not',
         'BUDGET': 'the budget ended this run, not the board',
-        'NO-SCORE': 'the score could not be read',
     }
     return f'''<stage_instructions stage="L5" name="close out: {name}" of="5">
 {verdicts.get(name, name)}.
@@ -2987,8 +3026,17 @@ def _self_test():
             want('_c2.kicad_pcb' in two and 'CYCLE 2' in two,
                  f'{k} cycle 2 names its OWN artifacts, and says which cycle')
         two = STAGES['L2'](_args(_a2))
-        want('/frozen.kicad_pcb' not in two and '/freeze_refs.json' not in two,
-             'a second cycle is never told to write cycle 1\'s frozen board')
+        # The one legitimate mention of cycle 1's bare name is the
+        # --authored-from READ (D5: floors are graded against the board whose
+        # floors are still authored). Every other mention is a write target
+        # and stays forbidden.
+        _two_writes = '\n'.join(l for l in two.splitlines()
+                                if '--authored-from' not in l)
+        want('/frozen.kicad_pcb' not in _two_writes
+             and '/freeze_refs.json' not in _two_writes,
+             'a second cycle is never told to WRITE cycle 1\'s frozen board')
+        want('--authored-from' in two and '/frozen.kicad_pcb' in two,
+             '...while its close-out still READS cycle 1\'s frozen baseline')
         want(f'copy_board.py {_b} ' in two,
              'the freeze copies the board it was HANDED, not a derived name')
         # The belt: whatever the naming, SAY SO when a named output path
@@ -3168,6 +3216,68 @@ def _self_test():
              and 'blocking = 57' not in out,
              'PIN: L2 still refuses board_score JSON BY SHAPE, without firing '
              'the blocking check on the wrong number')
+
+        # ------------------------------------------- run-17 audit fixes (D-series)
+        # D1: the run-closing record carries the three lens slots. The full
+        # runs-as-printed pin (substitute placeholders, EXECUTE the command)
+        # lives in tests/test_converge.py; this is the cheap structural half.
+        _frc = final_record_command('l.jsonl', 'b.kicad_pcb', 's.json', 'STUCK')
+        want(_frc.count('--lens') == 3 and 'connectivity' in _frc
+             and 'drc' in _frc and 'spec' in _frc,
+             'D1: the printed --final command carries three --lens slots')
+
+        # D4: the verdict subprocess must read the SAME ledger the caller
+        # named, from any cwd. converge treats a MISSING ledger exactly like
+        # an empty one (CONTINUE from zero rows, measured), so the fixture
+        # ledger carries one real row -- pre-fix, cwd=ROOT made the relative
+        # name resolve to a nonexistent file and ledger_rows read 0.
+        import subprocess as _sp
+        _d4 = os.path.join(tmp, 'd4')
+        os.makedirs(_d4)
+        _dled = os.path.join(_d4, 'led.jsonl')
+        _rec = _sp.run([sys.executable, '-X', 'utf8',
+                        os.path.join(ROOT, 'converge.py'), 'record',
+                        '--ledger', _dled, '--board', _b,
+                        '--kind', 'completion', '--lever', 'd4 fixture row'],
+                       capture_output=True, text=True, encoding='utf-8',
+                       errors='replace')
+        json.dump({'blocking': 0},
+                  open(os.path.join(_d4, 'sc.json'), 'w', encoding='utf-8'))
+        _prev = os.getcwd()
+        try:
+            os.chdir(_d4)
+            _got = _verdict(_args(['--board', _b, '--ledger', 'led.jsonl',
+                                   '--score', 'sc.json']))
+        finally:
+            os.chdir(_prev)
+        want(_rec.returncode == 0 and _got is not None
+             and isinstance(_got[1], dict)
+             and (_got[1].get('ledger_rows') or 0) >= 1,
+             'D4: _verdict reads the caller-relative ledger from any cwd')
+
+        # D5: on cycle >= 2, the emitted close-out grades against CYCLE 1's
+        # frozen board -- the only one whose floors are still authored -- while
+        # the freeze itself writes the _cN name.
+        _c2 = os.path.join(tmp, 'c2')
+        os.makedirs(_c2)
+        open(os.path.join(_c2, 'frozen_c2.kicad_pcb'), 'w',
+             encoding='utf-8').close()
+        _c2fwd = _c2.replace('\\', '/')
+        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _asm,
+                                  '--ledger', _c2fwd + '/led.jsonl']))
+        want(f'--authored-from {_c2fwd}/frozen.kicad_pcb' in out
+             and 'frozen_c2.kicad_pcb' in out,
+             'D5: cycle-2 close-out grades against cycle 1\'s frozen baseline')
+
+        # D9: a score that exists but cannot be read is a re-score refusal,
+        # never the ship ceremony.
+        _badscore = os.path.join(tmp, 'bad.json')
+        open(_badscore, 'w', encoding='utf-8').write('not json')
+        out = STAGES['L5'](_args(['--board', _b, '--ledger', _wrong,
+                                  '--score', _badscore]))
+        want(out.startswith('<error>') and 'close out:' not in out
+             and 'board_score.py' in out and '--stop-condition' not in out,
+             'D9: an unreadable score is a re-score refusal, not a ceremony')
 
     print('OK' if not bad else f'FAIL: {len(bad)}')
     return 1 if bad else 0
