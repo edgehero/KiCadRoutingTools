@@ -397,14 +397,33 @@ def _cycle_index(ledger):
     so following the instruction literally destroys the provenance every later
     gate checks against -- and check_complete's fab-floor check, which is the
     only route to UNSOUND, compares against exactly that file.
+
+    Two refinements the real ledger forced, both about what is NOT a new lap:
+
+      * routing before any placement does not start cycle 2 on the first
+        placement lap (a routing-first run kept the bare names, as documented);
+      * a placement row whose board content was ALREADY recorded produced no
+        new board, so it is a disposition, not a lap. Measured: iteration 33 of
+        the run-17 ledger is `kind: placement`, lever "cycle2 VERIFIER
+        DISPOSITION (no pose change; same board as it.30)", and it re-records
+        it.30's sha -- it read as a third cycle on a ledger whose own levers
+        say cycle 2 throughout.
+
+    It still ERRS HIGH by construction, and that is the safe direction: an
+    over-count costs a fresh filename, an under-count costs the provenance the
+    ledger is for.
     """
-    cyc, routed = 1, False
+    cyc, routed, placed, seen = 1, False, False, set()
     for r in _ledger_rows(ledger):
-        kind = r.get('kind') or ''
+        kind, sha = r.get('kind') or '', r.get('result_sha')
         if kind in ('completion', 'routing'):
-            routed = True
-        elif kind == 'placement' and routed:
-            cyc, routed = cyc + 1, False
+            routed = routed or placed
+        elif kind == 'placement':
+            if routed and sha not in seen:
+                cyc, routed = cyc + 1, False
+            placed = True
+        if sha:
+            seen.add(sha)
     return cyc
 
 
@@ -436,25 +455,33 @@ def _paths(a):
 
 
 def _ledger_collision(a, paths):
-    """Refusal when a path we are about to name as an OUTPUT already holds a
-    board THE LEDGER REFERENCES -- else None.
+    """A WARNING block when a path we are about to name as an OUTPUT already
+    holds a board THE LEDGER REFERENCES -- else ''.
 
     The belt beside the cycle suffix. A suffix fixes the case the driver can
-    see coming; this one fires whenever an output path, however derived, would
-    overwrite a file the ledger's history depends on -- a step-back target, a
-    film frame, an --authored-from baseline. Content-addressed, so it cannot be
-    fooled by a path that merely looks familiar, and silent when the question
-    is unanswerable (no ledger, unreadable file).
+    see coming; this names any output path that would land on a file the
+    ledger's history depends on -- a step-back target, a film frame, an
+    --authored-from baseline. Content-addressed, so it cannot be fooled by a
+    path that merely looks familiar, and silent when the question is
+    unanswerable (no ledger, unreadable file).
+
+    A WARNING and not a refusal, deliberately. These stages are instruction
+    printers -- the doctrine is "ask its driver for one stage at a time" -- so
+    RE-INVOKING one after doing what it said is normal, and as a refusal this
+    made every resumed or interrupted session exit 4 on an artifact it had
+    correctly produced. Worse, its remedy ("move the existing file") is exactly
+    what destroys the --authored-from provenance it exists to protect. The
+    information is what was missing; the veto was never the point.
     """
     shas = {r.get('result_sha') for r in _ledger_rows(getattr(a, 'ledger', None))
             if r.get('result_sha')}
     if not shas:
-        return None
+        return ''
     try:
         sys.path.insert(0, ROOT)
         from board_store import sha256_file
     except Exception:                                       # noqa: BLE001
-        return None
+        return ''
     hits = []
     for p in paths:
         if not os.path.isfile(p):
@@ -466,19 +493,19 @@ def _ledger_collision(a, paths):
         if s in shas:
             hits.append((p, s))
     if not hits:
-        return None
-    named = '\n'.join(f'    {p}\n      already holds ledger board {s[:12]}...'
-                      for p, s in hits)
-    return err(
-        f'This stage was about to tell you to WRITE OVER a board the ledger '
-        f'references:\n\n{named}\n\nThat file is addressable history: '
-        f'step-back checks it out by content, the film reads it, and '
-        f'check_complete --authored-from grades this run\'s copper against it '
-        f'-- without which UNSOUND is unreachable and a board below its own '
-        f'declared floor reads clean.\n\nThis is cycle {_cycle_index(a.ledger)} '
-        f'by the ledger\'s count. If that is wrong, the ledger is missing laps '
-        f'-- record them. If it is right, move or rename the existing file '
-        f'before continuing; do not overwrite it.')
+        return ''
+    named = '\n'.join(f'    {p}  = ledger board {s[:12]}...' for p, s in hits)
+    return (
+        f'\nALREADY IN THE LEDGER -- do not overwrite these:\n{named}\n'
+        f'  Re-running this stage? Then they are the artifacts you already '
+        f'produced; leave\n'
+        f'  them and skip ahead. Starting a NEW cycle? Then record the laps '
+        f'first so the\n'
+        f'  cycle count advances and this stage names fresh files -- do not '
+        f'move or rename\n'
+        f'  these, because check_complete --authored-from grades against them '
+        f'and without\n'
+        f'  that baseline UNSOUND is unreachable.\n')
 
 
 def _log_invocation(a, stage, out, code):
@@ -496,6 +523,13 @@ def _log_invocation(a, stage, out, code):
     try:
         d = os.path.dirname(getattr(a, 'ledger', '') or '') or '.'
         if not os.path.isdir(d):
+            # SAY SO. An unlogged invocation that is also unannounced is the
+            # exact hole this function exists to close -- it could then only be
+            # inferred, never detected. stderr, so stdout stays byte-identical.
+            print(f'loop_driver NOTE: no log written -- {d} does not exist, so '
+                  f'this invocation is UNRECORDED. Create the ledger directory '
+                  f'(or pass --ledger inside it) and the driver journals '
+                  f'itself.', file=sys.stderr)
             return None
         p = os.path.join(d, 'loop_driver.log')
         row = {'t': round(time.time(), 3),
@@ -605,9 +639,7 @@ def l1(a):
     cyc, P = _paths(a)
     _placed, _asm = P['placed.kicad_pcb'], P['assembly_close.json']
     _rend, _refs = P['place_close_render.json'], P['freeze_refs.json']
-    _clash = _ledger_collision(a, [_placed])
-    if _clash:
-        return _clash
+    _clash = _ledger_collision(a, [_placed, _asm, _rend, _refs])
     _cycnote = ('' if cyc == 1 else
                 f'\nCYCLE {cyc} (the ledger records {cyc - 1} completed '
                 f'placement->routing pass(es)). The handback names below carry '
@@ -616,7 +648,7 @@ def l1(a):
                 f'film read by content hash. Do not write over them.\n')
     if delegate:
         return f'''<stage_instructions stage="L1" name="place (delegated)" of="5">
-DELEGATING: {why}.{_cycnote}
+DELEGATING: {why}.{_cycnote}{_clash}
 
 Delegate the placement half to a TEAMMATE spawned with an agent type that HAS
 the Agent tool -- `claude` or `general-purpose`, never `Explore` or `Plan`,
@@ -681,7 +713,7 @@ Next: python3 -X utf8 {sys.argv[0]} --stage L2 \\
           --placement-report {_asm}
 </stage_instructions>'''
     return f'''<stage_instructions stage="L1" name="place" of="5">
-INLINE: {why}.{_cycnote}
+INLINE: {why}.{_cycnote}{_clash}
 
 Place this board yourself, driven. Do not read the placement skill end to end:
 ask its driver for one stage at a time, so only one loop's rules are ever in
@@ -919,9 +951,7 @@ def l2(a):
     # from the work dir: on a second cycle the placed board is placed_c2, and
     # `copy_board placed.kicad_pcb frozen.kicad_pcb` would freeze cycle 1's
     # board into cycle 1's baseline -- twice wrong in one line.
-    _clash = _ledger_collision(a, [_frozen, _routed])
-    if _clash:
-        return _clash
+    _clash = _ledger_collision(a, [_frozen, _routed, _close, _score])
     _cycnote = ('' if cyc == 1 else
                 f'\nCYCLE {cyc}. The output names below carry a _c{cyc} suffix: '
                 f'cycle 1\'s frozen.kicad_pcb is this chain\'s --authored-from '
@@ -934,7 +964,7 @@ copy_board.py). Take the list from {_refs}, which the placement
 half wrote; do not re-derive it by diffing poses.
 
   python3 -X utf8 copy_board.py {a.board} {_frozen}
-  ... stamp (locked yes) on the refs freeze_refs.json names ...
+  ... stamp (locked yes) on the refs that file names ...
   python3 -X utf8 converge.py record --ledger {a.ledger} \\
       --board {_frozen} --kind placement \\
       --lever "L2 freeze: <n> refs the placement half named as decisions"
@@ -949,7 +979,7 @@ to restore it from the content-addressed store. The placed board is that half's
 artifact and its ledger binding; leave it alone and hand on the new file.'''
     if delegate:
         return f'''<stage_instructions stage="L2" name="freeze, then route (delegated)" of="5">
-DELEGATING: {why}.{_cycnote}
+DELEGATING: {why}.{_cycnote}{_clash}
 
 {freeze}
 
@@ -1059,7 +1089,7 @@ Next, on success: --stage L5. On a failure: --stage L3 --score <SCORE_JSON>
          --render-json <a --focus render; L3 will not open without one>
 </stage_instructions>'''
     return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
-INLINE: {why}.{_cycnote}
+INLINE: {why}.{_cycnote}{_clash}
 
 {freeze}
 
@@ -1697,7 +1727,16 @@ def _cross_check(a, name, doc):
     if _accept_close(a, 'agreement'):
         return None
     rows = _ledger_rows(getattr(a, 'ledger', None))
-    finals = [r for r in rows if r.get('final')]
+    # THE LAST final row only. The ledger is append-only, so a run that wrote a
+    # wrong close-out and then wrote the correction has both on file -- and
+    # checking every final row makes the CORRECTION unable to clear the gate,
+    # permanently. Measured on the real ledger: iteration 21 carries the false
+    # PASS and iteration 22 is its signed retraction ("the earlier PASS
+    # answered a mis-scoped prompt"), and that run could then never reach L5 on
+    # any branch. A later final row supersedes an earlier one, exactly as a
+    # later lap supersedes an --exhausted declaration; the current claim is the
+    # one that has to survive scrutiny.
+    finals = [r for r in rows if r.get('final')][-1:]
     pairs = []
 
     for r in finals:
@@ -1960,8 +1999,12 @@ def _args(argv=None):
                     help='ledger entries this run may write before L5 calls '
                          'it (default 100, the figure convergence.md states)')
     ap.add_argument('--flat', type=int, default=5,
-                    help='accepted laps a half may go without improving '
-                         'before it counts as blocked (default 5, ditto)')
+                    help='RECORDED laps -- accepted OR rejected -- a half '
+                         'may go without improving before it counts as '
+                         'blocked (default 5, ditto). A rejection is the '
+                         'evidence that a half tried and did not improve; '
+                         'routing accepts only on strict improvement, so '
+                         'an exhausted half has no accepted lap to give.')
     ap.add_argument('--no-delegate', action='store_true',
                     help='run both halves in THIS context instead of handing '
                          'them to teammates. The escape hatch: the self-test, '
@@ -2745,6 +2788,36 @@ def _self_test():
                                         '--routing-close', _cd]))
         want(out.startswith('<error>') and 'all PASS' in out,
              'an all-PASS final row against an INCOMPLETE close-out is refused')
+        # A LATER final row SUPERSEDES an earlier one. The ledger is
+        # append-only, so a run that wrote a wrong close-out and then wrote the
+        # correction has both on file: checking every final row makes the
+        # correction unable to clear the gate, forever. Measured on the real
+        # ledger -- iteration 21 is the false PASS and iteration 22 its signed
+        # retraction -- that run could never have reached L5 again.
+        want(not STAGES['L5'](_args(
+                 _l5 + ['--ledger', _led([_false, _honest], 'ret.jsonl')]
+             )).startswith('<error>'),
+             'a later final row RETRACTS an earlier false one')
+        want(STAGES['L5'](_args(
+                 _l5 + ['--ledger', _led([_honest, _false], 'reg.jsonl')]
+             )).startswith('<error>'),
+             '...and a false one written LAST is still caught')
+        # BOTH lenses in the table are live. Only `connectivity` was exercised,
+        # so deleting the drc row would have gone unnoticed.
+        _drc = dict(_false, lenses=['VERDICT=PASS:lens=drc'],
+                    score={'blocking': 4, 'quality': {},
+                           'blocking_by': {'unrouted': 0, 'broken': 0,
+                                           'drc': 4, 'undersized': 0}})
+        want('lens=drc' in STAGES['L5'](_args(
+                 _l5 + ['--ledger', _led([_drc], 'drc.jsonl')])),
+             'the drc lens is checked too, not only connectivity')
+        # ...and a lens name is CASE-FOLDED before the table lookup: the
+        # grammar accepts [A-Za-z0-9_-]+, so `lens=Connectivity` passed the
+        # format check, missed the lower-case table and was never compared.
+        want(STAGES['L5'](_args(_l5 + ['--ledger', _led([dict(
+                 _false, lenses=['VERDICT=PASS:lens=Connectivity'])],
+                 'case.jsonl')])).startswith('<error>'),
+             'a capitalised lens name does not bypass the comparison')
 
     # ------------------------------------------------------------------ D4
     # A SECOND CYCLE IS A DESIGNED PATH -- L5's CONTINUE branch and both
@@ -2771,12 +2844,30 @@ def _self_test():
 
         _one = [{'kind': 'placement', 'accepted': True,
                  'result_sha': _shaf2(_b)}]
-        _two = _one + [{'kind': 'completion', 'accepted': True},
+        _two = _one + [{'kind': 'completion', 'accepted': True,
+                        'result_sha': 'c' * 64},
                        {'kind': 'placement', 'accepted': True,
-                        'result_sha': _shaf2(_b)}]
+                        'result_sha': 'd' * 64}]
         want(_cycle_index(_led2(_one, 'c1.jsonl')) == 1
              and _cycle_index(_led2(_two, 'c2.jsonl')) == 2,
              'the cycle index is read off the ledger, not assumed')
+        # A placement row that re-records a board ALREADY in the ledger changed
+        # nothing, so it is a disposition and not a lap. Measured: run 17's
+        # iteration 33 ("VERIFIER DISPOSITION (no pose change; same board as
+        # it.30)") read as a third cycle on a ledger whose levers say cycle 2.
+        want(_cycle_index(_led2(_two + [
+                 {'kind': 'completion', 'accepted': True,
+                  'result_sha': 'e' * 64},
+                 {'kind': 'placement', 'accepted': True,
+                  'result_sha': 'd' * 64}], 'disp.jsonl')) == 2,
+             'a disposition row that re-records a known board is not a cycle')
+        # ...and routing BEFORE any placement does not put the first placement
+        # lap into cycle 2, which would break "cycle 1 keeps the bare names".
+        want(_cycle_index(_led2([{'kind': 'completion', 'accepted': True,
+                                  'result_sha': 'a' * 64},
+                                 {'kind': 'placement', 'accepted': True,
+                                  'result_sha': 'b' * 64}], 'rf.jsonl')) == 1,
+             'a routing-first ledger still starts at cycle 1')
 
         _a1 = ['--board', _b, '--placement-report', _rep,
                '--ledger', _led2(_one, 'l1.jsonl')]
@@ -2793,18 +2884,37 @@ def _self_test():
              'a second cycle is never told to write cycle 1\'s frozen board')
         want(f'copy_board.py {_b} ' in two,
              'the freeze copies the board it was HANDED, not a derived name')
-        # The belt: whatever the naming, never name a path already holding a
-        # board the ledger references.
+        # The belt: whatever the naming, SAY SO when a named output path
+        # already holds a board the ledger references. A note, not a refusal --
+        # these stages are instruction printers, so re-invoking one after doing
+        # what it said is normal, and as a refusal this exited 4 on every
+        # resumed session, recommending the one action (move the file) that
+        # destroys the --authored-from baseline it exists to protect.
         _work2 = os.path.dirname(_a2[-1]).replace('\\', '/')
         _fz = os.path.join(_work2, 'frozen_c2.kicad_pcb')
         open(_fz, 'w', encoding='utf-8').write('(kicad_pcb) baseline')
         _coll = _led2(_two + [{'kind': 'completion', 'accepted': True,
                                'result_sha': _shaf2(_fz)}], 'coll.jsonl')
-        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _rep,
-                                  '--ledger', _coll]))
-        want(out.startswith('<error>') and 'WRITE OVER' in out
+        _ca = ['--board', _b, '--placement-report', _rep, '--ledger', _coll]
+        out = STAGES['L2'](_args(_ca))
+        want(not out.startswith('<error>') and 'ALREADY IN THE LEDGER' in out
              and 'frozen_c2' in out,
-             'naming a path that already holds a ledger board is refused')
+             'a named output already in the ledger is NAMED, not refused')
+        want('do not move or rename' in out,
+             '...and the note does not recommend destroying the baseline')
+        want('ALREADY IN THE LEDGER' not in STAGES['L2'](_args(
+                 ['--board', _b, '--placement-report', _rep,
+                  '--ledger', _led2(_two, 'clean.jsonl')])),
+             '...and stays silent when no named path collides')
+        # L1 checks its own artifacts too, not only L2's.
+        _pl = os.path.join(_work2, 'placed_c2.kicad_pcb')
+        open(_pl, 'w', encoding='utf-8').write('(kicad_pcb) placed')
+        want('ALREADY IN THE LEDGER' in STAGES['L1'](_args(
+                 ['--board', _b, '--placement-report', _rep,
+                  '--ledger', _led2(_two + [
+                      {'kind': 'placement', 'accepted': True,
+                       'result_sha': _shaf2(_pl)}], 'coll1.jsonl')])),
+             'L1 names its own colliding artifacts too, not only L2\'s')
 
     # ------------------------------------------------------------------ D5
     # `stages.log` existed only because the CALLER teed it, so an unlogged
@@ -2837,12 +2947,36 @@ def _self_test():
         want(len(rows) == 2 and rows[1]['stage'] == 'L2'
              and rows[1]['exit'] == 4 and rows[1]['refused'] is True,
              'a REFUSAL is logged too -- that is the invocation worth detecting')
-        # A log that cannot be written must never break a stage.
+        # The log is written BEFORE stdout, so a stage that dies printing still
+        # leaves its trace -- which is the invocation most worth having.
+        _dead = os.path.join(tmp, 'dead')
+        os.makedirs(_dead)
+        _dl = os.path.join(_dead, 'ledger.jsonl')
+        open(_dl, 'w', encoding='utf-8').close()
+
+        class _Boom(_io.StringIO):
+            def write(self, _s):
+                raise RuntimeError('stdout is gone')
+
+        try:
+            with contextlib.redirect_stdout(_Boom()):
+                main(['--stage', 'L1', '--board', _b, '--ledger', _dl])
+        except RuntimeError:
+            pass
+        want(os.path.isfile(os.path.join(_dead, 'loop_driver.log')),
+             'the log is written BEFORE stdout, so a dying stage still logs')
+        # A log that cannot be written must never break a stage -- but it must
+        # not be SILENT either: an unlogged invocation that says nothing can
+        # only be inferred, which is the hole this closes.
         _nodir = _args(['--stage', 'L1', '--board', _b,
                         '--ledger', os.path.join(tmp, 'no', 'such', 'l.jsonl')])
-        want(_log_invocation(_nodir, 'L1', 'x', 0) is None
-             and not STAGES['L1'](_nodir).startswith('<error>'),
-             'an unwritable log is silent, never a refusal')
+        _errbuf = _io.StringIO()
+        with contextlib.redirect_stderr(_errbuf):
+            _r = _log_invocation(_nodir, 'L1', 'x', 0)
+        want(_r is None and not STAGES['L1'](_nodir).startswith('<error>'),
+             'an unwritable log is never a refusal')
+        want('UNRECORDED' in _errbuf.getvalue(),
+             '...and says on stderr that the invocation went unrecorded')
 
     # ------------------------------------------- REGRESSION PINS (do not weaken)
     # Three refusals that each caught a REAL defect in the measured run. They

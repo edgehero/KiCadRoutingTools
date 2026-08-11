@@ -440,8 +440,150 @@ def test_two_scores_that_graded_different_components_do_not_compare():
     assert st['flat'] is True, \
         '78 after four 79s is not an improvement when it graded one less'
     assert st['incommensurable'] and st['compared'] == 4, st
+
+    # ...but guarding a false improvement must not MANUFACTURE a false plateau.
+    # Judging only the LEADING comparable run collapsed a window to one lap
+    # whenever its first pair did not compare, and `min(keys[:1]) >= keys[0]`
+    # is a tautology: 78 -> 70 -> 60 -> 50 -> 40, four comparable improvements
+    # of 10 each, reported `plateau` and ended the run at STUCK.
+    def _s(b, ung=()):
+        return {'blocking': b, 'quality': {}, 'ungraded': list(ung),
+                'blocking_by': {'unrouted': b,
+                                'impedance': (None if ung else 0)}}
+
+    st = converge._half_state(
+        [acc(_s(78, ['impedance']))] + [acc(_s(b)) for b in (70, 60, 50, 40)],
+        'routing', 5)
+    assert st['why'] == 'improving', \
+        'an incommensurable FIRST pair must not discard four real improvements'
     print("  PASS: incommensurable scores are refused at record and never "
           "credited as improvement")
+
+
+def test_a_plateau_is_never_claimed_over_laps_nothing_measured():
+    """A plateau asserted over laps that measured nothing is the
+    "reported clean because unexamined" error, in the stop rule.
+
+    Measured on the real run-17 ledger: the placement half read `plateau` from
+    a window of two cycle-1 accepted laps plus three cycle-2 REJECTIONS, while
+    five accepted cycle-2 laps were invisible for carrying `score: null`.
+    """
+    def acc(b):
+        return {'kind': 'completion', 'accepted': True,
+                'score': {'blocking': b, 'quality': {}, 'ungraded': []}}
+
+    rej = {'kind': 'completion', 'accepted': False, 'score': None}
+    unscored = {'kind': 'completion', 'accepted': True, 'score': None}
+
+    st = converge._half_state([acc(0), acc(0)] + [unscored] * 3, 'routing', 5)
+    assert st['why'] == 'no-comparison' and st['unjudged'] == 3, st
+    assert st['flat'] is False, 'an unjudged lap is not evidence of a plateau'
+    # An unscored ACCEPTED lap is still a lap: it must not vanish from the
+    # count while rejections are kept.
+    assert st['laps'] == 5 and st['accepted'] == 5, st
+    # A window whose only accepted lap cannot be compared with anything is
+    # likewise not answerable -- it used to read `plateau` off a single key,
+    # where `min(keys[:1]) >= keys[0]` is a tautology.
+    st = converge._half_state([rej] * 4 + [acc(40)], 'routing', 5)
+    assert st['why'] == 'no-comparison' and st['flat'] is False, st
+    # ...while an ALL-rejected window is a definite plateau: a rejection is
+    # itself the measurement.
+    assert converge._half_state([rej] * 5, 'routing', 5)['why'] == 'plateau'
+    print("  PASS: a plateau needs every lap in the window to have been judged")
+
+
+def test_a_lens_verdict_is_never_skipped_silently():
+    """The lens-vs-score check is skipped when the score grades another board
+    -- correctly, but an UNANNOUNCED skip is a door: attach any other board's
+    score and the whole gate switches off. Replaying all 56 real run-17 rows
+    with their original board_sha against a dummy board gave 0 refusals."""
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+        p = os.path.join(td, 's.json')
+        json.dump({'blocking': 9, 'board_sha': 'f' * 64,
+                   'blocking_by': {'unrouted': 9, 'broken': 0}},
+                  open(p, 'w', encoding='utf-8'))
+        r = _cv(['record', '--ledger', led, '--board', BOARD, '--kind',
+                 'completion', '--lever', 'x', '--score-file', p,
+                 '--lens', 'VERDICT=PASS:lens=connectivity'])
+        assert r.returncode == 0, r.stderr
+        assert 'did NOT run' in r.stderr and 'UNCHECKED' in r.stderr, r.stderr
+
+    # A capitalised lens name used to pass the format check, miss the
+    # lower-case table and never be compared at all.
+    bad = {'blocking': 79, 'blocking_by': {'unrouted': 32, 'broken': 47}}
+    for name in ('connectivity', 'Connectivity', 'CONNECTIVITY'):
+        assert converge.lens_contradictions(
+            [f'VERDICT=PASS:lens={name}'], bad), name
+    print("  PASS: a skipped lens check says so; a capitalised lens still "
+          "compares")
+
+
+def test_the_exhausted_declaration_does_not_leak_between_halves():
+    """One half declaring itself finished must not finish the other, and a
+    `systemic` row -- which changes no copper -- must not retract it."""
+    dec = {'kind': 'systemic', 'accepted': True,
+           'exhausted': {'half': 'placement', 'reason': 'nothing left'}}
+    lap = {'kind': 'completion', 'accepted': True,
+           'score': {'blocking': 0, 'quality': {}, 'ungraded': []}}
+    rows = [dec, lap]
+    assert converge._half_state(rows, 'placement', 5)['why'] \
+        == 'declared-exhausted'
+    assert converge._half_state(rows, 'routing', 5)['why'] != \
+        'declared-exhausted', 'a declaration must not cross halves'
+    # A systemic row after the declaration is not a lap of that half.
+    assert converge._half_state(
+        [dec, {'kind': 'systemic', 'accepted': True}], 'placement', 5
+    )['why'] == 'declared-exhausted'
+    # ...but a PLACEMENT lap after it is, and it retracts.
+    assert converge._half_state(
+        [dec, {'kind': 'placement', 'accepted': True}], 'placement', 5
+    )['why'] != 'declared-exhausted'
+    print("  PASS: --exhausted binds to its own half and only its own laps "
+          "retract it")
+
+
+def test_every_incommensurable_pair_is_reported_even_when_it_changes_nothing():
+    """The WARNING must fire on ANY incommensurable pair, not only the shape
+    that gets refused -- and the verdict must say so on EVERY verdict, not
+    only the one it happened to change."""
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+
+        def sc(doc, name):
+            p = os.path.join(td, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        full = {'blocking': 70, 'quality': {}, 'ungraded': [],
+                'blocking_by': {'unrouted': 70, 'impedance': 0}}
+        # blocking ROSE, so this is not a false improvement and is not refused
+        # -- but the two rows still did not measure the same thing.
+        worse = {'blocking': 90, 'quality': {}, 'ungraded': ['impedance'],
+                 'blocking_by': {'unrouted': 90, 'impedance': None}}
+        assert _cv(['record', '--ledger', led, '--board', BOARD, '--kind',
+                    'completion', '--lever', 'a',
+                    '--score-file', sc(full, 'a.json')]).returncode == 0
+        r = _cv(['record', '--ledger', led, '--board', BOARD, '--kind',
+                 'completion', '--lever', 'b',
+                 '--score-file', sc(worse, 'b.json')])
+        assert r.returncode == 0, r.stderr
+        assert 'INCOMMENSURABLE' in r.stderr, r.stderr
+
+        # And on the verdict, whatever the verdict is.
+        rows = ([{'kind': 'placement', 'accepted': True, 'score': full}] * 5
+                + [{'kind': 'completion', 'accepted': True, 'score': full}] * 4
+                + [{'kind': 'completion', 'accepted': True, 'score': worse}])
+        lp = os.path.join(td, 'v.jsonl')
+        with open(lp, 'w', encoding='utf-8') as fh:
+            for i, r2 in enumerate(rows):
+                fh.write(json.dumps(dict(r2, iteration=i)) + '\n')
+        doc = json.loads(_cv(['verdict', '--ledger', lp,
+                              '--score', sc(full, 'v.json')]).stdout)
+        assert 'NOT COMPARABLE' in doc['reason'], doc['reason']
+        assert '--impedance-nets' in doc['reason'], doc['reason']
+    print("  PASS: every incommensurable pair is reported, at record and at "
+          "verdict")
 
 
 def test_record_score_failures_want_names():

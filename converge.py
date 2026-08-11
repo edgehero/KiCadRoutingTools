@@ -161,7 +161,7 @@ def check_rip_invariants(nets, rip_set, power_nets=(), impedance_nets=()):
 #: which is routinely ungraded, and an ungraded component contradicts nothing.
 LENS_COMPONENTS = {
     'connectivity': ('unrouted', 'broken'),
-    'drcX': ('drc', 'undersized'),
+    'drc': ('drc', 'undersized'),
 }
 
 _LENS_RE = r'^VERDICT=(PASS|FAIL):lens=([A-Za-z0-9_-]+)'
@@ -231,7 +231,10 @@ def lens_contradictions(lenses, score):
         m = re.match(_LENS_RE, str(raw or '').strip())
         if not m or m.group(1) != 'PASS':
             continue
-        for key in LENS_COMPONENTS.get(m.group(2), ()):
+        # CASE-FOLDED. The grammar accepts [A-Za-z0-9_-]+ and the table is
+        # lower-case, so `lens=Connectivity` matched the format check, missed
+        # the table, and was written -- the whole gate bypassed by a shift key.
+        for key in LENS_COMPONENTS.get(m.group(2).lower(), ()):
             n = score_component(score, key)
             if isinstance(n, (int, float)) and n > 0:
                 out.append((m.group(2), key, n))
@@ -522,7 +525,17 @@ def cmd_record(a):
         except Exception:                                       # noqa: BLE001
             _score_doc = None
     if a.lens and isinstance(_score_doc, dict) and \
-            not _grades_another_board(a.board, _score_doc):
+            _grades_another_board(a.board, _score_doc):
+        # NEVER SILENT. The skip is correct -- a verdict about this board must
+        # not be judged with another board's numbers -- but an unannounced
+        # skip is a door: attach any other board's score and the whole gate
+        # switches off. Say that it did not run, and why.
+        print("record NOTE: the lens-vs-score check did NOT run -- the score "
+              "payload's board_sha names a different board than --board, so "
+              "its numbers are not about the board these verdicts describe. "
+              "The lens verdicts below are recorded UNCHECKED.",
+              file=sys.stderr)
+    elif a.lens and isinstance(_score_doc, dict):
         _contra = lens_contradictions(a.lens, _score_doc)
         if _contra:
             _lines = '\n'.join(
@@ -707,8 +720,11 @@ def cmd_record(a):
                     f"  blocking {(_pacc.get('score') or {}).get('blocking')} "
                     f"-> {_score_doc.get('blocking')}, but the components that "
                     f"differ are: {_hint}\n\n"
-                    f"Routing accepts a lap on STRICT improvement of "
-                    f"`blocking`, so a lap that quietly measures one component "
+                    + (f"Routing accepts a lap on STRICT improvement of "
+                       f"`blocking`, so " if _half == 'routing' else
+                       f"This half's laps are ranked by `blocking` and the "
+                       f"plateau test compares them, so ") +
+                    f"a lap that quietly measures one component "
                     f"less enters the ledger as progress and the history "
                     f"acquires a false monotone trend. Measured (run 17): two "
                     f"cycles compared as 78 vs 79 were 92 vs 92 once both were "
@@ -893,8 +909,8 @@ def _half_state(rows, half, flat):
     """Can this half still improve? -- with the evidence it was decided from.
 
     Returns a dict: flat, laps, accepted, rejected, why, and (when they apply)
-    declared / differ / hint. `why` is one of declared-exhausted,
-    incommensurable, too-few-laps, plateau, improving.
+    declared / declared_superseded / incommensurable / compared. `why` is one of
+    declared-exhausted, too-few-laps, no-comparison, plateau, improving.
 
     THE COUNTER COUNTS REJECTED LAPS TOO, and that is the fix for a gate that
     could not be satisfied. It used to count accepted rows only, while L5's own
@@ -906,9 +922,14 @@ def _half_state(rows, half, flat):
     half cannot make. A recorded rejection is exactly the evidence that a half
     tried and did not improve, which is what a plateau IS.
 
-    An accepted lap whose score never measured `blocking` is still dropped: it
-    is not evidence in either direction. A rejection needs no score, because
-    the rejection is itself the measurement.
+    An accepted lap whose score never measured `blocking` COUNTS AS A LAP but
+    carries no key, so it can be compared with nothing. Dropping it entirely
+    was worse than it looks: on the real run-17 ledger the placement half then
+    read `plateau` from a window of two cycle-1 accepted laps plus three
+    cycle-2 REJECTIONS, while five accepted cycle-2 laps were invisible for
+    having `score: null`. A half that ran five laps must not read as one that
+    stopped. A rejection needs no score, because the rejection is itself the
+    measurement.
 
     Measured (neo6502, run 15): the placement half satisfied its OWN close-out
     in 4 accepted laps -- every gate clean, residue named -- against a --flat of
@@ -923,9 +944,7 @@ def _half_state(rows, half, flat):
         if not r.get('accepted'):
             ev.append((False, None, r.get('score')))
             continue
-        k = _score_key(r.get('score'))
-        if k is not None:
-            ev.append((True, k, r.get('score')))
+        ev.append((True, _score_key(r.get('score')), r.get('score')))
     n_acc = sum(1 for e in ev if e[0])
     out = {'laps': len(ev), 'accepted': n_acc, 'rejected': len(ev) - n_acc,
            'flat': False, 'why': 'too-few-laps'}
@@ -942,9 +961,7 @@ def _half_state(rows, half, flat):
         # because it was.
         return out
     window = ev[-flat:]
-    keys = [k for acc, k, _s in window if acc]
-    scored = [s for acc, _k, s in window if acc]
-    if not keys:
+    if not any(acc for acc, _k, _s in window):
         # Every lap in the window was REJECTED. Nothing improved, by
         # construction -- that is a plateau stated by the half itself.
         out.update(flat=True, why='plateau')
@@ -965,26 +982,57 @@ def _half_state(rows, half, flat):
     # 6-lap ledger that IS the 297. The baseline has to be the window's own
     # first lap.)
     #
-    # ...AND IMPROVEMENT IS ONLY CREDITED ACROSS A COMMENSURABLE PAIR. Two
+    # ...AND IMPROVEMENT IS ONLY CREDITED WITHIN A COMPARABLE RUN. Two
     # `blocking` totals over different component sets are not larger and
     # smaller versions of each other, so a drop across such a pair is not
     # evidence that the half improved -- it may be evidence that it measured
-    # less. The window is therefore judged over its leading run of mutually
-    # commensurable laps, and whatever was dropped is NAMED (never silent):
-    # a plateau derived from numbers that do not compare is a claim the reader
-    # has to be able to see.
-    _end, _hints = 0, []
-    for i in range(1, len(scored)):
-        cm = commensurability(scored[i - 1], scored[i])
+    # less. The window is split into maximal runs of consecutive laps that
+    # actually compare (both scored, same graded set), and the half is
+    # `improving` if ANY run shows a lap beating that run's own first lap.
+    #
+    # It is deliberately NOT "judge the leading run and discard the rest": that
+    # is what this did first, and one incommensurable pair at the FRONT then
+    # collapsed the window to a single lap, where `min(keys[:1]) >= keys[0]` is
+    # a tautology. Measured on the fix itself: the series 78 -> 70 -> 60 -> 50
+    # -> 40, four consecutive comparable improvements of 10 each, reported
+    # `plateau` and ended the run at STUCK because the FIRST pair did not
+    # compare. Guarding against a false improvement must not manufacture a
+    # false plateau; both are the same error.
+    runs, cur, hints = [], [], []
+    for acc, k, s in window:
+        if not acc or k is None:
+            # A rejection or an unscored lap breaks the chain: there is nothing
+            # to compare it with in either direction.
+            runs.append(cur)
+            cur = []
+            continue
+        cm = commensurability(cur[-1][1], s) if cur else None
         if cm:
-            _hints.append(cm[1])
-        elif _end == i - 1:
-            _end = i
-    _flat = min(keys[:_end + 1]) >= keys[0]
-    out.update(flat=_flat, why=('plateau' if _flat else 'improving'))
-    if _hints:
-        out['incommensurable'] = '; '.join(sorted(set(_hints)))
-        out['compared'] = _end + 1
+            hints.append(cm[1])
+            runs.append(cur)
+            cur = []
+        cur.append((k, s))
+    runs.append(cur)
+    runs = [[k for k, _s in r] for r in runs if len(r) >= 2]
+    # An ACCEPTED lap that recorded no `blocking` is unjudged, and a plateau
+    # asserted over unjudged laps is the "reported clean because unexamined"
+    # error this toolchain names everywhere else. An improvement, by contrast,
+    # is a DEFINITE finding and stands whatever else is in the window. So:
+    # improvement wins; a plateau requires every accepted lap to have been
+    # judged; anything else is not answerable and says so. A REJECTION is not
+    # unjudged -- the rejection is itself the measurement.
+    unjudged = sum(1 for acc, k, _s in window if acc and k is None)
+    if any(min(r) < r[0] for r in runs):
+        out.update(flat=False, why='improving')
+    elif runs and not unjudged:
+        out.update(flat=True, why='plateau')
+    else:
+        # Answerable again after one more comparable lap, after `flat`
+        # rejections, or by declaring the half exhausted on the record.
+        out.update(flat=False, why='no-comparison', unjudged=unjudged)
+    if hints:
+        out['incommensurable'] = '; '.join(sorted(set(hints)))
+        out['compared'] = sum(len(r) for r in runs)
     return out
 
 
@@ -1101,11 +1149,23 @@ def cmd_verdict(a):
                     f'tried and why nothing is left>" \\\n'
                     f'        --lever "declaration: {h} has nothing further"\n'
                     f'  Lowering --flat is not one of the options')
-            elif _why[h] == 'incommensurable':
+            elif _why[h] == 'no-comparison':
                 _parts.append(
-                    f'{h}\'s last {a.flat} laps were not graded over the same '
-                    f'components ({st[h].get("hint")}), so their `blocking` '
-                    f'totals do not compare')
+                    f'{h} has {st[h]["laps"]} recorded lap(s) but no two of the '
+                    f'last {a.flat} can be COMPARED -- '
+                    + (f'they were not graded over the same components '
+                       f'({st[h]["incommensurable"]})'
+                       if st[h].get('incommensurable') else
+                       'the accepted ones carry no `blocking`, and a lap that '
+                       'measured nothing is evidence in neither direction')
+                    + f'. So whether it plateaued is NOT ANSWERABLE, which is '
+                      f'not "it did not". Re-score its laps the same way, or '
+                      f'declare the half exhausted on the record:\n'
+                      f'    python3 -X utf8 converge.py record --ledger '
+                      f'{a.ledger} \\\n'
+                      f'        --board <the board> --kind systemic \\\n'
+                      f'        --exhausted {h} --exhausted-reason "<what was '
+                      f'tried and why nothing is left>"')
             else:
                 _parts.append(
                     f'{h} improved within its last {a.flat} laps, so it has '
@@ -1322,8 +1382,12 @@ def build_parser():
                    help='ledger entries this run may write (default 100, the '
                         'figure convergence.md already states)')
     v.add_argument('--flat', type=int, default=5,
-                   help='accepted laps a half may go without improving before '
-                        'it counts as blocked (default 5, ditto)')
+                   help='RECORDED laps -- accepted OR rejected -- a half may go '
+                        'without improving before it counts as blocked '
+                        '(default 5, ditto). A rejected lap counts because it '
+                        'is the evidence that the half tried and did not '
+                        'improve; routing accepts only on strict improvement, '
+                        'so an exhausted half has no accepted lap left to give.')
     v.set_defaults(fn=cmd_verdict)
     return p
 
