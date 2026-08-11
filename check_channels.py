@@ -148,6 +148,45 @@ def main():
                                      defaults.CLEARANCE)
     track, trk_src = board_floor(args.board, 'track_width', args.track_width,
                                  defaults.TRACK_WIDTH)
+    # ...AND FAB-FLOORED, because board-first alone runs D9 BACKWARDS here.
+    # `board_floor` is board-authoritative, not raise-only: it returns whatever
+    # the board declares once positive. For a tool that GRADES existing copper
+    # that is right and is what CLAUDE.md asks for -- grading stricter than the
+    # board manufactures phantom violations. This tool does not grade copper,
+    # it PREDICTS routability, and a lane pitch below what any fab can etch
+    # predicts capacity nobody can build.
+    #
+    # Measured on tigard, --refs U3, against fab floors 0.09 / 0.0762:
+    #
+    #     declared 0.2 /0.2    supply  29   deficit faces 3
+    #     declared 0.05/0.05   supply 120   deficit faces 1   <- two real
+    #     declared 0.02/0.02   supply 242   deficit faces 1      deficits gone
+    #
+    # That is the OPTIMISTIC direction, and the dangerous one: the instrument
+    # reports escape capacity that cannot be manufactured, and a placement
+    # search is then steered AWAY from a real problem -- the mirror image of
+    # the phantom deficit D9 was written to remove, and worse, because a
+    # phantom deficit wastes effort while a phantom SUPPLY hides a defect.
+    # `resolve_cli_floor`'s consumers get this from enforce_fab_floors; this
+    # tool has no such pass, so it wraps here. Pinned regardless of SOURCE: a
+    # --clearance 0.05 typed on the CLI is exactly as unetchable as a declared
+    # one, which is how enforce_fab_floors treats an explicit flag too.
+    from fab_tiers import fab_floor_min, count_copper_layers_in_file
+    try:
+        _fab = fab_floor_min(count_copper_layers_in_file(args.board))
+    except Exception:                                          # noqa: BLE001
+        _fab = {}
+    for _nm, _key, _val, _src in (('clearance', 'clearance', clearance, clr_src),
+                                  ('track width', 'track_width', track, trk_src)):
+        _f = _fab.get(_key)
+        if _f is not None and _val < _f - 1e-9:
+            print(f"  {_nm} {_val:g}mm [{_src}] is below the {_f:g}mm fab "
+                  f"floor; predicting at {_f:g}mm (no fab can etch the "
+                  f"narrower lane).")
+    if _fab.get('clearance') is not None:
+        clearance = max(clearance, _fab['clearance'])
+    if _fab.get('track_width') is not None:
+        track = max(track, _fab['track_width'])
     # grid_step is a RASTER setting, not a board floor -- no board declares it,
     # so it keeps its constant and is not dressed up as resolved.
     grid = (args.grid_step if args.grid_step is not None

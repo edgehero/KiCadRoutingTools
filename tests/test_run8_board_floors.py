@@ -542,6 +542,113 @@ def _q5_committed_projects_are_real():
                   supply > 390, f'supply {supply}')
 
 
+# --- Q6: board-first ran D9 BACKWARDS in the one tool that PREDICTS ---------
+#
+# Q4 established that board_floor is board-authoritative, not raise-only, and
+# that a consumer for which "downward" is a fab question must wrap it. Q4 then
+# listed check_channels as correctly board-authoritative. That was wrong, and
+# this is the correction.
+#
+# check_assembly GRADES existing geometry, so the board's own clearance is the
+# right threshold. check_channels PREDICTS routability: a lane is
+# `track + clearance` wide, so a declared pitch finer than the fab can etch
+# makes it promise escape capacity nobody can manufacture. Measured on tigard
+# --refs U3, fab floors 0.09 / 0.0762:
+#
+#     declared 0.2 /0.2    supply  29   deficit faces 3   (above the fab floor)
+#     declared 0.05/0.05   supply 120   deficit faces 1   two real deficits gone
+#     declared 0.02/0.02   supply 242   deficit faces 1
+#
+# That is the OPTIMISTIC direction and the dangerous one: a phantom DEFICIT
+# wastes a placement search's effort, a phantom SUPPLY hides the defect
+# entirely and steers the search away from it.
+#
+# After the wrap, 0.05 and 0.02 both pin to 0.09/0.0762 -> supply 68, deficit
+# faces 2. NOTE: 2, not the 3 that a 0.2/0.2 board reports. Pinning restores
+# the fab floor, not some other board's floor -- 0.09/0.0762 is genuinely
+# finer than 0.2/0.2 and legitimately fits more lanes. Asserting "3" would be
+# asserting the wrong invariant.
+
+def _q6_a_predictor_must_not_promise_unetchable_lanes():
+    import io
+    import json
+    import contextlib
+    import shutil
+    import subprocess
+    import tempfile
+    from fab_tiers import fab_floor_min, count_copper_layers_in_file
+
+    src = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
+    if not os.path.exists(src):
+        print('  SKIP  no tigard board (channels fab floor)')
+        return
+
+    print('check_channels never predicts a lane finer than the fab can etch')
+    fab = fab_floor_min(count_copper_layers_in_file(src))
+
+    def run(tmp, clr, trk):
+        """check_channels on tigard/U3 with a project declaring clr/trk."""
+        b = os.path.join(tmp, 'ch.kicad_pcb')
+        shutil.copyfile(src, b)
+        if clr is not None:
+            with open(os.path.splitext(b)[0] + '.kicad_pro', 'w',
+                      encoding='utf-8') as f:
+                json.dump({'net_settings': {'classes': [
+                    {'name': 'Default', 'clearance': clr,
+                     'track_width': trk}]}}, f)
+        jp = os.path.join(tmp, 'ch.json')
+        r = subprocess.run(
+            [sys.executable, '-X', 'utf8', 'check_channels.py', b,
+             '--refs', 'U3', '--json', jp], cwd=ROOT, capture_output=True,
+            text=True, timeout=600)
+        d = json.load(open(jp, encoding='utf-8'))
+        d['_supply'] = sum(f['supply_finest_grid']
+                           for fs in d['ledgers'].values() for f in fs)
+        d['_said'] = r.stdout or ''
+        return d
+
+    with tempfile.TemporaryDirectory() as t1, \
+            tempfile.TemporaryDirectory() as t2, \
+            tempfile.TemporaryDirectory() as t3:
+        sub = run(t1, 0.05, 0.05)      # below the fab floor
+        deep = run(t2, 0.02, 0.02)     # further below -- must not differ
+        okay = run(t3, 0.2, 0.2)       # above it -- must be untouched
+
+    check('a sub-fab declaration is pinned UP to the fab floor',
+          sub['clearance'] >= fab['clearance'] - 1e-9
+          and sub['track_width'] >= fab['track_width'] - 1e-9,
+          f"resolved {sub['clearance']}/{sub['track_width']} "
+          f"vs fab {fab['clearance']}/{fab['track_width']}")
+    # THE INVARIANT, stated so it cannot drift with the corpus: below the fab
+    # floor the tool must stop responding to the declaration entirely. 0.05 and
+    # 0.02 are both unetchable, so they must predict identically. Before the
+    # wrap they gave supply 120 and 242.
+    check('declaring finer buys NOTHING once below the fab floor',
+          (sub['clearance'], sub['track_width'], sub['_supply'],
+           len(sub['deficit_faces']))
+          == (deep['clearance'], deep['track_width'], deep['_supply'],
+              len(deep['deficit_faces'])),
+          f"0.05 -> supply {sub['_supply']} / {len(sub['deficit_faces'])} faces; "
+          f"0.02 -> supply {deep['_supply']} / {len(deep['deficit_faces'])}")
+    # ...and the real deficits come back. Unwrapped, 0.05 reported 1.
+    check('the deficits a sub-fab lane pitch hid are restored',
+          len(sub['deficit_faces']) > 1,
+          f"{len(sub['deficit_faces'])} deficit faces, supply {sub['_supply']}")
+    check('and it SAYS it pinned, rather than quietly predicting elsewhere',
+          'below the' in sub['_said'] and 'fab floor' in sub['_said'],
+          sub['_said'][:300])
+    # The control: a declaration ABOVE the fab floor is the board's business
+    # and must pass through untouched, or this wrap has become the phantom
+    # deficit D9 removed.
+    check('a declaration above the fab floor is untouched',
+          (okay['clearance'], okay['track_width']) == (0.2, 0.2)
+          and 'fab floor' not in okay['_said'],
+          f"resolved {okay['clearance']}/{okay['track_width']}")
+    check('...and it is strictly less optimistic than the fab floor allows',
+          okay['_supply'] < sub['_supply'],
+          f"0.2/0.2 supply {okay['_supply']} vs fab-floor supply {sub['_supply']}")
+
+
 class _Boom(dict):
     """A design_rules stand-in that raises when read, to exercise the
     'I could not look' branch without corrupting a real project file."""
@@ -648,6 +755,7 @@ def main():
     _q3_routing_half_uses_the_same_resolver()
     _q4_a_declared_value_must_not_relax_a_fab_floor()
     _q5_committed_projects_are_real()
+    _q6_a_predictor_must_not_promise_unetchable_lanes()
 
     print()
     if FAILURES:

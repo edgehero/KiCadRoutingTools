@@ -401,11 +401,20 @@ def board_floor(pcb_path, name, explicit=None, fallback=None,
 
     IT IS NOT RAISE-ONLY, and nothing here pretends otherwise. Once a declared
     value is positive it is returned as-is, with NO max() against `fallback`,
-    so a board can resolve a floor DOWNWARDS. That is the point for most of
-    the table: `check_channels` and `check_assembly` must grade at the board's
-    own clearance even when it sits below their packaged default, or they
-    manufacture phantom violations on copper routed correctly (CLAUDE.md,
+    so a board can resolve a floor DOWNWARDS. That is the point for a tool
+    that GRADES EXISTING COPPER: `check_assembly` must measure at the board's
+    own clearance even when it sits below the packaged default, or it
+    manufactures phantom violations on copper placed correctly (CLAUDE.md,
     "Grade DRC at the clearance the board was actually routed to").
+
+    THE DISTINCTION IS GRADE-vs-PREDICT, not tool-by-tool. `check_channels`
+    was listed here as another such consumer and that was wrong: it does not
+    grade copper, it PREDICTS routability, so a declared lane pitch finer than
+    the fab can etch makes it promise capacity nobody can build. Measured on
+    tigard --refs U3 (fab floors 0.09 / 0.0762): a declared 0.05/0.05 took its
+    deficit faces from 3 to 1 and U3's supply from 29 to 120, hiding two real
+    deficits. It now wraps at the fab floor (check_channels.py, `_fab`). A
+    predictive consumer needs the wrap; a grading one must not have it.
 
     A consumer for which downward is a FAB question must therefore wrap this
     in its own max(), exactly as `resolve_hole_clearance`'s consumers do
