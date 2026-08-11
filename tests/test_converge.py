@@ -199,6 +199,251 @@ def test_record_final_wants_the_lens_verdicts():
     print("  PASS: lens grammar is enforced, and a FAIL forbids condition 1")
 
 
+def test_record_refuses_a_lens_verdict_its_own_score_contradicts():
+    """D1. `--lens` was validated for FORMAT and never against anything.
+
+    Measured (run 17, ledger iteration 21): a --final row carrying
+    VERDICT=PASS:lens=connectivity on a score reporting 32 unrouted nets and 47
+    broken joins, while route.log -- 2.65 MB, 19 JSON_SUMMARY blocks -- held
+    zero VERDICT= lines, because no verifier had ever run. That row passed L3,
+    L4 and L5 untested and was corrected only when a human challenged it.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+
+        def sc(doc, name):
+            p = os.path.join(td, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        # The measured row, to the number.
+        run17 = sc({'blocking': 79, 'quality': {},
+                    'blocking_by': {'unrouted': 32, 'broken': 47, 'drc': 0,
+                                    'undersized': 0}}, 's.json')
+        final = ['record', '--ledger', led, '--board', BOARD, '--final',
+                 '--kind', 'completion', '--stop-condition', '1',
+                 '--score-file', run17,
+                 '--lens', 'VERDICT=PASS:lens=connectivity',
+                 '--lens', 'VERDICT=PASS:lens=drc',
+                 '--lens', 'VERDICT=PASS:lens=spec']
+        r = _cv(final)
+        assert r.returncode == 2, (r.returncode, r.stdout[:400])
+        assert 'CONTRADICTS' in r.stderr, r.stderr
+        assert 'unrouted = 32' in r.stderr and 'broken = 47' in r.stderr, r.stderr
+        assert 'VERDICT=FAIL:lens=connectivity' in r.stderr, \
+            'the refusal must name the honest verdict it will accept'
+        assert not os.path.exists(led), 'nothing may be written on refusal'
+
+        # ...and the honest verdict IS accepted (stop condition 4: measured
+        # unfixable and said so).
+        r = _cv(['record', '--ledger', led, '--board', BOARD, '--final',
+                 '--kind', 'completion', '--stop-condition', '4',
+                 '--score-file', run17,
+                 '--lens', 'VERDICT=FAIL:lens=connectivity;finding=32 nets '
+                           'carry no copper;evidence=score.json#/blocking_by',
+                 '--lens', 'VERDICT=PASS:lens=drc',
+                 '--lens', 'VERDICT=PASS:lens=spec'])
+        assert r.returncode == 0, r.stderr
+
+        # CONSERVATIVE: an UNGRADED component is not a contradiction. This is
+        # the half that keeps the check from refusing correct rows -- most
+        # boards ship with impedance/length/net_widths null.
+        # (fresh ledgers below: a second row in the SAME half would also be
+        # tested for commensurability, which is a different gate)
+        r = _cv(['record', '--ledger', os.path.join(td, 'l2.jsonl'),
+                 '--board', BOARD,
+                 '--kind', 'completion', '--lever', 'x',
+                 '--score-file', sc({'blocking': 0, 'quality': {},
+                                     'blocking_by': {'unrouted': 0, 'broken': 0,
+                                                     'drc': None,
+                                                     'undersized': None}},
+                                    'null.json'),
+                 '--lens', 'VERDICT=PASS:lens=drc'])
+        assert r.returncode == 0, r.stderr
+        assert 'CONTRADICTS' not in r.stderr, r.stderr
+
+        # ...and a score that demonstrably grades ANOTHER board does not fire
+        # it either: that would be judging a verdict about board A with board
+        # B's numbers, the same mistake in the other direction.
+        r = _cv(['record', '--ledger', os.path.join(td, 'l3.jsonl'),
+                 '--board', BOARD, '--kind',
+                 'completion', '--lever', 'baseline row',
+                 '--score-file', sc({'blocking': 9, 'board_sha': 'f' * 64,
+                                     'quality': {},
+                                     'blocking_by': {'unrouted': 9}},
+                                    'other.json'),
+                 '--lens', 'VERDICT=PASS:lens=connectivity'])
+        assert r.returncode == 0, r.stderr
+        assert 'CONTRADICTS' not in r.stderr, r.stderr
+    print("  PASS: a PASS lens beside a contradicting count is refused, named")
+
+
+def test_plateau_counts_rejected_laps_and_states_the_true_threshold():
+    """D2. The gate was unsatisfiable by construction.
+
+    The guard was `<=`, so --flat 5 needed SIX accepted laps while the refusal
+    said five; it counted accepted rows only, though L5 instructs "Record the
+    lap you are about to run, accepted or rejected"; and routing accepts only
+    on strict improvement, so an exhausted half has no honest accepted lap left
+    to produce. Two consecutive refusals came out byte-identical.
+    """
+    acc = {'kind': 'completion', 'accepted': True,
+           'score': {'blocking': 0, 'quality': {}, 'ungraded': []}}
+    rej = {'kind': 'completion', 'accepted': False, 'score': None}
+
+    # EXACTLY --flat accepted laps is answerable, and answers `plateau`.
+    st = converge._half_state([acc] * 5, 'routing', 5)
+    assert st['why'] == 'plateau' and st['flat'] is True, st
+
+    # A REJECTED lap is plateau evidence: it is precisely the record of a half
+    # that tried and did not improve.
+    st = converge._half_state([acc] * 2 + [rej] * 3, 'routing', 5)
+    assert st['laps'] == 5 and st['accepted'] == 2 and st['rejected'] == 3, st
+    assert st['flat'] is True and st['why'] == 'plateau', st
+
+    # ...and a half that really is still moving is still not flat.
+    moving = [dict(acc, score={'blocking': b, 'quality': {}, 'ungraded': []})
+              for b in (9, 8, 7, 6, 5)]
+    st = converge._half_state(moving, 'routing', 5)
+    assert st['flat'] is False and st['why'] == 'improving', st
+
+    # The refusal text must state the threshold it actually applies.
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+        with open(led, 'w', encoding='utf-8') as fh:
+            for i, r in enumerate([acc] * 2):
+                fh.write(json.dumps(dict(r, iteration=i)) + '\n')
+        p = os.path.join(td, 's.json')
+        json.dump({'blocking': 0, 'quality': {}, 'ungraded': []},
+                  open(p, 'w', encoding='utf-8'))
+        r = _cv(['verdict', '--ledger', led, '--score', p, '--flat', '5'])
+        doc = json.loads(r.stdout)
+        assert doc['verdict'] == 'CONTINUE', doc
+        assert '2 recorded lap(s)' in doc['reason'], doc['reason']
+        assert 'fewer than the 5 this test needs' in doc['reason'], doc['reason']
+        assert '--exhausted routing' in doc['reason'], \
+            'the text names a remedy; the remedy must be a real flag'
+    print("  PASS: the plateau counter counts rejections and states its true "
+          "threshold")
+
+
+def test_a_half_can_declare_itself_exhausted_on_the_record():
+    """D2, the remedy the verdict text has always promised and never had.
+
+    "the lever is to give it something further to optimise (or to say on the
+    record that there is nothing)" -- and no flag implemented the parenthetical.
+    --accept-residue / --accept-unclosed / --accept-congestion are documented as
+    deliberately non-overlapping and none touches the counter, while --flat is
+    forbidden by the same sentence.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+        p = os.path.join(td, 's.json')
+        json.dump({'blocking': 0, 'quality': {}, 'ungraded': []},
+                  open(p, 'w', encoding='utf-8'))
+
+        def rec(*extra):
+            return _cv(['record', '--ledger', led, '--board', BOARD,
+                        '--kind', 'systemic'] + list(extra))
+
+        # A declaration with no reason is just a lower --flat with extra steps.
+        r = rec('--exhausted', 'routing', '--lever', 'nothing left')
+        assert r.returncode == 2 and 'exhausted-reason' in r.stderr, r.stderr
+        assert not os.path.exists(led), 'nothing may be written on refusal'
+
+        r = rec('--exhausted', 'routing', '--lever', 'declaration',
+                '--exhausted-reason',
+                'every rip depth and grid tried; the 32 open nets need a lane '
+                'no parameter creates')
+        assert r.returncode == 0, r.stderr
+        assert json.loads(r.stdout)['exhausted']['half'] == 'routing'
+
+        for i in range(5):                       # placement plateaus normally
+            assert _cv(['record', '--ledger', led, '--board', BOARD, '--kind',
+                        'placement', '--lever', f'lap {i}',
+                        '--score', json.dumps({'blocking': 0, 'quality': {},
+                                               'ungraded': []})]
+                       ).returncode == 0
+        doc = json.loads(_cv(['verdict', '--ledger', led, '--score', p]).stdout)
+        assert doc['verdict'] == 'DONE-EXHAUSTED', doc['verdict']
+        assert doc['routing']['why'] == 'declared-exhausted', doc['routing']
+        assert 'DECLARED exhausted' in doc['reason'], doc['reason']
+        assert 'no parameter creates' in doc['reason'], \
+            'the reason a human gave is the evidence; it must reach the artifact'
+
+        # Running that half again RETRACTS the declaration -- no flag, no edit.
+        assert _cv(['record', '--ledger', led, '--board', BOARD, '--kind',
+                    'completion', '--lever', 'back to work']).returncode == 0
+        doc = json.loads(_cv(['verdict', '--ledger', led, '--score', p]).stdout)
+        assert doc['verdict'] == 'CONTINUE', doc['verdict']
+        assert doc['routing'].get('declared_superseded'), doc['routing']
+    print("  PASS: a half can be declared exhausted, with a reason, and a "
+          "later lap retracts it")
+
+
+def test_two_scores_that_graded_different_components_do_not_compare():
+    """D12. Two `blocking` totals over different component sets are not larger
+    and smaller versions of each other.
+
+    Measured (run 17, cycles 2 and 3 of one board): compared as 78 vs 79 and a
+    decision taken on the difference. Graded commensurably -- with
+    --impedance-nets, which neither run passed and which the board warrants --
+    both score 92 (32 unrouted / 46 broken, tied net for net), and the board
+    called WORSE was one impedance crossing BETTER.
+    """
+    full = {'blocking': 79, 'quality': {}, 'ungraded': [],
+            'blocking_by': {'unrouted': 32, 'broken': 46, 'drc': 1,
+                            'impedance': 0}}
+    part = {'blocking': 78, 'quality': {}, 'ungraded': ['impedance'],
+            'blocking_by': {'unrouted': 32, 'broken': 46, 'drc': 0,
+                            'impedance': None},
+            'components': {'impedance': {
+                'ran': False,
+                'reason': 'no --impedance-nets given; impedance is ungraded'}}}
+    differ, hint, false_improvement = converge.commensurability(full, part)
+    assert differ == ['impedance'] and false_improvement is True, (differ, hint)
+    assert '--impedance-nets' in hint, hint
+    assert converge.commensurability(full, dict(full, blocking=70)) is None, \
+        'two scores over the same component set compare normally'
+
+    with tempfile.TemporaryDirectory() as td:
+        led = os.path.join(td, 'l.jsonl')
+
+        def sc(doc, name):
+            p = os.path.join(td, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        def rec(score, *extra):
+            return _cv(['record', '--ledger', led, '--board', BOARD, '--kind',
+                        'completion', '--lever', 'lap', '--score-file', score]
+                       + list(extra))
+
+        assert rec(sc(full, 'c2.json')).returncode == 0
+        # 79 -> 78 while grading one component LESS. Routing accepts on strict
+        # improvement, so this is how a ledger acquires a false monotone trend.
+        r = rec(sc(part, 'c3.json'))
+        assert r.returncode == 2, (r.returncode, r.stdout[:300])
+        assert 'graded FEWER components' in r.stderr, r.stderr
+        assert 'impedance' in r.stderr and '--impedance-nets' in r.stderr
+        r = rec(sc(part, 'c3b.json'), '--accept-incommensurable',
+                'both re-scored at 92 out of band; they tie')
+        assert r.returncode == 0, r.stderr
+        assert json.loads(r.stdout)['accepted_incommensurable'].startswith(
+            'both re-scored'), 'the disposition belongs in the row'
+
+    # ...and the verdict never CREDITS an improvement across such a pair.
+    def acc(s):
+        return {'kind': 'completion', 'accepted': True, 'score': s}
+
+    st = converge._half_state([acc(full)] * 4 + [acc(part)], 'routing', 5)
+    assert st['flat'] is True, \
+        '78 after four 79s is not an improvement when it graded one less'
+    assert st['incommensurable'] and st['compared'] == 4, st
+    print("  PASS: incommensurable scores are refused at record and never "
+          "credited as improvement")
+
+
 def test_record_score_failures_want_names():
     """Run-7 S10/F5: a score carrying only a COUNT forces every later read to
     re-derive which nets -- and a truncated re-derivation shipped a wrong
