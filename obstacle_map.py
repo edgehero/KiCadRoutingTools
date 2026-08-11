@@ -1446,10 +1446,19 @@ _HOLE_CLR_ANNOUNCED = set()
 def resolve_hole_clearance(pcb_data: PCBData, config) -> float:
     """The copper-to-HOLE floor this board declares, in mm (0.0 = none).
 
-    Resolved ENGINE-SIDE off ``PCBData.source_path``, the #498 mechanism built
-    for exactly this -- so every front (CLI mains, the GUI, the fanouts, the
-    plane engines) inherits it with no wiring, and no call site can be missed.
-    An explicit ``config.hole_clearance`` wins and stops the read.
+    Resolved ENGINE-SIDE off ``PCBData.source_path`` (the #498 mechanism built
+    for exactly this), so both fronts inherit it with no wiring. An explicit
+    ``config.hole_clearance`` wins and stops the read.
+
+    WHO ACTUALLY INHERITS IT, precisely -- everything routed through
+    ``add_drill_hole_obstacles`` (signal, diff pairs, BGA/QFN fanout, via
+    ``build_base_obstacle_map``), plus ``plane_obstacle_builder`` which builds
+    its own map and therefore needed the call adding separately. It is NOT a
+    universal fix: the flat ``NPTH_TO_TRACK_CLEARANCE`` still stands in
+    ``plane_region_connector`` (taps / region joins / reconnects),
+    ``pcb_modification`` and ``placement/fanout_clearance``. Those are the same
+    defect and are not yet closed; do not read this helper's existence as
+    covering them.
 
     Why it exists: this keep-out was priced at a hardcoded
     ``max(clearance, NPTH_TO_TRACK_CLEARANCE)`` -- a flat 0.20 fab floor -- and
