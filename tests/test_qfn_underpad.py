@@ -232,6 +232,28 @@ def _q2_reuse_adds_no_via():
     check('a reuse with no stub to emit conflicts with nothing',
           not conflict(0.0, 1.0, 2, [(0.0, 1.0, 1, 0.0, 0.0)], px=0.0, py=1.0,
                        adds_via=False, **REUSE_KN))
+
+    # TERM 1 IN ISOLATION -- the candidate VIA against a stub this run already
+    # emitted. This is the third of the three edits the reuse fix made, and it
+    # was the one nothing tested: reverting ONLY the `adds_via and` guard on
+    # term 1 leaves the whole suite green and U2 at 28/12/30, because term 1
+    # never fires for a reuse candidate on this corpus. Untestable-by-corpus is
+    # not untestable, so the geometry is constructed instead.
+    #
+    # Candidate reuse via at (0,0) on net 2, bridged from its pad at (0,-0.5).
+    # Placed: a net-1 via far away at (0,3), fed by a stub from its pad at
+    # (0.3,0) -- so that STUB passes 0.2985mm from the candidate via.
+    #   term 1  cand via   <-> placed stub  0.2985  (floor 0.375)  FIRES
+    #   via-via cand via   <-> placed via   3.000   (floor 0.550)  clear
+    #   term 2  placed via <-> cand stub    3.000   (floor 0.375)  clear
+    #   term 3  cand stub  <-> placed stub  0.2985  (floor 0.200)  clear
+    # so term 1 is the ONLY thing that can decide either call.
+    t1 = [(0.0, 3.0, 1, 0.3, 0.0)]
+    check('term 1 fires for a NEW via whose position this run chose',
+          conflict(0.0, 0.0, 2, t1, px=0.0, py=-0.5, **REUSE_KN))
+    check('...and is suppressed for a REUSE, whose position it did not choose',
+          not conflict(0.0, 0.0, 2, t1, px=0.0, py=-0.5, adds_via=False,
+                       **REUSE_KN))
     return bad
 
 
