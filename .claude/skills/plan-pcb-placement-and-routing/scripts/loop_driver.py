@@ -2434,12 +2434,28 @@ def _self_test():
         _cbad = _cong('cn.json', 980.0)          # neo6502's shape: 2% closed
         _cong_ok = ['--congestion-json', _cgood, '--congestion-baseline', _cbase]
 
+        # 'stale' matched BOTH branches of the placement text (the by-name
+        # list and the NONE-RECORDED warning), so the needle asserted nothing
+        # about which fired. The base fixture has no ledger, so the honest
+        # output is the warning -- pin THAT string.
         for shape, needle in (('parameter', 'the routed board stands'),
                               ('floorplan', 'different ARRANGEMENT'),
-                              ('placement', 'stale')):
+                              ('placement', 'NONE RECORDED')):
             extra = _cong_ok if shape == 'parameter' else []
             out = STAGES['L4'](_args(base + ['--shape', shape] + extra))
             want(needle in out, f'{shape}-shaped re-entry says what it costs')
+        # ...and with a routed board actually recorded, the staleness list is
+        # BY NAME, not the warning.
+        _sl = os.path.join(_ct, 'stale.jsonl')
+        with open(_sl, 'w', encoding='utf-8') as fh:
+            fh.write(json.dumps({'iteration': 4, 'kind': 'completion',
+                                 'accepted': True,
+                                 'result_sha': 'a' * 64}) + '\n')
+        out = STAGES['L4'](_args(base + ['--shape', 'placement',
+                                         '--ledger', _sl]))
+        want('- iteration 4: aaaaaaaaaaaa' in out
+             and 'NONE RECORDED' not in out,
+             'a recorded routed board is named stale by iteration and sha')
 
         # The guard itself. `parameter` is the answer a classifier gives when
         # it cannot see congestion, so it is the one that must carry evidence.
@@ -3278,6 +3294,85 @@ def _self_test():
         want(out.startswith('<error>') and 'close out:' not in out
              and 'board_score.py' in out and '--stop-condition' not in out,
              'D9: an unreadable score is a re-score refusal, not a ceremony')
+
+        # --------------------- run-17 audit: the gates that had no pinning test
+        # Each of these held in the audit's hand-checks -- and deleting any of
+        # them stayed green. That is the regression shape these pins close.
+        _other = os.path.join(tmp, 'other.kicad_pcb')
+
+        # L2 close-out <-> board binding: a stale or foreign close-out must
+        # not unlock routing on a board nobody graded.
+        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _w(
+            {'blocking': 0, 'oob_pad_count': 0, 'locked_contacts': 0,
+             'buildable': True, 'verdict': 'ok', 'board': _other},
+            'asm_foreign.json')]))
+        want(out.startswith('<error>') and 'DIFFERENT board' in out,
+             'PIN: L2 refuses a close-out that graded a different board')
+
+        # L2 malformed counts: a count that is not a number was never measured.
+        for _v, _needle in (('3', 'not a number'), (True, 'not a number'),
+                            (float('nan'), 'NaN and infinity'),
+                            (-1, 'negative')):
+            out = STAGES['L2'](_args(['--board', _b, '--placement-report',
+                                      _w({'blocking': _v, 'oob_pad_count': 0,
+                                          'locked_contacts': 0,
+                                          'buildable': True, 'verdict': 'ok'},
+                                         'asm_malformed.json')]))
+            want(out.startswith('<error>') and _needle in out,
+                 f'PIN: a malformed blocking count ({_v!r}) is refused')
+
+        # L2 buildable / locked_contacts: SKILL.md non-negotiable 3.
+        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _w(
+            {'blocking': 0, 'oob_pad_count': 0, 'locked_contacts': 0,
+             'buildable': False, 'verdict': 'NOT BUILDABLE (2 pairs)'},
+            'asm_nb.json')]))
+        want(out.startswith('<error>') and 'NOT BUILDABLE' in out,
+             'PIN: L2 refuses a close-out that says NOT BUILDABLE')
+        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _w(
+            {'blocking': 0, 'oob_pad_count': 0, 'locked_contacts': 2,
+             'buildable': True, 'verdict': 'ok'}, 'asm_lc.json')]))
+        want(out.startswith('<error>') and 'locked_contacts = 2' in out,
+             'PIN: L2 refuses a contact with a KiCad-LOCKED part')
+
+        # L3 score <-> board binding, and the render the classification needs.
+        out = STAGES['L3'](_args(['--board', _b, '--score', _w(
+            {'blocking': 3, 'board_sha': 'f' * 64}, 's_foreign.json')]))
+        want(out.startswith('<error>') and 'DIFFERENT board' in out,
+             'PIN: L3 refuses a score taken on a different board')
+        out = STAGES['L3'](_args(['--board', _b, '--score', _w(
+            {'blocking': 3}, 's_norender.json')]))
+        want(out.startswith('<error>') and '--render-json' in out,
+             'PIN: L3 with blocking > 0 refuses to classify without the picture')
+
+        # L5 score <-> board binding.
+        out = STAGES['L5'](_args(['--board', _b, '--ledger', _wrong,
+                                  '--score', _w({'blocking': 0,
+                                                 'board_sha': 'f' * 64},
+                                                's5_foreign.json')]))
+        want(out.startswith('<error>') and 'DIFFERENT board' in out,
+             'PIN: L5 refuses a score taken on a different board')
+
+        # L5 close-out <-> board binding, on a REAL terminal verdict: ledger
+        # rows carry _b's true sha so the recorded-board gate passes and the
+        # binding check is the one that fires.
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file as _sha
+        _okled = os.path.join(tmp, 'ok.jsonl')
+        with open(_okled, 'w', encoding='utf-8') as fh:
+            for i, kind in enumerate(['placement'] * 6 + ['completion'] * 6):
+                fh.write(json.dumps({
+                    'iteration': i, 'kind': kind, 'accepted': True,
+                    'result_sha': _sha(_b),
+                    'score': {'blocking': 0, 'quality': {}}}) + '\n')
+        out = STAGES['L5'](_args(['--board', _b, '--ledger', _okled,
+                                  '--score', _w({'blocking': 0}, 's5.json'),
+                                  '--routing-close', _w(
+            {'schema': 1, 'kind': 'board-complete', 'board': _other,
+             'score': {'blocking': 0}, 'components': {'orphan_stubs': {}},
+             'fab_floors': {'ran': True}, 'verdict': 'DONE',
+             'reason': 'clean', 'ungraded': []}, 'cc_foreign.json')]))
+        want(out.startswith('<error>') and 'different board' in out,
+             'PIN: L5 refuses a close-out that names a different board')
 
     print('OK' if not bad else f'FAIL: {len(bad)}')
     return 1 if bad else 0
