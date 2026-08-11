@@ -8,8 +8,13 @@ too thin: a violation the pour created against a rule it never read.
 
 Unset now resolves from the board (measured: a board declaring 0.2mm resolves
 to 0.2), and falls back to the packaged default only when the board declares
-nothing -- which is the case for every board in this repo, since project
-siblings are not committed.
+nothing.
+
+NOT "which is the case for every board in this repo, since project siblings
+are not committed" -- that claim, which D9 (5894b95) used as its evidence of
+no behaviour change, is FALSE. `git ls-files kicad_files/*.kicad_pro` returns
+TWO: flat_hierarchy and routed_output, and both declare real floors. See
+_q5_committed_projects_are_real below for what D9 actually changed on them.
 
 Run: python3 -X utf8 tests/test_run8_board_floors.py
 """
@@ -49,9 +54,14 @@ class A:
 # wrong.
 
 def _fixture(tmp, clearance=0.1, track=0.15, extra_rules=None):
-    """A board that DECLARES a floor. Every board in kicad_files/ declares
-    none (project siblings are not committed), so board-first resolution is
-    untestable without building one."""
+    """A board that DECLARES a floor, built to order.
+
+    Most boards in kicad_files/ declare nothing -- but NOT all of them, which
+    is the correction in the module docstring: flat_hierarchy and
+    routed_output ship committed .kicad_pro siblings. Those two are used
+    directly by _q5_committed_projects_are_real; this fixture exists so the
+    resolver's OTHER branches (a value the corpus does not happen to declare,
+    the 0.0 trap, a malformed project) are reachable at all."""
     import shutil
     src = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
     dst = os.path.join(tmp, 'declared.kicad_pcb')
@@ -371,6 +381,126 @@ def _q4_a_declared_value_must_not_relax_a_fab_floor():
               and 'hole-to-hole' not in said.lower(), f'{sorted(got)}')
 
 
+# --- Q5: D9's "no board declares a floor" evidence was false ----------------
+#
+# 5894b95 justified its no-behaviour-change claim with "every board in
+# kicad_files/ declares no floor (project siblings are not committed)". Two
+# ARE committed:
+#
+#     kicad_files/flat_hierarchy.kicad_pro   Default clearance 0.2  track 0.2
+#     kicad_files/routed_output.kicad_pro    Default clearance 0.09 track 0.09
+#
+# against the old constants clearance 0.25 / track 0.3. So on those two boards
+# D9 was a real, unmeasured behaviour change. Measured here, 5894b95^ vs HEAD,
+# check_channels:
+#
+#     flat_hierarchy   0 faces          -- no change (nothing to measure)
+#     routed_output    supply 390 -> 1084 (+694 lanes), deficit_faces 5 -> 0
+#
+# BENIGN, and in the direction D9 exists to fix: routed_output's own copper is
+# 1701 segments at track widths 0.1 / 0.111 / 0.178 -- it contains NO 0.3mm
+# track anywhere. The old constant measured a width the board never uses, and
+# the 5 "deficits" it reported (including "IC1 E: DEFICIT AT FINEST GRID
+# (floorplan-shaped)", demand 59 vs supply 25) were phantoms on a board that
+# is routed through those faces. check_assembly: pad_conflicts 0 -> 0 and
+# buildable True -> True on both boards; only the recorded clearance and its
+# source changed.
+#
+# DIRECTION, stated because it is what makes this safe rather than lucky: for
+# these instruments a LOOSER declared floor is the conservative direction
+# (check_assembly reports more conflicts, check_channels fewer lanes). The
+# risky direction is a TIGHTER declared floor, which is what both boards have
+# -- and it is justified only because the copper really is that tight, which
+# is asserted below rather than assumed.
+
+_COMMITTED_PROJECTS = {
+    'flat_hierarchy': (0.2, 0.2),        # (Default clearance, Default track)
+    'routed_output': (0.09, 0.09),
+}
+_OLD_D9_CONSTANTS = (0.25, 0.3)          # clearance, track
+
+
+def _q5_committed_projects_are_real():
+    import subprocess
+    from list_nets import board_floor
+
+    print('kicad_files/ DOES ship committed project siblings')
+    out = subprocess.run(['git', 'ls-files', 'kicad_files/*.kicad_pro'],
+                         cwd=ROOT, capture_output=True, text=True).stdout
+    tracked = {os.path.splitext(os.path.basename(p))[0]
+               for p in out.split() if p.strip()}
+    check('at least the two known .kicad_pro siblings are tracked',
+          set(_COMMITTED_PROJECTS) <= tracked, f'git ls-files -> {sorted(tracked)}')
+
+    for name, (clr, trk) in sorted(_COMMITTED_PROJECTS.items()):
+        b = os.path.join(ROOT, 'kicad_files', name + '.kicad_pcb')
+        if not os.path.exists(b):
+            print(f'  SKIP  {name} board missing')
+            continue
+        got_c = board_floor(b, 'clearance', None, _OLD_D9_CONSTANTS[0])
+        got_t = board_floor(b, 'track_width', None, _OLD_D9_CONSTANTS[1])
+        check(f'{name}: the board ANSWERS, it does not fall back',
+              got_c == (clr, 'board netclass') and got_t == (trk, 'board netclass'),
+              f'{got_c} {got_t}')
+        # The change direction, pinned: these declare TIGHTER than the old
+        # constants, which is the direction that needs justifying.
+        check(f'{name}: declared floor is tighter than the old D9 constants',
+              clr < _OLD_D9_CONSTANTS[0] and trk < _OLD_D9_CONSTANTS[1],
+              f'declared {clr}/{trk} vs {_OLD_D9_CONSTANTS}')
+
+    # ...and the justification, measured off the copper rather than asserted:
+    # a floor is only honest if the board's own tracks fit under the constant
+    # it replaced. If routed_output ever gains a 0.3mm track this fails, and
+    # the "the old constant measured a width this board never uses" claim
+    # above has to be re-derived instead of inherited.
+    print('...and the tighter floor matches the copper actually on the board')
+    b = os.path.join(ROOT, 'kicad_files', 'routed_output.kicad_pcb')
+    if os.path.exists(b):
+        from kicad_parser import parse_kicad_pcb
+        widths = {s.width for s in parse_kicad_pcb(b).segments}
+        check('routed_output contains no track as wide as the old 0.3 constant',
+              widths and max(widths) < _OLD_D9_CONSTANTS[1],
+              f'widths {sorted(round(w, 4) for w in widths)}')
+        check('...and none below the floor it declares',
+              min(widths) >= _COMMITTED_PROJECTS['routed_output'][1] - 1e-9,
+              f'min {min(widths)} vs declared {_COMMITTED_PROJECTS["routed_output"][1]}')
+
+    # THE INSTRUMENT, not just the resolver -- and this is the part that fails
+    # at 5894b95^. There check_channels ran at the 0.25/0.3 constants and
+    # reported 5 deficit faces on this board (IC1 E "DEFICIT AT FINEST GRID
+    # (floorplan-shaped)", demand 59 vs supply 25) out of a total supply of
+    # 390. At the board's own 0.09/0.09 it reports 0 deficits and 1084. The
+    # supply figure is asserted as a DIRECTION, not a digit, so a grid or
+    # algorithm change does not turn this into a false alarm; the deficit
+    # count is the decision the loop actually consumes, so that is exact.
+    print('...and check_channels reports the board floor, with no phantom deficit')
+    import json
+    import subprocess
+    import tempfile
+    if os.path.exists(b):
+        with tempfile.TemporaryDirectory() as tmp:
+            jp = os.path.join(tmp, 'ch.json')
+            r = subprocess.run(
+                [sys.executable, '-X', 'utf8', 'check_channels.py', b,
+                 '--json', jp], cwd=ROOT, capture_output=True, text=True)
+            if not os.path.exists(jp):
+                check('check_channels produced JSON', False,
+                      (r.stderr or r.stdout)[-400:])
+                return
+            d = json.load(open(jp, encoding='utf-8'))
+            floors = d.get('floors') or {}
+            supply = sum(f['supply_finest_grid']
+                         for fs in d['ledgers'].values() for f in fs)
+            check('both floors are credited to the board, not a constant',
+                  all(floors.get(k, {}).get('source') == 'board netclass'
+                      for k in ('clearance', 'track_width')), str(floors))
+            check('no phantom deficit face remains (was 5 at the constants)',
+                  len(d.get('deficit_faces') or []) == 0,
+                  str(d.get('deficit_faces'))[:300])
+            check('escape supply exceeds the 390 the old constants reported',
+                  supply > 390, f'supply {supply}')
+
+
 class _Boom(dict):
     """A design_rules stand-in that raises when read, to exercise the
     'I could not look' branch without corrupting a real project file."""
@@ -476,6 +606,7 @@ def main():
     _d9_instruments(board)
     _q3_routing_half_uses_the_same_resolver()
     _q4_a_declared_value_must_not_relax_a_fab_floor()
+    _q5_committed_projects_are_real()
 
     print()
     if FAILURES:
