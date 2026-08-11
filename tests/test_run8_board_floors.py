@@ -136,6 +136,127 @@ def _d9_shared_resolver():
               == (0.55, 'fixed default'))
 
 
+# --- Q3: the ROUTING half read the same two constraints its own way ---------
+#
+# D9 put the `> 0` guard in the placement helpers and stopped there. The four
+# routing mains each kept a private copy of
+# `board_constraint(...) if ... is not None else <default>` -- eight sites, an
+# `is not None` test with no positivity guard -- so one declared floor got two
+# answers depending on which half of the loop asked.
+#
+# On a board declaring `min_copper_edge_clearance: 0.0` (KiCad's "not
+# configured"): placement / floorplan / render resolved 0.55 [fixed default];
+# route.py took a REAL floor of 0.0 while printing "using the board
+# min_copper_edge_clearance 0.0mm" -- announcing a declaration that was not
+# one. The plane engines were worse than misleading: their inset fell from
+# PLANE_EDGE_CLEARANCE 0.5 to 0.0, on the very comment that says they keep 0.5
+# "only when the board declares no edge rule of its own". The GUI's plane tab
+# was already right (swig_gui._effective_plane_edge_clearance guards `> 1e-9`),
+# so this was a CLI-only divergence from the GUI as well.
+
+_CLI_FLOOR_SITES = ('route.py', 'route_diff.py', 'route_planes.py',
+                    'route_disconnected_planes.py')
+_RAW_KEYS = ('min_hole_to_hole', 'min_copper_edge_clearance')
+
+
+def _q3_routing_half_uses_the_same_resolver():
+    import io
+    import contextlib
+    import tempfile
+    from list_nets import (board_floor, board_floor_knobs, resolve_cli_floor)
+
+    print('one declared floor, one number, on both halves of the loop')
+    with tempfile.TemporaryDirectory() as tmp:
+        # A board that DECLARES a positive edge rule. Both halves must land on
+        # it -- this is the "one number" claim in its testable form.
+        decl = _fixture(tmp, extra_rules={'min_copper_edge_clearance': 0.3,
+                                          'min_hole_to_hole': 0.3})
+        _c, edge_place, knobs = board_floor_knobs(decl)
+        with contextlib.redirect_stdout(io.StringIO()):
+            edge_sig = resolve_cli_floor(decl, 'board_edge_clearance', None,
+                                         defaults.BOARD_EDGE_CLEARANCE, '--x')
+            edge_pln = resolve_cli_floor(decl, 'board_edge_clearance', None,
+                                         defaults.PLANE_EDGE_CLEARANCE, '--x')
+        check('a DECLARED 0.3 edge rule is 0.3 on the placement half',
+              edge_place == 0.3
+              and knobs['board_edge_clearance']['source'] == 'board constraint',
+              str(knobs['board_edge_clearance']))
+        check('...and 0.3 on the routing half, signal and plane alike',
+              edge_sig == 0.3 and edge_pln == 0.3,
+              f'signal {edge_sig}, plane {edge_pln}')
+
+    print('a DECLARED 0.0 is UNSET on the routing half too')
+    with tempfile.TemporaryDirectory() as tmp:
+        z = _fixture(tmp, extra_rules={'min_copper_edge_clearance': 0.0,
+                                       'min_hole_to_hole': 0.0})
+        _c, edge_place, knobs = board_floor_knobs(z)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            edge_sig = resolve_cli_floor(z, 'board_edge_clearance', None,
+                                         defaults.BOARD_EDGE_CLEARANCE, '--x')
+            edge_pln = resolve_cli_floor(z, 'board_edge_clearance', None,
+                                         defaults.PLANE_EDGE_CLEARANCE, '--x')
+            h2h = resolve_cli_floor(z, 'hole_to_hole', None,
+                                    defaults.HOLE_TO_HOLE_CLEARANCE, '--y')
+        said = buf.getvalue()
+
+        # BOTH halves must reach the same VERDICT about the board: it declared
+        # nothing. The fallbacks then legitimately differ -- BOARD_EDGE_CLEARANCE
+        # 0.0 is a deliberate "no edge rule, use the copper-copper clearance"
+        # sentinel (route.py:896, obstacle_map.py:797), the plane engines want
+        # 0.5, the placement model 0.55 -- and are NOT unified here.
+        check('placement half: declared 0.0 reads as fixed default',
+              edge_place == 0.55
+              and knobs['board_edge_clearance']['source'] == 'fixed default',
+              str(knobs['board_edge_clearance']))
+        check('routing half agrees the board declared nothing',
+              board_floor(z, 'board_edge_clearance', None, 0.0)[1]
+              == 'fixed default'
+              and board_floor(z, 'hole_to_hole', None, 0.2)[1]
+              == 'fixed default')
+        # The value fixes, each measured against what the old raw read gave.
+        check('plane inset stays PLANE_EDGE_CLEARANCE (was 0.0)',
+              edge_pln == defaults.PLANE_EDGE_CLEARANCE, f'got {edge_pln}')
+        check('hole-to-hole stays the packaged floor (was 0.0)',
+              h2h == defaults.HOLE_TO_HOLE_CLEARANCE, f'got {h2h}')
+        check('the signal sentinel is unchanged at 0.0',
+              edge_sig == defaults.BOARD_EDGE_CLEARANCE, f'got {edge_sig}')
+        # And it must stop claiming the board said so.
+        check('the print no longer attributes 0.0 to the board',
+              'min_copper_edge_clearance' not in said
+              and 'min_hole_to_hole' not in said, said.strip())
+        check('the print names its source in the placement vocabulary',
+              said.count('[fixed default]') == 3, said.strip())
+
+    # THE WIRING. Every check above passes with all eight call sites reverted
+    # to the raw read -- the exact hole D10 was pulled up for. So assert the
+    # mains actually route through the resolver, and that the raw read is gone.
+    print('all four routing mains go through the one resolver')
+    import ast
+    for fn in _CLI_FLOOR_SITES:
+        src = open(os.path.join(ROOT, fn), encoding='utf-8').read()
+        tree = ast.parse(src)
+        floors = set()
+        raw = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            fname = getattr(node.func, 'id', None) or getattr(
+                node.func, 'attr', None)
+            first_str = [a.value for a in node.args
+                         if isinstance(a, ast.Constant)
+                         and isinstance(a.value, str)]
+            if fname == 'resolve_cli_floor':
+                floors.update(first_str)
+            elif fname == 'board_constraint':
+                raw += [s for s in first_str if s in _RAW_KEYS]
+        check(f'{fn}: both floors via resolve_cli_floor',
+              {'hole_to_hole', 'board_edge_clearance'} <= floors,
+              f'found {sorted(floors)}')
+        check(f'{fn}: no raw board_constraint read of either key',
+              not raw, f'raw reads: {raw}')
+
+
 class _Boom(dict):
     """A design_rules stand-in that raises when read, to exercise the
     'I could not look' branch without corrupting a real project file."""
@@ -239,6 +360,7 @@ def main():
 
     _d9_shared_resolver()
     _d9_instruments(board)
+    _q3_routing_half_uses_the_same_resolver()
 
     print()
     if FAILURES:

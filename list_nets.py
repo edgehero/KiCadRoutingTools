@@ -434,6 +434,49 @@ def _num(v):
     return None if v is None else float(v)
 
 
+def resolve_cli_floor(pcb_path, name, explicit, fallback, flag):
+    """One routing-CLI geometry floor, resolved board-first and ANNOUNCED with
+    its real source. Returns the value.
+
+    THE SPLIT THIS CLOSES. `board_floor` / `board_floor_knobs` /
+    `resolve_hole_clearance` -- and the GUI's own
+    `_effective_plane_edge_clearance` -- all treat a declared 0 as UNSET,
+    because that is what KiCad writes into these fields for "not configured".
+    The four routing mains did not: each carried its own copy of
+    ``board_constraint(...) if ... is not None else <default>``, an
+    ``is not None`` test with no positivity guard, eight sites in all
+    (route.py 3725/3731, route_diff.py 1947/1953, route_planes.py 4940/4946,
+    route_disconnected_planes.py 3410/3416).
+
+    So on a board declaring ``min_copper_edge_clearance: 0.0`` the two halves
+    of the place/route loop read one declared floor two ways: the placement
+    half (render_placement, check_floorplan, converge -- all via
+    board_floor_knobs) resolved 0.55 ``[fixed default]``, while the routing
+    half took a REAL floor of 0.0 and printed *"using the board
+    min_copper_edge_clearance 0.0mm"* -- claiming the board had declared what
+    it had in fact left unset. The plane engines were worse than misleading:
+    a declared 0.0 dropped their zone inset from PLANE_EDGE_CLEARANCE 0.5 to
+    0.0, while the GUI's plane tab held 0.5 because it already had the guard.
+
+    The FALLBACKS legitimately differ between callers and are NOT unified
+    here: the signal mains fall back to BOARD_EDGE_CLEARANCE 0.0, which is a
+    deliberate sentinel meaning "no edge rule declared, use the copper-copper
+    clearance instead" (route.py:896, obstacle_map.py:797), while the plane
+    mains fall back to PLANE_EDGE_CLEARANCE 0.5 and the placement model to
+    0.55. What must agree -- and now does -- is whether the board declared
+    anything at all, and what the tool SAYS about where its number came from.
+
+    The source tag is printed in the same ``[board constraint]`` /
+    ``[fixed default]`` / ``[unreadable project]`` vocabulary the placement
+    instruments use, because "fixed default" means the board declared nothing,
+    not that it agreed.
+    """
+    value, src = board_floor(pcb_path, name, explicit, fallback)
+    if src != 'cli':
+        print(f"{flag} not given; using {value}mm [{src}].")
+    return value
+
+
 def net_clearance_map_by_id(pcb_path, nets, design_rules=None):
     """Resolve each net to its net-class clearance (mm) from the sibling
     .kicad_pro netclasses, for the routing CLIs' cross-class clearance map.
