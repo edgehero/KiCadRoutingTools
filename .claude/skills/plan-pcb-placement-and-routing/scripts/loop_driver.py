@@ -471,6 +471,25 @@ def _paths(a, starting=False):
     """
     work = _work(a)
     n = _cycle_index(getattr(a, 'ledger', None), starting=starting)
+    # ...AND NEVER BELOW WHAT IS ALREADY ON DISK. L1 counts the phase it opens
+    # and L2 counts the phase the recorded board sits in, so they disagree in
+    # one measurable case: L1 says cycle 2, the placement half then finds
+    # nothing to change and records a DISPOSITION (a row re-recording a board
+    # already in the ledger -- run 17's it.33 shape), and the phase count drops
+    # back to 1. L2 would then name cycle 1's frozen.kicad_pcb and take its
+    # freeze list from cycle 1's freeze_refs.json, which is the very defect the
+    # suffix exists to prevent, reached by another road.
+    #
+    # The artifacts L1 already told the half to write are the evidence, and
+    # they are on disk. A cycle number never goes backwards.
+    try:
+        for f in (os.listdir(work) if os.path.isdir(work) else ()):
+            stem, ext = os.path.splitext(f)
+            m = re.match(r'^(.*)_c(\d+)$', stem)
+            if m and f'{m.group(1)}{ext}' in _ARTIFACTS:
+                n = max(n, int(m.group(2)))
+    except Exception:                                       # noqa: BLE001
+        pass
     return n, {k: f'{work}/{_cyc_name(k, n)}' for k in _ARTIFACTS}
 
 
@@ -2972,9 +2991,18 @@ def _self_test():
         # one that has to be warned; a note living only in the orchestrator's
         # copy, above a 50-line subagent prompt, is a note the writer never
         # reads.
-        _pr = out.split('<subagent_prompt', 1)[-1]
-        want('ALREADY IN THE LEDGER' in _pr,
-             '...and the warning rides INSIDE the subagent prompt')
+        # Between the OPENING and CLOSING tags. Splitting on the opening tag
+        # alone keeps everything after the prompt too, so a note that drifted
+        # below </subagent_prompt> would still pass -- and on a stage with no
+        # prompt at all the assertion would be vacuous.
+        def _prompt(text):
+            if '<subagent_prompt' not in text:
+                return ''
+            return text.split('<subagent_prompt', 1)[1].split(
+                '</subagent_prompt>', 1)[0]
+
+        want('ALREADY IN THE LEDGER' in _prompt(out),
+             '...and the warning rides INSIDE L2\'s subagent prompt')
         want('ALREADY IN THE LEDGER' not in STAGES['L2'](_args(
                  ['--board', _b, '--placement-report', _rep,
                   '--ledger', _led2(_two, 'clean.jsonl')])),
@@ -2982,12 +3010,17 @@ def _self_test():
         # L1 checks its own artifacts too, not only L2's.
         _pl = os.path.join(_work2, 'placed_c2.kicad_pcb')
         open(_pl, 'w', encoding='utf-8').write('(kicad_pcb) placed')
-        want('ALREADY IN THE LEDGER' in STAGES['L1'](_args(
-                 ['--board', _b, '--placement-report', _rep,
-                  '--ledger', _led2(_two + [
-                      {'kind': 'placement', 'accepted': True,
-                       'result_sha': _shaf2(_pl)}], 'coll1.jsonl')])),
+        _l1c = STAGES['L1'](_args(
+            ['--board', _b, '--placement-report', _rep,
+             '--ledger', _led2(_two + [
+                 {'kind': 'placement', 'accepted': True,
+                  'result_sha': _shaf2(_pl)}], 'coll1.jsonl')]))
+        want('ALREADY IN THE LEDGER' in _l1c,
              'L1 names its own colliding artifacts too, not only L2\'s')
+        # L1's PROMPT too: the claim was "both prompts" and only L2's was
+        # checked, so deleting L1's stayed green.
+        want('ALREADY IN THE LEDGER' in _prompt(_l1c),
+             '...inside L1\'s subagent prompt, which writes the placed board')
 
     # ------------------------------------------------------------------ D5
     # `stages.log` existed only because the CALLER teed it, so an unlogged

@@ -477,6 +477,7 @@ def test_a_plateau_is_never_claimed_over_laps_nothing_measured():
 
     st = converge._half_state([acc(0), acc(0)] + [unscored] * 3, 'routing', 5)
     assert st['why'] == 'no-comparison' and st['unjudged'] == 3, st
+    assert st['blocked'] == 'unjudged', st
     assert st['flat'] is False, 'an unjudged lap is not evidence of a plateau'
     # An unscored ACCEPTED lap is still a lap: it must not vanish from the
     # count while rejections are kept.
@@ -503,6 +504,39 @@ def test_a_plateau_is_never_claimed_over_laps_nothing_measured():
     assert converge._half_state(
         [acc(40), rej, acc(40), rej, acc(40)], 'routing', 5
     )['why'] == 'plateau', 'alternating accept/reject must still be judgeable'
+
+    # THE MESSAGE MUST NAME THE RIGHT CAUSE. The three blocked states call for
+    # different actions, and a text that guessed told a still-improving half to
+    # declare itself exhausted.
+    def _incomm(b, ung):
+        return {'kind': 'completion', 'accepted': True,
+                'score': {'blocking': b, 'quality': {}, 'ungraded': list(ung),
+                          'blocking_by': {'unrouted': b,
+                                          'impedance': None if ung else 0}}}
+
+    st = converge._half_state(
+        [_incomm(9, []), _incomm(9, ['impedance']), rej, rej, rej],
+        'routing', 5)
+    assert st['blocked'] == 'incommensurable', st
+    with tempfile.TemporaryDirectory() as td:
+        def _v(rows, name):
+            p = os.path.join(td, name)
+            with open(p, 'w', encoding='utf-8') as fh:
+                for i, r in enumerate(rows):
+                    fh.write(json.dumps(dict(r, iteration=i)) + '\n')
+            s = os.path.join(td, name + '.score')
+            json.dump({'blocking': 0, 'quality': {}, 'ungraded': []},
+                      open(s, 'w', encoding='utf-8'))
+            return json.loads(_cv(['verdict', '--ledger', p,
+                                   '--score', s]).stdout)['reason']
+
+        flat_p = [{'kind': 'placement', 'accepted': True,
+                   'score': {'blocking': 0, 'quality': {}, 'ungraded': []}}] * 5
+        r = _v(flat_p + [acc(0), acc(0)] + [unscored] * 3, 'u.jsonl')
+        assert 'recorded no `blocking`' in r, r
+        assert 'not graded over the same components' not in r, r
+        r = _v(flat_p + [rej] * 4 + [acc(40)], 's.jsonl')
+        assert 'only one of them carries a score' in r, r
     print("  PASS: a plateau needs every lap in the window to have been judged")
 
 
@@ -601,6 +635,10 @@ def test_every_incommensurable_pair_is_reported_even_when_it_changes_nothing():
                               '--score', sc(full, 'v.json')]).stdout)
         assert 'NOT COMPARABLE' in doc['reason'], doc['reason']
         assert '--impedance-nets' in doc['reason'], doc['reason']
+        # The window is judged over maximal comparable RUNS, not "the first N",
+        # and N could be 0 -- the sentence has to describe what happened.
+        assert 'within the 4 lap(s) that do compare' in doc['reason'], \
+            doc['reason']
     print("  PASS: every incommensurable pair is reported, at record and at "
           "verdict")
 
