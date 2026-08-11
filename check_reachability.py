@@ -215,7 +215,27 @@ def main(argv=None):
               else list(pcb.board_info.copper_layers or ('F.Cu', 'B.Cu')))
     if layer_first and layer_first in layers:     # the seed's own layer first
         layers = [layer_first] + [l for l in layers if l != layer_first]
-    view = ([float(v) for v in args.view.split(',')] if args.view else None)
+    # --view gets the same treatment as --at, and for the same reason: a
+    # traceback here exits 1, which is the CAGED verdict. Garbage floats raised
+    # ValueError out of this line; the wrong COUNT of them survived to raise
+    # IndexError deep inside reachability.slack_field. Both read as "no route
+    # exists at any grid" to a caller branching on the exit code.
+    view = None
+    if args.view:
+        try:
+            view = [float(v) for v in args.view.split(',')]
+        except ValueError:
+            print(f"cannot resolve: --view wants x0,y0,x1,y1 in mm, got "
+                  f"{args.view!r}", file=sys.stderr)
+            return 2
+        if len(view) != 4:
+            print(f"cannot resolve: --view wants FOUR values x0,y0,x1,y1, got "
+                  f"{len(view)} in {args.view!r}", file=sys.stderr)
+            return 2
+        if view[2] <= view[0] or view[3] <= view[1]:
+            print(f"cannot resolve: --view must have x1>x0 and y1>y0, got "
+                  f"{args.view!r}", file=sys.stderr)
+            return 2
 
     try:
         r = reachability.pad_reachability(

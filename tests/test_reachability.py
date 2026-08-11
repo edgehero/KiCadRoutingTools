@@ -284,7 +284,15 @@ def test_the_cli_never_exits_CAGED_for_something_it_could_not_resolve():
         print(f'  SKIP: no {BOARD}')
         return
     for args in (('--pad', 'NOSUCH.9'), ('--pad', 'U1.99999'),
-                 ('--at', 'not-a-number', '--net', 'GND'), ()):
+                 ('--at', 'not-a-number', '--net', 'GND'), (),
+                 # --view was missed the first time round, and it fails in TWO
+                 # ways: garbage floats raise ValueError here, while the wrong
+                 # COUNT of good floats survives to an IndexError deep inside
+                 # reachability.slack_field. Both were tracebacks, so both
+                 # exited 1 = CAGED.
+                 ('--pad', 'U1.1', '--view', 'not,a,number,here'),
+                 ('--pad', 'U1.1', '--view', '1,2,3'),
+                 ('--pad', 'U1.1', '--view', '5,5,1,1')):
         rc, out = _cli(BOARD, *args)
         assert rc == 2, (f'{args or "(no seed)"} must exit 2, got {rc}. '
                          f'1 is CAGED and re-enters placement.\n{out}')
