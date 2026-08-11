@@ -1497,6 +1497,25 @@ def _verdict(a):
     return doc.get('verdict'), doc, p.returncode
 
 
+def final_record_command(ledger, board, score, name):
+    """The run-closing record, EXACTLY as L5 prints it.
+
+    A separate function so a test can EXECUTE the printed command
+    (tests/test_converge.py substitutes the placeholders and runs it). The D1
+    finding: this stage printed a command its own converge refused as written
+    -- no --lens slots at all, and cmd_record's FAIL-lens gate then took only
+    the numeric stop vocabulary, so the STUCK/BUDGET paths (where a FAIL lens
+    is the normal case) were refused on the interpolated verdict name.
+    """
+    return (
+        f'python3 -X utf8 converge.py record --ledger {ledger} --board {board} \\\n'
+        f'      --kind completion --final --stop-condition "{name}" \\\n'
+        f"      --lens '<the connectivity VERDICT= line, verbatim>' \\\n"
+        f"      --lens '<the drc VERDICT= line, verbatim>' \\\n"
+        f"      --lens '<the spec VERDICT= line, verbatim>' \\\n"
+        f'      --score-file {score} --argv <the command that produced this board>')
+
+
 def l5(a):
     """Close out -- but only if the loop is actually finished.
 
@@ -1633,12 +1652,15 @@ loosens, so without the original project there is nothing left to compare to.
 Connectivity is orthogonal to DRC: a DRC-clean board can be entirely
 disconnected, because isolated copper has no clearance conflicts.
 
-Close the ledger with the stop condition NAMED -- converge refuses --final
-without it, deliberately:
+Close the ledger with the stop condition NAMED and the three routed-board
+lenses ATTACHED -- converge refuses --final without them, deliberately. The
+VERDICT= lines come from the routed-board lens verifiers
+(references/verifier-prompts.md; the routing half dispatches them at its
+close-out) -- paste each line verbatim, FAIL included. A FAIL is compatible
+with STUCK and BUDGET; it is only DONE-EXHAUSTED that no failing lens may
+sit beside.
 
-  python3 -X utf8 converge.py record --ledger {a.ledger} --board {a.board} \\
-      --kind completion --final --stop-condition "{name}" \\
-      --score-file {a.score} --argv <the command that produced this board>
+  {final_record_command(a.ledger, a.board, a.score, name)}
 
 Then render the run. It is the only artifact that shows HOW the board got here,
 and because both halves recorded into one ledger it is ONE film, not two:

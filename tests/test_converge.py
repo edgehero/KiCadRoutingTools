@@ -787,6 +787,81 @@ def test_board_score_emits_board_sha():
     print("  PASS: board_score embeds board_sha")
 
 
+def test_l5_printed_final_command_runs_as_printed():
+    """D1: the run-closing command L5 prints must be ACCEPTED by converge,
+    verbatim, for every terminal verdict. The refusal-driven executor recovers
+    from a refused command, but a driver whose doctrine is "paste these exact
+    commands" may not print one its own tool refuses: the STUCK/BUDGET paths
+    carry a FAIL lens as the normal case, and DONE-EXHAUSTED must never sit
+    beside one."""
+    import shlex
+    sys.path.insert(0, os.path.join(
+        ROOT, '.claude', 'skills', 'plan-pcb-placement-and-routing', 'scripts'))
+    from loop_driver import final_record_command
+
+    _PASS = {'connectivity': 'VERDICT=PASS:lens=connectivity',
+             'drc': 'VERDICT=PASS:lens=drc',
+             'spec': 'VERDICT=PASS:lens=spec'}
+    _FAIL_DRC = ('VERDICT=FAIL:lens=drc;finding=3 clearance violations;'
+                 'evidence=score.json#/blocking_by/drc')
+    _CLEAN = {'blocking': 0, 'blocking_by':
+              {'unrouted': 0, 'broken': 0, 'drc': 0, 'undersized': 0}}
+    _DIRTY = {'blocking': 3, 'blocking_by':
+              {'unrouted': 0, 'broken': 0, 'drc': 3, 'undersized': 0}}
+
+    def run_as_printed(name, lens_by_name, score_doc, led):
+        score = os.path.join(os.path.dirname(led), 'score.json')
+        with open(score, 'w', encoding='utf-8') as f:
+            json.dump(score_doc, f)
+        text = final_record_command(led.replace('\\', '/'),
+                                    BOARD.replace('\\', '/'),
+                                    score.replace('\\', '/'), name)
+        toks = shlex.split(text.replace('\\\n', ' '))
+        assert toks[0] == 'python3' and toks[3] == 'converge.py', toks[:4]
+        toks[0] = sys.executable
+        # The three placeholder slots must be present AND recognisable -- if
+        # the driver's wording drifts, fail here rather than silently testing
+        # a different command than the one printed.
+        subst = {f'<the {lens} VERDICT= line, verbatim>': line
+                 for lens, line in lens_by_name.items()}
+        hit = 0
+        for i, t in enumerate(toks):
+            if t in subst:
+                toks[i] = subst[t]
+                hit += 1
+        assert hit == 3, f'expected 3 lens placeholders, found {hit}: {toks}'
+        ia = toks.index('--argv')
+        toks = toks[:ia + 1] + [sys.executable, '-c', 'pass']
+        return subprocess.run(toks, capture_output=True, text=True,
+                              encoding='utf-8', errors='replace', cwd=ROOT)
+
+    with tempfile.TemporaryDirectory() as td:
+        # DONE-EXHAUSTED: every lens passes, clean score.
+        r = run_as_printed('DONE-EXHAUSTED', _PASS, _CLEAN,
+                           os.path.join(td, 'done.jsonl'))
+        assert r.returncode == 0, r.stderr
+        e = json.loads(r.stdout)
+        assert e.get('final') is True and \
+            e.get('stop_condition') == 'DONE-EXHAUSTED'
+        # STUCK and BUDGET: a FAIL lens is the NORMAL case, not a refusal.
+        for name in ('STUCK', 'BUDGET'):
+            lenses = dict(_PASS, drc=_FAIL_DRC)
+            r = run_as_printed(name, lenses, _DIRTY,
+                               os.path.join(td, name + '.jsonl'))
+            assert r.returncode == 0, f'{name}: {r.stderr}'
+            e = json.loads(r.stdout)
+            assert e.get('stop_condition') == name
+            assert any(v.startswith('VERDICT=FAIL') for v in e['lenses'])
+        # DONE-EXHAUSTED beside a FAIL lens is the one contradiction.
+        led = os.path.join(td, 'contra.jsonl')
+        r = run_as_printed('DONE-EXHAUSTED', dict(_PASS, drc=_FAIL_DRC),
+                           _DIRTY, led)
+        assert r.returncode == 2 and 'contradiction' in r.stderr, r.stderr
+        assert not os.path.exists(led), "nothing may be written on refusal"
+    print("  PASS: L5's printed --final command runs as printed, "
+          "all three verdicts")
+
+
 if __name__ == '__main__':
     for k, v in sorted(globals().items()):
         if k.startswith('test_'):

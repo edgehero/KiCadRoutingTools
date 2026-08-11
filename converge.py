@@ -166,6 +166,14 @@ LENS_COMPONENTS = {
 
 _LENS_RE = r'^VERDICT=(PASS|FAIL):lens=([A-Za-z0-9_-]+)'
 
+#: Stop conditions a `--final --kind completion` row may carry when a lens
+#: FAILED. Two vocabularies, both of record: the routing half's NUMBERS
+#: (convergence.md §3 -- 2 budget spent, 4 measured-unfixable) and the outer
+#: loop's verdict NAMES as `verdict` prints them and L5 interpolates them.
+#: DONE-EXHAUSTED is deliberately absent -- with a FAIL lens it is a
+#: contradiction, refused above the membership check.
+FAIL_COMPATIBLE_STOPS = ('2', '4', 'STUCK', 'BUDGET')
+
 
 def score_component(score, key):
     """The graded count for `key`, or None when NOTHING measured it.
@@ -598,10 +606,27 @@ def cmd_record(a):
                   f"lens passes`. Nothing was written.", file=sys.stderr)
             return 2
         _failed = [v for v in (a.lens or []) if v.strip().startswith('VERDICT=FAIL')]
-        if _failed and (a.stop_condition or '').strip() not in ('2', '4'):
+        _sc = (a.stop_condition or '').strip()
+        # TWO STOP VOCABULARIES ARE OF RECORD, and both must be acceptable as
+        # printed: the routing half closes on the NUMBERS of convergence.md §3,
+        # and the outer loop's L5 interpolates the verdict NAMES this tool's
+        # own `verdict` subcommand prints. L5's command was refused verbatim
+        # here for exactly that gap -- a FAIL lens is the NORMAL case on the
+        # STUCK/BUDGET paths. DONE-EXHAUSTED is the exception: done-and-
+        # measured-done IS the all-lenses-pass claim.
+        if _failed and _sc == 'DONE-EXHAUSTED':
+            print(f"record: {len(_failed)} lens FAILED under --stop-condition "
+                  f"DONE-EXHAUSTED. Done-and-measured-done IS the every-lens-"
+                  f"passes claim, so a FAIL beside it is the contradiction "
+                  f"L5's cross-check exists to refuse. Record STUCK or BUDGET "
+                  f"(or fix the board and re-dispatch the lens), never a done "
+                  f"a lens denies. Nothing was written.", file=sys.stderr)
+            return 2
+        if _failed and _sc not in FAIL_COMPATIBLE_STOPS:
             print(f"record: {len(_failed)} lens FAILED, so this run did not "
-                  f"finish clean -- --stop-condition must be 2 (budget spent) "
-                  f"or 4 (measured-unfixable and said so), not "
+                  f"finish clean -- --stop-condition must be 2 (budget spent), "
+                  f"4 (measured-unfixable and said so), or the loop verdict "
+                  f"naming the same thing (STUCK, BUDGET), not "
                   f"{a.stop_condition!r}. A FAIL means `blocking` was not "
                   f"really zero. Nothing was written.", file=sys.stderr)
             return 2
