@@ -98,6 +98,36 @@ def _d9_shared_resolver():
     nodecl = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
     check('fallback is labelled fixed default',
           board_floor(nodecl, 'clearance', None, 0.25) == (0.25, 'fixed default'))
+    check('"could not read the project" is not "declares nothing"',
+          board_floor(os.path.join(tmp, 'nope.kicad_pcb'), 'clearance',
+                      None, 0.25, design_rules=_Boom())[1] == 'unreadable project')
+
+    # THE 0.0 TRAP, in the OLDER helper. board_floor guards it; board_floor_knobs
+    # did not, and render_placement is wired to board_floor_knobs -- so a project
+    # declaring `min_copper_edge_clearance: 0.0` (KiCad's "not configured") gave
+    # the placement model a REAL edge floor of zero, collapsing every edge-halo
+    # and oob term, where it had used 0.55 before. The two helpers must agree
+    # about the one trap this module documents.
+    print('a declared 0.0 is UNSET in both floor helpers, not a floor of zero')
+    from list_nets import board_floor_knobs
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as z:
+        b = _fixture(z, clearance=0.2,
+                     extra_rules={'min_copper_edge_clearance': 0.0})
+        _clr, _edge, knobs = board_floor_knobs(b)
+        check('board_floor_knobs does not return a 0.0 edge floor',
+              _edge == 0.55 and knobs['board_edge_clearance']['source']
+              == 'fixed default', str(knobs['board_edge_clearance']))
+        check('board_floor agrees',
+              board_floor(b, 'board_edge_clearance', None, 0.55)
+              == (0.55, 'fixed default'))
+
+
+class _Boom(dict):
+    """A design_rules stand-in that raises when read, to exercise the
+    'I could not look' branch without corrupting a real project file."""
+    def get(self, *a, **k):
+        raise OSError('unreadable')
 
 
 def _d9_instruments(_board):

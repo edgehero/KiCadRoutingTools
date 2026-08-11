@@ -215,9 +215,15 @@ always (the R2 rule, applied to the gate itself):**
 ```bash
 python3 -X utf8 check_drc.py board.kicad_pcb --clearance <floor>   # NOT piped
 echo "EXIT=$?"
-python3 -X utf8 check_assembly.py board.kicad_pcb --clearance <floor>
+python3 -X utf8 check_assembly.py board.kicad_pcb   # reads the board's own floor
 echo "EXIT=$?"
 ```
+
+`check_assembly` resolves its clearance from the board (Default net-class, else
+`routing_defaults`) and prints it with its source, so **omit `--clearance`** —
+that is what grades at the board's floor. Pass it only to override
+deliberately. It used to default to a flat 0.25 and so graded stricter than the
+board it was grading.
 
 A copper-free board has no routing, so **every violation these return is a placement
 defect that no router can ever remove**. `check_drc` measures copper clearances (68
@@ -452,11 +458,20 @@ Each lap:
 
    ```bash
    python3 -X utf8 check_drc.py board.kicad_pcb --clearance <floor>
-   python3 -X utf8 check_assembly.py board.kicad_pcb --clearance <floor> \
+   python3 -X utf8 check_assembly.py board.kicad_pcb \
        --baseline <the ORIGINAL input board> --json wk/assembly_lapN.json
-   python3 -X utf8 check_channels.py board.kicad_pcb --clearance <floor> \
-       --track-width <w> --grid-step <g> --json wk/channels_lapN.json
+   python3 -X utf8 check_channels.py board.kicad_pcb \
+       --grid-step <g> --json wk/channels_lapN.json
    ```
+
+   **`check_assembly` and `check_channels` read the board's own floor** (and
+   `check_channels` its track width too) when the flags are omitted, and print
+   each value with its source — so omitting them is what grades at the board.
+   They used to default to a flat 0.25 / 0.3: on a 0.2 board that track width
+   invented a "U2 N short 1 lane" deficit that did not exist (supply 14, demand
+   12), handed forward as floorplan-shaped residue. `check_drc` still wants
+   `--clearance` spelled out. Read the printed tag: `[fixed default]` means the
+   board declared nothing, not that it agreed.
 
    `--baseline` is load-bearing: dense healthy boards ship hundreds of by-design
    courtyard kisses (corpus: 235), so the loop's advisory fix-list is the pairs

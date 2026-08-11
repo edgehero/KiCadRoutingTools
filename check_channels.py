@@ -135,10 +135,14 @@ def main():
 
     # BOARD-FIRST. A lane is `track + clearance` wide, so BOTH of these decide
     # how much escape supply this tool believes a face has -- and it used to
-    # believe two constants. Measured on a board whose floor is 0.2/0.2: at the
-    # 0.25/0.3 defaults it reported supply 304 where the truth was 378 (74 lanes
-    # short) and invented a DEFICIT on a face that had none. A phantom deficit
-    # steers a placement search at the thing that is not wrong.
+    # believe two constants. Measured HERE on the run board (Default netclass
+    # clearance 0.2, track 0.254): at the old 0.25/0.3 constants it reports 334
+    # escape lanes where the board's own floor gives 399 -- a 65-lane
+    # understatement. The originating report measured 304 vs 378 (74 lanes) on
+    # that board at 0.2/0.2; the direction and scale agree, the exact figures
+    # depend on the track width in force, so both are recorded rather than
+    # blended. A phantom deficit steers a placement search at the thing that is
+    # not wrong.
     from list_nets import board_floor
     clearance, clr_src = board_floor(args.board, 'clearance', args.clearance,
                                      defaults.CLEARANCE)

@@ -79,13 +79,18 @@ that can.
       --json wk/assembly0.json
   echo "EXIT=$?"
 
-check_assembly needs the floor SPELLED OUT: it defaults to 0.25 and does not
-read the board. On a 0.2 board that grades stricter than the thing it is
-grading -- measured, one board: pad_conflicts 96 at the default vs 39 at its own
-floor.
+check_assembly now READS THE BOARD when --clearance is omitted (its Default
+net-class clearance, else routing_defaults), and prints the value with its
+source. Passing the board's own floor explicitly is therefore redundant, and
+passing anything ELSE is now an override it will warn about. It used to default
+to a flat 0.25 regardless of the board, which graded stricter than the thing it
+was grading -- measured, one board: pad_conflicts 96 at the default vs 39 at
+its own floor.
 
-Read the floor off the board (its .kicad_pro netclass or .kicad_dru), never a
-round number you chose.
+Pass --clearance only when you deliberately want a floor OTHER than the
+board's, and never a round number you chose because it looked plausible. Check
+the printed `[board netclass]` / `[fixed default]` tag: `fixed default` means
+the board declared nothing and the number is a fallback, not agreement.
 
 Every violation a COPPER-FREE board returns is a placement defect that no
 router can remove.
@@ -323,15 +328,22 @@ broken at the cap is NAMED with its measurement, not carried silently.
 MEASURE (all four, every lap, on the copper-free board):
 
   python3 -X utf8 check_drc.py {a.board} --clearance <floor> --clearance-margin 0
-  python3 -X utf8 check_assembly.py {a.board} --clearance <floor> --baseline {a.before}
-  python3 -X utf8 check_channels.py {a.board} --clearance <floor> --track-width <floor> \
-      --baseline {a.before} --gate
+  python3 -X utf8 check_assembly.py {a.board} --baseline {a.before}
+  python3 -X utf8 check_channels.py {a.board} --baseline {a.before} --gate
   python3 -X utf8 check_rigid_consistency.py {a.before} {a.board}
 
-Pass <floor> to ALL of them. check_assembly defaults to 0.25 and check_channels
-to --track-width 0.3, and neither reads the board: on a 0.2 board that default
-width invented a "U2 N short 1 lane" deficit that does not exist (supply 14,
-demand 12), and it was handed forward as floorplan-shaped residue.
+check_assembly and check_channels now READ THE BOARD's own clearance (and
+check_channels its track width too) and print each value with its source, so
+do NOT pass <floor> to them -- omitting it is what gets the board's floor.
+They used to default to a flat 0.25 / 0.3 regardless: on a 0.2 board that
+track width invented a "U2 N short 1 lane" deficit that does not exist
+(supply 14, demand 12), and it was handed forward as floorplan-shaped residue.
+check_drc still wants it spelled out.
+
+READ THE PRINTED SOURCE. `[board netclass]` / `[board constraint]` means the
+board answered; `[fixed default]` means it declared nothing and the number is
+this tool's fallback -- compare such a run only against boards graded the
+same way.
 
 The last three are DELTAS against the board you started from, deliberately.
 Each has an absolute form that was measured and refused: a starved escape face,

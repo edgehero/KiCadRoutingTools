@@ -325,10 +325,17 @@ def board_floor_knobs(pcb_path, clearance=None, board_edge_clearance=None,
     records each value's source (``'cli'`` | ``'board netclass'`` |
     ``'board constraint'`` | ``'fixed default'``) for JSON disclosure.
     """
+    # A non-positive declared value is UNSET, not a floor of zero -- KiCad
+    # writes 0 into these fields for "not configured", and reading it as a real
+    # floor collapses every consumer to no clearance at all. `board_floor`
+    # below encodes the same rule; this helper predates it and did NOT, so a
+    # project declaring `min_copper_edge_clearance: 0.0` silently gave
+    # render_placement a 0.0 edge floor (every edge-halo and oob term
+    # vanishing) where it had previously used 0.55.
     knobs = {}
     if clearance is None:
         v = board_default_netclass_clearance(pcb_path, design_rules)
-        clearance, src = ((v, 'board netclass') if v is not None
+        clearance, src = ((v, 'board netclass') if v is not None and v > 0
                           else (clearance_default, 'fixed default'))
     else:
         src = 'cli'
@@ -336,7 +343,8 @@ def board_floor_knobs(pcb_path, clearance=None, board_edge_clearance=None,
     if board_edge_clearance is None:
         v = board_constraint(pcb_path, 'min_copper_edge_clearance',
                              design_rules)
-        board_edge_clearance, src = ((v, 'board constraint') if v is not None
+        board_edge_clearance, src = ((v, 'board constraint')
+                                     if v is not None and v > 0
                                      else (edge_default, 'fixed default'))
     else:
         src = 'cli'
@@ -376,10 +384,12 @@ def board_floor(pcb_path, name, explicit=None, fallback=None,
 
     This exists because instruments kept substituting their own constant for a
     value the board declares, each in its own way, and each wrong in a
-    different direction. Measured: `check_channels` at its 0.25 default
-    understated escape supply by 74 lanes (304 vs 378) on a board whose floor
-    is 0.2, and invented a deficit on a face that had none -- a phantom that
-    would have steered a placement search. `obstacle_map` priced NPTH holes at
+    different direction. Measured here: `check_channels` at its old 0.25/0.3
+    constants reported 334 escape lanes where the board's own 0.2/0.254 floor
+    gives 399 -- 65 lanes understated. (The originating report measured 304 vs
+    378 on the same board at 0.2/0.2; same direction and scale, different track
+    width.) It also invented a deficit on a face that had none -- a phantom
+    that would have steered a placement search. `obstacle_map` priced NPTH at
     a hardcoded max(clearance, 0.20) while the board declared
     ``min_hole_clearance`` 0.25, and a route came within 0.2263 mm of an NPTH:
     a real 0.0237 mm violation, routing-introduced.
@@ -395,20 +405,33 @@ def board_floor(pcb_path, name, explicit=None, fallback=None,
     if explicit is not None:
         return float(explicit), 'cli'
     cls_key, con_key = _FLOOR_SOURCES[name]
+    # The guard wraps the ACCESSORS too, not just read_design_rules: a caller
+    # may hand in its own `design_rules`, and a malformed one raises inside
+    # board_default_netclass_param / board_constraint rather than here.
     try:
         dr = (design_rules if design_rules is not None
               else read_design_rules(pcb_path))
+        if cls_key:
+            v = board_default_netclass_param(pcb_path, cls_key, dr)
+            if v is not None and v > 0:
+                return float(v), 'board netclass'
+        if con_key:
+            v = board_constraint(pcb_path, con_key, dr)
+            if v is not None and v > 0:
+                return float(v), 'board constraint'
     except Exception:                                          # noqa: BLE001
-        return fallback, 'fixed default'
-    if cls_key:
-        v = board_default_netclass_param(pcb_path, cls_key, dr)
-        if v is not None and v > 0:
-            return float(v), 'board netclass'
-    if con_key:
-        v = board_constraint(pcb_path, con_key, dr)
-        if v is not None and v > 0:
-            return float(v), 'board constraint'
-    return fallback, 'fixed default'
+        # "I could not look" is NOT "there is nothing there" -- the same
+        # distinction board_floor_declaration exists to preserve. The VALUE is
+        # the fallback either way, but the source must not claim the board was
+        # read and found silent, or a corrupt .kicad_pro reads in a table
+        # exactly like a board that genuinely declares nothing.
+        return _num(fallback), 'unreadable project'
+    return _num(fallback), 'fixed default'
+
+
+def _num(v):
+    """Fallbacks are returned in the same type the board paths return."""
+    return None if v is None else float(v)
 
 
 def net_clearance_map_by_id(pcb_path, nets, design_rules=None):
