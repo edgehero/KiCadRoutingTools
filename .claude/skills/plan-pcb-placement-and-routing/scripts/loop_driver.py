@@ -381,6 +381,142 @@ def _work(a):
     return 'wk'
 
 
+def _cycle_index(ledger):
+    """Which CYCLE of the loop this is, 1-based, read off the ledger.
+
+    A cycle ends when the loop re-enters placement after routing -- which is a
+    designed path: L5's CONTINUE branch and L4's placement/floorplan re-entries
+    all say `--stage L1`. The driver had no concept of one, and named the same
+    output paths every time. Measured, on a real second cycle L2 printed:
+
+        write the result to wk/run17/neo6502/frozen.kicad_pcb
+        Take the list from wk/run17/neo6502/freeze_refs.json
+
+    Both are CYCLE ONE's files. That `frozen.kicad_pcb` is cycle 1's
+    `--authored-from` baseline and is referenced by the ledger by content hash,
+    so following the instruction literally destroys the provenance every later
+    gate checks against -- and check_complete's fab-floor check, which is the
+    only route to UNSOUND, compares against exactly that file.
+    """
+    cyc, routed = 1, False
+    for r in _ledger_rows(ledger):
+        kind = r.get('kind') or ''
+        if kind in ('completion', 'routing'):
+            routed = True
+        elif kind == 'placement' and routed:
+            cyc, routed = cyc + 1, False
+    return cyc
+
+
+def _cyc_name(name, n):
+    """'frozen.kicad_pcb' -> 'frozen_c2.kicad_pcb' on cycle 2, unchanged on 1.
+
+    Cycle 1 keeps the bare names on purpose: every chain in the docs, every
+    recorded manifest and every existing run dir uses them, and renaming them
+    would strand all of it to fix a bug that only exists from cycle 2 on.
+    """
+    if n <= 1:
+        return name
+    stem, ext = os.path.splitext(name)
+    return f'{stem}_c{n}{ext}'
+
+
+#: The handback artifacts the PARENT names, per stage. Values are the cycle-1
+#: names; `_paths` applies the cycle suffix.
+_ARTIFACTS = ('placed.kicad_pcb', 'assembly_close.json',
+              'place_close_render.json', 'freeze_refs.json',
+              'frozen.kicad_pcb', 'routed.kicad_pcb', 'score.json',
+              'route.log', 'routing_close.json', 'handoff.json', 'handoff.png')
+
+
+def _paths(a):
+    """(cycle, {name: path}) -- the artifact names for THIS cycle."""
+    work, n = _work(a), _cycle_index(getattr(a, 'ledger', None))
+    return n, {k: f'{work}/{_cyc_name(k, n)}' for k in _ARTIFACTS}
+
+
+def _ledger_collision(a, paths):
+    """Refusal when a path we are about to name as an OUTPUT already holds a
+    board THE LEDGER REFERENCES -- else None.
+
+    The belt beside the cycle suffix. A suffix fixes the case the driver can
+    see coming; this one fires whenever an output path, however derived, would
+    overwrite a file the ledger's history depends on -- a step-back target, a
+    film frame, an --authored-from baseline. Content-addressed, so it cannot be
+    fooled by a path that merely looks familiar, and silent when the question
+    is unanswerable (no ledger, unreadable file).
+    """
+    shas = {r.get('result_sha') for r in _ledger_rows(getattr(a, 'ledger', None))
+            if r.get('result_sha')}
+    if not shas:
+        return None
+    try:
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file
+    except Exception:                                       # noqa: BLE001
+        return None
+    hits = []
+    for p in paths:
+        if not os.path.isfile(p):
+            continue
+        try:
+            s = sha256_file(p)
+        except Exception:                                   # noqa: BLE001
+            continue
+        if s in shas:
+            hits.append((p, s))
+    if not hits:
+        return None
+    named = '\n'.join(f'    {p}\n      already holds ledger board {s[:12]}...'
+                      for p, s in hits)
+    return err(
+        f'This stage was about to tell you to WRITE OVER a board the ledger '
+        f'references:\n\n{named}\n\nThat file is addressable history: '
+        f'step-back checks it out by content, the film reads it, and '
+        f'check_complete --authored-from grades this run\'s copper against it '
+        f'-- without which UNSOUND is unreachable and a board below its own '
+        f'declared floor reads clean.\n\nThis is cycle {_cycle_index(a.ledger)} '
+        f'by the ledger\'s count. If that is wrong, the ledger is missing laps '
+        f'-- record them. If it is right, move or rename the existing file '
+        f'before continuing; do not overwrite it.')
+
+
+def _log_invocation(a, stage, out, code):
+    """Append this invocation to a log BESIDE the ledger. stdout is untouched.
+
+    The `stages.log` that made the measured run auditable exists only because
+    the CALLER teed it. Nothing the driver did was recorded by the driver, so an
+    unlogged invocation could only ever be inferred -- never detected -- and a
+    stage that ran, refused and was quietly worked around left no trace at all.
+    The loop's own history is what every gate downstream reads.
+
+    Never allowed to break a stage: a driver that refuses to run because it
+    could not journal is worse than one that is occasionally unjournalled.
+    """
+    try:
+        d = os.path.dirname(getattr(a, 'ledger', '') or '') or '.'
+        if not os.path.isdir(d):
+            return None
+        p = os.path.join(d, 'loop_driver.log')
+        row = {'t': round(time.time(), 3),
+               'iso': time.strftime('%Y-%m-%dT%H:%M:%S'),
+               'stage': stage, 'exit': code, 'refused': bool(code == 4),
+               'board': getattr(a, 'board', None),
+               'ledger': getattr(a, 'ledger', None),
+               'cwd': os.getcwd(), 'argv': list(sys.argv),
+               # The emitted text by content: two consecutive refusals coming
+               # out byte-identical is itself a finding (it was one), and a
+               # reader cannot see that from a log that keeps only the stage.
+               'out_sha': hashlib.sha256(
+                   (out or '').encode('utf-8')).hexdigest()[:16],
+               'out_lines': len((out or '').splitlines())}
+        with open(p, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(row, sort_keys=True) + '\n')
+        return p
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
 #: Never open anything but the board you were given. A delegated half is a fresh
 #: agent with Read and Glob, and on the perturbed corpus the control board and
 #: the pose record sit one directory above the subject. The fence has always
@@ -466,9 +602,21 @@ def l1(a):
     """Place. Delegated by default; --no-delegate is the escape hatch."""
     delegate, why = _delegation(a)
     work = _work(a)
+    cyc, P = _paths(a)
+    _placed, _asm = P['placed.kicad_pcb'], P['assembly_close.json']
+    _rend, _refs = P['place_close_render.json'], P['freeze_refs.json']
+    _clash = _ledger_collision(a, [_placed])
+    if _clash:
+        return _clash
+    _cycnote = ('' if cyc == 1 else
+                f'\nCYCLE {cyc} (the ledger records {cyc - 1} completed '
+                f'placement->routing pass(es)). The handback names below carry '
+                f'a _c{cyc} suffix ON PURPOSE: cycle 1\'s files are the '
+                f'--authored-from baseline and the boards step-back and the '
+                f'film read by content hash. Do not write over them.\n')
     if delegate:
         return f'''<stage_instructions stage="L1" name="place (delegated)" of="5">
-DELEGATING: {why}.
+DELEGATING: {why}.{_cycnote}
 
 Delegate the placement half to a TEAMMATE spawned with an agent type that HAS
 the Agent tool -- `claude` or `general-purpose`, never `Explore` or `Plan`,
@@ -496,14 +644,14 @@ WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
 chosen by you, because the next gate opens the files; it does not read your
 message.
 
-  placed board : {work}/placed.kicad_pcb
-  close-out    : {work}/assembly_close.json
-                 python3 -X utf8 check_assembly.py {work}/placed.kicad_pcb \\
+  placed board : {_placed}
+  close-out    : {_asm}
+                 python3 -X utf8 check_assembly.py {_placed} \\
                      --clearance <the board's own floor> \\
-                     --json {work}/assembly_close.json
-  render       : {work}/place_close_render.json
+                     --json {_asm}
+  render       : {_rend}
                  the render_placement.py --json-out you actually READ
-  freeze refs  : {work}/freeze_refs.json
+  freeze refs  : {_refs}
                  a JSON list of the refs whose pose is a DECISION -- moved
                  deliberately, or mechanically pinned. WRITE it: a pose diff
                  cannot tell a deliberate re-seat from a sweep, and it froze 76
@@ -528,12 +676,12 @@ re-reads them from the files.
 When it returns, continue here with --stage L2 on the paths named above.
 
 Next: python3 -X utf8 {sys.argv[0]} --stage L2 \\
-          --board {work}/placed.kicad_pcb \\
+          --board {_placed} \\
           --ledger {a.ledger} \\
-          --placement-report {work}/assembly_close.json
+          --placement-report {_asm}
 </stage_instructions>'''
     return f'''<stage_instructions stage="L1" name="place" of="5">
-INLINE: {why}.
+INLINE: {why}.{_cycnote}
 
 Place this board yourself, driven. Do not read the placement skill end to end:
 ask its driver for one stage at a time, so only one loop's rules are ever in
@@ -762,15 +910,33 @@ def l2(a):
     # placement lap to record and never will. "I could not check" must not
     # become "you failed", or the legitimate path stops working.
     delegate, why = _delegation(a, half='routing')
+    cyc, P = _paths(a)
+    _frozen, _routed = P['frozen.kicad_pcb'], P['routed.kicad_pcb']
+    _refs, _score, _log = P['freeze_refs.json'], P['score.json'], P['route.log']
+    _close, _hoj, _hop = (P['routing_close.json'], P['handoff.json'],
+                          P['handoff.png'])
+    # The freeze SOURCE is the board handed to this stage, not a name derived
+    # from the work dir: on a second cycle the placed board is placed_c2, and
+    # `copy_board placed.kicad_pcb frozen.kicad_pcb` would freeze cycle 1's
+    # board into cycle 1's baseline -- twice wrong in one line.
+    _clash = _ledger_collision(a, [_frozen, _routed])
+    if _clash:
+        return _clash
+    _cycnote = ('' if cyc == 1 else
+                f'\nCYCLE {cyc}. The output names below carry a _c{cyc} suffix: '
+                f'cycle 1\'s frozen.kicad_pcb is this chain\'s --authored-from '
+                f'baseline and is in the ledger by content hash. Overwriting it '
+                f'is not a tidiness question -- check_complete grades this run '
+                f'against it, and without it UNSOUND is unreachable.\n')
     freeze = f'''FREEZE first, INTO A NEW FILE. Lock the refs whose poses are decisions and
-write the result to {work}/frozen.kicad_pcb (with its .kicad_pro -- use
-copy_board.py). Take the list from {work}/freeze_refs.json, which the placement
+write the result to {_frozen} (with its .kicad_pro -- use
+copy_board.py). Take the list from {_refs}, which the placement
 half wrote; do not re-derive it by diffing poses.
 
-  python3 -X utf8 copy_board.py {work}/placed.kicad_pcb {work}/frozen.kicad_pcb
+  python3 -X utf8 copy_board.py {a.board} {_frozen}
   ... stamp (locked yes) on the refs freeze_refs.json names ...
   python3 -X utf8 converge.py record --ledger {a.ledger} \\
-      --board {work}/frozen.kicad_pcb --kind placement \\
+      --board {_frozen} --kind placement \\
       --lever "L2 freeze: <n> refs the placement half named as decisions"
 
 A later step that moves a decided pose silently undoes the placement work, and
@@ -783,7 +949,7 @@ to restore it from the content-addressed store. The placed board is that half's
 artifact and its ledger binding; leave it alone and hand on the new file.'''
     if delegate:
         return f'''<stage_instructions stage="L2" name="freeze, then route (delegated)" of="5">
-DELEGATING: {why}.
+DELEGATING: {why}.{_cycnote}
 
 {freeze}
 
@@ -804,15 +970,15 @@ Route this board to its close-out. The placement is FROZEN: do not move a
 footprint, and if you conclude one must move, stop and say so rather than
 moving it.
 
-  board:  {work}/frozen.kicad_pcb
+  board:  {_frozen}
   ledger: {a.ledger}
 
 Use /plan-pcb-routing. Ask its driver for the chain and then one stage at a
 time:
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --plan --board {work}/frozen.kicad_pcb
+      --plan --board {_frozen}
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --stage A1 --board {work}/frozen.kicad_pcb
+      --stage A1 --board {_frozen}
 and follow it, including its refusals -- an <error> means a gate is holding,
 so produce what it asks for rather than working around it.
 
@@ -820,9 +986,9 @@ TAKE THE HAND-OFF PICTURE before your first route. This is the last moment the
 board is copper-free, so it is the only render that shows the placement ALONE --
 afterwards every panel is placement plus whatever the router did:
 
-  python3 -X utf8 render_placement.py {work}/frozen.kicad_pcb \\
+  python3 -X utf8 render_placement.py {_frozen} \\
       --clearance <the board's own floor> --ignore-nets <the poured nets> \\
-      --json-out wk/handoff.json -o wk/handoff.png
+      --json-out {_hoj} -o {_hop}
 
 Anything its WHAT THIS PANEL SHOWS block names as off the outline, stacked or
 hole-conflicting will still be there after the route, and no router setting
@@ -854,13 +1020,13 @@ WRITE YOUR CLOSE-OUT TO THESE EXACT PATHS. They are named here rather than
 chosen by you, because every gate after this opens the files; none of them
 reads your message.
 
-  routed board : {work}/routed.kicad_pcb
-  score        : {work}/score.json          board_score.py --json
-  route log    : {work}/route.log           the one carrying JSON_SUMMARY
-  close-out    : {work}/routing_close.json
-                 python3 -X utf8 check_complete.py {work}/routed.kicad_pcb \\
-                     --authored-from {work}/frozen.kicad_pcb \\
-                     --json {work}/routing_close.json
+  routed board : {_routed}
+  score        : {_score}          board_score.py --json
+  route log    : {_log}           the one carrying JSON_SUMMARY
+  close-out    : {_close}
+                 python3 -X utf8 check_complete.py {_routed} \\
+                     --authored-from {_frozen} \\
+                     --json {_close}
 
 `--authored-from` is given to you above because only this loop knows it, and it
 is not bookkeeping: without it check_complete's fab-floor check cannot run at
@@ -893,7 +1059,7 @@ Next, on success: --stage L5. On a failure: --stage L3 --score <SCORE_JSON>
          --render-json <a --focus render; L3 will not open without one>
 </stage_instructions>'''
     return f'''<stage_instructions stage="L2" name="freeze, then route" of="5">
-INLINE: {why}.
+INLINE: {why}.{_cycnote}
 
 {freeze}
 
@@ -901,9 +1067,9 @@ Then route, driven, so the routing loop's rules are the only ones in front of
 you:
 
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --plan --board {work}/frozen.kicad_pcb
+      --plan --board {_frozen}
   python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/routing_driver.py \\
-      --stage A1 --board {work}/frozen.kicad_pcb
+      --stage A1 --board {_frozen}
 
 Its Step 0 gate will pass: you just did that work, and the close-out is the
 evidence.
@@ -925,9 +1091,9 @@ board is copper-free, so it is the only render that shows the placement ALONE --
 afterwards every panel is placement plus whatever the router did, and the two
 become hard to separate by eye:
 
-  python3 -X utf8 render_placement.py {work}/frozen.kicad_pcb \\
+  python3 -X utf8 render_placement.py {_frozen} \\
       --clearance <the board's own floor> --ignore-nets <the poured nets> \\
-      --json-out wk/handoff.json -o wk/handoff.png
+      --json-out {_hoj} -o {_hop}
 
 Its WHAT THIS PANEL SHOWS block is what routing is being given. Anything it
 names as off the outline, stacked, or hole-conflicting will still be there after
@@ -1333,6 +1499,15 @@ def l5(a):
     why = doc.get('reason', '')
 
     if name == 'CONTINUE':
+        # THE CROSS-CHECK RUNS HERE TOO. It is still not a REQUIREMENT on this
+        # branch -- no close-out is demanded, and a run with neither a final
+        # row nor a close-out passes untouched -- but if either exists, the
+        # contradiction is checkable and this is the stage documented to catch
+        # it. The measured run wrote its false `--final` row and then kept
+        # going, so every visit to L5 took this branch and the gate sat idle.
+        _x = _cross_check(a, name, _peek_close(a))
+        if _x:
+            return _x
         halves = ', '.join(doc.get('improving') or ['a half'])
         return f'''<stage_instructions stage="L5" name="not done yet" of="5">
 The loop is NOT over: {halves} is still improving.
@@ -1486,6 +1661,90 @@ def _accept_close(a, check: str) -> bool:
     """Is THIS close-out check accepted? (L5's routing gate.)"""
     names = getattr(a, 'accept_unclosed', None)
     return bool(names) and check in names
+
+
+def _peek_close(a):
+    """The --routing-close document if one was given and parses, else None.
+
+    Deliberately silent about a missing or malformed one: `_close_out` owns
+    those refusals, and the CONTINUE branch must not acquire them (gating the
+    go-round-again branch on the most expensive instrument in the repo is the
+    one thing that branch is documented NOT to do).
+    """
+    doc, e = _load(getattr(a, 'routing_close', None), 'x')
+    return None if e else doc
+
+
+def _cross_check(a, name, doc):
+    """Refusal when two independent instruments disagree -- or None.
+
+    L5 is documented as the stage that refuses a contradiction, and it only
+    ever COMPARED on one path: `name == 'DONE-EXHAUSTED' and close-out verdict
+    != DONE`. Measured: in the run that wrote a `--final` row carrying
+    VERDICT=PASS:lens=connectivity on 32 unrouted nets and 47 broken joins,
+    converge never reached DONE-EXHAUSTED -- so the false lens was never tested
+    by the gate built to test it, and it walked L3, L4 and L5.
+
+    So the comparison now runs whenever there is anything to compare: a
+    close-out, a `--final` ledger row, or both. Three pairs, each between
+    instruments that do not share a code path:
+
+      * a final row's PASS lens against the score IN THAT SAME ROW;
+      * a final row claiming every lens passed against a close-out that says
+        INCOMPLETE or UNSOUND;
+      * converge's DONE-EXHAUSTED against a close-out that is not DONE.
+    """
+    if _accept_close(a, 'agreement'):
+        return None
+    rows = _ledger_rows(getattr(a, 'ledger', None))
+    finals = [r for r in rows if r.get('final')]
+    pairs = []
+
+    for r in finals:
+        try:
+            sys.path.insert(0, ROOT)
+            from converge import lens_contradictions
+        except Exception:                                   # noqa: BLE001
+            break
+        for lens, comp, n in lens_contradictions(r.get('lenses'),
+                                                 r.get('score')):
+            pairs.append((
+                f'ledger iteration {r.get("iteration")} (--final)',
+                f'VERDICT=PASS:lens={lens}',
+                f'its OWN score in the same row: {comp} = {n:g}'))
+
+    _cv = (doc or {}).get('verdict') if isinstance(doc, dict) else None
+    if _cv in ('INCOMPLETE', 'UNSOUND'):
+        for r in finals:
+            ls = [str(x) for x in (r.get('lenses') or [])]
+            if ls and not any(x.strip().startswith('VERDICT=FAIL') for x in ls):
+                pairs.append((
+                    f'ledger iteration {r.get("iteration")} (--final)',
+                    f'{len(ls)} lens verdict(s), all PASS',
+                    f'check_complete: {_cv} -- {doc.get("reason", "")}'))
+    if name == 'DONE-EXHAUSTED' and isinstance(doc, dict) and _cv != 'DONE':
+        pairs.append(('converge verdict',
+                      'DONE-EXHAUSTED (blocking == 0, and a plateau)',
+                      f'check_complete: {_cv} -- {doc.get("reason", "")}'))
+    if not pairs:
+        return None
+    body = '\n\n'.join(f'  {who}\n    claims : {claim}\n    against: {other}'
+                       for who, claim, other in pairs)
+    return err(
+        f'TWO INSTRUMENTS DISAGREE, and this is the one place that must not be '
+        f'waved through.\n\n{body}\n\nEvery pair above is between instruments '
+        f'that do not share a code path, which is the whole point: converge '
+        f'reaches its verdict from `blocking == 0` plus a plateau, and '
+        f'`blocking == 0` is exactly the number check_complete exists to '
+        f'distrust -- it has no component for orphan stubs, weird copper or '
+        f'cross-footprint pad overlaps. A lens verdict is a third, independent '
+        f'reading, and a PASS beside a count that refutes it is not evidence '
+        f'about the board, it is evidence about the verifier.\n\nThis gate used '
+        f'to compare ONLY on the DONE path, so in the run that shipped a false '
+        f'`PASS:lens=connectivity` on 32 unrouted nets it never ran at all.\n\n'
+        f'Fix what the close-out names and re-score, re-dispatch the lens that '
+        f'disagrees, or --accept-unclosed agreement and say in the report which '
+        f'instrument you are overriding and why.')
 
 
 def _close_out(a, name):
@@ -1646,26 +1905,11 @@ def _close_out(a, name):
             f'`blocking`. Pass the spec flags check_complete needs, or '
             f'--accept-unclosed ungraded to ship with them unexamined.')
 
-    # THE AGREEMENT CHECK. Only fires where the two instruments disagree:
-    # STUCK/BUDGET alongside INCOMPLETE is a CONSISTENT pair and passes.
-    if name == 'DONE-EXHAUSTED' and doc['verdict'] != 'DONE' \
-            and not _accept_close(a, 'agreement'):
-        return err(
-            f'TWO INSTRUMENTS DISAGREE, and this is the one place that must '
-            f'not be waved through.\n\n'
-            f'  converge verdict : DONE-EXHAUSTED  (blocking == 0, and a '
-            f'plateau)\n'
-            f'  check_complete   : {doc["verdict"]}\n\n'
-            f'  {doc.get("reason", "")}\n\n'
-            f'converge reaches DONE-EXHAUSTED from `blocking == 0`, and that is '
-            f'exactly the number check_complete exists to distrust -- it has no '
-            f'component for orphan stubs, weird copper or cross-footprint pad '
-            f'overlaps, so a defect can sit in the gap between them and every '
-            f'published number still reads clean.\n\n'
-            f'Fix what the close-out names and re-score, or --accept-unclosed '
-            f'agreement and say in the report which instrument you are '
-            f'overriding and why.')
-    return None
+    # THE AGREEMENT CHECK. Only fires where instruments disagree:
+    # STUCK/BUDGET alongside INCOMPLETE is a CONSISTENT pair and passes. It
+    # lives in _cross_check now because it also has to run on the CONTINUE
+    # branch -- see there for the run where it never ran at all.
+    return _cross_check(a, name, doc)
 
 
 STAGES = {'L1': l1, 'L2': l2, 'L3': l3, 'L4': l4, 'L5': l5}
@@ -1895,8 +2139,13 @@ def main(argv=None):
         print('loop_driver: --stage is required (see --list)', file=sys.stderr)
         return 2
     out = STAGES[a.stage](a)
+    code = 4 if out.startswith('<error>') else 0
+    # BEFORE the print, so a stage that dies printing still leaves its trace,
+    # and on stdout NOTHING changes -- existing callers tee exactly what they
+    # teed before.
+    _log_invocation(a, a.stage, out, code)
     print(out)
-    return 4 if out.startswith('<error>') else 0
+    return code
 
 
 def _self_test():
@@ -2422,6 +2671,241 @@ def _self_test():
              '--score', scored({'blocking': 3}, 'b3.json')]))
         want(out.startswith('<error>') and 'not in the ledger' in out,
              'classification refuses a routed board nobody recorded')
+
+    # ------------------------------------------------------------------ D3
+    # THE CROSS-CHECK, on the branch it never ran on. L5 is documented as the
+    # stage that refuses when two independent instruments disagree, and it only
+    # compared on the DONE path. The measured run wrote a --final row carrying
+    # VERDICT=PASS:lens=connectivity on a score of 32 unrouted / 47 broken and
+    # then kept going, so every visit to L5 took CONTINUE and the gate sat idle.
+    with tempfile.TemporaryDirectory() as tmp:
+        _b = os.path.join(tmp, 'b.kicad_pcb')
+        open(_b, 'w', encoding='utf-8').write('(kicad_pcb)')
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file as _shaf
+        _bs = _shaf(_b)
+        _run17 = {'blocking': 79, 'quality': {},
+                  'blocking_by': {'unrouted': 32, 'broken': 47, 'drc': 0,
+                                  'undersized': 0}}
+
+        def _led(rows, name):
+            p = os.path.join(tmp, name)
+            with open(p, 'w', encoding='utf-8') as fh:
+                for i, r in enumerate(rows):
+                    fh.write(json.dumps(dict(r, iteration=i,
+                                             result_sha=_bs)) + '\n')
+            return p
+
+        def _js(doc, name):
+            p = os.path.join(tmp, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        _false = {'kind': 'completion', 'accepted': True, 'final': True,
+                  'score': _run17,
+                  'lenses': ['VERDICT=PASS:lens=connectivity',
+                             'VERDICT=PASS:lens=drc',
+                             'VERDICT=PASS:lens=spec']}
+        _honest = dict(_false, lenses=[
+            'VERDICT=FAIL:lens=connectivity;finding=32 nets carry no copper;'
+            'evidence=score.json#/blocking_by',
+            'VERDICT=PASS:lens=drc', 'VERDICT=PASS:lens=spec'])
+        _sc = _js({'blocking': 79}, 'sc.json')
+        _l5 = ['--board', _b, '--score', _sc]
+
+        out = STAGES['L5'](_args(_l5 + ['--ledger', _led([_false], 'f.jsonl')]))
+        want(out.startswith('<error>') and 'TWO INSTRUMENTS DISAGREE' in out,
+             'L5 catches a false lens on the CONTINUE branch, not only on DONE')
+        want('unrouted = 32' in out and 'lens=connectivity' in out,
+             '...and names the lens and the number that refutes it')
+        want(not STAGES['L5'](_args(
+                 _l5 + ['--ledger', _led([_honest], 'h.jsonl')]
+             )).startswith('<error>'),
+             'a FAIL lens beside the same numbers is HONEST and is not refused')
+        want(not STAGES['L5'](_args(
+                 _l5 + ['--ledger', _led([dict(_false, final=False)],
+                                         'nf.jsonl')]
+             )).startswith('<error>'),
+             'a non-final row is not a close-out claim and is not cross-checked')
+        want('TWO INSTRUMENTS DISAGREE' not in STAGES['L5'](_args(
+                 _l5 + ['--ledger', _led([_false], 'w.jsonl'),
+                        '--accept-unclosed', 'agreement'])),
+             '...and --accept-unclosed agreement still waives it, named')
+        # A final row claiming every lens passed, against a close-out that says
+        # the board is INCOMPLETE. Neither instrument knows about the other.
+        _cd = _js({'schema': 1, 'kind': 'board-complete', 'board': _b,
+                   'score': {'blocking': 0},
+                   'components': {'orphan_stubs': {}},
+                   'fab_floors': {'ran': True}, 'verdict': 'INCOMPLETE',
+                   'reason': 'orphan stubs', 'ungraded': []}, 'cd.json')
+        _clean = dict(_false, score={'blocking': 0, 'quality': {},
+                                     'blocking_by': {'unrouted': 0,
+                                                     'broken': 0}})
+        out = STAGES['L5'](_args(_l5 + ['--ledger', _led([_clean], 'c.jsonl'),
+                                        '--routing-close', _cd]))
+        want(out.startswith('<error>') and 'all PASS' in out,
+             'an all-PASS final row against an INCOMPLETE close-out is refused')
+
+    # ------------------------------------------------------------------ D4
+    # A SECOND CYCLE IS A DESIGNED PATH -- L5's CONTINUE branch and both
+    # expensive L4 re-entries all say `--stage L1` -- and the driver had no
+    # concept of one. Measured, on a real second cycle, L2 printed cycle ONE's
+    # frozen.kicad_pcb (this chain's --authored-from baseline, in the ledger by
+    # content hash) and cycle ONE's freeze_refs.json.
+    with tempfile.TemporaryDirectory() as tmp:
+        _b = os.path.join(tmp, 'b.kicad_pcb')
+        open(_b, 'w', encoding='utf-8').write('(kicad_pcb)')
+        sys.path.insert(0, ROOT)
+        from board_store import sha256_file as _shaf2
+        _rep = os.path.join(tmp, 'p.json')
+        json.dump({'blocking': 0, 'oob_pad_count': 0, 'locked_contacts': 0,
+                   'buildable': True, 'verdict': 'buildable (blocking 0)',
+                   'board': _b}, open(_rep, 'w', encoding='utf-8'))
+
+        def _led2(rows, name):
+            p = os.path.join(tmp, name)
+            with open(p, 'w', encoding='utf-8') as fh:
+                for i, r in enumerate(rows):
+                    fh.write(json.dumps(dict(r, iteration=i)) + '\n')
+            return p
+
+        _one = [{'kind': 'placement', 'accepted': True,
+                 'result_sha': _shaf2(_b)}]
+        _two = _one + [{'kind': 'completion', 'accepted': True},
+                       {'kind': 'placement', 'accepted': True,
+                        'result_sha': _shaf2(_b)}]
+        want(_cycle_index(_led2(_one, 'c1.jsonl')) == 1
+             and _cycle_index(_led2(_two, 'c2.jsonl')) == 2,
+             'the cycle index is read off the ledger, not assumed')
+
+        _a1 = ['--board', _b, '--placement-report', _rep,
+               '--ledger', _led2(_one, 'l1.jsonl')]
+        _a2 = ['--board', _b, '--placement-report', _rep,
+               '--ledger', _led2(_two, 'l2.jsonl')]
+        for k in ('L1', 'L2'):
+            one, two = STAGES[k](_args(_a1)), STAGES[k](_args(_a2))
+            want('_c2' not in one and 'CYCLE 2' not in one,
+                 f'{k} cycle 1 keeps the bare artifact names')
+            want('_c2.kicad_pcb' in two and 'CYCLE 2' in two,
+                 f'{k} cycle 2 names its OWN artifacts, and says which cycle')
+        two = STAGES['L2'](_args(_a2))
+        want('/frozen.kicad_pcb' not in two and '/freeze_refs.json' not in two,
+             'a second cycle is never told to write cycle 1\'s frozen board')
+        want(f'copy_board.py {_b} ' in two,
+             'the freeze copies the board it was HANDED, not a derived name')
+        # The belt: whatever the naming, never name a path already holding a
+        # board the ledger references.
+        _work2 = os.path.dirname(_a2[-1]).replace('\\', '/')
+        _fz = os.path.join(_work2, 'frozen_c2.kicad_pcb')
+        open(_fz, 'w', encoding='utf-8').write('(kicad_pcb) baseline')
+        _coll = _led2(_two + [{'kind': 'completion', 'accepted': True,
+                               'result_sha': _shaf2(_fz)}], 'coll.jsonl')
+        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _rep,
+                                  '--ledger', _coll]))
+        want(out.startswith('<error>') and 'WRITE OVER' in out
+             and 'frozen_c2' in out,
+             'naming a path that already holds a ledger board is refused')
+
+    # ------------------------------------------------------------------ D5
+    # `stages.log` existed only because the CALLER teed it, so an unlogged
+    # invocation could only ever be inferred, never detected.
+    with tempfile.TemporaryDirectory() as tmp:
+        import contextlib
+        import io as _io
+        _b = os.path.join(tmp, 'b.kicad_pcb')
+        open(_b, 'w', encoding='utf-8').write('(kicad_pcb)')
+        _lg = os.path.join(tmp, 'ledger.jsonl')
+        open(_lg, 'w', encoding='utf-8').close()
+        _argv = ['--stage', 'L1', '--board', _b, '--ledger', _lg]
+        _cap = _io.StringIO()
+        with contextlib.redirect_stdout(_cap):
+            rc = main(_argv)
+        _logp = os.path.join(tmp, 'loop_driver.log')
+        want(rc == 0 and os.path.isfile(_logp),
+             'the driver writes its own log beside the ledger')
+        rows = [json.loads(x) for x in open(_logp, encoding='utf-8') if x.strip()]
+        want(len(rows) == 1 and rows[0]['stage'] == 'L1'
+             and rows[0]['exit'] == 0 and rows[0]['refused'] is False,
+             '...recording the stage and how it ended')
+        want(isinstance(rows[0].get('argv'), list) and rows[0].get('out_sha'),
+             '...with the argv and a digest of what it emitted')
+        want(_cap.getvalue().strip() == STAGES['L1'](_args(_argv)).strip(),
+             'stdout is UNCHANGED, so an existing caller sees exactly what it saw')
+        with contextlib.redirect_stdout(_io.StringIO()):
+            main(['--stage', 'L2', '--board', _b, '--ledger', _lg])
+        rows = [json.loads(x) for x in open(_logp, encoding='utf-8') if x.strip()]
+        want(len(rows) == 2 and rows[1]['stage'] == 'L2'
+             and rows[1]['exit'] == 4 and rows[1]['refused'] is True,
+             'a REFUSAL is logged too -- that is the invocation worth detecting')
+        # A log that cannot be written must never break a stage.
+        _nodir = _args(['--stage', 'L1', '--board', _b,
+                        '--ledger', os.path.join(tmp, 'no', 'such', 'l.jsonl')])
+        want(_log_invocation(_nodir, 'L1', 'x', 0) is None
+             and not STAGES['L1'](_nodir).startswith('<error>'),
+             'an unwritable log is silent, never a refusal')
+
+    # ------------------------------------------- REGRESSION PINS (do not weaken)
+    # Three refusals that each caught a REAL defect in the measured run. They
+    # are pinned here by their measurement so a later change cannot quietly
+    # soften them -- the failure mode being guarded against is a gate that is
+    # relaxed to make a run proceed and never tightened again.
+    with tempfile.TemporaryDirectory() as tmp:
+        _b = os.path.join(tmp, 'b.kicad_pcb')
+        open(_b, 'w', encoding='utf-8').write('(kicad_pcb)')
+        # BOTH halves plateaued, so L5 reaches a TERMINAL branch -- the
+        # not-in-ledger check lives on the ship path, and a CONTINUE fixture
+        # would pin nothing.
+        _wrong = os.path.join(tmp, 'wrong.jsonl')
+        with open(_wrong, 'w', encoding='utf-8') as fh:
+            for i, kind in enumerate(['placement'] * 6 + ['completion'] * 6):
+                fh.write(json.dumps({
+                    'iteration': i, 'kind': kind, 'accepted': True,
+                    'result_sha': '0' * 64,
+                    'score': {'blocking': 0, 'quality': {}}}) + '\n')
+
+        def _w(doc, name):
+            p = os.path.join(tmp, name)
+            json.dump(doc, open(p, 'w', encoding='utf-8'))
+            return p
+
+        _asm = _w({'blocking': 0, 'oob_pad_count': 0, 'locked_contacts': 0,
+                   'buildable': True, 'verdict': 'buildable (blocking 0)',
+                   'board': _b}, 'asm.json')
+        _s3 = _w({'blocking': 3}, 's3.json')
+        _rj = _w({'instrument': {'board': _b, 'summary_json': 'r.log'},
+                  'moved_refs': [], 'checklist': {}}, 'rj.json')
+        _cc = _w({'schema': 1, 'kind': 'board-complete', 'board': _b,
+                  'score': {'blocking': 0}, 'components': {'orphan_stubs': {}},
+                  'fab_floors': {'ran': True}, 'verdict': 'DONE',
+                  'reason': 'clean', 'ungraded': []}, 'cc.json')
+        _need = 'no lap records a board with this content hash'
+        for k, extra in (('L2', ['--placement-report', _asm]),
+                         ('L3', ['--score', _s3, '--render-json', _rj]),
+                         ('L5', ['--score', _w({'blocking': 0}, 's0.json'),
+                                 '--routing-close', _cc])):
+            out = STAGES[k](_args(['--board', _b, '--ledger', _wrong] + extra))
+            want(out.startswith('<error>') and (
+                _need in out or 'not in the ledger' in out),
+                f'PIN: {k} still refuses a board no lap recorded (caught 3x)')
+        # PIN: `parameter` is the verdict a blind classifier returns by default,
+        # so it is the one that must carry a measurement. Run 15 spent its
+        # authorised iteration on rip-up depth for an arrangement problem.
+        out = STAGES['L4'](_args(['--board', _b, '--shape', 'parameter']))
+        want(out.startswith('<error>') and '--congestion-json' in out,
+             'PIN: a `parameter` re-entry still needs a congestion measurement')
+        want(STAGES['L4'](_args(['--board', _b, '--shape', 'parameter',
+                                 '--accept-residue', 'blocking'])
+                          ).startswith('<error>'),
+             '...and the L2 placement vocabulary does not waive it')
+        # PIN: the placement close-out must be check_assembly's document.
+        # board_score publishes `blocking` too and means a six-component total.
+        out = STAGES['L2'](_args(['--board', _b, '--placement-report', _w(
+            {'kind': 'board-score', 'blocking': 57,
+             'blocking_by': {'unrouted': 57}}, 'bs.json')]))
+        want(out.startswith('<error>') and 'board_score' in out
+             and 'blocking = 57' not in out,
+             'PIN: L2 still refuses board_score JSON BY SHAPE, without firing '
+             'the blocking check on the wrong number')
 
     print('OK' if not bad else f'FAIL: {len(bad)}')
     return 1 if bad else 0
