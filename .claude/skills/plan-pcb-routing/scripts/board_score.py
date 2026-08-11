@@ -131,6 +131,39 @@ def skipped(reason: str) -> dict:
     return {'ran': False, 'reason': reason, 'count': None}
 
 
+def _unescape_net_name(s: str) -> str:
+    """Raw s-expression string body -> the net name every other field uses.
+
+    Delegates to the parser so the two cannot drift; the inline fallback is for
+    the case where this script is run against an outside clone whose root has
+    not been put on sys.path yet. Both do the same thing KiCad does: `\\\\` is one
+    backslash and `\\"` is one quote.
+    """
+    try:
+        from kicad_parser import _unescape_kicad_string
+        return _unescape_kicad_string(s)
+    except Exception:                                           # noqa: BLE001
+        if '\\' not in s:
+            return s
+        return s.replace('\\\\', '\\').replace('\\"', '"')
+
+
+# WHAT `poured_nets` MEANS, carried in the payload beside the value itself.
+# It is "this net has at least one zone on the board", which is exactly the
+# fact that picks the REPAIR HANDLER for a broken net -- and it is NOT a list
+# of plane nets. Measured on neo6502: the 61 zone-backed nets covered 332 of
+# 545 pads (72%), including all of /A0../A15, because that board pours many
+# signal nets; a consumer that read it as "the planes, safe to ignore" removed
+# most of the board from its own analysis. Emitting the sentence next to the
+# list is the point -- a comment in this file is not visible to the consumer
+# reading the JSON, and that is who got this wrong.
+POURED_NETS_MEANING = (
+    'nets with at least one zone on the board, i.e. a broken one of these is '
+    "route_disconnected_planes' job rather than route.py's. This is NOT a list "
+    'of plane/power nets and is NOT a safe --ignore-nets population: a board '
+    'that pours signal nets puts them in here too (measured: 332 of 545 pads).')
+
+
 def score_connectivity(root: str, board: str) -> dict:
     """Unrouted and broken nets, from check_connected.py.
 
@@ -214,10 +247,26 @@ def score_connectivity(root: str, board: str) -> dict:
         # table, and a wrong name is worse than a missing one.
         # `(?!_)` keeps `(zone_connect 2)` -- a per-pad property that appears
         # hundreds of times inside footprints -- out of the scan.
+        #
+        # UNESCAPE, because this is the one net-name field in the whole payload
+        # read out of the RAW FILE TEXT rather than through the parser, and the
+        # file stores `/GPIO10\OE3#` as `/GPIO10\\OE3#`. Every other field here
+        # comes via check_connected/kicad_parser, which unescape. Measured on
+        # neo6502: `poured_nets` published `/GPIO10\\OE3#` while `unrouted.nets`
+        # in the SAME json.dump published `/GPIO10\OE3#` -- one file, one writer,
+        # two spellings of one net. A consumer built `--ignore-nets` from it,
+        # 10 of 61 names matched nothing, and the render came back hpwl +45.6%
+        # / crossings +129.5% on an identical board with nothing flagging it.
+        # The capture stays `[^"]+` -- deliberately the SAME body pattern
+        # kicad_parser uses for the net table (:2234), escaped-quote blind spot
+        # included. Widening it here alone would make this field disagree with
+        # the parser on a net whose name contains `\"`, which is the exact class
+        # of defect the net-name audit exists to catch; the two must be wrong
+        # together or right together, and the parser is the one that decides.
         for zb in re.finditer(r'\(zone(?!_)', txt):
             seg = txt[zb.start():zb.start() + 400]
             if (zn := re.search(r'\(net(?:_name)? "([^"]+)"\)', seg)):
-                poured.add(zn.group(1))
+                poured.add(_unescape_net_name(zn.group(1)))
     except OSError:
         pass
     for name, v in detail.items():
@@ -228,7 +277,9 @@ def score_connectivity(root: str, board: str) -> dict:
             'broken': broken, 'broken_nets': broken_nets,
             'components_per_broken_net': comps, 'nets': sorted(set(nets)),
             'unrouted_net_names': sorted(set(unrouted_names)),
-            'poured_nets': sorted(poured), 'broken_detail': detail}
+            'poured_nets': sorted(poured),
+            'poured_nets_meaning': POURED_NETS_MEANING,
+            'broken_detail': detail}
 
 
 def unrouted_shape(board: str, unrouted_names) -> dict:
@@ -617,6 +668,81 @@ def _floors(board: str, sizes: dict) -> dict:
     return out
 
 
+def declared_net_names(score: dict) -> dict:
+    """{field path: [net names]} for every score field that names a REAL net.
+
+    Registered explicitly rather than discovered by walking the payload,
+    because the payload also carries fields whose whole PURPOSE is to name
+    things that do not exist -- `length.groups[].missing_nets` and
+    `net_widths.patterns_matching_no_routed_net` are findings about the spec,
+    and auditing them would report every correct run as inconsistent. A new
+    net-name field must be added here; that is the intended cost.
+    """
+    c = score.get('components') or {}
+    unrouted = c.get('unrouted') or {}
+    broken = c.get('broken') or {}
+    widths = c.get('net_widths') or {}
+    length = c.get('length') or {}
+    fields = {
+        'connectivity_nets': list(score.get('connectivity_nets') or ()),
+        'components.unrouted.nets': list(unrouted.get('nets') or ()),
+        'components.unrouted.open': list(unrouted.get('open') or ()),
+        'components.unrouted.placement_blocked':
+            list((unrouted.get('placement_blocked') or {}).keys()),
+        'components.broken.poured_nets': list(broken.get('poured_nets') or ()),
+        'components.broken.nets': list((broken.get('nets') or {}).keys()),
+        'components.net_widths.nets': list((widths.get('nets') or {}).keys()),
+        'components.length.groups[].worst':
+            [g['worst'] for g in (length.get('groups') or {}).values()
+             if isinstance(g, dict) and g.get('worst')],
+    }
+    return {k: v for k, v in fields.items() if v}
+
+
+def audit_net_names(board: str, score: dict) -> dict:
+    """EVERY net name this score publishes must exist on the board it graded.
+
+    The defect this exists to catch cannot be caught any other way: `poured_nets`
+    was published double-escaped (`/GPIO10\\\\OE3#` where the board and every
+    sibling field said `/GPIO10\\OE3#`) and nothing noticed for the life of the
+    field, because a downstream tool CANNOT TELL A MANGLED NAME FROM A NET THAT
+    DOES NOT EXIST -- both simply match nothing. Measured cost of the one that
+    shipped: a consumer built `--ignore-nets` from the mangled list, 10 of 61
+    names silently matched nothing, and the resulting render reported hpwl
+    +45.6% and crossings +129.5% on a board that had not changed.
+
+    So this is a self-check on the INSTRUMENT, not a grade of the board. It
+    deliberately does NOT touch `blocking` or the exit code: every mismatch it
+    can find is a bug in this script, and moving the scalar would rewrite the
+    meaning of every ledger row already recorded to chase one.
+    """
+    try:
+        from kicad_parser import parse_kicad_pcb
+        pcb = parse_kicad_pcb(board)
+    except Exception as exc:                                    # noqa: BLE001
+        return {'ran': False,
+                'reason': f'board unparseable here: {type(exc).__name__}: {exc}'}
+    known = {n.name for n in (pcb.nets or {}).values() if n.name}
+    fields = declared_net_names(score)
+    if not known:
+        # No net table = nothing to check against. Saying so beats a confident
+        # "0 unknown", which is the same vacuity trap `ran: false` exists for
+        # everywhere else in this file.
+        return {'ran': False, 'reason': 'board declares no net table',
+                'names_published': sum(len(v) for v in fields.values())}
+    unknown = {}
+    checked = 0
+    for field, names in fields.items():
+        for name in names:
+            checked += 1
+            if name not in known:
+                unknown.setdefault(field, []).append(name)
+    return {'ran': True, 'checked': checked, 'board_nets': len(known),
+            'fields_checked': sorted(fields),
+            'unknown': {k: sorted(v) for k, v in unknown.items()},
+            'unknown_count': sum(len(v) for v in unknown.values())}
+
+
 def quality(board: str) -> dict:
     """Tie-breakers, compared ONLY once blocking == 0. Never a blocker itself:
     a board is not worse for having more copper if the alternative is a
@@ -716,6 +842,7 @@ def main():
                           **shape},
              'broken': {'ran': conn['ran'], 'count': conn.get('broken'),
                         'poured_nets': conn.get('poured_nets', []),
+                        'poured_nets_meaning': POURED_NETS_MEANING,
                         'nets': conn.get('broken_detail', {})},
              'drc': drc, 'undersized': undersized, 'floorplan': floorplan,
              'assembly': assembly,
@@ -754,6 +881,10 @@ def main():
              'components': {**parts, **advisory},
              'floors': _floors(args.board, sizes),
              'connectivity_nets': conn.get('nets', [])}
+    # Self-check the payload against the board it just graded (see
+    # audit_net_names). Computed AFTER `score` is assembled so it audits what is
+    # actually published, not what this function believes it published.
+    score['net_name_audit'] = audit_net_names(args.board, score)
 
     if args.json:
         with open(args.json, 'w', encoding='utf-8') as f:
@@ -794,6 +925,23 @@ def main():
               "at this board's own rules. Compare it only against boards graded "
               "the same way, and pass --clearance <the routed value> when the "
               "chain records one.")
+    # THE INSTRUMENT CHECKING ITSELF. Loud on stdout AND stderr: a name this
+    # score publishes that the board does not have is unusable downstream and
+    # fails SILENTLY there (it matches nothing, exactly like a net that is
+    # genuinely absent). Report-only by construction -- see audit_net_names.
+    _audit = score['net_name_audit']
+    if _audit.get('unknown_count'):
+        _lines = '; '.join(
+            f"{f}: {', '.join(repr(n) for n in ns[:5])}"
+            f"{' ...' if len(ns) > 5 else ''}"
+            for f, ns in sorted(_audit['unknown'].items()))
+        _msg = (f"NET-NAME MISMATCH: {_audit['unknown_count']} of "
+                f"{_audit['checked']} net name(s) this score publishes do NOT "
+                f"exist on the board it graded -- {_lines}. These will match "
+                f"NOTHING downstream and will not announce it. This is a bug in "
+                f"board_score, not a finding about the board.")
+        print(_msg)
+        print(_msg, file=sys.stderr)
     if score['ungraded']:
         # Loud, because this is the difference between "clean" and "unexamined".
         print(f"UNGRADED (not scored, not passed): {', '.join(score['ungraded'])}")

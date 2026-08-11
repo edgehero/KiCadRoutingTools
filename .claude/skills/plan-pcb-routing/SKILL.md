@@ -3238,6 +3238,17 @@ cannot succeed. Measured: `broken` sat at **14 across two iterations** of
 `route.py` calls and fell to **11 in one** `route_disconnected_planes` call once
 the plane net was separated out.
 
+**`poured_nets` is that handler decision and NOTHING else — it is not a list of
+plane nets, and it is not a safe `--ignore-nets` population.** It means "this net
+has at least one zone", which on a board that pours signal nets includes them:
+measured on neo6502, its 61 nets covered **332 of 545 pads (72%)**, all of
+`/A0`–`/A15` among them. A run read it as "the planes, ignore those" and removed
+most of the board from its own render. The field publishes this sentence itself,
+as `broken.poured_nets_meaning` — read it there rather than inferring from the
+name. Every net name `board_score` publishes is now checked against the board
+(`net_name_audit`); a non-zero `unknown_count` is a bug in the instrument, not a
+finding about the board.
+
 **One tool per class — they are not interchangeable, and using `route.py` on all
 of them is why the count does not move:**
 
