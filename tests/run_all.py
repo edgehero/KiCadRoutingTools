@@ -85,8 +85,17 @@ def main():
             print(f'SKIP  {name}  (integration; --fast)')
             continue
         try:
-            r = subprocess.run([sys.executable, f], cwd=ROOT,
-                               capture_output=True, text=True, timeout=args.timeout)
+            # `text=True` alone decodes with the LOCALE default (cp1252 on
+            # Windows) and raises UnicodeDecodeError in the reader thread the
+            # moment any child prints a byte it cannot decode -- a degree sign,
+            # an ohm, a micro. That killed the whole runner mid-suite with a
+            # threading traceback and NO summary, which reads as "the tests
+            # crashed" rather than "the runner cannot read them". Every other
+            # subprocess call in this repo already pins utf-8 + replace.
+            r = subprocess.run([sys.executable, '-X', 'utf8', f], cwd=ROOT,
+                               capture_output=True, text=True,
+                               encoding='utf-8', errors='replace',
+                               timeout=args.timeout)
         except subprocess.TimeoutExpired:
             failed.append(name)
             timed_out.append(name)
