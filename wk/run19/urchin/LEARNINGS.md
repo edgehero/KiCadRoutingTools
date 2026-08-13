@@ -6,6 +6,12 @@ blocking 0, 68/68 nets, fence CLEAN. Evidence lives in `REPORT.md`,
 `journal.md` (31 entries), `ledger.jsonl` (26 rows), and `stages.log` in this
 directory. Engine patches from the run are committed at `d0feafb4`.
 
+STATUS (2026-08-13 pre-merge wave): findings 4 and 6 and 7 and 10 are FIXED
+and pinned on the open PRs (#623: coincident-origin blocking + pile-baseline
+guard + both riders from 12; #624: flag accumulation + the disclosure
+clause). Findings 1, 2, 3 are filed as issues #628, #629, #630. Findings 5,
+8, 9, 11 remain follow-up.
+
 Findings are ranked by what they COST this run. Each carries: the defect, the
 measured evidence, what it cost, the concrete fix, and the pin that should
 hold it.
