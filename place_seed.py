@@ -409,13 +409,22 @@ Examples:
             return UNPLACED_EXIT
 
     rng = random.Random(f"{args.seed}")
+    # --deadline was threaded only through --repair/--reseat, but the SEED
+    # queue honors it too (stage 3 checks between parts, _try_place at ring
+    # heads) -- an unbounded exhaust on one unseatable no-net part used to eat
+    # the whole wall clock with the flag silently ignored (run 19, urchin).
+    import krt_deadline
+    _dl = krt_deadline.arm(args.deadline, tool='place_seed',
+                           on_partial=lambda: {'seed': 'partial'})
+    _prog = krt_deadline.stdout_progress(deadline=_dl)
     result = seeder.seed_from_intent(
         pcb, args.input_file, intent, rng, group_sources=sources,
         clearance=args.clearance,
         board_edge_clearance=args.board_edge_clearance,
         grid_step=args.grid_step, seed_refs=seed_refs,
         anchors_first=args.anchors_first,
-        anchor_rounds=args.anchor_rounds)
+        anchor_rounds=args.anchor_rounds,
+        deadline=_dl, progress=_prog)
     for note in result['notes']:
         print(f"  NOTE: {note}")
     print(f"Seeded {len(result['placements'])} part(s); "

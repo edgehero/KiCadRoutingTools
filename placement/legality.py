@@ -310,9 +310,21 @@ class BoardOutlineGate:
         for (px, py) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
             if not _point_on_board(px, py, self.outer, self.cutouts):
                 return True
+        # Exact bbox prefilter: an edge whose bbox misses the margin-inflated
+        # rect bbox is > margin from every point of the rect (outside the
+        # inflated bbox, each axis separation alone exceeds the margin), so it
+        # can never trigger the `< margin` test below. On a 600-edge outline
+        # this removes ~all of the seg-seg calls from a hot candidate loop.
+        m = self.margin
+        rx0, ry0, rx1, ry1 = x0 - m, y0 - m, x1 + m, y1 + m
+        use = [e for e in (self.edges() if edges is None else edges)
+               if not ((e[0] if e[0] > e[2] else e[2]) < rx0
+                       or (e[0] if e[0] < e[2] else e[2]) > rx1
+                       or (e[1] if e[1] > e[3] else e[3]) < ry0
+                       or (e[1] if e[1] < e[3] else e[3]) > ry1)]
         for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1),
                                  (x1, y1, x0, y1), (x0, y1, x0, y0)):
-            for (ex1, ey1, ex2, ey2) in (self.edges() if edges is None else edges):
+            for (ex1, ey1, ex2, ey2) in use:
                 if _seg_seg_dist_coords(ax, ay, bx, by,
                                         ex1, ey1, ex2, ey2) < self.margin:
                     return True
@@ -353,8 +365,19 @@ class BoardOutlineGate:
             return amt
         from check_drc import _point_on_board, _point_to_rings_distance, \
             _seg_seg_dist_coords
-        use = self.edges() if edges is None else edges
         x0, y0, x1, y1 = rect
+        # Exact bbox prefilter (see rect_blocked): edges provably >= margin
+        # away can neither win the `d < margin` branch nor change its value --
+        # any kept edge closer than margin is also closer than every skipped
+        # edge, so the min over kept edges equals the true min whenever the
+        # branch is taken.
+        m = self.margin
+        rx0, ry0, rx1, ry1 = x0 - m, y0 - m, x1 + m, y1 + m
+        use = [e for e in (self.edges() if edges is None else edges)
+               if not ((e[0] if e[0] > e[2] else e[2]) < rx0
+                       or (e[0] if e[0] < e[2] else e[2]) > rx1
+                       or (e[1] if e[1] > e[3] else e[3]) < ry0
+                       or (e[1] if e[1] < e[3] else e[3]) > ry1)]
         for (px, py) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
             if not _point_on_board(px, py, self.outer, self.cutouts):
                 # How far the stray corner must come back, floored at the margin

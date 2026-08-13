@@ -1092,9 +1092,7 @@ class QuenchState:
         # candidate of this part until something moves. Without the cache this
         # branch runs a full neighbour sweep per rejected candidate, which on a
         # dense board is most of them.
-        cur_board, cur_overlap = (
-            self.violation_parts(ref, exclude=exclude) if exclude
-            else self._incumbent_violation(ref))
+        cur_board, cur_overlap = self._incumbent_violation(ref, exclude)
         if cur_overlap > EPS_IMPROVE or cur_board <= EPS_IMPROVE:
             # Overlapping, or already legal: original rule, legal poses only.
             return False
@@ -1148,11 +1146,19 @@ class QuenchState:
             return False
         return cur.hole <= base.hole + EPS_IMPROVE
 
-    def _incumbent_violation(self, ref):
-        v = self._inc_violation.get(ref)
+    def _incumbent_violation(self, ref, exclude=None):
+        # Keyed by (ref, exclude-set) so the seeder's fixed-exclude candidate
+        # loops hit the cache too. Historically an `exclude` bypassed the cache
+        # entirely, so on a piled board EVERY rejected candidate re-ran the
+        # full incumbent sweep (outline ring terms included) -- measured on the
+        # urchin seed: hours of wall clock inside violation_parts. The cache
+        # stays sound because every pose mutation (apply_move, apply_group_move,
+        # the seeder's clearance-ladder swaps) clears _inc_violation wholesale.
+        key = ref if exclude is None else (ref, frozenset(exclude))
+        v = self._inc_violation.get(key)
         if v is None:
-            v = self.violation_parts(ref)
-            self._inc_violation[ref] = v
+            v = self.violation_parts(ref, exclude=exclude)
+            self._inc_violation[key] = v
         return v
 
     def _edges_near(self, ref) -> list:

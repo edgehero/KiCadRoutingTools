@@ -178,11 +178,25 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                         if _ok(x, y, rot):
                             state.apply_move(ref, x, y, rot)
                             return clr
-                if constraint is not None:
-                    continue    # a zone-constrained part stays in its zone
                 if max_disp is not None:
                     continue    # a capped repair never sweeps the whole board
                 u = state.usable
+                if constraint is not None:
+                    # A zone-constrained part STAYS IN ITS ZONE -- but it used
+                    # to skip the fallback sweep entirely, so a member beyond
+                    # the ring bands' reach (30mm) of the zone target was
+                    # reported unseated even when the zone still held legal
+                    # space (run 19, urchin: a ~100mm-wide lobe zone packs ~40
+                    # parts from its centre; the rim was unreachable). Sweep
+                    # the ZONE rect instead of the whole board: same lattice,
+                    # same _ok gate, nearest-target-first, and the _in_zone
+                    # filter below keeps the containment contract exact.
+                    u = (max(u[0], constraint[0] - tol),
+                         max(u[1], constraint[1] - tol),
+                         min(u[2], constraint[2] + tol),
+                         min(u[3], constraint[3] + tol))
+                    if u[0] > u[2] or u[1] > u[3]:
+                        continue
                 grid = []
                 nx = max(1, int((u[2] - u[0]) / FALLBACK_STEP_MM))
                 ny = max(1, int((u[3] - u[1]) / FALLBACK_STEP_MM))
@@ -193,6 +207,8 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                         grid.append(((x - tx) ** 2 + (y - ty) ** 2, x, y))
                 grid.sort()
                 for _, x, y in grid:
+                    if constraint is not None and not _in_zone(x, y, rot):
+                        continue
                     if _ok(x, y, rot):
                         state.apply_move(ref, x, y, rot)
                         return clr
@@ -522,6 +538,14 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
         z = zones_by_name[name]
         members = [r for r in _order(blocks.get(name, ()))
                    if r not in decap_scope]
+        if anchors_first and members:
+            # run-4 C, extended to the zone pack (run 19): pin-count order put
+            # 34 six-pad diodes ahead of 34 two-pin 15.5mm switches, so the
+            # smalls claimed the zone centre and every switch ring-searched
+            # past their shell. Anchors-first means big-first HERE too; the
+            # stable sort keeps the pin-count order within equal extents.
+            from placement.reconstruct import part_extent_mm
+            members.sort(key=lambda r: -part_extent_mm(state, r))
         if not members:
             continue
         cx = (z.rect[0] + z.rect[2]) / 2.0
