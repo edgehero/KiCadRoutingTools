@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """The outline-gate bbox prefilter changes speed and never an answer.
 
+The oracle below re-implements the CURRENT probe bodies verbatim, including
+the #628 `_swallow_pts` loop (cutouts AND reclassified milled contours). An
+oracle that mirrors an older body tests a version of the code that no longer
+exists -- it went stale exactly once, on the rebase that brought #628 in, and
+reported a 0.5mm "mismatch" that was the oracle being wrong.
+
 `BoardOutlineGate.rect_blocked` and `rect_outside_amount` measured every ring
 edge of the board against all four sides of the rect. `edges_near` is supposed
 to shorten that list, but it prunes per PART, sized by a displacement budget --
@@ -60,8 +66,7 @@ def ref_rect_blocked(g, rect):
             if _seg_seg_dist_coords(ax, ay, bx, by,
                                     ex1, ey1, ex2, ey2) < g.margin:
                 return True
-    for cut in g.cutouts:
-        cx, cy = cut[0]
+    for (_rid, cx, cy) in g._swallow_pts:
         if x0 <= cx <= x1 and y0 <= cy <= y1:
             return True
     return False
@@ -83,8 +88,7 @@ def ref_outside_amount(g, rect):
                 default=float('inf'))
         if d < g.margin:
             amt += g.margin - d
-    for cut in g.cutouts:
-        cx, cy = cut[0]
+    for (_rid, cx, cy) in g._swallow_pts:
         if x0 <= cx <= x1 and y0 <= cy <= y1:
             amt += g.margin
     return amt
