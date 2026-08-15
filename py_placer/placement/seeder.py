@@ -67,6 +67,76 @@ def _rect_inside(rect, outer, tol: float) -> bool:
             and rect[2] <= outer[2] + tol and rect[3] <= outer[3] + tol)
 
 
+def pose_ok(state, ref: str, x: float, y: float, rot: float,
+            exclude: Set[str]) -> bool:
+    """THE seat predicate: fully contained, and clear of everything not in
+    `exclude`.
+
+    Lifted out of `_try_place` so a POSE COUNTER can use the identical test.
+    `count_legal_poses` below answers "how many seats would lifting X free",
+    and that answer is only worth anything if a positive count implies the
+    seat would really have been taken -- which needs the same predicate, not
+    a second copy of it that drifts.
+
+    Note `candidate_valid` alone is not enough: for a part whose incumbent
+    pose is off the board, its #456 branch accepts poses that move strictly
+    TOWARD the board while still outside it. Placement from scratch has no
+    incumbent worth improving on, so full containment is demanded explicitly.
+    """
+    part = state.parts[ref]
+    if state.edge_gate.rect_outside_amount(part.rect(x, y, rot)) > 1e-9:
+        return False
+    return state.candidate_valid(ref, x, y, rot, exclude=exclude)
+
+
+# A pose census is a DIAGNOSTIC, not a search: it answers "is there room"
+# and must cost a fraction of the seat attempt that already failed. The cap
+# is what bounds it -- run 19's measured answers were 46 and 32 poses freed,
+# so a cap well above those still distinguishes "none" from "plenty".
+CENSUS_RADIUS_MM = 16.0
+CENSUS_STEP_MM = 1.0
+CENSUS_CAP = 64
+
+
+def count_legal_poses(state, ref: str, tx: float, ty: float,
+                      exclude: Set[str], *,
+                      radius: float = CENSUS_RADIUS_MM,
+                      step: float = CENSUS_STEP_MM,
+                      cap: int = CENSUS_CAP,
+                      max_disp: Optional[float] = None,
+                      rotations: Optional[Sequence[float]] = None) -> int:
+    """How many legal poses `ref` has near (tx, ty), counting at most `cap`.
+
+    This is issue #629's measurement. Three consecutive sweeps in run 19
+    returned a bare "no legal pose anywhere on the board" for SW17/SW34, and
+    when the same question was finally asked in scoped form the engine
+    answered precisely: with D14 in place 0 poses, with D14 lifted 46; with
+    D31, 0 then 32. A verdict that names its blockers is the next move; a
+    bare verdict is a dead end.
+
+    Counts only -- no `apply_move`, no cost evaluation. It uses `pose_ok`,
+    the same predicate `_try_place` seats on, at the state's own clearance
+    (NOT the relaxed ladder): a count is meant to say whether there is room,
+    and counting poses that only exist at a 0.02mm floor would promise seats
+    the ordinary search does not take.
+    """
+    from pose_score import _offsets
+    part = state.parts[ref]
+    rots = list(rotations) if rotations is not None \
+        else [part.rot] + [(part.rot + d) % 360 for d in (90.0, 180.0, 270.0)]
+    n = 0
+    for dx, dy in _offsets(radius, step):
+        if max_disp is not None and math.hypot(dx, dy) > max_disp + 1e-9:
+            continue
+        x, y = round(tx + dx, 3), round(ty + dy, 3)
+        for rot in rots:
+            if pose_ok(state, ref, x, y, rot, exclude):
+                n += 1
+                if n >= cap:
+                    return n
+    return n
+
+
 def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                constraint=None, tol: float = 0.5,
                max_disp: Optional[float] = None,
@@ -109,9 +179,7 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
     part = state.parts[ref]
 
     def _ok(x, y, rot):
-        if state.edge_gate.rect_outside_amount(part.rect(x, y, rot)) > 1e-9:
-            return False
-        return state.candidate_valid(ref, x, y, rot, exclude=exclude)
+        return pose_ok(state, ref, x, y, rot, exclude)
 
     # A zone smaller than the courtyard cannot contain it at any rotation --
     # the spec-COORDINATE pattern. Containment then relaxes to anchor-point-

@@ -41,7 +41,7 @@ from placement.plan_ops import PlanError, parse_ref_selector
 # being skipped -- see the module docstring.
 RESOLVED_ACTIONS = (
     'place_index', 'place_at', 'place_array', 'place_slots',
-    'place_relative', 'place_edge', 'place_lock',
+    'place_relative', 'place_edge', 'place_lift', 'place_lock',
 )
 
 DEFAULT_EDGE_OVERHANG_MM = 0.5
@@ -734,6 +734,131 @@ class _Resolver:
                     ref=ref, step=step, action='place_edge', target=(tx, ty),
                     reason=f"no conflict-free seat on the {op['edge']} edge "
                            f"band at overhang {overhang:g}mm"))
+
+    def op_place_lift(self, op, step):
+        """Evict named blockers, seat what they were blocking, put them back.
+
+        THE ORDERING IS THE WHOLE OP. `reseat_scope` already lifts a set and
+        re-seats it, and run 19 called it three times on exactly this case and
+        got a null every time -- because its queue re-seated the blockers
+        first, at their net centroids, which is back into the very pockets
+        they block, and the blocked switches then swept against a re-blocked
+        board. `apply_c2_seats.py:1-12` records that measurement. So here the
+        blocked part is seated FIRST, against a board the blockers are lifted
+        out of, and the blockers are re-seated afterwards with it as an
+        obstacle.
+
+        Each retry is censused before anything moves (issue #629): how many
+        poses the blocked part has now, and how many with each blocker lifted
+        on its own. That is what turns "no legal pose" into "D14 is why".
+        """
+        blockers = self.refs(op['refs'])
+        blocked = self.refs(op['for']) if op.get('for') is not None else []
+        within = op.get('within')
+        restore = op.get('restore', True)
+
+        movable = []
+        for b in blockers:
+            part = self.st.parts.get(b)
+            if part is None:
+                self.res.parks.append(Park(
+                    ref=b, step=step, action='place_lift',
+                    reason='not a movable part on this board'))
+                continue
+            if part.locked:
+                # Naming the source matters: a ref locked by the FILE and one
+                # locked by this run are different problems for the reader.
+                self.res.parks.append(Park(
+                    ref=b, step=step, action='place_lift',
+                    reason="(locked yes) in the file -- not this tool's to "
+                           "move, so it cannot be lifted either"))
+                continue
+            movable.append(b)
+        if not movable:
+            return
+
+        # Retry targets come from the earlier op that parked them: the plan
+        # says WHICH parts are blocked, and where they were meant to go is
+        # already on the record.
+        parked_at = {}
+        for p in self.res.parks:
+            if p.target is not None and p.ref not in parked_at:
+                parked_at[p.ref] = (p.target, p.within)
+
+        # Census BEFORE anything moves, so the numbers describe the board the
+        # plan actually met.
+        census: Dict[str, Dict[str, int]] = {}
+        baseline: Dict[str, int] = {}
+        for ref in blocked:
+            if ref not in self.st.parts or ref not in parked_at:
+                continue
+            (tx, ty), budget = parked_at[ref]
+            cap = budget if budget is not None else within
+            base = set(self.pending) - {ref}
+            baseline[ref] = seeder.count_legal_poses(
+                self.st, ref, tx, ty, base, max_disp=cap)
+            census[ref] = {}
+            for b in movable:
+                census[ref][b] = seeder.count_legal_poses(
+                    self.st, ref, tx, ty, base | {b}, max_disp=cap)
+
+        # Lift: the blockers rejoin the pile, so they stop being obstacles.
+        home = {b: (self.st.parts[b].x, self.st.parts[b].y,
+                    self.st.parts[b].rot) for b in movable}
+        self.pending |= set(movable)
+        seated_now = []
+        for ref in blocked:
+            if ref not in parked_at:
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action='place_lift',
+                    reason='nothing earlier in this plan parked it, so there '
+                           'is no target to retry it at'))
+                continue
+            (tx, ty), budget = parked_at[ref]
+            ok = self.seat(ref, tx, ty, step, 'place_lift',
+                           within=budget if budget is not None else within,
+                           rot=op.get('rot'))
+            # Either way the earlier park is SUPERSEDED: this op answered the
+            # question it asked. Carrying both would report one part as
+            # seated-and-parked on success, and on failure would leave the
+            # bare verdict beside the censused one -- with the bare one first,
+            # which is the reading a caller would take.
+            self.res.parks = [p for p in self.res.parks
+                              if not (p.ref == ref and p.step != step)]
+            if ok:
+                seated_now.append(ref)
+            else:
+                for p in self.res.parks:
+                    if p.ref == ref and p.step == step:
+                        p.blockers = dict(census.get(ref, {}))
+                        p.censused = ref in census
+                        if census.get(ref) and not any(census[ref].values()):
+                            p.reason += (
+                                f" -- and lifting {', '.join(movable)} frees "
+                                f"no pose either, so they are not what is in "
+                                f"the way")
+
+        # Put the blockers back, now that what they blocked is in place.
+        if restore:
+            for b in movable:
+                bx, by, brot = home[b]
+                if not self.seat(b, bx, by, step, 'place_lift',
+                                 within=within, rot=brot):
+                    # It could not go back and its seat went to the part it
+                    # was blocking. That is a real trade, and it is reported
+                    # rather than silently reverted.
+                    self.st.apply_move(b, bx, by, brot)
+                    self.pending.discard(b)
+
+        for ref in seated_now:
+            freed = census.get(ref) or {}
+            top = sorted(freed.items(), key=lambda kv: (-kv[1], kv[0]))
+            if top:
+                self.res.notes.append(
+                    f"{ref}: seated after lifting "
+                    f"{', '.join(b for b, _ in top)} "
+                    f"(poses at its target: {baseline.get(ref, 0)} before, "
+                    + ', '.join(f"{n} with {b} lifted" for b, n in top) + ")")
 
     def op_place_lock(self, op, step):
         for ref in self.refs(op['refs']):
