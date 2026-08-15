@@ -101,9 +101,15 @@ class Seat:
 
 @dataclass
 class Park:
-    """One part the plan named and could not seat. `blockers` is filled by the
-    lift op's census (issue #629) and is empty until then -- an empty list
-    means "not censused", which is why `censused` is carried separately."""
+    """One part the plan named and could not seat.
+
+    `blockers` is `{ref: poses_available_with_that_ref_lifted}` (issue #629's
+    shape), censused at the seat that failed -- not only by `place_lift`,
+    which used to be the sole source and left every ordinary park a dead end
+    with `blockers: {}`. `censused` is separate because an empty `blockers`
+    has two meanings: "nothing movable is near" (censused) and "nothing was
+    measured" (not). Non-geometric parks -- not a movable part, file-locked,
+    no target on record -- are never censused, and correctly report False."""
     ref: str
     step: int
     action: str
@@ -112,6 +118,12 @@ class Park:
     within: Optional[float] = None
     blockers: Dict[str, int] = field(default_factory=dict)
     censused: bool = False
+    # Poses available with NOTHING lifted. `blockers` values are ABSOLUTE
+    # counts with that one blocker lifted, not deltas, so without this a
+    # reader cannot tell "46" from an improvement -- the seeder's own
+    # no_pose_blockers has the same shape and keeps its baseline in a
+    # different structure entirely (`evictions[].poses_before`).
+    baseline_poses: Optional[int] = None
 
     def to_dict(self) -> Dict:
         return {'ref': self.ref, 'step': self.step, 'action': self.action,
@@ -119,7 +131,8 @@ class Park:
                 'target': None if self.target is None
                 else [round(v, 4) for v in self.target],
                 'within': self.within,
-                'blockers': dict(self.blockers), 'censused': self.censused}
+                'blockers': dict(self.blockers), 'censused': self.censused,
+                'baseline_poses': self.baseline_poses}
 
 
 @dataclass
@@ -341,12 +354,13 @@ def select_refs(value, pcb_data, indexes: Dict[str, Dict], *,
 # --------------------------------------------------------------------------
 class _Resolver:
     def __init__(self, pcb_data, pcb_file, state, deadline=None,
-                 progress=None, plan_refs=None):
+                 progress=None, plan_refs=None, census_parks=True):
         self.pcb = pcb_data
         self.pcb_file = pcb_file
         self.st = state
         self.deadline = deadline
         self.progress = progress
+        self.census_parks = census_parks
         self.res = ResolveResult()
         # The pile: parts THIS PLAN will seat and has not seated yet. They are
         # passed as `exclude` so their meaningless input coordinates cannot
@@ -470,10 +484,70 @@ class _Resolver:
                        'was measured'))
             return False
         budget = f"within {within:g}mm of " if within is not None else "near "
-        self.res.parks.append(Park(
+        park = Park(
             ref=ref, step=step, action=action, target=(tx, ty), within=within,
-            reason=f"no legal pose {budget}({tx:.1f}, {ty:.1f})"))
+            reason=f"no legal pose {budget}({tx:.1f}, {ty:.1f})")
+        self._census(park, ref, tx, ty, within)
+        self.res.parks.append(park)
         return False
+
+    def _census(self, park, ref, tx, ty, within):
+        """Which movable neighbours are in this part's way, and what lifting
+        each would free.
+
+        Without this a park is a dead end: `place_lift` -- the op whose whole
+        job is evicting a blocker -- required the author to GUESS which part
+        to lift, and a wrong guess returns the honest but useless "lifting
+        C22, C35 frees no pose either, so they are not what is in the way".
+        The machinery already existed for the seeder's stage 3c (issue #629);
+        this is the plan path using it.
+
+        Bounded on purpose. `count_legal_poses` sweeps 4356 poses per call at
+        the default radius, measured at 1.10s when the cap fires and 2.64s
+        when the count is 0 -- and a genuinely blocked part has baseline 0, so
+        it is the slow case that always applies. `max_disp` prunes by the
+        op's own budget (`seeder.py:212` skips offsets beyond it with a bare
+        hypot), which is what makes this affordable; `place_lift` already
+        does the same. `censused` stays False when nothing was measured, so
+        an empty `blockers` never reads as "nothing is in the way".
+        """
+        if not self.census_parks:
+            return
+        if self.deadline is not None and self.deadline.expired():
+            return
+        try:
+            base = self.pending - {ref}
+            cands = seeder._evict_candidates(
+                self.st, ref, tx, ty,
+                {r for r in self.st.parts if r not in self.pending},
+                set(self.res.lock_refs))
+            if not cands:
+                park.censused = True          # measured: nothing movable near
+                return
+            baseline = seeder.count_legal_poses(
+                self.st, ref, tx, ty, base, max_disp=within,
+                forbid=self.keepouts)
+            freed = {}
+            for b in cands:
+                freed[b] = seeder.count_legal_poses(
+                    self.st, ref, tx, ty, base | {b}, max_disp=within,
+                    forbid=self.keepouts)
+            park.blockers = dict(freed)
+            park.baseline_poses = baseline
+            park.censused = True
+            useful = sorted(((n, b) for b, n in freed.items() if n > baseline),
+                            reverse=True)
+            if useful:
+                park.reason += (
+                    f"; lifting {useful[0][1]} would free {useful[0][0]} pose(s) "
+                    f"(none are free now)" if baseline == 0 else
+                    f"; lifting {useful[0][1]} would take it from {baseline} to "
+                    f"{useful[0][0]} pose(s)")
+        except Exception as e:                           # noqa: BLE001
+            # A census is a diagnostic. It must never turn a park into a crash.
+            self.res.notes.append(
+                f"{ref}: the blocker census did not run "
+                f"({type(e).__name__}: {e})")
 
     # -- ops -------------------------------------------------------------
     def op_place_index(self, op, step):
@@ -1350,7 +1424,7 @@ def plan_target_refs(pcb_data, pcb_file, state, ops) -> Tuple[Set[str], List[str
 def resolve(pcb_data, pcb_file: str, ops: Sequence[Dict], *,
             clearance: float = 0.25, board_edge_clearance: float = 0.55,
             grid_step: float = 0.1, state=None, deadline=None,
-            progress=None) -> ResolveResult:
+            progress=None, census_parks: bool = True) -> ResolveResult:
     """Run a validated placement plan against a board.
 
     The plan must already have passed `plan_ops.parse_placement_plan`; this
@@ -1364,7 +1438,8 @@ def resolve(pcb_data, pcb_file: str, ops: Sequence[Dict], *,
             board_edge_clearance=board_edge_clearance, grid_step=grid_step)
     plan_refs, unresolved = plan_target_refs(pcb_data, pcb_file, state, ops)
     r = _Resolver(pcb_data, pcb_file, state, deadline=deadline,
-                  progress=progress, plan_refs=plan_refs)
+                  progress=progress, plan_refs=plan_refs,
+                  census_parks=census_parks)
     for note in unresolved:
         r.res.notes.append(
             f"could not pre-resolve a selection, so nothing it names was "
