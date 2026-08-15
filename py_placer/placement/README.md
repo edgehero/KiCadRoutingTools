@@ -146,6 +146,76 @@ and will not be invented) and refuses a board that already looks placed
 legal seeds; the same seed reproduces byte for byte. The two compose:
 `place_seed --seed N` → `place_portfolio` diversifies and ranks.
 
+## place_plan.py — the arrangement, STATED (`plan_ops.py`, `plan_resolve.py`)
+
+`place_seed` needs a floorplan intent, and an intent cannot express a pitch, a
+mirror axis, a rotation, or an origin measured off the outline. So when run
+19's seeder could not produce a key field, the arrangement was written as
+arithmetic instead — `wk/run19/urchin/arrange.py`, 221 lines with `PITCH =
+17.0`, `X0 = 46.0` and `MIRROR_X = 17.599913 + 239.1983` baked in, per board,
+throwaway.
+
+A **placement plan** is that arrangement said rather than computed. Every
+statement seats through `seeder._try_place`, so legality, the rotation
+lattice, the clearance ladder and the pile-exclusion rule are the engine's,
+not the plan's, and a plan cannot author an illegal board.
+
+```bash
+python3 py_placer/place_plan.py board.kicad_pcb plan.json -o seeded.kicad_pcb
+python3 py_placer/place_plan.py board.kicad_pcb plan.json --dry-run --json r.json
+python3 py_placer/place_plan.py --print-schema     # the authoring contract
+```
+
+| op | says |
+|---|---|
+| `place_index` | structure from NET NAMES — `COL(\d)`/`ROW(\d)` → column, row, half, and the partner part found through a shared auto-generated private net |
+| `place_at` | one part at a coordinate, within a budget, optionally `mirror`ed |
+| `place_array` | a lattice: `pitch`, `origin`, `mirror`, `where`, `order` — and `origin: {"solve": "outline_probe"}`, which MEASURES the origin against the real Edge.Cuts instead of you typing what you measured |
+| `place_slots` | named irregular pockets, handed out by `group_by` + `order` |
+| `place_relative` | a child at an offset from its parent's **resolved** pose; refuses when the parent is unseated, because a pile coordinate is not a position |
+| `place_edge` | an edge connector in its overhang band (the one op that does not use `_try_place` — see below) |
+| `place_lift` | eviction **with ordering**: seat the blocked part against a lifted board, then put the blockers back with it as an obstacle |
+| `place_lock` | stamp `(locked yes)` on the output |
+
+Three properties worth knowing before you author one:
+
+- **A target is a HINT.** Every op seats at the nearest fully-legal pose and
+  reports `moved_mm`, so a plan whose intent did not survive contact with the
+  board says so instead of looking clean.
+- **Any error refuses the WHOLE plan.** A routing plan that drops a step routes
+  fewer nets and says so; a placement plan that drops an op produces a
+  different board and nothing downstream can tell. An unrecognised *key* is an
+  error too — `pich: 17.0` would otherwise place a lattice at spacing zero.
+- **A trade is all or nothing.** `place_lift` snapshots and rolls back if the
+  blockers cannot be re-seated, the way `reseat_scope`'s gate and the anchor
+  rounds do.
+
+`place_keepout`, `place_pack`, `place_repair` and `place_polish` have settled
+schemas and **no resolver yet**; they are refused by name at validation rather
+than advertised, so a plan using them fails at authoring time and not after
+half the board has moved.
+
+`place_edge` is the one op that does not go through `_try_place` — an edge
+part overhangs by design and `_try_place` demands full containment — so it
+uses `seeder._seat_edge`, ignores the pile-exclusion set, and reports
+`clearance: None` rather than a number nothing measured.
+
+## board_brief.py / check_capacity.py — the read side, and the options
+
+`py_tools/board_brief.py` assembles what a placement author needs to read into
+one artifact — outline, free space, part extents and classes, groups, decap
+tethers, escape-lane deficits and who ate them, lock advice, and the human's
+requirements carried verbatim. It **assembles, it does not compute**: every
+number comes from the emitter that owns it, and `sources` names that function
+per section, so the brief cannot drift from the graders.
+
+`py_tools/check_capacity.py` answers the question the outline prohibition
+promises and nothing computed: *how much too small is this board?* Five
+options — grow the board, add layers, move the neighbour that ate a face,
+relax a clearance (floored at what the fab can etch), use a smaller package —
+each measured or explaining why it could not be. It reports and never acts;
+nothing here writes `Edge.Cuts` or a stackup.
+
 ## place_fanout_clearance.py — decoupling-cap clearance repair (issue #130)
 
 Run **after** `bga_fanout.py`. Nudges decoupling caps near a BGA so their

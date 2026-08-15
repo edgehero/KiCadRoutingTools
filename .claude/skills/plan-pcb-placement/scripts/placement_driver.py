@@ -136,8 +136,33 @@ Walk the ladder in order and say which rung applies:
        python3 -X utf8 py_placer/place_seed.py {a.board} seed.kicad_pcb --intent fp.json
    The seeder grades its own output against the same intent; exit 4 means the
    seed does not satisfy the intent it was built from, and says which rule broke.
-3. Neither -> say so and STOP. This toolchain does not invent a placement, and
-   inventing mechanical geometry is what every rule here forbids.
+3. The arrangement is STRUCTURAL and an intent cannot hold it -- a key matrix,
+   a mirrored pair of halves, a row at a pitch, a part whose ROTATION is the
+   decision. An intent has no pitch, no mirror, no rotation and no origin you
+   can measure off the outline, which is why run 19 ended up writing 221 lines
+   of per-board arithmetic. SAY IT INSTEAD, as a placement plan:
+       python3 -X utf8 py_placer/place_plan.py --print-schema
+       python3 -X utf8 py_placer/place_plan.py {a.board} plan.json -o seed.kicad_pcb --json r.json
+   READ THE BOARD FIRST -- the plan is only as good as what you knew when you
+   wrote it, and this assembles it in one artifact (free space for a WxH part,
+   part extents and classes, groups, escape-lane deficits and who ate them,
+   lock advice):
+       python3 -X utf8 py_tools/board_brief.py {a.board} --json brief.json --fit <WxH>
+   Then read r.json: `parks[]` names every part it could not seat, with the
+   target, the budget and the reason. `seats[].moved_mm` says how far each one
+   landed from what you asked for -- a large one means the board disagreed
+   with your intent, not that the plan failed.
+4. Neither, and the board may simply be too small -- MEASURE that rather than
+   asserting it, then hand back the options:
+       python3 -X utf8 py_tools/check_capacity.py {a.board} --json capacity.json
+   It reports how much more area the parts need (`shortfall_mm2_at_least`),
+   whether more layers would supply the missing escape lanes, which neighbour
+   to move and by how many millimetres, and what a tighter clearance buys at
+   this board's fab floor. It NEVER acts: the outline and the stackup are
+   mechanical decisions the user owns.
+5. Still neither -> say so and STOP. This toolchain does not invent mechanical
+   geometry. But do not reach rung 5 without having run rung 4: "too small"
+   with a number is a finding, and "too small" without one is a guess.
 
 Next: --stage P4 (legalize the seed) or --stage P6 (declare the intent first).
 </stage_instructions>'''

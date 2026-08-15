@@ -33,6 +33,48 @@ rules (footprint name, reference prefix) miss house libraries entirely.
 
 ---
 
+## A2. Board brief — `py_tools/board_brief.py BOARD --json wk/brief.json [--fit WxH]`
+
+What to read BEFORE authoring a placement, assembled from the emitters that
+own each number (`sources` names the function per section, so a disagreement
+with a grader is a bug in one of them, never a second opinion here).
+
+| key | decision |
+|---|---|
+| `state.unplaced` / `state.stacked_suspect_refs` | is this a pile at all, and which refs form it |
+| `board.milled_contours` | **non-zero means #628 territory** — an interior milled ring a pad can sit inside while every placement gate calls it legal |
+| `parts.<ref>.extent_source` | `pad_bbox` means that part has NO courtyard, so its extent carries no margin — do not treat it like a courtyard number |
+| `fit[].fits` / `.centre_bounds` | whether a `WxH` part has anywhere to go at all, and roughly where. `fits: false` is a capacity finding, not a placement one — go to A3 |
+| `measurements.escape.deficit_lanes` | lanes short across the board. Non-zero is a BINDING constraint: net ordering only chooses which nets strand |
+| `measurements.locks.tally.unlocked_high` | same gate as section A; the brief carries it so one read covers both |
+| `skipped` | **a section that did not run.** Non-empty means the brief is incomplete — never read a missing section as "nothing to report" |
+
+## A3. Capacity options — `py_tools/check_capacity.py BOARD --json wk/capacity.json`
+
+Reports; never acts. Exit is always 0 — a gate here would refuse boards that
+route fine, because the area test is necessary and not sufficient.
+
+| key | decision |
+|---|---|
+| `options.grow_board.fits_by_area` | `false` = the parts CANNOT fit, whatever the arrangement. Stop placing and report |
+| `options.grow_board.measured.shortfall_mm2_at_least` | **the number the outline prohibition asks for.** Quote this, not an estimate. "at_least" is literal: it is a lower bound |
+| `options.grow_board.measured.utilisation` | ≥ ~0.55 means they fit but will fight the router |
+| `options.add_layers.measured.floors_differ` | `false` = more layers change the fab floor not at all, so they buy no extra lanes on a face. Do not recommend layers off this option alone |
+| `options.move_blocker.measured.worst[].span_needed_mm` | millimetres of span to free, and `blockers[0]` is who to move. This is the actionable pair |
+| `options.relax_clearance.measured.ladder[].below_fab_floor` | `true` rows are UNMEASURED, deliberately — capacity nobody can etch is not capacity |
+| `options.<name>.error` | `true` = the option CRASHED. Not the same as `ran: false`, which means it did not apply |
+
+## A4. Placement plan run — `py_placer/place_plan.py BOARD plan.json -o OUT --json wk/plan.json`
+
+| key | decision |
+|---|---|
+| `parks[]` | **every part the plan could not seat**, with `target`, `within` and `reason`. Empty is the only clean result; exit 4 means non-empty |
+| `parks[].blockers` / `.censused` | issue #629's answer. `censused: false` means nobody looked; `censused: true` with all-zero values means the parts you named are innocent |
+| `seats[].moved_mm` | how far the seat landed from what the plan asked for. A large value means the BOARD disagreed with your intent — read it before concluding the plan worked |
+| `seats[].rot_changed` | the requested rotation was not legal and the lattice fallback fired |
+| `summary.relaxed` | seats taken at a courtyard clearance below the asked-for floor |
+| exit `2` | the plan is not executable as written; **nothing was placed**. Read the refusal — it names the op or key |
+
 ## B. `place_optimize.py IN OUT ... 2>&1 | tee wk/place.log`
 
 The `JSON_SUMMARY` goes to **stdout only**; `tee` is what makes it citable.

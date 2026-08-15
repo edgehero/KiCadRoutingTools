@@ -589,6 +589,83 @@ against the same intent, and hands the result to the portfolio. The
 from-scratch verdict stands: unaided is still out of scope; *aided by a
 declared intent* is now a supported path.
 
+## Amendment (15 August 2026): what the from-scratch verdict does and does not cover
+
+Two claims have been travelling together in this document, and they are not
+the same claim. One is measured and stands. The other was never tested and is
+now contradicted.
+
+**Stands, unamended: a constructive ALGORITHM loses badly to a human.** The
+table above (`place.py` from-scratch: 1,141 M router iterations against the
+hand placement's 2.3 M, 500×, with 2 single-ended and 12 multipoint failures)
+is a real measurement of a real placer, and nothing here re-opens it. The
+constraint-capture argument at the top of this document also stands: enclosure
+fit, connector positions, thermal, EMI zoning, datasheet hot-loop intent and
+assembly access are genuinely not in the board file.
+
+**Superseded: "therefore nothing can place from scratch."** That inference has
+a hidden premise — that the constraint-consumer must be a solver, which needs
+every constraint pre-formalised into rects and rules before it can use any of
+them. That premise is what produces the death spiral recorded at the top of
+this file ("by the time you've configured the rooms/keepouts/rules the tool
+needs to do well, you've already placed the board by hand"). It was written
+before anything could read a datasheet, a prompt, or a netlist's own naming.
+
+What changed the measurement is not a better optimiser. It is that the
+arrangement became **sayable**. Run 19's seeder could not produce a key field
+(7 switches "no legal pose inside zone", 3 "no legal pose anywhere"), so the
+arrangement was written as 221 lines of per-board arithmetic —
+`wk/run19/urchin/arrange.py`, with `PITCH = 17.0`, `X0 = 46.0` and
+`MIRROR_X = 17.599913 + 239.1983` baked in. That script was not a smarter
+algorithm; it seated every pose through `seeder._try_place`, the engine's own
+gate. It simply had a vocabulary the toolchain did not: a pitch, a mirror
+axis, a rotation, and an origin *measured against the outline* rather than
+authored.
+
+Measured, same board, same engine gate, `py_placer/place_plan.py`:
+
+| | arrange.py + apply_c2_seats.py | the plan |
+|---|---|---|
+| form | 221 + 148 lines, per board, throwaway | 22 declarative ops |
+| seated | 80 | **82** |
+| parked | SW17 SW34 D16 D17 D33 | D17 D33 D34 |
+
+SW17 and SW34 are the two switches the hand script could not seat, which cost
+that run a further routing cycle and a second hand script. They seat because a
+plan can say `"rot": 0` — and `seeder.py:26-32` records exactly why the intent
+schema could not: *"The intent schema cannot express a rotation."* The hand
+script wanted to say it too, and wrote it as a comment (`arrange.py:30`).
+
+So the honest formulation of the verdict is narrower than what this document
+has been read as saying:
+
+> A constructive algorithm optimising a proxy places worse than a human, by a
+> lot. That is measured and unchanged. It does not follow that from-scratch
+> placement is out of reach — the constraints an algorithm cannot capture can
+> be STATED, and stating them is cheaper than formalising them, because a
+> statement may be structural ("5 columns at 17 mm pitch, mirrored") where a
+> rule must be exhaustive.
+
+What has NOT changed, and should not be read into the above:
+
+- The plan's 22 ops still contain 17 hand-typed `place_at` coordinates, and
+  `PITCH`, `X0` and the thumb-pocket coordinates are carried as literals. Only
+  the mirror axis and the per-column stagger are genuinely derived. This is a
+  better *form*, not yet a derivation.
+- Nothing here supplies enclosure fit, thermal or EMI intent. Those still
+  arrive from a human, and the plan gives them somewhere to land instead of an
+  `arrange.py` constant.
+- `place_seed` itself is unchanged. It still reports "no legal pose anywhere on
+  the board" and still cannot lift a blocker; the eviction machinery lives on
+  the plan path only (issue #630 remains open against the seeder).
+- Simultaneous routability is still not predicted. `loop_driver.py:1347-1350`
+  says it: *"Both those tests are PER-NET, and simultaneous routability is not.
+  A board can pass every one of them and still be unroutable."* The router
+  remains the judge.
+
+See `py_placer/placement/README.md` (`place_plan.py`) for the vocabulary, and
+`tests/test_place_plan_urchin.py` for the measurement above.
+
 ## Roadmap: placement science after run 7 (August 2026)
 
 Run 7 (the first clean-slate run whose placement this stack generated) and
