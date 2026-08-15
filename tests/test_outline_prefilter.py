@@ -14,10 +14,14 @@ and the seeding path has no budget: `pose_score.make_state` builds its
 QuenchState without `build_neighbor_lists`, so `_travel_budget` is infinite,
 `reach` is infinite, and `edges_near` hands back every edge there is.
 
-Measured on run 19's urchin (638 edges, one milled ring): 8.9 ms per
-`rect_outside_amount`. `_try_place` calls it once per candidate offset, and
-`_offsets(16, 0.25)` alone is 16,641 offsets -- which is why a single failed
-seat on that board cost minutes.
+Measured on run 19's urchin (638 edges, one milled ring): 9-24 ms per
+`rect_outside_amount` depending on machine load. `_try_place` calls it once
+per candidate offset, and `_offsets(16, 0.25)` alone is 16,641 offsets --
+which is why a single failed seat on that board cost minutes.
+
+The speedup this file prints is load- and population-dependent (7x to 14x
+observed). It asserts only `> 3.0` on a many-edge outline, because pinning a
+specific multiple would make the test a machine detector.
 
 The prefilter drops edges whose bounding box is separated from the rect's by
 more than the margin. That is exact rather than approximate, so the only thing

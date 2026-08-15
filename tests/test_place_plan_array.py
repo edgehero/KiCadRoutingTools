@@ -263,6 +263,65 @@ check("place_at --mirror reflects the stated coordinate",
       str(s6))
 
 # --------------------------------------------------------------------------
+# The plan compiles to a floorplan intent, so check_floorplan can grade the
+# result against what the plan MEANT. The zones come from the TARGETS, not
+# the seats -- an intent built from where parts ended up grades clean by
+# construction and says nothing (that is exactly what
+# floorplan.emit_intent is for, and why this is a different artifact).
+# --------------------------------------------------------------------------
+from placement.plan_resolve import compile_intent
+import pose_score
+from placement.floorplan import grade, intent_from_dict
+
+pcb_i, path_i = board()
+ops_i, _e = parse_placement_plan({'schema': 1, 'steps': [INDEX, ARRAY]})
+st_i = pose_score.make_state(pcb_i, path_i, clearance=0.2,
+                             board_edge_clearance=0.5, grid_step=0.1)
+res_i = resolve(pcb_i, path_i, ops_i, state=st_i)
+doc = compile_intent(res_i, st_i, pcb_i, ops_i)
+check("the compiled intent is a floorplan intent",
+      doc.get('kind') == 'floorplan-intent' and doc.get('schema') == 1,
+      str({k: doc.get(k) for k in ('kind', 'schema')}))
+check("the envelope is READ from the board, not authored",
+      doc['envelope']['rect'] == [round(v, 4)
+                                  for v in pcb_i.board_info.board_bounds],
+      str(doc.get('envelope')))
+check("the lattice op became a block covering its members",
+      len(doc.get('blocks') or []) == 1
+      and len(doc['blocks'][0]['refs']) == 12,
+      str([(b['name'], len(b['refs'])) for b in doc.get('blocks') or []]))
+check("the block's zone is a real rect",
+      len(doc['blocks'][0]['zone']) == 4
+      and doc['blocks'][0]['zone'][2] > doc['blocks'][0]['zone'][0],
+      str(doc['blocks'][0]['zone']))
+# It must LOAD and GRADE through the real grader, not merely look right --
+# and against the WRITTEN board. `resolve()` mutates the QuenchState, not the
+# parsed PCBData, so grading `pcb_i` would grade the pile the plan started
+# from (which it did, reporting every part 6.00mm outside its own zone: the
+# distance from the pile at y=30 to the zone's south edge at 26).
+from placement.writer import write_placed_output
+out_i = path_i.replace('.kicad_pcb', '.seeded.kicad_pcb')
+write_placed_output(path_i, out_i, res_i.placements)
+pcb_seeded = parse_kicad_pcb(out_i)
+graded = grade(intent_from_dict(doc), pcb_seeded, out_i)
+check("check_floorplan's own grader loads and runs it",
+      graded.rules_run, str(graded.rules_run))
+check("and the plan's own result satisfies the intent it compiled",
+      not graded.errors,
+      str([v.message for v in graded.errors][:3]))
+
+# The point of compiling from TARGETS: a part that drifts fails. Grade the
+# pile against the same intent -- it must NOT pass, or the artifact is
+# decorative.
+graded_pile = grade(intent_from_dict(doc), pcb_i, path_i)
+check("the same intent REFUSES the board the plan started from",
+      bool(graded_pile.errors),
+      "an intent that passes the pile it was compiled away from grades "
+      "nothing")
+os.unlink(out_i)
+os.unlink(path_i)
+
+# --------------------------------------------------------------------------
 # determinism (#457)
 # --------------------------------------------------------------------------
 check("the same lattice resolves identically twice",

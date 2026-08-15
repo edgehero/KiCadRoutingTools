@@ -22,6 +22,13 @@ schema cannot express a rotation, and arrange.py's own "diode strip: below the
 switch, rot 90" is a COMMENT (arrange.py:30). So its thumb switches searched
 from their pile angles (SW17 at r330), where no legal pose exists.
 
+That causal claim was ABLATED rather than asserted: removing `"rot": 0` from
+the place_slots op alone -- changing nothing else -- parks SW17 and SW34 and
+takes the run from 82 seated to 79, i.e. WORSE than the hand script's 80. The
+mechanism is visible in `_try_place`, which searches `[part.rot, +90, +180,
++270]`: from SW17's pile rot 330 that is {330, 60, 150, 240} and from SW34's
+15 it is {15, 105, 195, 285}. Neither set contains 0.
+
 SKIPS when the board is absent: `wk/` is gitignored, so a fresh clone has no
 run-19 assets and this test must not fail for that.
 """
@@ -34,8 +41,11 @@ import tempfile
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOARD = os.path.join(REPO, 'wk', 'run19', 'urchin', 'base.kicad_pcb')
 
-# What arrange.py achieved, from its own recorded run
-# (wk/run19/urchin/arranged.kicad_pcb.arrange.json).
+# What arrange.py achieved, from the recorded run of the version that is
+# STILL IN THE TREE -- arranged3, not arranged. The two agree (80 placed, the
+# same five refs), but `arranged.kicad_pcb.arrange.json` came from an earlier
+# arrange.py whose thumb slots were (97.0,80.5)/(159.8,80.5); citing it would
+# be comparing against a version nobody can re-run.
 HAND_SEATED = 80
 HAND_PARKED = {'SW17', 'SW34', 'D16', 'D17', 'D33'}
 

@@ -372,9 +372,17 @@ class BoardOutlineGate:
         Why it matters: `edges_near` prunes per PART, sized by a displacement
         budget, and the seeder's state has no budget at all (pose_score builds
         its QuenchState without `build_neighbor_lists`, so `_travel_budget` is
-        infinite and `edges_near` returns every edge). Measured on run 19's
-        urchin, a 638-edge outline: `rect_outside_amount` 8.9 ms per call,
-        with this 0.73 ms. `_try_place` calls it for every candidate offset.
+        infinite and `edges_near` returns every edge). `_try_place` calls
+        `rect_outside_amount` once per candidate offset, and `_offsets(16,
+        0.25)` alone is 16,641 offsets.
+
+        Measured on run 19's urchin, a 638-edge outline with one milled ring:
+        7x to 14x depending on machine load and on which rect population is
+        swept (a sweep near an edge keeps more edges than one over open
+        board). The conservative end is the number to quote. An independent
+        measurement that neutralised this method by monkeypatching it to the
+        identity -- so the ONLY difference between arms was the prefilter --
+        put it at 11.98x on two separate runs.
         """
         m = self.margin
         lo_x, lo_y, hi_x, hi_y = rect[0] - m, rect[1] - m, rect[2] + m, rect[3] + m

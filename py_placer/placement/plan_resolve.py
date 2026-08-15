@@ -1024,6 +1024,115 @@ class _Resolver:
         return self.res.indexes.get(arg) if kind == 'index' else None
 
 
+def compile_intent(res: ResolveResult, state, pcb_data, ops: Sequence[Dict],
+                   *, tolerance_mm: float = 0.5) -> Dict:
+    """The plan, as a floorplan intent `check_floorplan` can grade.
+
+    A plan STATES intent, so an intent falls out of it -- unlike
+    `floorplan.emit_intent`, which reads one off a board and therefore grades
+    clean by construction. This one is built from what the plan MEANT: each
+    lattice or slot op becomes a block whose zone is the bounding box of its
+    members' courtyards AT THEIR TARGETS, padded by the budget the op itself
+    declared acceptable (`within`).
+
+    That is the structural check `moved_mm` cannot give. `moved_mm` is local --
+    it says one part landed 8mm from its target. Zone containment says the
+    block stopped being a block. A plan whose parts all seated "successfully"
+    but scattered fails this and passes that.
+
+    Emitted for the ops that describe a SET with a shape (`place_array`,
+    `place_slots`, `place_pack`) plus `place_edge` bands and `place_lock`
+    refs. `place_at` and `place_relative` are deliberately not blocks: a
+    single part at a coordinate is a zone of one, which grades nothing that
+    `moved_mm` has not already reported, and a relative child's home is its
+    parent's pose rather than a rectangle.
+    """
+    bi = pcb_data.board_info
+    intent: Dict[str, Any] = {
+        'schema': 1, 'kind': 'floorplan-intent', 'units': 'mm',
+        'board': getattr(pcb_data, 'source_path', '') or '',
+        # `context` is the intent schema's read-only slot; an unknown
+        # top-level key is refused at load, deliberately, so provenance goes
+        # here rather than inventing a field.
+        'context': {
+            'compiled_by': 'plan_resolve.compile_intent',
+            'meaning': 'the zones are what the PLAN MEANT (built from each '
+                       'op target padded by that op own `within`), not what '
+                       'the board turned out to be -- an intent read off the '
+                       'result would grade clean by construction',
+        },
+    }
+    if bi.board_bounds is not None:
+        intent['envelope'] = {'rect': [round(v, 4) for v in bi.board_bounds],
+                              'tolerance_mm': tolerance_mm}
+
+    by_step: Dict[int, List[Seat]] = {}
+    for s in res.seats:
+        by_step.setdefault(s.step, []).append(s)
+
+    blocks: List[Dict] = []
+    edges: List[Dict] = []
+    locks: List[str] = []
+    for i, op in enumerate(ops, start=1):
+        action = op.get('action')
+        if action == 'place_lock':
+            locks.extend(op.get('refs') if isinstance(op.get('refs'), list)
+                         else [op.get('refs')])
+            continue
+        seats = by_step.get(i) or []
+        if action == 'place_edge':
+            oh = op.get('overhang')
+            oh = DEFAULT_EDGE_OVERHANG_MM if oh is None else float(oh)
+            for s in seats:
+                edges.append({'ref': s.ref, 'edge': op['edge'],
+                              'overhang_mm': {'min': 0.0,
+                                              'max': round(oh * 2.0, 4)}})
+            continue
+        if action not in ('place_array', 'place_slots', 'place_pack'):
+            continue
+        if not seats:
+            continue
+        pad = float(op.get('within') or 0.0) + tolerance_mm
+        x0 = y0 = float('inf')
+        x1 = y1 = float('-inf')
+        for s in seats:
+            part = state.parts.get(s.ref)
+            if part is None:
+                continue
+            # The courtyard AT THE TARGET, not at the seat: the zone has to
+            # describe the intent, or a part that drifted defines the box it
+            # is then graded against.
+            r = part.rect(s.target[0], s.target[1], s.pose[2])
+            x0, y0 = min(x0, r[0]), min(y0, r[1])
+            x1, y1 = max(x1, r[2]), max(y1, r[3])
+        if x0 > x1:
+            continue
+        if bi.board_bounds is not None:
+            # Clamped to the envelope, as emit_intent does: a zone poking
+            # outside the board is refused by intent_zone_outside_envelope,
+            # and a block whose members legitimately sit at the edge would
+            # otherwise make the intent contradict itself.
+            bx0, by0, bx1, by1 = bi.board_bounds
+            x0, y0 = max(x0 - pad, bx0), max(y0 - pad, by0)
+            x1, y1 = min(x1 + pad, bx1), min(y1 + pad, by1)
+        else:
+            x0, y0, x1, y1 = x0 - pad, y0 - pad, x1 + pad, y1 + pad
+        blocks.append({
+            'name': op.get('note') or f"{action}-{i}",
+            'refs': sorted(s.ref for s in seats),
+            'zone': [round(x0, 4), round(y0, 4),
+                     round(x1, 4), round(y1, 4)],
+            'tolerance_mm': tolerance_mm,
+        })
+    if blocks:
+        intent['blocks'] = blocks
+    if edges:
+        intent['edge_connectors'] = edges
+    if locks:
+        intent['must_lock'] = sorted(set(locks))
+    return intent
+
+
 def resolve(pcb_data, pcb_file: str, ops: Sequence[Dict], *,
             clearance: float = 0.25, board_edge_clearance: float = 0.55,
             grid_step: float = 0.1, state=None, deadline=None,

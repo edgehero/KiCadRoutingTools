@@ -37,7 +37,7 @@ from placement.cli_gates import add_board_state_args
 from placement.placement_state import UNPLACED_EXIT, gate_or_exit
 from placement.plan_ops import (PLACEMENT_PLAN_SCHEMA, PlanError,
                                 format_errors, parse_placement_plan)
-from placement.plan_resolve import resolve
+from placement.plan_resolve import compile_intent, resolve
 from placement.portfolio import copy_siblings
 from placement.writer import write_placed_output
 
@@ -60,6 +60,14 @@ Examples:
                    help="Output board (required unless --dry-run)")
     p.add_argument("--json", metavar="PATH",
                    help="Write the full seat/park report here")
+    p.add_argument("--emit-intent", metavar="PATH",
+                   help="Also compile the plan into a floorplan intent, so "
+                        "check_floorplan can grade the result against what "
+                        "the plan MEANT. Unlike check_floorplan --emit-intent "
+                        "(which reads one off a board and so grades clean by "
+                        "construction) this is built from the plan's targets, "
+                        "so a part that seated far from where it was asked to "
+                        "go fails zone containment")
     p.add_argument("--dry-run", action="store_true",
                    help="Resolve and report; write nothing")
     p.add_argument("--print-schema", action="store_true",
@@ -126,10 +134,14 @@ Examples:
     from krt_deadline import arm
     dl = arm(a.deadline, tool='place_plan')
 
+    import pose_score
+    st = pose_score.make_state(pcb, a.input_file, clearance=clearance,
+                               board_edge_clearance=edge,
+                               grid_step=a.grid_step)
     try:
         res = resolve(pcb, a.input_file, ops, clearance=clearance,
                       board_edge_clearance=edge, grid_step=a.grid_step,
-                      deadline=dl)
+                      state=st, deadline=dl)
     except PlanError as e:
         print(f"place_plan: {e}", file=sys.stderr)
         return 2
@@ -149,6 +161,15 @@ Examples:
             n = seeder.stamp_locked(a.output, res.lock_refs)
             print(f"Locked {n} footprint(s) in the output")
         print(f"Wrote {a.output}")
+
+    if a.emit_intent:
+        doc = compile_intent(res, st, pcb, ops)
+        with open(a.emit_intent, 'w', encoding='utf-8') as f:
+            json.dump(doc, f, indent=1, sort_keys=True)
+        print(f"Wrote {a.emit_intent} "
+              f"({len(doc.get('blocks') or [])} block(s)) -- grade with: "
+              f"python3 -X utf8 py_tools/check_floorplan.py "
+              f"{a.output or a.input_file} --intent {a.emit_intent}")
 
     report = {'schema': 1, 'kind': 'placement-plan-run',
               'board': os.path.abspath(a.input_file),
