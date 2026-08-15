@@ -184,9 +184,26 @@ if os.path.isfile(DENSE):
           f"vs {tot['lanes']}")
     check("and its fab-floor deficit is lower than at the board clearance",
           al.get('ran')
-          and al['measured']['deficit_lanes_now']
+          and al['measured']['deficit_lanes_at_fab_floor']
           <= al['measured']['deficit_lanes_at_board_clearance'],
           str(al['measured']))
+    # `_now` must mean AT THIS BOARD'S CLEARANCE. It used to mean "at the fab
+    # floor", which reported tigard as 0 deficit lanes while move_blocker, in
+    # the same document, named 23 faces in deficit -- and the false-clean
+    # action string ("no face is short of lanes") was reachable on any board
+    # whose fab floor is finer than its netclass.
+    check("`_now` means the board's own clearance, not the fab floor",
+          al.get('ran')
+          and al['measured']['deficit_lanes_now']
+          == al['measured']['deficit_lanes_at_board_clearance'],
+          f"now={al.get('measured', {}).get('deficit_lanes_now')} "
+          f"board={al.get('measured', {}).get('deficit_lanes_at_board_clearance')} "
+          f"fab={al.get('measured', {}).get('deficit_lanes_at_fab_floor')}")
+    check("and on THIS board the two genuinely differ, so that check bites",
+          al.get('ran')
+          and al['measured']['deficit_lanes_at_fab_floor']
+          != al['measured']['deficit_lanes_at_board_clearance'],
+          "if they were equal the assertion above would pass either way")
     if mb.get('ran') and mb['measured'].get('faces_in_deficit'):
         worst = mb['measured']['worst'][0]
         check("move_blocker converts lanes into MILLIMETRES of span",
@@ -205,11 +222,15 @@ if os.path.isfile(DENSE):
         check("add_layers discloses whether the two floors even differ",
               'floors_differ' in al['measured'], str(al['measured']))
         if not al['measured']['floors_differ']:
+            # FAB FLOOR to FAB FLOOR. `_now` is the board's own clearance now,
+            # so comparing it to `_at_more` (a fab-floor number) compares two
+            # different questions and fails on a board where the floor is
+            # finer than the netclass -- which is most of them.
             check("identical floors report NO lane gain from layers",
-                  al['measured']['deficit_lanes_now']
+                  al['measured']['deficit_lanes_at_fab_floor']
                   == al['measured']['deficit_lanes_at_more']
                   and 'buy NO extra lanes' in al['action'],
-                  f"{al['measured']['deficit_lanes_now']} -> "
+                  f"{al['measured']['deficit_lanes_at_fab_floor']} -> "
                   f"{al['measured']['deficit_lanes_at_more']}: {al['action']}")
     rc = dopts['relax_clearance']
     # NOT `if rc.get('ran'):`. That guard made this the only relax_clearance
@@ -255,6 +276,62 @@ with tempfile.TemporaryDirectory() as wd:
                '--only', 'make_it_bigger'],
               capture_output=True, text=True, cwd=REPO,
               timeout=300).returncode == 2)
+
+# --------------------------------------------------------------------------
+# grow_board: per SIDE, and a proposal that actually holds the parts
+# --------------------------------------------------------------------------
+OC = os.path.join(REPO, 'kicad_files', 'orangecrab_ext_pll.kicad_pcb')
+if os.path.isfile(OC):
+    ocb = parse_kicad_pcb(OC)
+    g = grow_board(ocb, OC, clearance=0.2, board_edge_clearance=0.5)
+    m = g['measured']
+    sides = m['part_area_by_side_mm2']
+    check("grow_board splits part area by SIDE", len(sides) >= 2, str(sides))
+    check("and the fixture really is two-sided, or the split proves nothing",
+          min(sides.values()) > 0, str(sides))
+    check("utilisation is the BUSIEST side, not the sum",
+          abs(m['utilisation']
+              - m['busiest_side_area_mm2'] / m['usable_area_mm2']) < 1e-3,
+          f"util {m['utilisation']} vs busiest/usable "
+          f"{m['busiest_side_area_mm2'] / m['usable_area_mm2']:.4f}")
+    # The regression this fixes: a SHIPPING board told it does not fit, with a
+    # recommendation to shrink it. Summing both sides against one side's area
+    # is what produced that.
+    check("a shipping two-sided board is not told it fails to fit",
+          g['fits_by_area'] is True,
+          f"util {m['utilisation']}, sides {sides}, usable "
+          f"{m['usable_area_mm2']}")
+    check("and summing the sides WOULD have failed it (the bug was real)",
+          sum(sides.values()) > m['usable_area_mm2'],
+          f"sum {sum(sides.values()):.1f} vs usable {m['usable_area_mm2']}")
+
+# The proposed square must actually hold the parts. It was
+# sqrt(outline_area + need) where `need` is a USABLE-area shortfall, so the
+# proposal's own usable area was still short -- 55.1mm square for parts
+# needing 2971.0mm2 yields 2920.3.
+import re as _re
+
+# Shrink the OUTLINE only. Scaling the file's (xy ...) shrinks the footprints
+# with it, so utilisation is unchanged and the board is not too small at all --
+# measured, that fixture reported fits=True and this branch skipped itself.
+tp = parse_kicad_pcb(SMALL)
+bx0, by0, bx1, by1 = tp.board_info.board_bounds
+tp.board_info.board_bounds = (bx0, by0, bx0 + (bx1 - bx0) / 3.0,
+                              by0 + (by1 - by0) / 3.0)
+tg = grow_board(tp, SMALL, clearance=0.2, board_edge_clearance=0.5)
+if tg.get('ran') and not tg['fits_by_area']:
+    side_mm = float(_re.search(r'about ([\d.]+) x', tg['action']).group(1))
+    edge = 0.5
+    usable_of_proposal = (side_mm - 2 * edge) ** 2
+    need = tg['measured']['busiest_side_area_mm2']
+    check("the proposed square's USABLE area actually holds the parts",
+          usable_of_proposal >= need - 1e-6,
+          f"{side_mm:.1f}mm square -> usable {usable_of_proposal:.1f} mm2 "
+          f"vs parts {need:.1f} mm2")
+else:
+    check("the too-small fixture is genuinely too small", False,
+          f"ran={tg.get('ran')} fits={tg.get('fits_by_area')} "
+          f"-- this branch must not be skipped silently: {tg.get('reason')}")
 
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

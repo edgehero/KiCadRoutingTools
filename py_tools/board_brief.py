@@ -125,7 +125,9 @@ def parts_section(pcb, pcb_file, skipped):
     part gets seated tighter than its own footprint allows (the quench warns
     about this on every board that needs it).
     """
+    from placement.legality import rotate_local_bounds
     from placement.parser import extract_courtyard_bboxes
+    from placement.utility import compute_footprint_bbox_local
     from placement.part_class import classify_part
     from placement.escape import lane_pitch  # noqa: F401 (documents origin)
 
@@ -136,16 +138,31 @@ def parts_section(pcb, pcb_file, skipped):
         pads = fp.pads or []
         box = cy.get(ref)
         if box:
-            w, h = box[2] - box[0], box[3] - box[1]
             src = 'courtyard'
         elif pads:
-            xs = [p.global_x for p in pads]
-            ys = [p.global_y for p in pads]
-            w, h = max(xs) - min(xs), max(ys) - min(ys)
+            # compute_footprint_bbox_local, NOT max(global_x) - min(global_x).
+            # The pad-CENTRE span omits the pads' own size, so a two-pad part
+            # measures ZERO width along its pad axis: esp_prog C1 (an 0603)
+            # reported [0.0, 1.778] where its real extent is 2.794 x 1.016,
+            # and the understatement reached 51% of total part area on that
+            # board -- a number grow_board's utilisation is computed from.
+            box = compute_footprint_bbox_local(fp)
             src = 'pad_bbox'
         else:
-            w = h = 0.0
+            box = None
             src = 'none'
+        if box is None:
+            w = h = 0.0
+        else:
+            # extract_courtyard_bboxes and compute_footprint_bbox_local BOTH
+            # return the footprint-LOCAL frame; the parser's own docstring
+            # says so ("must be transformed to global coordinates using the
+            # footprint's position and rotation"). Reporting them raw
+            # transposes every part on a 90/270 rotation -- 133 of 266 on
+            # glasgow_revC -- so `extent_mm` could not be fed to --fit WxH,
+            # whose `fit` section IS board-frame.
+            gx0, gy0, gx1, gy1 = rotate_local_bounds(*box, fp.rotation or 0.0)
+            w, h = gx1 - gx0, gy1 - gy0
         cls = classify_part(fp, ref)
         row = {'extent_mm': [round(w, 3), round(h, 3)],
                'extent_source': src,

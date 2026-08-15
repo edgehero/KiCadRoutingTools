@@ -104,33 +104,56 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
     total = 0.0
     from_courtyard = from_pads = no_geometry = 0
     biggest = []
+    from placement.legality import rotate_local_bounds
+    from placement.utility import compute_footprint_bbox_local
+    per_side = {'F.Cu': 0.0, 'B.Cu': 0.0}
     for ref, fp in sorted(pcb_data.footprints.items()):
         box = cy.get(ref)
         if box:
-            w, h = box[2] - box[0], box[3] - box[1]
             from_courtyard += 1
         elif fp.pads:
-            xs = [p.global_x for p in fp.pads]
-            ys = [p.global_y for p in fp.pads]
-            w, h = max(xs) - min(xs), max(ys) - min(ys)
+            # NOT max(global_x) - min(global_x): the pad-CENTRE span omits the
+            # pads' own size, so a two-pad part measures ZERO width along its
+            # pad axis (esp_prog C1: [0.0, 1.778] against a real 2.794x1.016)
+            # and the sum understated total part area by 51% on that board.
+            box = compute_footprint_bbox_local(fp)
             from_pads += 1
         else:
             no_geometry += 1
             continue
+        # Both sources are footprint-LOCAL; rotate into board space or every
+        # 90/270 part is transposed.
+        gx0, gy0, gx1, gy1 = rotate_local_bounds(*box, fp.rotation or 0.0)
+        w, h = gx1 - gx0, gy1 - gy0
         # Each part also needs clearance around it; charging half the
         # clearance per side is what makes the sum comparable to the usable
         # area rather than to the parts' bare footprints.
         a = (w + clearance) * (h + clearance)
         total += a
+        layer = getattr(fp, 'layer', None) or 'F.Cu'
+        per_side[layer] = per_side.get(layer, 0.0) + a
         biggest.append((round(a, 2), ref))
     biggest.sort(reverse=True)
 
-    util = (total / usable) if usable > 0 else float('inf')
-    fits = total <= usable
+    # Utilisation is PER SIDE. Summing both sides against one side's usable
+    # area is why this told the shipping OrangeCrab it does not fit and
+    # recommended shrinking a working board: front 899mm2 (0.83 of usable) and
+    # back 283mm2 (0.26) both fit comfortably, while their sum did not. A part
+    # on B.Cu does not compete for F.Cu area.
+    busiest = max(per_side.values()) if per_side else 0.0
+    util = (busiest / usable) if usable > 0 else float('inf')
+    fits = busiest <= usable
     out = {
         'ran': True,
         'measured': {
             'part_area_mm2': round(total, 2),
+            # Both sides, and the one utilisation is computed from. Reported
+            # because `part_area_mm2` alone cannot be checked against
+            # `utilisation` on a two-sided board, and a reader who tries will
+            # conclude the number is wrong.
+            'part_area_by_side_mm2': {k: round(v, 2)
+                                      for k, v in sorted(per_side.items())},
+            'busiest_side_area_mm2': round(busiest, 2),
             'usable_area_mm2': round(usable, 2),
             'outline_area_mm2': round((x1 - x0) * (y1 - y0), 2),
             'utilisation': round(util, 4),
@@ -145,14 +168,23 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
         'fits_by_area': fits,
     }
     if not fits:
-        need = total - usable
+        need = busiest - usable
         # Square-ish growth is the cheapest way to state it; a real outline
         # change is a mechanical decision and this does not pretend otherwise.
-        side = math.sqrt(max(0.0, (x1 - x0) * (y1 - y0) + need))
+        #
+        # The side must be solved for USABLE area, not outline area. It was
+        # sqrt(outline_area + need), where `need` is a usable-area shortfall --
+        # so the proposed board's usable area, (side - 2*edge)^2, was still
+        # short. Measured: it proposed 55.1mm square for parts needing
+        # 2971.0mm2 usable, which yields 2920.3 -- still 50.7mm2 under. A
+        # square whose USABLE area holds the parts has side sqrt(busiest)
+        # plus the edge clearance it loses on each side.
+        side = math.sqrt(max(0.0, busiest)) + 2.0 * board_edge_clearance
         out['measured']['shortfall_mm2_at_least'] = round(need, 2)
         out['action'] = (
             f"the parts need AT LEAST {need:.1f} mm2 more usable area than "
-            f"this outline has ({total:.1f} vs {usable:.1f} mm2). A square "
+            f"this outline has ({busiest:.1f} vs {usable:.1f} mm2 on the "
+            f"busiest side). A square "
             f"board holding them would be about {side:.1f} x {side:.1f} mm "
             f"against today's {x1 - x0:.1f} x {y1 - y0:.1f}. The outline is a "
             f"mechanical decision: this reports it and changes nothing.")
@@ -225,8 +257,15 @@ def add_layers(pcb_data, pcb_file: str, *, clearance: float,
             'floor_now': {k: now.get(k) for k in ('track_width', 'clearance')},
             'floor_at_more': {k: more.get(k)
                               for k in ('track_width', 'clearance')},
-            'deficit_lanes_now': d_now['lanes'],
-            'deficit_parts_now': d_now['parts'],
+            # `_now` means AT THIS BOARD'S CLEARANCE -- what the board is
+            # actually short of today. It used to mean "at the fab floor for
+            # this layer count", which reported tigard as 0 while
+            # move_blocker, in the same document, named 41 deficit lanes.
+            # Two different questions cannot share the word "now".
+            'deficit_lanes_now': d_board['lanes'],
+            'deficit_parts_now': d_board['parts'],
+            'deficit_lanes_at_fab_floor': d_now['lanes'],
+            'deficit_parts_at_fab_floor': d_now['parts'],
             'deficit_lanes_at_more': d_more['lanes'],
             'deficit_parts_at_more': d_more['parts'],
             'deficit_lanes_at_board_clearance': d_board['lanes'],
@@ -245,9 +284,13 @@ def add_layers(pcb_data, pcb_file: str, *, clearance: float,
             f"layers buy NO extra lanes on a face. They would only help by "
             f"letting nets escape on the new layers instead, which needs a "
             f"routing attempt to measure.")
-    elif d_now['lanes'] == 0:
-        out['action'] = ('no face is short of lanes at this layer count, so '
-                         'more layers would not fix an escape problem')
+    elif d_board['lanes'] == 0:
+        # Judged at the BOARD's clearance, not the fab floor. At the floor
+        # this read 0 on boards with 41 deficit lanes and printed the
+        # false-clean below.
+        out['action'] = ("no face is short of lanes at this board's "
+                         "clearance, so more layers would not fix an escape "
+                         "problem")
     elif gain > 0:
         out['action'] = (
             f"going from {n} to {n + step} copper layers takes the fab floor "

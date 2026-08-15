@@ -216,5 +216,56 @@ with tempfile.TemporaryDirectory() as wd:
     check("the CLI resolves floors without an explicit --clearance",
           'Traceback' not in r.stderr, r.stderr[-400:])
 
+# --------------------------------------------------------------------------
+# extent_mm is BOARD-FRAME and includes the pads' own size
+#
+# Two defects that shipped together, both silent:
+#   * the pad fallback measured max(global_x) - min(global_x), i.e. pad
+#     CENTRES, so a two-pad part had ZERO width along its pad axis;
+#   * both geometry sources return the footprint-LOCAL frame and nothing
+#     rotated them, so every 90/270 part was transposed.
+# The brief's own `fit` section IS board-frame, so `extent_mm` could not be
+# fed to --fit WxH for half a board -- and the understated area fed
+# grow_board's utilisation.
+# --------------------------------------------------------------------------
+from placement.legality import rotate_local_bounds
+from placement.parser import extract_courtyard_bboxes
+from placement.utility import compute_footprint_bbox_local
+
+for _bd in (BOARD, os.path.join(REPO, 'kicad_files', 'esp_prog.kicad_pcb')):
+    if not os.path.isfile(_bd):
+        continue
+    _pcb = parse_kicad_pcb(_bd)
+    _brief = build_brief(_pcb, _bd)
+    _cy = extract_courtyard_bboxes(_bd) or {}
+    bad, rotated, twopad = [], 0, 0
+    for _ref, _row in _brief['parts'].items():
+        _fp = _pcb.footprints.get(_ref)
+        if _fp is None or _row['extent_source'] == 'none':
+            continue
+        _box = _cy.get(_ref) or compute_footprint_bbox_local(_fp)
+        _g = rotate_local_bounds(*_box, _fp.rotation or 0.0)
+        want = [round(_g[2] - _g[0], 3), round(_g[3] - _g[1], 3)]
+        if want != _row['extent_mm']:
+            bad.append((_ref, _row['extent_mm'], want))
+        if (_fp.rotation or 0.0) % 180 not in (0.0,):
+            rotated += 1
+        if len(_fp.pads or ()) == 2 and _row['extent_source'] == 'pad_bbox':
+            twopad += 1
+            if min(_row['extent_mm']) <= 0.0:
+                bad.append((_ref, _row['extent_mm'], 'zero-width two-pad part'))
+    name = os.path.basename(_bd)
+    check(f"{name}: every extent matches the canonical board-frame bbox",
+          not bad, f"{len(bad)} mismatch(es): {bad[:3]}")
+    check(f"{name}: the fixture has rotated parts, so the frame check bites",
+          rotated > 0, f"{rotated} part(s) at a non-0/180 rotation")
+
+_ep = os.path.join(REPO, 'kicad_files', 'esp_prog.kicad_pcb')
+if os.path.isfile(_ep):
+    _b = build_brief(parse_kicad_pcb(_ep), _ep)
+    c1 = _b['parts'].get('C1', {}).get('extent_mm')
+    check("esp_prog C1 (an 0603) has real width on both axes",
+          c1 and min(c1) > 0.5, f"{c1} -- it used to read [0.0, 1.778]")
+
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
