@@ -828,8 +828,13 @@ class _Resolver:
             frac = (k + 1) / (n + 1)
             tx, ty = seeder._edge_pose(self.st.parts[ref], self.st.board,
                                        op['edge'], frac, overhang)
+            # Pass the SAME exclude set every other seat uses. The `set()`
+            # that used to sit here landed in the `must_lock` slot, which
+            # _seat_edge ignores -- so the pile was a full obstacle set and
+            # vetoed the honest edge poses, sliding the part along the edge.
             ok = seeder._seat_edge(self.st, ref, entry, set(),
-                                   self.res.notes, target=(tx, ty))
+                                   self.res.notes, target=(tx, ty),
+                                   exclude=self.pending - {ref})
             if ok:
                 self.pending.discard(ref)
                 p = self.st.parts[ref]

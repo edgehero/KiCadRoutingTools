@@ -372,18 +372,30 @@ def _edge_pose(part, bounds, edge: str, frac: float, overhang: float
 
 
 def _edge_correct(state, ref: str, edge: str, x: float, y: float,
-                  target: float) -> Tuple[float, float]:
+                  target: float) -> Tuple[float, float, bool]:
     """Walk the pose along the edge normal until the MEASURED overhang hits
     `target`. The analytic pose measures against the bounding box, but the
     grade's rule_edge_connector measures rect_outside_amount against the real
     Edge.Cuts rings -- on a non-rectangular outline the two differ by the
     local inset, and a seed placed by the bbox grades over its declared band
-    (measured on splitflap: 4 connectors 0.1-0.2mm past their max)."""
+    (measured on splitflap: 4 connectors 0.1-0.2mm past their max).
+
+    Returns (x, y, converged). **The third element is not decoration.** This
+    walk moves along ONE axis while `rect_outside_amount` is a SUM over all
+    four sides (`legality.py:438-448`), so any along-edge overshoot is a
+    constant term the walk cannot cancel -- it subtracts it again every
+    iteration and marches the part inland past the far edge. Measured on a
+    41.16mm connector on a 50.8mm edge: frac 0.70 -> y 88.767 (off the
+    opposite side), frac 0.90 -> y -2.443. It used to return that pose
+    indistinguishably from a converged one, and the caller seated it.
+    """
     part = state.parts[ref]
+    converged = False
     for _ in range(4):
         amt = state.edge_gate.rect_outside_amount(part.rect(x, y, part.rot))
         err = target - amt
         if abs(err) < 0.02:
+            converged = True
             break
         if edge == 'north':
             y -= err
@@ -393,11 +405,38 @@ def _edge_correct(state, ref: str, edge: str, x: float, y: float,
             x -= err
         else:
             x += err
-    return x, y
+    else:
+        # Ran out of iterations. One last measurement decides it -- a walk
+        # that happened to land on its target on the final step is converged.
+        amt = state.edge_gate.rect_outside_amount(part.rect(x, y, part.rot))
+        converged = abs(target - amt) < 0.02
+    return x, y, converged
+
+
+def _edge_frac_bounds(part, bounds, edge: str) -> Tuple[float, float]:
+    """The fractions along `edge` at which the part is still ON the board.
+
+    `_edge_pose` places the part's CENTRE at `frac` along the edge's own span,
+    and the old clamp was a bare [0.05, 0.95] that knew nothing of the part's
+    width -- so a 41.16mm connector on a 50.8mm edge was slid to frac 0.70 and
+    hung 5.34mm past the end while reporting a seat. Only
+    [0.203, 0.797] keeps that part on the board.
+
+    Returns (lo, hi); lo > hi means the part is wider than the edge, which is
+    a real answer and the caller must treat it as "no legal fraction".
+    """
+    lx0, ly0, lx1, ly1 = part.rect(0.0, 0.0, part.rot)
+    x0, y0, x1, y1 = bounds
+    if edge in ('north', 'south'):
+        span, a, b = (x1 - x0), lx0, lx1
+    else:
+        span, a, b = (y1 - y0), ly0, ly1
+    span = max(1e-9, span)
+    return (-a) / span, 1.0 - (b / span)
 
 
 def _seat_edge(state, ref: str, entry: Dict, must_lock: Set[str],
-               notes: List[str], target=None) -> bool:
+               notes: List[str], target=None, exclude=None) -> bool:
     """Seat a DECLARED edge part on its edge band, minimal-move (run-4 B-6).
 
     Repair could never do this: `_try_place._ok` demands full containment,
@@ -423,26 +462,74 @@ def _seat_edge(state, ref: str, entry: Dict, must_lock: Set[str],
         cur = (ax - x0) / max(1e-9, (x1 - x0))
     else:
         cur = (ay - y0) / max(1e-9, (y1 - y0))
-    cur = min(0.95, max(0.05, cur))
+
+    # Clamp by the part's OWN half-extent, not a bare [0.05, 0.95]. A part
+    # wider than its edge has no legal fraction at all; say so rather than
+    # sliding it off the end and reporting a seat.
+    f_lo, f_hi = _edge_frac_bounds(part, state.board, edge)
+    if f_lo > f_hi:
+        notes.append(f"{ref}: is wider than the {edge} edge "
+                     f"({f_lo:.2f} > {f_hi:.2f} of its span), so no along-edge "
+                     f"position keeps it on the board")
+        return False
+    cur = min(f_hi, max(f_lo, cur))
+
+    # The declared band. `hi` None means "no stated maximum" -- allow twice the
+    # midpoint target, which is what `overhang` was derived from, rather than
+    # allowing anything.
+    hi_eff = float(hi) if hi is not None else max(2.0 * overhang, lo + 1.0)
 
     ctx = state.legality_ctx
+    ex = set(exclude or ())
 
     def conflict_free(px, py):
         if ctx is None:
             return True
         for other in ctx.parts:
-            if other == ref or other not in state.parts:
+            # `ex` is the pile: parts whose input coordinates are meaningless.
+            # Without it a pile at the board centre vetoes the honest edge
+            # poses and the loop SLIDES the part along the edge until one is
+            # "free" -- measured, that is how a connector reached frac 0.70
+            # and hung off the end.
+            if other == ref or other in ex or other not in state.parts:
                 continue
             sf = ctx.pair_shortfall(ref, other, pose_a=(px, py, part.rot))
             if sf.pad > 1e-6 or sf.hole > 1e-6:
                 return False
         return True
 
+    bx0, by0, bx1, by1 = state.board
+
+    def on_board(px, py):
+        """The measured overhang must sit in the DECLARED band, AND the part
+        must still be on the board.
+
+        This is the containment check the edge path never had: an edge seat
+        is the one seat in the system that ran neither `pose_ok` (it must
+        overhang, so full containment is wrong) nor a clearance ladder. The
+        band quantity is the same one `floorplan.rule_edge_connector` grades
+        on, so a seat accepted here cannot be a violation there.
+
+        The band ALONE is not enough, which is why the overlap test is here
+        too: a band is a declaration, and a nonsense declaration (a 20mm
+        overhang on a 3mm-tall connector) is satisfiable by a part sitting
+        entirely off the board. Overlap is the invariant that does not depend
+        on the author getting the band right.
+        """
+        r = part.rect(px, py, part.rot)
+        if min(r[2], bx1) - max(r[0], bx0) <= 0 or \
+                min(r[3], by1) - max(r[1], by0) <= 0:
+            return False
+        amt = state.edge_gate.rect_outside_amount(r)
+        return (lo - 0.02) <= amt <= (hi_eff + 0.02)
+
     for df in (0.0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15,
                0.2, -0.2, 0.3, -0.3, 0.4, -0.4):
-        frac = min(0.95, max(0.05, cur + df))
+        frac = min(f_hi, max(f_lo, cur + df))
         x, y = _edge_pose(part, state.board, edge, frac, overhang)
-        x, y = _edge_correct(state, ref, edge, x, y, overhang)
+        x, y, converged = _edge_correct(state, ref, edge, x, y, overhang)
+        if not converged or not on_board(x, y):
+            continue
         if conflict_free(x, y):
             state.apply_move(ref, round(x, 3), round(y, 3), part.rot)
             return True
@@ -600,9 +687,28 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
             lo = float(band.get('min', 0.0))
             hi = band.get('max')
             overhang = (lo + float(hi)) / 2.0 if hi is not None else max(lo, 0.5)
+            # Even distribution, but clamped by the part's own half-extent:
+            # 3 connectors on one edge get fracs 0.25/0.5/0.75, and a wide
+            # part at 0.25 hangs off the end. This stage runs no legality
+            # gate at all (by design), so nothing downstream would catch it.
+            f_lo, f_hi = _edge_frac_bounds(part, bounds, edge)
             frac = (k + 1) / (len(specs) + 1)
+            if f_lo > f_hi:
+                notes.append(f"edge connector {ref}: wider than the {edge} "
+                             f"edge, so stage 1 leaves it to the later stages")
+                continue
+            frac = min(f_hi, max(f_lo, frac))
             x, y = _edge_pose(part, bounds, edge, frac, overhang)
-            x, y = _edge_correct(state, ref, edge, x, y, overhang)
+            x, y, converged = _edge_correct(state, ref, edge, x, y, overhang)
+            if not converged:
+                # The walk diverged (it drives a scalar SUM along one axis, so
+                # an along-edge overshoot never cancels). It used to
+                # apply_move unconditionally, which is how a diverged stage-1
+                # seat reached the board silently.
+                notes.append(f"edge connector {ref}: the overhang walk did "
+                             f"not converge on the {edge} edge, so stage 1 "
+                             f"left it for the later stages")
+                continue
             state.apply_move(ref, round(x, 3), round(y, 3), part.rot)
             placed.add(ref)
             unplaced.discard(ref)
