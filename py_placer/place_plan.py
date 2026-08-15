@@ -102,25 +102,22 @@ Examples:
     gate_or_exit(pcb, a.input_file, 'place_plan', allow_unplaced=True,
                  allow_routed=a.allow_routed)
 
-    floors = {}
+    # Board-first, never a guessed round number: an unset knob resolves from
+    # this board's own Default netclass / min_copper_edge_clearance, and
+    # `knobs` records which. Grading or seating at a constant tighter than the
+    # board's own floor manufactures violations, and a looser one hides them.
     try:
         from list_nets import board_floor_knobs
-        floors = board_floor_knobs(
+        clearance, edge, floor_knobs = board_floor_knobs(
             a.input_file, clearance=a.clearance,
-            board_edge_clearance=a.board_edge_clearance) or {}
-    except Exception:
-        floors = {}
-
-    def _floor(name, fallback):
-        v = floors.get(name)
-        if isinstance(v, dict):
-            v = v.get('value')
-        return fallback if v is None else float(v)
-
-    clearance = a.clearance if a.clearance is not None \
-        else _floor('clearance', 0.25)
-    edge = a.board_edge_clearance if a.board_edge_clearance is not None \
-        else _floor('board_edge_clearance', 0.55)
+            board_edge_clearance=a.board_edge_clearance)
+    except Exception as e:                       # noqa: BLE001 - disclosed
+        clearance = 0.25 if a.clearance is None else a.clearance
+        edge = 0.55 if a.board_edge_clearance is None \
+            else a.board_edge_clearance
+        floor_knobs = {'error': f"{type(e).__name__}: {e}"}
+        print(f"  NOTE: could not read this board's floors ({e}); using "
+              f"clearance {clearance}, edge {edge}")
 
     dl = None
     if a.deadline:
@@ -155,6 +152,7 @@ Examples:
               'board': os.path.abspath(a.input_file),
               'output': os.path.abspath(a.output) if a.output else None,
               'clearance': clearance, 'board_edge_clearance': edge,
+              'floors': floor_knobs,
               'seats': [x.to_dict() for x in res.seats],
               'parks': [x.to_dict() for x in res.parks],
               'notes': res.notes, 'lock_refs': res.lock_refs,
