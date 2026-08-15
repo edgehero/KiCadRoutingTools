@@ -501,6 +501,11 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
     placed: Set[str] = set()
     unplaced: Set[str] = {r for r, p in state.parts.items()}
     unseated: List[str] = []
+    # Parts a budget ran out before REACHING. Never `unseated`: a search that
+    # never ran has measured nothing, and reporting it as a failure is a
+    # verdict nobody earned. Declared here because the zone stage can fill it
+    # too, long before stage 3.
+    deadline_skipped: List[str] = []
     # ref -> (target_x, target_y, constraint_rect, tol) for the seat that
     # failed. The eviction rung (3c) retries at exactly the target the part
     # was refused at; a rung that re-derived one would be answering a
@@ -584,12 +589,14 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
         tol = intent.zone_tolerance(z) if z is not None else 0.5
         info: Dict = {}
         clr = _try_place(state, ref, part.x, part.y, unplaced - {ref},
-                         constraint=rect, tol=tol, info=info)
+                         constraint=rect, tol=tol, info=info,
+                         deadline=deadline)
         if clr is None and z is not None:
             zx = (z.rect[0] + z.rect[2]) / 2.0
             zy = (z.rect[1] + z.rect[3]) / 2.0
             clr = _try_place(state, ref, zx, zy, unplaced - {ref},
-                             constraint=rect, tol=tol, info=info)
+                             constraint=rect, tol=tol, info=info,
+                             deadline=deadline)
         if clr is not None:
             placed.add(ref)
             unplaced.discard(ref)
@@ -649,11 +656,30 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
         cy = (z.rect[1] + z.rect[3]) / 2.0
         tol = intent.zone_tolerance(z)
         for ref in members:
+            # The zone stage was UNBOUNDED. `seed_from_intent`'s contract says
+            # the deadline is checked "between parts in the connectivity-
+            # centroid stage (the only unbounded one -- stages 1/1.5/2 are
+            # O(declared entries))", and the entry COUNT is indeed bounded --
+            # but each entry pays a full `_try_place` ladder, so on a board
+            # whose intent zones every part (run 19's urchin: 85 refs in two
+            # half-blocks) the whole run is stage 2 and the clock never got a
+            # chance to fire. Measured: a 30s budget ran past 200s.
+            if deadline is not None and deadline.expired():
+                for r in members[members.index(ref):]:
+                    if r in unplaced and r not in deadline_skipped:
+                        deadline_skipped.append(r)
+                notes.append(
+                    f"deadline reached in zone {name!r}; "
+                    f"{len(deadline_skipped)} part(s) left at their input "
+                    f"poses and reported in deadline_skipped (NOT unseated -- "
+                    f"they were never tried)")
+                break
             jx, jy = (0.0, 0.0) if len(members) == 1 else _jitter()
             rot_before = state.parts[ref].rot
             zinfo: Dict = {}
             clr = _try_place(state, ref, cx + jx, cy + jy, unplaced - {ref},
-                             constraint=z.rect, tol=tol, info=zinfo)
+                             constraint=z.rect, tol=tol, info=zinfo,
+                             deadline=deadline)
             if clr is not None:
                 placed.add(ref)
                 unplaced.discard(ref)
@@ -804,10 +830,10 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
                      f"{thr:.2f}mm) seed before {len(unplaced) - len(anchors)}"
                      f" small(s): {', '.join(anchors)}")
         queue = anchors + [r for r in queue if r not in set(anchors)]
-    deadline_skipped: List[str] = []
     for _qi, ref in enumerate(queue):
         if deadline is not None and deadline.check('seed'):
-            deadline_skipped = list(queue[_qi:])
+            deadline_skipped.extend(r for r in queue[_qi:]
+                                    if r not in deadline_skipped)
             notes.append(
                 f"deadline reached after {_qi}/{len(queue)} part(s); "
                 f"{len(deadline_skipped)} left at their input poses and "
@@ -884,6 +910,17 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
             if ref not in unseated_ctx or ref not in state.parts:
                 still.append(ref)
                 continue
+            # Checked between PARTS, like the stage-3 queue: one census is
+            # `1 + candidates` bounded sweeps, so the grain is fine enough,
+            # and a rung that overran its budget would be adding unbounded
+            # work to the one path that had none.
+            if deadline is not None and deadline.expired():
+                still.extend(r for r in list(unseated)
+                             if r not in seen and r not in placed)
+                notes.append(
+                    f"eviction rung: deadline reached; {len(still)} part(s) "
+                    f"left uncensused (their bare verdict stands)")
+                break
             tx, ty, constraint, tol = unseated_ctx[ref]
             base_excl = unplaced - {ref}
             baseline = count_legal_poses(state, ref, tx, ty, base_excl)

@@ -421,6 +421,15 @@ Examples:
             return UNPLACED_EXIT
 
     rng = random.Random(f"{args.seed}")
+    # A CLOCK ON THE PLAIN SEED PATH. `--deadline` was accepted here and
+    # threaded only into the --repair/--reseat branch, so a plain seed ran
+    # unbounded while its own help text promised otherwise -- measured: a
+    # 2400s budget on an 85-part pile ran past 50 minutes without firing.
+    # The eviction rung makes that worse, not better: it adds a census sweep
+    # per unseated part to the one path with no budget at all.
+    import krt_deadline
+    _seed_dl = krt_deadline.arm(args.deadline, tool='place_seed')
+    _seed_prog = krt_deadline.stdout_progress(deadline=_seed_dl)
     result = seeder.seed_from_intent(
         pcb, args.input_file, intent, rng, group_sources=sources,
         clearance=args.clearance,
@@ -428,7 +437,8 @@ Examples:
         grid_step=args.grid_step, seed_refs=seed_refs,
         anchors_first=args.anchors_first,
         anchor_rounds=args.anchor_rounds,
-        evict_depth=args.evict_depth)
+        evict_depth=args.evict_depth,
+        deadline=_seed_dl, progress=_seed_prog)
     for note in result['notes']:
         print(f"  NOTE: {note}")
     print(f"Seeded {len(result['placements'])} part(s); "
@@ -547,6 +557,15 @@ Examples:
                         if after.get('hpwl') is not None else None),
                'output': args.output_file}
     print("JSON_SUMMARY: " + json.dumps(summary, sort_keys=True))
+    if not result.get('complete', True):
+        # A budget that ran out is NOT a graded failure: the parts in
+        # `deadline_skipped` were never tried, and reporting them as unseated
+        # would be a measurement nobody made.
+        print(f"place_seed: the deadline expired with "
+              f"{len(result.get('deadline_skipped') or [])} part(s) never "
+              f"tried -- they are in deadline_skipped, NOT unseated. The "
+              f"partial seed was written.", file=sys.stderr)
+        return krt_deadline.DEADLINE_EXIT
     if result['unseated'] or graded.errors:
         print("place_seed: the seed does NOT satisfy its intent -- see the "
               "errors above. It was still written, for inspection.",
