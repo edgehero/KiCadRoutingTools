@@ -1315,7 +1315,11 @@ def plan_target_refs(pcb_data, pcb_file, state, ops) -> Tuple[Set[str], List[str
             except Exception as e:                       # noqa: BLE001
                 unresolved.append(f"step {i + 1} ({action}): {e}")
             continue
-        if action in ('place_keepout',):
+        # place_lock PINS a part; it never seats one. Collecting its refs as
+        # targets would exclude them from the obstacle set -- so locking a
+        # part made it INVISIBLE and the next op could seat on top of it,
+        # which is precisely backwards. place_keepout names no parts at all.
+        if action in ('place_keepout', 'place_lock'):
             continue
         for key in ('ref', 'refs', 'of', 'for'):
             value = op.get(key)
