@@ -34,6 +34,13 @@ _EXCLUDE = {'run_all.py', 'run_utils.py', 'run_doc_examples.py', 'conftest.py', 
 
 _INTEGRATION_MARKERS = ('import run_utils', 'from run_utils', 'subprocess')
 
+# A test exits with this when it CANNOT run -- a fixture it needs is absent --
+# as distinct from passing. 77 is the autotools convention. Before this, a test
+# that printed "SKIP: ..." and exited 0 was indistinguishable from a green one,
+# which is how a headline acceptance test reported PASS on every clone while
+# asserting nothing. A self-skip gets its own bucket and never counts as a pass.
+SKIP_EXIT = 77
+
 
 def is_integration(path: str) -> bool:
     try:
@@ -122,15 +129,32 @@ def main():
                                 f'{args.timeout:.0f}s -- NOT a failed '
                                 f'assertion; re-run it alone before treating '
                                 f'it as one)')
+        if r.returncode == SKIP_EXIT:
+            # A test that cannot run (a fixture it needs is absent) must not
+            # report PASS. Before this existed, `sys.exit(0)` after printing
+            # "SKIP: ..." was indistinguishable from a green run -- which is
+            # how the placement branch's headline acceptance test reported
+            # PASS on every clone while asserting nothing, for weeks.
+            why = ''
+            for line in (r.stdout or '').splitlines():
+                if line.strip().upper().startswith('SKIP'):
+                    why = line.strip()
+                    break
+            return name, 'skip', f'SKIP  {name}  ({why or "self-skipped"})'
         if r.returncode == 0:
             return name, True, f'PASS  {name}'
         tail = (r.stdout or '')[-800:] + (r.stderr or '')[-800:]
         return name, False, f'FAIL  {name}  (exit {r.returncode})\n{tail}'
 
     timed_out = []
+    self_skipped = []
 
     def record(name, ok, line):
-        if ok is None:
+        if ok == 'skip':
+            # NOT a pass and NOT a timeout: the test declined to run. Kept in
+            # its own bucket so the summary cannot read as green.
+            self_skipped.append(name)
+        elif ok is None:
             timed_out.append(name)
         elif ok:
             passed.append(name)
@@ -154,8 +178,14 @@ def main():
     # gets its own bucket and never joins the exit-deciding `failed` count on
     # its own -- but the exit code still goes non-zero, because an unfinished
     # suite is not a green one.
+    if self_skipped:
+        print(f'\nSELF-SKIPPED ({len(self_skipped)}) -- these asserted '
+              f'NOTHING; they are not passes:')
+        for n in self_skipped:
+            print(f'  {n}')
     print(f'\n{len(passed)} passed, {len(failed)} failed, '
-          f'{len(timed_out)} timed out, {len(skipped)} skipped in {dt:.1f}s')
+          f'{len(timed_out)} timed out, {len(skipped)} skipped '
+          f'(+{len(self_skipped)} self-skipped) in {dt:.1f}s')
     if failed:
         print('Failed: ' + ', '.join(failed))
     if timed_out:

@@ -60,8 +60,17 @@ def check(name, ok, detail=""):
 
 
 if not os.path.isfile(BOARD):
-    print("SKIP: wk/run19/urchin/base.kicad_pcb absent (wk/ is gitignored)")
-    sys.exit(0)
+    # EXIT 77, not 0. `wk/` is gitignored and this board is untracked, so on
+    # every clone but the one that produced it this file asserts nothing --
+    # and `run_all.py` used to map exit 0 to PASS, so it reported a green
+    # headline acceptance result on machines where it had never run. 77 is the
+    # runner's SKIP code: counted in its own bucket, never as a pass.
+    # tests/test_unaided_acceptance.py is the TRACKED end-to-end gate; this
+    # one stays as the richer measurement for anyone who has the board.
+    print("SKIP: wk/run19/urchin/base.kicad_pcb absent (wk/ is gitignored, "
+          "and this board is untracked -- see tests/test_unaided_acceptance.py "
+          "for the tracked equivalent)")
+    sys.exit(77)
 
 # The whole arrangement. Compare with arrange.py: no pitch multiplication, no
 # mirror arithmetic, no probed constants, no ordering loop.

@@ -7,12 +7,15 @@ This is the falsification point for "an AI can place a board without human hand
 placement". Everything it needs is tracked: the board, its project, and the
 plan. Nothing here reads the original placement.
 
-WHY IT REPLACES `test_place_plan_urchin.py`, which measured a better thing and
-measured it nowhere: that test needs `wk/run19/urchin/base.kicad_pcb`, `wk/` is
-gitignored, and the board is untracked. On every clone but one it prints SKIP
-and exits 0 -- and `run_all.py:125` maps exit 0 to PASS. The branch's headline
-acceptance evidence has therefore never run in CI. So the first thing this file
-does is FAIL, loudly, if its fixture is missing.
+WHY IT EXISTS ALONGSIDE `test_place_plan_urchin.py`, which measures a richer
+thing and measures it nowhere: that test needs `wk/run19/urchin/base.kicad_pcb`,
+`wk/` is gitignored, and the board is untracked, so on every clone but one it
+skips. It used to skip by exiting 0, which `run_all.py` read as PASS -- a green
+headline acceptance result on machines where it had never run. That is now
+`sys.exit(77)` and the runner has a self-skipped bucket, so it reports honestly;
+the urchin test is kept for anyone who has the board. This file is the TRACKED
+equivalent, and the first thing it does is FAIL, loudly, if its fixture is
+missing.
 
 TWO THINGS THIS GATE DOES NOT CLAIM, both measured rather than assumed:
 
@@ -30,10 +33,11 @@ TWO THINGS THIS GATE DOES NOT CLAIM, both measured rather than assumed:
     rows; this file's job is that the LOOP closes and keeps closing.
 
 The off-outline baseline is the other lesson. `HOLE1-6` and `J1` hang off the
-outline **in the source board too** (identical courtyard amounts, measured), so
-asserting `off_outline == []` would fail on correct work. Baseline against the
-source; assert only that PAD COPPER is clean, which is the defect that converts
-1:1 into unrouted nets.
+outline **in the source board too** (0.69 / 1.38 / 9.347mm respectively), so
+asserting `off_outline == []` would fail on correct work. The comparison below
+is over the SET OF REFS, not the amounts -- it catches a part the plan pushed
+off the outline, not a part that moved further off. Assert additionally that
+PAD COPPER is clean, which is the defect that converts 1:1 into unrouted nets.
 
 WHAT THIS GATE IS SENSITIVE TO, established by fault injection rather than
 hope:
@@ -43,11 +47,16 @@ hope:
     it does detect a real legality regression.
   * disabling ONLY the containment conjunct of `pose_ok` -> **stays green**.
     Every target in this plan is comfortably interior, so nothing moves. That
-    is a genuine blind spot of THIS fixture+plan pair, not of the checks: a
-    containment regression needs a part whose target is near an edge, which is
-    what the `place_edge` row's own test provides. Recorded here so the next
-    person does not read a green run as "containment is covered".
+    is a genuine blind spot of THIS fixture+plan pair, not of the checks.
+    The coverage for it is `tests/test_place_seed.py` (2 red under that
+    injection: `witnesses_after is 0` and `after --reseat NO net has an
+    off-board pad`) and `tests/test_place_reconstruct.py` (exit 1) -- NOT
+    `tests/test_place_edge_containment.py`, which stays 12/12 because it
+    exercises `_seat_edge`'s own band/pad predicate and never calls `pose_ok`.
+    An earlier version of this docstring sent the reader to that file; the
+    pointer was wrong, which is worse than no pointer.
 """
+import atexit
 import json
 import os
 import shutil
@@ -103,6 +112,10 @@ if missing:
 from kicad_parser import parse_kicad_pcb
 
 work_root = tempfile.mkdtemp()
+# rmtree at the end of the module is NOT cleanup: several checks below open
+# files that may not exist on a failure path, and a raise there skips it.
+# Measured -- a corrupt-plan injection left %TEMP%\tmpXXXX\{work,truth} behind.
+atexit.register(shutil.rmtree, work_root, True)
 work = os.path.join(work_root, 'work')
 truth = os.path.join(work_root, 'truth')      # MUST be a sibling of work
 
@@ -165,8 +178,14 @@ check("check_assembly says BUILDABLE (exit 0)", r.returncode == 0,
       f"exit {r.returncode}: " + '\n'.join(
           l for l in r.stdout.splitlines()
           if 'VERDICT' in l or 'blocking' in l or 'COINCIDENT' in l)[:400])
+# `'X' not in stdout` is TRUE of empty stdout, i.e. it passes exactly when the
+# oracle failed to run. Demonstrated: with check_assembly stubbed to exit 0
+# before doing anything, both this and the BUILDABLE check above went green on
+# a board carrying overlap_area 315.89. Assert the oracle SPOKE first.
+check("check_assembly actually produced a verdict (else the next check is "
+      "vacuous)", 'VERDICT' in r.stdout, r.stdout[-200:])
 check("and it reports no coincident origins",
-      'COINCIDENT ORIGINS' not in r.stdout,
+      'VERDICT' in r.stdout and 'COINCIDENT ORIGINS' not in r.stdout,
       "parts stacked at one point -- the defect da2917f9 fixed")
 
 # --------------------------------------------------------------------------
@@ -204,6 +223,5 @@ check("no pad conflicts", m['pad_conflict_pairs'] == 0,
 check("no hole conflicts", got['checklist']['c_hole_conflicts'] == [],
       str(got['checklist']['c_hole_conflicts']))
 
-shutil.rmtree(work_root, ignore_errors=True)
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

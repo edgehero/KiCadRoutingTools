@@ -225,8 +225,12 @@ half the board has moved.
 
 `place_edge` is the one op that does not go through `_try_place` — an edge
 part overhangs by design and `_try_place` demands full containment — so it
-uses `seeder._seat_edge`, ignores the pile-exclusion set, and reports
-`clearance: None` rather than a number nothing measured.
+uses `seeder._seat_edge`. It honours the pile-exclusion set like every other
+seat, and its pose is checked by `seeder.edge_seat_ok`: the measured overhang
+must lie in the declared band **and** must not exceed half the part's own
+depth normal to that edge, so a wrong band cannot buy an off-board seat. It
+reports `clearance: None` rather than a number nothing measured, because it
+runs no clearance ladder.
 
 ## board_brief.py / check_capacity.py — the read side, and the options
 

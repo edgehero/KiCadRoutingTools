@@ -169,15 +169,46 @@ check("it is not the pre-fix pose (170.068, 88.767)",
 # satisfiable ONLY by a part sitting entirely off the board -- a 20mm overhang
 # on a 3.0mm-tall connector -- and the overlap invariant is the thing that
 # refuses it. Fault-injecting the gate away turns this red.
-st3 = fresh_state()
-piled3 = pile(st3)
-silly = {'edge': 'south', 'overhang_mm': {'min': 20.0, 'max': 21.0}}
-notes3 = []
-ok3 = seeder._seat_edge(st3, 'J2', silly, set(), notes3, exclude=piled3)
-check("a band only an off-board pose could satisfy is refused",
-      (not ok3) or pads_on_board(st3, 'J2'),
-      f"ok={ok3} pose ({st3.parts['J2'].x:.3f}, {st3.parts['J2'].y:.3f}) "
-      f"on a board ending at y={st3.board[3]:.2f}")
+# ALL FOUR EDGES. Testing only `south` is how the first version of this file
+# passed while the same nonsense band was accepted on east and west with 8 of
+# 16 pads off the board: on south, J2's 3.00mm dimension is normal to the edge
+# so a bare overlap test collapses to zero and refuses by accident; on east and
+# west its 41.16mm dimension keeps half the courtyard over the bbox and the
+# "invariant" held. One edge is not a test of an edge predicate.
+for _edge in ('south', 'north', 'east', 'west'):
+    st3 = fresh_state()
+    piled3 = pile(st3)
+    silly = {'edge': _edge, 'overhang_mm': {'min': 20.0, 'max': 21.0}}
+    ok3 = seeder._seat_edge(st3, 'J2', silly, set(), [], exclude=piled3)
+    check(f"[{_edge}] a band only an off-board pose could satisfy is refused",
+          (not ok3) or pads_on_board(st3, 'J2'),
+          f"ok={ok3} pose ({st3.parts['J2'].x:.3f}, {st3.parts['J2'].y:.3f})")
+
+# A merely WRONG band, not a nonsense one. The overlap test only refuses a part
+# that is 100% off, so `{3,4}` on a 3.00mm-deep connector seated it with 1.7%
+# of its courtyard on the board. The depth bound is what refuses this.
+for _band in ({'min': 3.0, 'max': 4.0}, {'min': 2.0, 'max': 3.0}):
+    st4 = fresh_state()
+    piled4 = pile(st4)
+    ok4 = seeder._seat_edge(st4, 'J2',
+                            {'edge': 'south', 'overhang_mm': _band},
+                            set(), [], exclude=piled4)
+    check(f"a band of {_band['min']:g}-{_band['max']:g}mm on a 3.0mm-deep part "
+          f"does not seat it off the board",
+          (not ok4) or pads_on_board(st4, 'J2'),
+          f"ok={ok4} pose ({st4.parts['J2'].x:.3f}, {st4.parts['J2'].y:.3f})")
+
+# A LEGITIMATE band must still seat -- otherwise the bound above is just a
+# refusal machine and place_edge stops working.
+st5 = fresh_state()
+piled5 = pile(st5)
+ok5 = seeder._seat_edge(st5, 'J2',
+                        {'edge': 'south', 'overhang_mm': {'min': 0.0,
+                                                          'max': 1.0}},
+                        set(), [], exclude=piled5)
+check("a sane band still seats (the bound is not a blanket refusal)",
+      ok5 and pads_on_board(st5, 'J2'),
+      f"ok={ok5} pose ({st5.parts['J2'].x:.3f}, {st5.parts['J2'].y:.3f})")
 
 # WITHOUT the exclude set the pile is a full obstacle set -- that is defect A.
 # The seat must then either refuse or still be on-board; what it must never do

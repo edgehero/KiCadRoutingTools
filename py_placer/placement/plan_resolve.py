@@ -22,12 +22,14 @@ which on a pile is the middle of the board. Grade the output; do not trust
 `place_edge` is THE EXCEPTION, and it has to be: an edge connector overhangs
 the outline by design, and `_try_place` demands full containment, so it would
 refuse every legal edge seat. It uses `seeder._seat_edge` instead -- the same
-helper stage 1 of `seed_from_intent` uses. Two consequences a caller must
-know rather than discover: `_seat_edge` takes no exclude set (`seeder.py`'s
-`conflict_free` walks every part in `legality_ctx`), so on an unplaced pile
-an edge seat can be vetoed by parts still sitting at their meaningless input
-coordinates; and it runs no clearance ladder, so an edge Seat reports
-`clearance: None` rather than a number nothing measured.
+helper stage 1 of `seed_from_intent` uses. It takes the SAME exclude set every
+other seat uses (`self.pending - {ref}`), so an unplaced pile cannot veto an
+honest edge pose -- it used to take none, and the pile pushed connectors along
+the edge until one was "free", which is how one ended up 26mm away and off the
+board. Its seat is checked by `seeder.edge_seat_ok` (the declared band, and a
+bound of half the part's own depth so a wrong band cannot buy an off-board
+pose) rather than by `pose_ok`, and it runs no clearance ladder, so an edge
+Seat reports `clearance: None` rather than a number nothing measured.
 
 `wk/run19/urchin/arrange.py` used the same primitive for all 80 of its seats
 (`arrange.py:154-171`). The difference is that the ARRANGEMENT is now stated

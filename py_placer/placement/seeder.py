@@ -413,14 +413,57 @@ def _edge_correct(state, ref: str, edge: str, x: float, y: float,
     return x, y, converged
 
 
+def edge_seat_ok(state, part, x: float, y: float, edge: str,
+                 lo: float, hi: float) -> bool:
+    """Is this edge pose a seat, or is the part off the board?
+
+    An edge seat is the one seat in the system that cannot use `pose_ok` --
+    it overhangs by design, so full containment is the wrong predicate. This
+    is the predicate it uses instead, and it has TWO parts because either
+    alone was measured to accept an off-board part:
+
+    * the measured overhang lies in the DECLARED band. Same quantity
+      `floorplan.rule_edge_connector` grades on, so a seat accepted here is
+      not a violation there.
+    * EVERY PAD lands on the board. That is the invariant that actually
+      matters -- CLAUDE.md calls pad copper outside the outline the
+      top-priority placement defect, because it converts 1:1 into unrouted
+      nets -- and it is the one a band cannot argue with. A band is an
+      author's declaration and a wrong one is not rare: `{min: 3, max: 4}` on
+      a 3.0mm-deep connector seated it with 1.7% of its courtyard on the
+      board, and `{min: 20, max: 21}` was accepted on the east and west edges
+      with 8 of 16 pads off.
+
+    The pad test uses the gate's own containment, so a board with cutouts or
+    milled rings is measured properly. A bounding-box test is not enough and
+    was measured dropping 24 of 26 pads into a milled slot while reporting a
+    seat: the pads were inside the bbox and inside a hole.
+
+    An edge connector's BODY overhangs by design; its PADS do not. That
+    asymmetry is what makes this checkable at all.
+    """
+    r = part.rect(x, y, part.rot)
+    amt = state.edge_gate.rect_outside_amount(r)
+    if not ((lo - 0.02) <= amt <= (hi + 0.02)):
+        return False
+    gate = state.edge_gate
+    for px, py, _sz in part.pad_globals(x, y, part.rot):
+        # A zero-size rect at the pad centre: "is this point on the board",
+        # asked through the gate so cutouts and milled rings count.
+        if gate.rect_outside_amount((px, py, px, py)) > 1e-9:
+            return False
+    return True
+
+
 def _edge_frac_bounds(part, bounds, edge: str) -> Tuple[float, float]:
     """The fractions along `edge` at which the part is still ON the board.
 
     `_edge_pose` places the part's CENTRE at `frac` along the edge's own span,
     and the old clamp was a bare [0.05, 0.95] that knew nothing of the part's
-    width -- so a 41.16mm connector on a 50.8mm edge was slid to frac 0.70 and
-    hung 5.34mm past the end while reporting a seat. Only
-    [0.203, 0.797] keeps that part on the board.
+    width -- so a 41.16mm connector on a 50.80mm edge was slid to frac 0.70
+    and hung 5.34mm past the end while reporting a seat. Only
+    **[0.405, 0.595]** keeps that part on the board: the centre may range over
+    span - width = 9.64mm, i.e. (width/2)/span = 0.405 in from each end.
 
     Returns (lo, hi); lo > hi means the part is wider than the edge, which is
     a real answer and the caller must treat it as "no legal fraction".
@@ -498,30 +541,8 @@ def _seat_edge(state, ref: str, entry: Dict, must_lock: Set[str],
                 return False
         return True
 
-    bx0, by0, bx1, by1 = state.board
-
     def on_board(px, py):
-        """The measured overhang must sit in the DECLARED band, AND the part
-        must still be on the board.
-
-        This is the containment check the edge path never had: an edge seat
-        is the one seat in the system that ran neither `pose_ok` (it must
-        overhang, so full containment is wrong) nor a clearance ladder. The
-        band quantity is the same one `floorplan.rule_edge_connector` grades
-        on, so a seat accepted here cannot be a violation there.
-
-        The band ALONE is not enough, which is why the overlap test is here
-        too: a band is a declaration, and a nonsense declaration (a 20mm
-        overhang on a 3mm-tall connector) is satisfiable by a part sitting
-        entirely off the board. Overlap is the invariant that does not depend
-        on the author getting the band right.
-        """
-        r = part.rect(px, py, part.rot)
-        if min(r[2], bx1) - max(r[0], bx0) <= 0 or \
-                min(r[3], by1) - max(r[1], by0) <= 0:
-            return False
-        amt = state.edge_gate.rect_outside_amount(r)
-        return (lo - 0.02) <= amt <= (hi_eff + 0.02)
+        return edge_seat_ok(state, part, px, py, edge, lo, hi_eff)
 
     for df in (0.0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15,
                0.2, -0.2, 0.3, -0.3, 0.4, -0.4):
@@ -708,6 +729,19 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
                 notes.append(f"edge connector {ref}: the overhang walk did "
                              f"not converge on the {edge} edge, so stage 1 "
                              f"left it for the later stages")
+                continue
+            # The SAME containment predicate _seat_edge uses. Stage 1 got the
+            # fraction clamp and the convergence skip but not this, and was
+            # measured still seating a connector at (159.909, 132.830) with
+            # 16 of 16 pads 18.45mm off a board ending at 114.38 -- the exact
+            # pose the fix elsewhere refuses. Stage 1 runs no legality gate at
+            # all by design, so nothing downstream catches it.
+            hi_eff = float(hi) if hi is not None else max(2.0 * overhang,
+                                                          lo + 1.0)
+            if not edge_seat_ok(state, part, x, y, edge, lo, hi_eff):
+                notes.append(f"edge connector {ref}: the {edge} band would "
+                             f"put it off the board, so stage 1 left it for "
+                             f"the later stages")
                 continue
             state.apply_move(ref, round(x, 3), round(y, 3), part.rot)
             placed.add(ref)
