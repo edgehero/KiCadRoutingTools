@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""The provenance audit, attacked the way a hand script would attack it.
+
+The case that matters is the one run 19 produced: a board whose poses are
+genuinely BLIND -- nothing read the control -- and genuinely NOT the engine's.
+`fence_audit` says CLEAN on that, correctly, because it asks a different
+question. This must not.
+
+Four cases, and the third is the load-bearing one:
+
+  1. a run through a registered lever            -> CLEAN (0)
+  2. a write through the funnel with no lever    -> refused at write time
+  3. a hand edit of `(at ...)` as RAW TEXT       -> VIOLATION (4)
+  4. no ledger at all                            -> UNPROVEN (5), never 4
+
+Case 3 is why the audit reconciles the BOARD rather than reading the log: a
+script that never imports the writer leaves no row to be missing, and an audit
+that trusted the ledger would report CLEAN on a board it never authored.
+
+Case 4 is why UNPROVEN exists. `fence_audit` collapses "no manifest" into
+LEAK; doing that here would retroactively accuse every run predating the
+instrument.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+for p in (REPO,):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+        sys.path.insert(0, os.path.join(p, 'py_router'))
+        sys.path.insert(0, os.path.join(p, 'py_tools'))
+        sys.path.insert(0, os.path.join(p, 'py_placer'))
+        sys.path.insert(0, os.path.join(p, 'tests', 'stress'))
+
+BOARD = os.path.join(REPO, 'kicad_files', 'splitflap_driver.kicad_pcb')
+
+passed = failed = 0
+
+
+def check(name, ok, detail=""):
+    global passed, failed
+    passed += bool(ok)
+    failed += not ok
+    print(f"  {'OK  ' if ok else 'FAIL'} {name}{(' -- ' + detail) if detail else ''}")
+
+
+if not os.path.isfile(BOARD):
+    print("SKIP: fixture missing")
+    sys.exit(0)
+
+from kicad_parser import parse_kicad_pcb
+from placement import provenance as PV
+from placement.writer import write_placed_output
+import provenance_audit as PA
+import stage_unaided as SU
+
+
+def fresh():
+    d = tempfile.mkdtemp()
+    wd = os.path.join(d, 'wk')
+    os.makedirs(wd)
+    staged = os.path.join(wd, 'board.kicad_pcb')
+    SU.stage(BOARD, staged, truth_dir=os.path.join(d, '_truth'))
+    PV.start_regime(wd, staged)
+    return wd, staged
+
+
+def some_moves(staged, n=3):
+    pcb = parse_kicad_pcb(staged)
+    refs = sorted(pcb.footprints)[:n]
+    return [{'reference': r, 'new_x': 12.0 + i, 'new_y': 34.0,
+             'new_rotation': 0.0} for i, r in enumerate(refs)]
+
+
+# --------------------------------------------------------------------------
+# 1. a registered lever
+# --------------------------------------------------------------------------
+wd, staged = fresh()
+out = os.path.join(wd, 'seeded.kicad_pcb')
+with PV.declare_lever('place_plan.py', ['place_plan.py', staged]):
+    write_placed_output(staged, out, some_moves(staged))
+code, doc = PA.audit(wd, out)
+check("a run through a registered lever is CLEAN",
+      code == PA.CLEAN, f"{code} {doc.get('reason')}")
+check("and it says which lever", doc.get('levers') == ['place_plan.py'],
+      str(doc.get('levers')))
+check("it reconciles the moved refs, not merely the row count",
+      doc['moved'] == 3 and doc['claimed'] >= 3, str(doc))
+
+# --------------------------------------------------------------------------
+# 2. the funnel with no lever declared
+# --------------------------------------------------------------------------
+wd, staged = fresh()
+try:
+    write_placed_output(staged, os.path.join(wd, 'x.kicad_pcb'),
+                        some_moves(staged))
+    check("an undeclared write through the funnel is refused", False,
+          "it wrote anyway")
+except PV.UnaidedViolation as e:
+    check("an undeclared write through the funnel is refused at write time",
+          'no registered lever' in str(e), str(e)[:120])
+    check("and the refusal names the CALLER, which is the run-19 detector",
+          'test_provenance_audit.py' in str(e), str(e)[:200])
+
+# an unregistered lever is refused too
+wd, staged = fresh()
+try:
+    with PV.declare_lever('arrange.py', ['arrange.py']):
+        write_placed_output(staged, os.path.join(wd, 'y.kicad_pcb'),
+                            some_moves(staged))
+    check("an UNREGISTERED lever is refused", False, "it wrote anyway")
+except PV.UnaidedViolation as e:
+    check("an unregistered lever is refused, naming itself",
+          'arrange.py' in str(e) and 'LEVER_REGISTRY' in str(e), str(e)[:140])
+
+# --------------------------------------------------------------------------
+# 3. THE ONE THAT MATTERS: a raw-text hand edit, bypassing the funnel entirely
+# --------------------------------------------------------------------------
+wd, staged = fresh()
+out = os.path.join(wd, 'seeded.kicad_pcb')
+with PV.declare_lever('place_plan.py', ['place_plan.py']):
+    write_placed_output(staged, out, some_moves(staged))
+# Now a hand script edits the file directly -- no import, no funnel, no row.
+src = open(out, encoding='utf-8').read()
+hand = os.path.join(wd, 'hand.kicad_pcb')
+pcb = parse_kicad_pcb(out)
+moved_already = {m['reference'] for m in some_moves(staged)}
+victim = next(r for r in sorted(pcb.footprints) if r not in moved_already)
+
+# Edit the VICTIM'S OWN footprint block. A non-greedy regex spanning from
+# `(footprint` to the Reference property silently matches the FIRST
+# footprint's `(at` and the victim's name, so it moves the wrong part -- and
+# then the audit is being asked about a ref that was already moved legally,
+# which is not the case this test exists for.
+from kicad_parser import find_matching_paren
+starts = [m.start() for m in re.finditer(r'\(footprint\s+"', src)]
+edited, n = src, 0
+for st in reversed(starts):
+    end = find_matching_paren(src, st)
+    block = src[st:end]
+    if not re.search(r'\(property\s+"Reference"\s+"' + re.escape(victim)
+                     + r'"', block):
+        continue
+    new_block, k = re.subn(r'\(at\s+[\d.-]+\s+[\d.-]+',
+                           '(at 77.5 88.5', block, count=1)
+    if k:
+        edited = src[:st] + new_block + src[end:]
+        n = 1
+    break
+open(hand, 'w', encoding='utf-8').write(edited)
+hand_moved = PA.moved_refs(PA.poses(out), PA.poses(hand))
+check("the hand edit moved exactly the victim (else the case proves nothing)",
+      n == 1 and hand_moved == [victim],
+      f"substitutions {n}, moved {hand_moved}, victim {victim}")
+
+code, doc = PA.audit(wd, hand)
+check("a raw-text hand edit is a VIOLATION, not CLEAN",
+      code == PA.VIOLATION, f"{code} {doc.get('verdict')}")
+check("and it names the ref nothing authored",
+      victim in (doc.get('unclaimed_refs') or []),
+      f"{victim} vs {doc.get('unclaimed_refs')}")
+check("the reason says why the log could not have caught it",
+      'compares the BOARD' in doc.get('reason', ''), doc.get('reason'))
+
+# --------------------------------------------------------------------------
+# 4. no ledger -> UNPROVEN, never VIOLATION
+# --------------------------------------------------------------------------
+wd, staged = fresh()
+out = os.path.join(wd, 'seeded.kicad_pcb')
+with PV.declare_lever('place_plan.py', ['place_plan.py']):
+    write_placed_output(staged, out, some_moves(staged))
+os.unlink(os.path.join(wd, PV.LEDGER_NAME))
+code, doc = PA.audit(wd, out)
+check("a missing ledger is UNPROVEN, not a violation",
+      code == PA.UNPROVEN and doc['verdict'] == 'UNPROVEN',
+      f"{code} {doc.get('verdict')}")
+check("and it says nothing was measured, rather than accusing",
+      'Not a violation' in doc.get('reason', ''), doc.get('reason'))
+
+# a work dir that was never staged is UNPROVEN too
+d = tempfile.mkdtemp()
+code, doc = PA.audit(d)
+check("an unstaged work dir is UNPROVEN, not a violation",
+      code == PA.UNPROVEN, f"{code} {doc.get('verdict')}")
+
+# --------------------------------------------------------------------------
+# Outside a regime the gate is INERT -- no ledger, no refusal, no change
+# --------------------------------------------------------------------------
+d = tempfile.mkdtemp()
+plain = os.path.join(d, 'plain.kicad_pcb')
+write_placed_output(BOARD, plain, [])
+check("outside a regime the writer is unchanged and writes no ledger",
+      os.path.isfile(plain)
+      and not os.path.exists(os.path.join(d, PV.LEDGER_NAME)))
+
+# --------------------------------------------------------------------------
+# The CLI
+# --------------------------------------------------------------------------
+wd, staged = fresh()
+out = os.path.join(wd, 'seeded.kicad_pcb')
+with PV.declare_lever('place_seed.py', ['place_seed.py']):
+    write_placed_output(staged, out, some_moves(staged))
+r = subprocess.run(
+    [sys.executable, '-X', 'utf8',
+     os.path.join('tests', 'stress', 'provenance_audit.py'),
+     '--workdir', wd, '--mode', 'audit'],
+    capture_output=True, text=True, cwd=REPO, timeout=600,
+    env=dict(os.environ, PYTHONIOENCODING='utf-8'))
+check("the CLI exits 0 on a clean chain", r.returncode == 0,
+      f"rc={r.returncode} {r.stderr[-200:]}")
+check("the CLI prints a VERDICT and a JSON_SUMMARY",
+      'VERDICT: CLEAN' in r.stdout and 'JSON_SUMMARY:' in r.stdout,
+      r.stdout[-200:])
+
+print(f"\n{passed} passed, {failed} failed")
+sys.exit(1 if failed else 0)

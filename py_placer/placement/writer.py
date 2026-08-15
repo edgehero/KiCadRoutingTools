@@ -279,6 +279,16 @@ def write_placed_output(input_file: str, output_file: str,
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(content)
 
+    # THE SINGLE POSE FUNNEL. Every footprint `(at ...)` rewrite in this repo
+    # comes through here -- verified across all call sites in py_placer -- so
+    # this is the one place that can answer "was every pose in this board
+    # produced by a registered engine lever?". Outside an unaided regime it
+    # is a no-op and the behaviour is byte-identical; inside one, an
+    # undeclared write raises. See placement/provenance.py for why that is an
+    # accounting boundary and not a security one.
+    from placement import provenance
+    provenance.record_write(input_file, output_file, placements)
+
     print(f"Modified {modified_count} footprint positions")
     print(f"Successfully wrote {output_file}")
     return True
