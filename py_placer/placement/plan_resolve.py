@@ -342,6 +342,8 @@ class _Resolver:
         self.pending: Set[str] = {r for r, p in state.parts.items()
                                   if not p.locked}
         self._groups: Optional[Dict[str, List[str]]] = None
+        # Declared by place_keepout, honoured by every seat AFTER it.
+        self.keepouts: List[Tuple] = []
 
     # -- seating ---------------------------------------------------------
     def seat(self, ref: str, tx: float, ty: float, step: int, action: str,
@@ -392,7 +394,8 @@ class _Resolver:
             clr = seeder._try_place(self.st, ref, tx, ty, self.pending - {ref},
                                     constraint=constraint, tol=tol,
                                     max_disp=within, info=info,
-                                    deadline=self.deadline)
+                                    deadline=self.deadline,
+                                    forbid=self.keepouts)
             if clr is not None:
                 self.pending.discard(ref)
                 p = self.st.parts[ref]
@@ -885,11 +888,13 @@ class _Resolver:
             cap = budget if budget is not None else within
             base = set(self.pending) - {ref}
             baseline[ref] = seeder.count_legal_poses(
-                self.st, ref, tx, ty, base, max_disp=cap)
+                self.st, ref, tx, ty, base, max_disp=cap,
+                forbid=self.keepouts)
             census[ref] = {}
             for b in movable:
                 census[ref][b] = seeder.count_legal_poses(
-                    self.st, ref, tx, ty, base | {b}, max_disp=cap)
+                    self.st, ref, tx, ty, base | {b}, max_disp=cap,
+                    forbid=self.keepouts)
 
         # Lift: the blockers rejoin the pile, so they stop being obstacles.
         home = {b: (self.st.parts[b].x, self.st.parts[b].y,
@@ -995,6 +1000,117 @@ class _Resolver:
                     f"{', '.join(b for b, _ in top)} "
                     f"(poses at its target: {baseline.get(ref, 0)} before, "
                     + ', '.join(f"{n} with {b} lifted" for b, n in top) + ")")
+
+    def op_place_keepout(self, op, step):
+        """Reserve a rect for the REST of the plan.
+
+        The intent schema has carried a `keepouts` rule since #549 and it is
+        GRADED and honoured by nothing -- `keepout` appears in floorplan.py's
+        rule and in no seeding module -- so a reserved strip could only ever
+        be reported after the fact. `arrange.py:27` is the scar: its
+        `X0 = 46.0` exists to keep the lattice clear of U1's vertical strip,
+        and the reservation lives in a COMMENT because nothing could hold it.
+
+        Declared here, honoured by every op after it, ignored by every op
+        before it -- ops run in order, and a keepout that retroactively
+        invalidated earlier seats would be a different tool.
+        """
+        rect = tuple(float(v) for v in op['rect'])
+        # Carried in the intent's own shape: `sides` limits the reservation
+        # to one face, `allow` names the refs it does not apply to.
+        self.keepouts.append((rect, tuple(op.get('sides') or ()) or None,
+                              tuple(op.get('allow') or ())))
+        self.res.notes.append(
+            f"keepout {list(rect)} reserved"
+            + (f" -- {op['reason']}" if op.get('reason') else '')
+            + f" ({len(self.res.seats)} part(s) already seated are NOT "
+              f"re-checked against it)")
+
+    def op_place_pack(self, op, step):
+        """A set into a zone, by a stated policy.
+
+        `radial` is what the seeder's zone stage does today (members ordered
+        by descending pin count, packed outward from the zone centre) and is
+        named so a plan can ask for the CURRENT behaviour explicitly rather
+        than getting it by default. It is also the policy that measurably
+        failed run 19: 34 six-pad diodes seated before 34 fifteen-millimetre
+        switches, and the smalls took the centre. `rows`/`grid` lay members
+        out in reading order at their own extents, which is what a human
+        means by "pack these into that area"; `ring` places them around the
+        zone's edge, for parts that want the perimeter.
+        """
+        idx = self._index_of(op['refs'])
+        refs = self.refs(op['refs'], op.get('where'), op.get('order'))
+        if not refs:
+            return
+        zone = tuple(float(v) for v in op['zone'])
+        policy = op.get('policy', 'radial')
+        tol = float(op.get('tolerance') or 0.5)
+        cx, cy = (zone[0] + zone[2]) / 2.0, (zone[1] + zone[3]) / 2.0
+
+        if policy == 'radial':
+            # Ordered by descending pin count, like the zone stage, so
+            # "policy: radial" really is the behaviour it names.
+            refs = sorted(refs, key=lambda r: (
+                -getattr(self.st.parts.get(r), 'pin_count', 0), r))
+            for ref in refs:
+                self.seat(ref, cx, cy, step, 'place_pack',
+                          within=op.get('within'), rot=op.get('rot'),
+                          constraint=zone, tol=tol)
+            return
+
+        targets = self._pack_targets(refs, zone, policy)
+        for ref, (tx, ty) in zip(refs, targets):
+            self.seat(ref, round(tx, 4), round(ty, 4), step, 'place_pack',
+                      within=op.get('within'), rot=op.get('rot'),
+                      constraint=zone, tol=tol)
+
+    def _pack_targets(self, refs, zone, policy):
+        """Where each member of a pack should aim, before legality.
+
+        Sized from the members' OWN extents rather than a fixed pitch: a pack
+        of mixed parts laid out on the largest one's stride wastes the zone,
+        and one laid out on the smallest overlaps every larger member onto
+        its neighbour's target (they would still seat legally -- `_try_place`
+        sees to that -- but every one of them would land far from where the
+        plan said, and `moved_mm` would be the only trace).
+        """
+        w = zone[2] - zone[0]
+        h = zone[3] - zone[1]
+        ext = []
+        for r in refs:
+            part = self.st.parts.get(r)
+            if part is None:
+                ext.append((1.0, 1.0))
+                continue
+            rr = part.rect(0.0, 0.0, part.rot)
+            ext.append((max(0.1, rr[2] - rr[0]), max(0.1, rr[3] - rr[1])))
+        step_x = max(e[0] for e in ext) + self.st.clearance
+        step_y = max(e[1] for e in ext) + self.st.clearance
+
+        if policy == 'ring':
+            n = len(refs)
+            rx = max(0.0, w / 2.0 - step_x / 2.0)
+            ry = max(0.0, h / 2.0 - step_y / 2.0)
+            cx, cy = (zone[0] + zone[2]) / 2.0, (zone[1] + zone[3]) / 2.0
+            return [(cx + rx * math.cos(2 * math.pi * i / n),
+                     cy + ry * math.sin(2 * math.pi * i / n))
+                    for i in range(n)]
+
+        fits = max(1, int(w // step_x))
+        if policy == 'grid':
+            # Square-ish, which is what distinguishes a grid from rows: fill
+            # to the zone's width and you have written `rows` under a second
+            # name, and two names for one layout is worse than one name.
+            cols = max(1, min(fits, int(math.ceil(math.sqrt(len(refs))))))
+        else:                                    # 'rows'
+            cols = fits                          # across, then wrap
+        out = []
+        for i in range(len(refs)):
+            r, c = divmod(i, cols)
+            out.append((zone[0] + step_x * (c + 0.5),
+                        zone[1] + step_y * (r + 0.5)))
+        return out
 
     def op_place_lock(self, op, step):
         for ref in self.refs(op['refs']):

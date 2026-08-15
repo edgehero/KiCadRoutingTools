@@ -79,8 +79,7 @@ EDGES = ('north', 'south', 'east', 'west')
 # AI reads the schema, writes the canonical plan (whose own first op is
 # `place_keepout`), and has the WHOLE plan refused for using a documented key.
 # `plan_resolve.RESOLVED_ACTIONS` is derived from this, so the two cannot drift.
-UNIMPLEMENTED_ACTIONS = ('place_keepout', 'place_pack', 'place_repair',
-                         'place_polish')
+UNIMPLEMENTED_ACTIONS = ('place_repair', 'place_polish')
 
 # `where` filter predicates. Structured rather than a string expression: a
 # parser for "row<3" is a second language to get wrong, and every filter these

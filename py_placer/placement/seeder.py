@@ -67,8 +67,24 @@ def _rect_inside(rect, outer, tol: float) -> bool:
             and rect[2] <= outer[2] + tol and rect[3] <= outer[3] + tol)
 
 
+def _keepout_entry(entry):
+    """(rect, sides, allow) from either a bare rect or a full declaration.
+
+    A bare 4-tuple stays legal because that is what a plan writes in the
+    common case, and requiring the long form everywhere would make the
+    simple keepout the awkward one.
+    """
+    if isinstance(entry, dict):
+        return (tuple(entry['rect']), entry.get('sides') or None,
+                entry.get('allow') or ())
+    if len(entry) == 4 and all(isinstance(v, (int, float)) for v in entry):
+        return tuple(entry), None, ()
+    rect, sides, allow = entry
+    return tuple(rect), (tuple(sides) if sides else None), tuple(allow or ())
+
+
 def pose_ok(state, ref: str, x: float, y: float, rot: float,
-            exclude: Set[str]) -> bool:
+            exclude: Set[str], forbid: Sequence = ()) -> bool:
     """THE seat predicate: fully contained, and clear of everything not in
     `exclude`.
 
@@ -84,8 +100,29 @@ def pose_ok(state, ref: str, x: float, y: float, rot: float,
     incumbent worth improving on, so full containment is demanded explicitly.
     """
     part = state.parts[ref]
-    if state.edge_gate.rect_outside_amount(part.rect(x, y, rot)) > 1e-9:
+    r = part.rect(x, y, rot)
+    if state.edge_gate.rect_outside_amount(r) > 1e-9:
         return False
+    # DECLARED KEEPOUTS. The intent schema has had a `keepouts` rule since
+    # #549 and it is GRADED and honoured by nothing: `keepout` appears in
+    # floorplan.py's rule and in no seeding module, so a reserved strip could
+    # only ever be reported after the fact. Checked here, in the one predicate
+    # every seat goes through, so it cannot be honoured by some ops and not
+    # others. Default empty, so every existing path is byte-identical.
+    #
+    # Each entry is (rect, sides, allow) with the same meaning the intent's
+    # `keepouts` rule gives them: `sides` limits it to one face, and `allow`
+    # names the refs it does NOT apply to -- a mounting-hole keepout exists
+    # so the mounting hole can sit there, and one that excluded MH1 would be
+    # the wrong shape of correct.
+    for entry in forbid:
+        k, sides, allow = _keepout_entry(entry)
+        if allow and any(fnmatch.fnmatch(ref, pat) for pat in allow):
+            continue
+        if sides and getattr(part, 'side', None) not in sides:
+            continue
+        if not (r[2] <= k[0] or k[2] <= r[0] or r[3] <= k[1] or k[3] <= r[1]):
+            return False
     return state.candidate_valid(ref, x, y, rot, exclude=exclude)
 
 
@@ -149,7 +186,8 @@ def count_legal_poses(state, ref: str, tx: float, ty: float,
                       step: float = CENSUS_STEP_MM,
                       cap: int = CENSUS_CAP,
                       max_disp: Optional[float] = None,
-                      rotations: Optional[Sequence[float]] = None) -> int:
+                      rotations: Optional[Sequence[float]] = None,
+                      forbid: Sequence = ()) -> int:
     """How many legal poses `ref` has near (tx, ty), counting at most `cap`.
 
     This is issue #629's measurement. Three consecutive sweeps in run 19
@@ -175,7 +213,7 @@ def count_legal_poses(state, ref: str, tx: float, ty: float,
             continue
         x, y = round(tx + dx, 3), round(ty + dy, 3)
         for rot in rots:
-            if pose_ok(state, ref, x, y, rot, exclude):
+            if pose_ok(state, ref, x, y, rot, exclude, forbid):
                 n += 1
                 if n >= cap:
                     return n
@@ -186,7 +224,7 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                constraint=None, tol: float = 0.5,
                max_disp: Optional[float] = None,
                info: Optional[Dict] = None,
-               deadline=None) -> Optional[float]:
+               deadline=None, forbid: Sequence = ()) -> Optional[float]:
     """Nearest FULLY-CONTAINED legal pose to (tx, ty); applies the move and
     returns True.
 
@@ -224,7 +262,7 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
     part = state.parts[ref]
 
     def _ok(x, y, rot):
-        return pose_ok(state, ref, x, y, rot, exclude)
+        return pose_ok(state, ref, x, y, rot, exclude, forbid)
 
     # A zone smaller than the courtyard cannot contain it at any rotation --
     # the spec-COORDINATE pattern. Containment then relaxes to anchor-point-
