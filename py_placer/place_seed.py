@@ -79,6 +79,17 @@ Examples:
                         "non-obstacles either way (the existing exclude "
                         "mechanism); this changes only WHO goes first "
                         "(run-4 C)")
+    p.add_argument("--evict-depth", type=int, default=1, metavar="N",
+                   help="When a part has NO legal pose, census the seated "
+                        "neighbours, evict the one that frees the most poses, "
+                        "seat the part, then put the blocker back with it in "
+                        "place -- gated by the same reconstruct measure the "
+                        "anchor rounds use, and reverted whole if it does not "
+                        "improve (#630). 0 disables it and restores the bare "
+                        "'no legal pose' verdict. Only ever fires on a part "
+                        "that was already going to be reported unseated, so "
+                        "a run that seats everything is unaffected. Depth is "
+                        "1: a blocker's own blocker is not chased")
     p.add_argument("--anchor-rounds", type=int, default=1,
                    help="With --anchors-first: gated re-seat passes after "
                         "the first full placement (default 1 = none). Each "
@@ -416,7 +427,8 @@ Examples:
         board_edge_clearance=args.board_edge_clearance,
         grid_step=args.grid_step, seed_refs=seed_refs,
         anchors_first=args.anchors_first,
-        anchor_rounds=args.anchor_rounds)
+        anchor_rounds=args.anchor_rounds,
+        evict_depth=args.evict_depth)
     for note in result['notes']:
         print(f"  NOTE: {note}")
     print(f"Seeded {len(result['placements'])} part(s); "
@@ -522,6 +534,11 @@ Examples:
     after = ratsnest.get('after', {})
     summary = {'placed': len(result['placements']),
                'unseated': len(result['unseated']),
+               # NAMES, not just a count. #629's complaint is that a verdict
+               # you cannot act on is a dead end, and a count names nobody.
+               'unseated_refs': list(result['unseated']),
+               'no_pose_blockers': result.get('no_pose_blockers') or {},
+               'evictions': len(result.get('evictions') or []),
                'locked': n_locked,
                'grade_errors': len(graded.errors),
                'grade_warnings': len(graded.warnings),
