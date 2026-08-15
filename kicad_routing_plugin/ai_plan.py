@@ -15,7 +15,7 @@ import fnmatch
 import wx
 
 KNOWN_ACTIONS = ("fanout", "optimize_caps", "route_diff", "route",
-                 "route_planes", "repair_planes")
+                 "route_planes", "repair_planes", "place_plan")
 
 # Appended to the /plan-pcb-routing prompt so the plan lands as parseable JSON.
 PLAN_RESULT_SCHEMA = (
@@ -103,6 +103,11 @@ def parse_plan_result(value):
             continue
         if action == "route_planes" and not step.get("assignments"):
             errors.append(f"step {i + 1}: route_planes without assignments, dropped")
+            continue
+        if action == "place_plan" and not (step.get("plan")
+                                           or step.get("plan_path")):
+            errors.append(f"step {i + 1}: place_plan without a plan (give "
+                          f"`plan` inline or `plan_path`), dropped")
             continue
         steps.append(step)
     if not steps:
@@ -1025,6 +1030,84 @@ class PlanExecutor:
         if owner is not None and hasattr(owner, '_cancel_requested'):
             owner._cancel_requested = True
 
+    def _run_place_plan(self, step):
+        """Run a placement plan against the LIVE board.
+
+        Placement has no tab action to drive, so this calls the shared engine
+        -- `plan_resolve.resolve`, the same entry point `py_placer/
+        place_plan.py` uses -- and applies the resulting poses to pcbnew, the
+        way fanout_gui already applies `repair_fanout_clearance`'s placements
+        (fanout_gui.py:1753-1759). Nothing is re-implemented here, so a fix
+        inside the engine reaches both fronts.
+
+        The board is NOT written: a plan step mutates the live board and the
+        next step sees it, which is the executor's whole contract.
+        """
+        import pcbnew
+        from kicad_parser import build_pcb_data_from_board, mm_to_iu
+        from placement.plan_ops import format_errors, parse_placement_plan
+        from placement.plan_resolve import resolve
+
+        raw = step.get("plan")
+        if raw is None:
+            with open(step["plan_path"], encoding="utf-8") as f:
+                raw = f.read()
+        ops, errors = parse_placement_plan(raw)
+        if ops is None:
+            # Refuse the STEP, not just the op: a placement plan is
+            # all-or-nothing, and half a lattice is a different board.
+            raise RuntimeError(format_errors(errors))
+
+        board = pcbnew.GetBoard()
+        pcb_data = build_pcb_data_from_board(board)
+        params = step.get("params") or {}
+
+        # Resolve the floors the way place_plan.py's main() does -- from the
+        # BOARD, not from a constant. Hardcoding 0.25/0.55 here would be the
+        # classic GUI default drift: the two fronts would agree whenever a
+        # plan states a clearance and disagree silently whenever it doesn't,
+        # which is the common case. Same fallback, same disclosure.
+        clearance = params.get("clearance")
+        edge = params.get("board_edge_clearance")
+        try:
+            from list_nets import board_floor_knobs
+            clearance, edge, _knobs = board_floor_knobs(
+                board.GetFileName(), clearance=clearance,
+                board_edge_clearance=edge)
+        except Exception as e:                   # noqa: BLE001 - disclosed
+            clearance = 0.25 if clearance is None else clearance
+            edge = 0.55 if edge is None else edge
+            self.log(f"AI plan: place_plan: could not read this board's "
+                     f"floors ({e}); using clearance {clearance}, edge {edge}")
+
+        res = resolve(pcb_data, board.GetFileName(), ops,
+                      clearance=clearance, board_edge_clearance=edge,
+                      grid_step=params.get("grid_step", 0.1))
+        for p in res.placements:
+            fp = board.FindFootprintByReference(p["reference"])
+            if fp is None:
+                self.log(f"AI plan: place_plan: {p['reference']} is not on "
+                         f"the live board, skipped")
+                continue
+            fp.SetOrientationDegrees(p["new_rotation"])
+            fp.SetPosition(pcbnew.VECTOR2I(mm_to_iu(p["new_x"]),
+                                           mm_to_iu(p["new_y"])))
+        for note in res.notes:
+            self.log(f"AI plan: place_plan: {note}")
+        for park in res.parks:
+            # A park is a measurement, not a silence -- the CLI prints these
+            # and so must this, or a GUI run reports a clean placement while
+            # parts sit where the plan could not put them.
+            self.log(f"AI plan: place_plan PARK {park.ref}: {park.reason}")
+        s = res.summary()
+        self.log(f"AI plan: place_plan seated {s['seated']}, parked "
+                 f"{s['parked']}, worst move {s['worst_move_mm']}mm")
+        if res.lock_refs:
+            self.log(f"AI plan: place_plan would lock {len(res.lock_refs)} "
+                     f"ref(s) -- the GUI does not stamp (locked yes); run "
+                     f"py_placer/place_plan.py if you need the stamps")
+        pcbnew.Refresh()
+
     # -- per-action wiring ---------------------------------------------------
 
     def _action_owner(self, action):
@@ -1037,6 +1120,14 @@ class PlanExecutor:
             "optimize_caps": getattr(d, "fanout_tab", None),
             "route_planes": getattr(d, "planes_tab", None),
             "repair_planes": getattr(d, "planes_tab", None),
+            # place_plan has no tab of its own: the placement engine is a pure
+            # function over PCBData with no tab state to review, and the
+            # Placement sub-tab drives the placement SKILLS rather than a plan
+            # action. So the executor calls the SHARED engine directly -- the
+            # same `plan_resolve.resolve` the CLI calls, which is what keeps
+            # the two fronts in parity by construction rather than by a
+            # mirrored config dict.
+            "place_plan": None,
         }.get(action)
 
     def _status_source(self, action):
@@ -1075,6 +1166,11 @@ class PlanExecutor:
                                   "repair_planes step skipped (#562: repair "
                                   "runs inside every route step's finalize)"),
                               lambda: False),
+            # Synchronous: the placement engine returns poses rather than
+            # spawning a worker, so `busy` is always False and the poll loop
+            # completes the step on its first look.
+            "place_plan": (lambda: self._run_place_plan(self._current_step),
+                           lambda: False),
         }[action]
 
     # -- sequencing ----------------------------------------------------------
@@ -1295,6 +1391,9 @@ class PlanExecutor:
         index = self._queue.pop(0)
         step = self.steps[index]
         self._current_action = step['action']
+        # `_action_parts` is keyed on the action alone, but a placement step
+        # carries its whole content in the step; hand it over here.
+        self._current_step = step
         self.on_status(index, "running")
         self.log(f"AI plan: step {index + 1} ({step['action']}) starting")
         try:

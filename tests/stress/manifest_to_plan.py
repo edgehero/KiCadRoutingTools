@@ -30,6 +30,10 @@ TOOL_ACTIONS = {
     'repair_planes.py': 'repair_planes',
     'bga_fanout.py': 'fanout',
     'qfn_fanout.py': 'fanout',
+    # The one placement tool with a plan representation: it IS a plan, in its
+    # own format, so the step carries the path to it rather than trying to
+    # express a lattice in routing-plan params.
+    'place_plan.py': 'place_plan',
 }
 
 # Board-mutating tools with NO plan representation (#431). They are RECORDED in
@@ -64,12 +68,6 @@ REFUSED_TOOLS = {
         'generates a SLATE of placements to choose between; the plan format has '
         'no placement step, and picking one is a decision, not a replayable '
         'step. Run it on the CLI and start the plan from the adopted board'),
-    'place_plan.py': (
-        'runs a placement plan; the ROUTING plan format has no placement step '
-        'yet. Run it BEFORE the plan and start the plan from its output. '
-        '(Unlike the others this one IS a plan, in its own format -- '
-        'placement/plan_ops.py -- so replaying it needs no conversion: keep '
-        'the plan JSON beside the manifest)'),
     'render_placement.py': (
         'renders a PNG; it changes no board and has nothing to replay'),
     'beautify_labels.py': (
@@ -323,7 +321,17 @@ def parse_command(argv):
             i += 1
 
     nets = lists.get('--nets', [])
-    if action in ('route',):
+    if action == 'place_plan':
+        # The plan file is the step's whole content. Carried as a PATH, not
+        # inlined: a placement plan is authored, reviewed and diffed as its
+        # own artifact, and a converted manifest that swallowed it would make
+        # the recorded chain unreplayable without the original file anyway.
+        plans = [q for q in positional if q.endswith('.json')]
+        if not plans:
+            return {'_refused': f"{tool}: no plan .json among its positional "
+                                f"arguments, so there is nothing to replay"}
+        step['plan_path'] = plans[0]
+    elif action in ('route',):
         # route.py also takes net names POSITIONALLY, after the input and output
         # boards -- --nets is optional:
         #     route.py in.kicad_pcb out.kicad_pcb '/Mgmt/LED0' '/Mgmt/VSMPS' ...

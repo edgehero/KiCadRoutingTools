@@ -43,7 +43,13 @@ PLUGIN = REPO / "kicad_routing_plugin"
 CLI_MAINS = ["py_router/route.py", "py_router/route_diff.py",
              "py_router/route_planes.py", "py_router/repair_planes.py",
              "py_router/bga_fanout/__init__.py",
-             "py_router/qfn_fanout/__init__.py"]
+             "py_router/qfn_fanout/__init__.py",
+             # place_plan is a plan ACTION as of the placement-plan work, so
+             # its main() and the GUI executor's _run_place_plan are two fronts
+             # onto one engine and can drift exactly like the routing pair.
+             # Listed here so a post-pass added to the CLI is caught; it passed
+             # this gate by OMISSION before it was scanned.
+             "py_placer/place_plan.py"]
 
 # Known post-engine passes -> GUI counterpart symbol(s). A pass is "covered" if
 # ANY listed symbol appears anywhere under kicad_routing_plugin/. Keep the RHS

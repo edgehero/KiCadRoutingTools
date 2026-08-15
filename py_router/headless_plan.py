@@ -41,13 +41,42 @@ _REPO_DIR = os.path.abspath(os.path.join(ROOT_DIR, '..'))
 if _REPO_DIR not in sys.path:
     sys.path.insert(0, _REPO_DIR)
 
+def _windows_kicad_pythons():
+    """Every installed KiCad python on Windows, newest version first.
+
+    GLOBBED rather than listed. A hardcoded ``9.0`` (and its siblings across
+    the tree) simply stops matching the day KiCad 10 installs, and the failure
+    is silent-looking: `run_plan.py` printed "no python with pcbnew + wx found"
+    on a machine where KiCad 10.0's python was present and working. Version
+    dirs sort NUMERICALLY -- plain string sort puts "9.0" above "10.0".
+    """
+    import glob
+    out = []
+    for base in (os.environ.get('ProgramFiles', r'C:\Program Files'),
+                 os.environ.get('ProgramW6432', r'C:\Program Files'),
+                 os.environ.get('ProgramFiles(x86)', '')):
+        if not base:
+            continue
+        found = []
+        for path in glob.glob(os.path.join(base, 'KiCad', '*', 'bin',
+                                           'python.exe')):
+            ver = os.path.basename(os.path.dirname(os.path.dirname(path)))
+            try:
+                key = tuple(int(x) for x in ver.split('.'))
+            except ValueError:
+                key = (-1,)
+            found.append((key, path))
+        out.extend(p for _, p in sorted(found, reverse=True))
+        out.append(os.path.join(base, 'KiCad', 'bin', 'python.exe'))
+    seen = set()
+    return [p for p in out if not (p in seen or seen.add(p))]
+
+
 # Where KiCad's bundled python (the one with pcbnew + wx) lives per platform.
 KICAD_PYTHONS = [
     "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
     "/usr/bin/python3",
-    os.path.expandvars(r"C:\Program Files\KiCad\bin\python.exe"),
-    os.path.expandvars(r"C:\Program Files\KiCad\9.0\bin\python.exe"),
-]
+] + (_windows_kicad_pythons() if os.name == 'nt' else [])
 
 
 def have_kicad_python() -> bool:
@@ -72,7 +101,14 @@ def reexec_into_kicad(script=None, argv=None):
             continue
         if subprocess.run([cand, '-c', 'import pcbnew, wx'],
                           capture_output=True).returncode == 0:
-            os.execv(cand, [cand, script] + argv)
+            child = [cand, script] + argv
+            if os.name == 'nt':
+                # os.execv goes through the CRT on Windows, which re-splits the
+                # argument vector on spaces: "C:\Program Files\KiCad\10.0\bin\
+                # python.exe" arrives torn in two and the run dies with a bogus
+                # "can't open file ...\Files\KiCad\...". subprocess quotes it.
+                sys.exit(subprocess.run(child).returncode)
+            os.execv(cand, child)
     return False
 
 

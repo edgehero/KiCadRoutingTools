@@ -248,6 +248,32 @@ shared engine (best -- both fronts inherit it), or refactor a board-level core
 and call it from both fronts (as clean_plane_copper now does), then register
 the pass + its GUI counterpart here.
 
+## The placement plan action (test_place_plan_action.py)
+
+`place_plan` is the first non-routing plan action, so it opens the same two
+fronts everything else here guards: `py_placer/place_plan.py`'s `main()` and
+`PlanExecutor._run_place_plan`. They are kept honest structurally -- the
+executor calls the SHARED `plan_resolve.resolve` rather than driving a tab, so
+there is no second placement implementation to drift -- and this gate pins that.
+
+Needs KiCad python; re-execs into it. ~30 s.
+
+    python3 tests/gui_parity/test_place_plan_action.py
+
+It runs one plan down both arms (CLI subprocess -> written board; live pcbnew
+board -> `resolve` -> `SetPosition`) and compares every pose to a micron, plus
+the PARK list and each park's reason. Two things it deliberately does:
+
+- **It forces a park** (a part told to sit at y=200 on a board spanning
+  y 25.4..55.88). Without it the park comparison is `[] == []`, which passes on
+  a GUI arm that cannot park at all.
+- **It checks the converter leg too**, so a recorded `place_plan.py` command
+  still becomes a replayable plan step -- the half `test_manifest_plan_parity.py`
+  covers generically.
+
+`place_plan.py` is also in `test_cli_postpass_coverage.py`'s `CLI_MAINS`; before
+it was listed there it passed that gate by omission.
+
 ## Grade parity on a set11-class board (test_gui_livechain_rp2350.py)
 
 The copper-identity harness measures overlap %, which diverges even when both
