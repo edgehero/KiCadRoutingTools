@@ -6,7 +6,18 @@ nearest FULLY-CONTAINED legal pose to it, trying the requested rotation in
 full before the rest of the 90-degree lattice, and relaxing courtyard
 clearance in three steps before giving up. So legality, the rotation
 fallback, the clearance ladder and the pile-exclusion rule all behave exactly
-as they do for `seed_from_intent`, and a plan cannot author an illegal board.
+as they do for `seed_from_intent`.
+
+That is NOT the same as "a plan cannot author an illegal board", which this
+docstring claimed until it was measured and found false. `_try_place` only
+avoids what it is given as an obstacle, and the pile-exclusion rule used to
+hide every unlocked part, so `place_at R1` at U1's exact coordinate seated at
+0.0mm and reported `complete: true` on a board `check_assembly` graded NOT
+BUILDABLE. Unnamed parts at a distinct pose are obstacles now (see
+`_Resolver.__init__`), but two holes remain, both real: `place_edge` bypasses
+`_try_place` entirely (below), and a PARKED part keeps its incoming pose,
+which on a pile is the middle of the board. Grade the output; do not trust
+`complete: true` to mean legal.
 
 `place_edge` is THE EXCEPTION, and it has to be: an edge connector overhangs
 the outline by design, and `_try_place` demands full containment, so it would
@@ -328,19 +339,49 @@ def select_refs(value, pcb_data, indexes: Dict[str, Dict], *,
 # --------------------------------------------------------------------------
 class _Resolver:
     def __init__(self, pcb_data, pcb_file, state, deadline=None,
-                 progress=None):
+                 progress=None, plan_refs=None):
         self.pcb = pcb_data
         self.pcb_file = pcb_file
         self.st = state
         self.deadline = deadline
         self.progress = progress
         self.res = ResolveResult()
-        # The pile: parts not yet seated by this plan. They are passed as
-        # `exclude` so their meaningless input coordinates cannot veto a real
-        # pose -- seed_from_intent's own rule (seeder.py:78-79). A part locked
-        # in the FILE is authoritatively placed and never in this set.
-        self.pending: Set[str] = {r for r, p in state.parts.items()
-                                  if not p.locked}
+        # The pile: parts THIS PLAN will seat and has not seated yet. They are
+        # passed as `exclude` so their meaningless input coordinates cannot
+        # veto a real pose -- seed_from_intent's own rule (seeder.py:78-79).
+        #
+        # `plan_refs` is what makes that rule safe here, and omitting it was a
+        # correctness bug: seed_from_intent owns the WHOLE board, so "every
+        # unlocked part" and "every part I am about to place" are the same
+        # set. A plan does not own the whole board -- it also repairs an
+        # existing placement -- and there every part it does NOT name sits at
+        # an authoritative pose. Excluding those made them invisible, so
+        # `place_at R1` at U1's exact coordinate seated at 0.0mm and reported
+        # `complete: true` while check_assembly graded the board NOT BUILDABLE
+        # (COINCIDENT ORIGINS). A part this plan will never move is an
+        # obstacle, whatever its pose means.
+        #
+        # Which unnamed parts are authoritative is decided PER PART, not by a
+        # whole-board placed/unplaced verdict. A part sharing an exact origin
+        # with another is piled -- its coordinate is an artifact of staging,
+        # and check_assembly grades exact coincidence NOT BUILDABLE, so it is
+        # never a real placement. A part alone at its origin is where someone
+        # put it. This keeps a genuine pile behaving exactly as before (every
+        # part stacked at one point stays excluded) while a placed board's
+        # untouched parts become the obstacles they are.
+        #
+        # A part locked in the FILE is authoritatively placed and never here.
+        movable = {r for r, p in state.parts.items() if not p.locked}
+        if plan_refs is None:
+            self.pending: Set[str] = movable
+        else:
+            seen: Dict[Tuple[float, float], int] = {}
+            for p in state.parts.values():
+                key = (round(p.x, 4), round(p.y, 4))
+                seen[key] = seen.get(key, 0) + 1
+            piled = {r for r, p in state.parts.items()
+                     if seen.get((round(p.x, 4), round(p.y, 4)), 0) > 1}
+            self.pending = movable & (set(plan_refs) | piled)
         self._groups: Optional[Dict[str, List[str]]] = None
         # Declared by place_keepout, honoured by every seat AFTER it.
         self.keepouts: List[Tuple] = []
@@ -1249,6 +1290,52 @@ def compile_intent(res: ResolveResult, state, pcb_data, ops: Sequence[Dict],
     return intent
 
 
+def plan_target_refs(pcb_data, pcb_file, state, ops) -> Tuple[Set[str], List[str]]:
+    """Every ref this plan may seat, resolved WITHOUT seating anything.
+
+    Returns (refs, unresolved_notes). Anything not in `refs` keeps its pose
+    for the whole run, so it is an obstacle -- see `_Resolver.__init__`.
+
+    Index ops are replayed here because a selector like `index:switch` cannot
+    be resolved without them; `op_place_index` only builds a dict, so running
+    it twice is free and side-effect-free. A selector this pass cannot resolve
+    is reported, and its op's refs are treated as TARGETS (the old, permissive
+    behaviour) rather than silently becoming obstacles -- guessing wrong in
+    that direction parks a part the author asked for, which is louder than
+    stacking one, and the note says which step was involved.
+    """
+    probe = _Resolver(pcb_data, pcb_file, state)
+    targets: Set[str] = set()
+    unresolved: List[str] = []
+    for i, op in enumerate(ops):
+        action = op.get('action')
+        if action == 'place_index':
+            try:
+                probe.op_place_index(op, i + 1)
+            except Exception as e:                       # noqa: BLE001
+                unresolved.append(f"step {i + 1} ({action}): {e}")
+            continue
+        if action in ('place_keepout',):
+            continue
+        for key in ('ref', 'refs', 'of', 'for'):
+            value = op.get(key)
+            if value is None:
+                continue
+            if key == 'ref' and isinstance(value, str):
+                targets.add(value)
+                continue
+            try:
+                targets.update(probe.refs(value))
+            except Exception as e:                       # noqa: BLE001
+                unresolved.append(
+                    f"step {i + 1} ({action}) {key}={value!r}: {e}")
+                # Permissive fallback: cannot tell what it names, so do not
+                # let it become an obstacle by accident.
+                targets.update(r for r, p in state.parts.items()
+                               if not p.locked)
+    return targets, unresolved
+
+
 def resolve(pcb_data, pcb_file: str, ops: Sequence[Dict], *,
             clearance: float = 0.25, board_edge_clearance: float = 0.55,
             grid_step: float = 0.1, state=None, deadline=None,
@@ -1264,8 +1351,20 @@ def resolve(pcb_data, pcb_file: str, ops: Sequence[Dict], *,
         state = pose_score.make_state(
             pcb_data, pcb_file, clearance=clearance,
             board_edge_clearance=board_edge_clearance, grid_step=grid_step)
+    plan_refs, unresolved = plan_target_refs(pcb_data, pcb_file, state, ops)
     r = _Resolver(pcb_data, pcb_file, state, deadline=deadline,
-                  progress=progress)
+                  progress=progress, plan_refs=plan_refs)
+    for note in unresolved:
+        r.res.notes.append(
+            f"could not pre-resolve a selection, so nothing it names was "
+            f"treated as an obstacle: {note}")
+    held = sum(1 for ref, p in state.parts.items()
+               if not p.locked and ref not in r.pending)
+    if held:
+        r.res.notes.append(
+            f"{held} part(s) this plan never names sit at a distinct pose and "
+            f"are held there as obstacles; {len(r.pending)} part(s) are the "
+            f"plan's to move (or are piled, so their pose means nothing)")
     for i, op in enumerate(ops):
         action = op.get('action')
         if action not in RESOLVED_ACTIONS:

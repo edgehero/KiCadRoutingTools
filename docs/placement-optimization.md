@@ -630,11 +630,29 @@ Measured, same board, same engine gate, `py_placer/place_plan.py`:
 | seated | 80 | **82** |
 | parked | SW17 SW34 D16 D17 D33 | D17 D33 D34 |
 
-SW17 and SW34 are the two switches the hand script could not seat, which cost
-that run a further routing cycle and a second hand script. They seat because a
-plan can say `"rot": 0` — and `seeder.py:26-32` records exactly why the intent
-schema could not: *"The intent schema cannot express a rotation."* The hand
-script wanted to say it too, and wrote it as a comment (`arrange.py:30`).
+**That table is apples-to-apples (same board, clearance, edge and grid; both
+address the same 85 refs) and the 82 is reproducible. The comparison is still
+not evidence that the FORMAT places better, and an earlier revision of this
+section claimed it was. Retracted, with the measurement that retracted it:**
+
+The whole margin is one setting. SW17's pile rotation is 330° and SW34's is
+15°, and `_try_place` searches `[rot, rot+90, rot+180, rot+270]`, so neither
+part can reach 0° from its pile pose. The plan says `"rot": 0`; delete just
+that and it drops to 79. But the hand script could say it too — it is Python
+calling the same `_try_place`, and three lines setting `st.parts[ref].rot = 0`
+for the switches take it to **82 with the identical park set**. Extend it to
+the diodes and it reaches **84, parking only D17** — two better than the plan.
+The plan's own vocabulary also reaches 84 (`place_relative` accepts `rot`), so
+the shipped 22-op plan leaves two seats on the table that its own schema
+expresses. `seeder.py:26-32` is about the INTENT schema, which genuinely
+cannot express a rotation; it says nothing about a Python script.
+
+So the defensible claim is narrower: the plan reproduces the hand script's
+result through the engine's own gate, in a form that is inspectable, diffable
+and replayable, with the loops and the mirror axis gone. It does not place
+better. And 74 of the plan's 77 numeric literals appear verbatim in
+`arrange.py` (the other 3 are that file's own computed values written out), so
+what was eliminated is the ARITHMETIC, not the hand-chosen coordinates.
 
 So the honest formulation of the verdict is narrower than what this document
 has been read as saying:
@@ -655,9 +673,23 @@ What has NOT changed, and should not be read into the above:
 - Nothing here supplies enclosure fit, thermal or EMI intent. Those still
   arrive from a human, and the plan gives them somewhere to land instead of an
   `arrange.py` constant.
-- `place_seed` itself is unchanged. It still reports "no legal pose anywhere on
-  the board" and still cannot lift a blocker; the eviction machinery lives on
-  the plan path only (issue #630 remains open against the seeder).
+- `place_seed` gained its own eviction rung after this amendment was first
+  written (`--evict-depth`, default 1): stage 3c censuses the movable
+  incumbents blocking a part with no legal pose, evicts up to
+  `EVICT_MAX_BLOCKERS`, and retries, reporting `evictions` and
+  `no_pose_blockers`. A file-locked incumbent is never evicted. Measured on
+  piled real boards it does change the outcome — `sonde_u` 22 seated → **25,
+  0 unseated** (3 evictions), `esp_prog` 14 → 15 — so the machinery is not
+  plan-path-only.
+  **It does NOT close #630, and this document should not be read as claiming
+  it does.** On the 87-part urchin pile the issue actually names, `place_seed`
+  does not terminate: two runs (eviction on and off) burned ~2 h 20 m wall
+  each with no result, and bounded at `--deadline 900` it exits 7 having
+  seeded 28 with `evictions: 0` and an empty `no_pose_blockers` — the rung
+  never fires because stage 3 never finishes. #630's complaint is a
+  REACHABILITY complaint, and the binding constraint on that board is
+  non-termination, not the missing rung. (Also: `--evict-depth` is typed `int`
+  but read as a boolean, so `5` behaves exactly like `1`.)
 - Simultaneous routability is still not predicted. `loop_driver.py:1347-1350`
   says it: *"Both those tests are PER-NET, and simultaneous routability is not.
   A board can pass every one of them and still be unroutable."* The router

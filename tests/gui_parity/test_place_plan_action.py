@@ -165,8 +165,14 @@ for fp in board.GetFootprints():
         round(pcbnew.ToMM(fp.GetPosition().y), 4),
         round(fp.GetOrientationDegrees() % 360.0, 4))
 
-check("the GUI arm moved the parts the plan named",
-      len(res.placements) >= 5, f"{len(res.placements)} placement(s)")
+# Compare the ARMS, not a magic number. This asserted `>= 5`, which was
+# calibrated to a bug: the resolver excluded every unlocked part from its own
+# obstacle set, so these ops seated on top of whatever was already there.
+# splitflap_driver is a PLACED board, so some of them park now -- correctly.
+# A count baked in here just re-freezes whatever the engine currently does;
+# what this gate exists to prove is that both fronts do the SAME thing.
+check("the GUI arm moved parts at all (else parity is vacuous)",
+      len(res.placements) > 0, f"{len(res.placements)} placement(s)")
 
 moved = [p['reference'] for p in res.placements]
 diffs = []
@@ -195,6 +201,9 @@ if os.path.isfile(cli_json):
         cli_rep = json.load(f)
     cli_parks = sorted(p['ref'] for p in cli_rep['parks'])
     gui_parks = sorted(p.ref for p in res.parks)
+    check("both arms SEAT the same number of parts",
+          len(cli_rep['seats']) == len(res.placements),
+          f"CLI {len(cli_rep['seats'])} vs GUI {len(res.placements)}")
     check("the parks comparison is not vacuous (something actually parked)",
           bool(cli_parks), f"CLI parked {cli_parks}")
     check("the two arms park the same refs", cli_parks == gui_parks,

@@ -45,7 +45,7 @@ if not os.path.isfile(SMALL):
     sys.exit(0)
 
 from kicad_parser import parse_kicad_pcb
-from placement.escape import escape_ledger
+from placement.escape import PartEscape, escape_ledger
 from placement.options import (OPTIONS, capacity_options, deficit_totals,
                                format_text, grow_board)
 
@@ -128,8 +128,15 @@ else:
 # --------------------------------------------------------------------------
 # deficit_totals: the bug that made two options lie
 # --------------------------------------------------------------------------
+# Against the REAL class. This asserted `not hasattr(type('x', (), {}), ...)`
+# -- an anonymous empty class -- which is unconditionally true and never
+# touched PartEscape. It stayed green when a real worst_deficit property was
+# added, and, worse, it stood guard over a bug that was still live in
+# options.py's relax_clearance the whole time it was passing.
 check("PartEscape really has no worst_deficit ATTRIBUTE",
-      not hasattr(type('x', (), {}), 'worst_deficit'), "")
+      not hasattr(PartEscape, 'worst_deficit'),
+      "if this ever gains the attribute, the getattr form becomes safe and "
+      "this test should be deleted rather than inverted")
 if os.path.isfile(DENSE):
     dp = parse_kicad_pcb(DENSE)
     led = escape_ledger(dp, pcb_file=DENSE, clearance=0.2)
@@ -205,12 +212,21 @@ if os.path.isfile(DENSE):
                   f"{al['measured']['deficit_lanes_now']} -> "
                   f"{al['measured']['deficit_lanes_at_more']}: {al['action']}")
     rc = dopts['relax_clearance']
-    if rc.get('ran'):
-        below = [r for r in rc['measured']['ladder']
-                 if r.get('below_fab_floor')]
-        check("relax_clearance refuses to measure below the fab floor",
-              all(r['deficit_lanes'] is None for r in below),
-              "capacity nobody can etch is not capacity")
+    # NOT `if rc.get('ran'):`. That guard made this the only relax_clearance
+    # assertion in the suite AND made it dead code: `ran` was False on every
+    # board because of the worst_deficit getattr, so the option shipped a
+    # false "nothing to report" and no test could see it. Assert it RAN.
+    check("relax_clearance actually runs on a board with a lane deficit",
+          rc.get('ran'), f"ran={rc.get('ran')} reason={rc.get('reason')!r} -- "
+                         f"a deficit board must not report 'nothing to relax'")
+    check("and it measured a real base deficit, not 0",
+          (rc.get('measured') or {}).get('deficit_lanes', 0) > 0,
+          str(rc.get('measured')))
+    below = [r for r in (rc.get('measured') or {}).get('ladder', [])
+             if r.get('below_fab_floor')]
+    check("relax_clearance refuses to measure below the fab floor",
+          all(r['deficit_lanes'] is None for r in below),
+          "capacity nobody can etch is not capacity")
 else:
     print("  NOTE glasgow_revC absent; the deficit half is untested")
 

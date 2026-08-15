@@ -346,7 +346,13 @@ def relax_clearance(pcb_data, pcb_file: str, *, clearance: float,
     def _deficit(clr):
         led = escape_ledger(pcb_data, pcb_file=pcb_file, clearance=clr,
                             track_width=track_width)
-        return sum(max(0, getattr(p, 'worst_deficit', 0)) for p in led)
+        # Via deficit_totals, NOT `getattr(p, 'worst_deficit', 0)`. That name
+        # is a to_dict() key, never an attribute, so the getattr returned 0 on
+        # every board and this whole option reported "no face is short of
+        # lanes" while move_blocker, in the same report, named 23 faces in
+        # deficit on tigard. Same lane definition as move_blocker (all faces,
+        # not the worst per part) so the two cannot disagree again.
+        return deficit_totals(led)['lanes']
 
     try:
         base = _deficit(clearance)

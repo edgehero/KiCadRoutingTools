@@ -42,32 +42,47 @@ TOOL_ACTIONS = {
 # board -> board_placed, whereas a missing one leaves the next step's input
 # produced by nothing and the pruner drops legitimate upstream steps.
 #
-# Refused rather than mapped, because there is nothing to map TO: the plan
-# format has no placement step. (The GUI's Placement sub-tab drives the
-# placement SKILLS headless - it is not a plan action, so a plan step's
-# max_displacement/crossing_penalty/halo_* would still resolve to nonexistent
-# dialog attributes and silently run at hardcoded defaults while the plan JSON
-# claims otherwise.) And refused rather than DROPPED, because the unknown-tool path
+# Refused rather than mapped. The ORIGINAL reason -- "there is nothing to map
+# TO: the plan format has no placement step" -- expired when `place_plan`
+# became a plan action; `place_plan.py` is mapped in TOOL_ACTIONS above. The
+# reason these SEVEN are still refused is different and narrower: a plan step
+# is a DECLARATION that replays deterministically, and each of these is a
+# SEARCH. place_optimize/place_seed/place_reconstruct explore poses against an
+# objective, place_portfolio emits a slate whose choice is a human decision,
+# and place_route_loop iterates placement against routing. Recording their
+# OUTCOME as a `place_plan` would be a fabrication: the ops would assert
+# coordinates the search happened to reach, not the intent that produced them,
+# and replaying it would silently skip the search. Convert such a step by
+# authoring the intent as a plan, or run the tool on the CLI and start the
+# plan from its output board.
+#
+# (The GUI's Placement sub-tab drives the placement SKILLS headless - it is not
+# a plan action, so a plan step's max_displacement/crossing_penalty/halo_*
+# would still resolve to nonexistent dialog attributes and silently run at
+# hardcoded defaults while the plan JSON claims otherwise.)
+# And refused rather than DROPPED, because the unknown-tool path
 # only bumps a `skipped` counter -- a number, not a name -- so the converted
 # plan looks complete when it is not.
 REFUSED_TOOLS = {
     'place_optimize.py': (
-        'moves footprints; the plan format has no placement step. Run it BEFORE '
-        'the plan and start the plan from the placed board'),
+        'SEARCHES for better poses against an objective; a plan step declares, it '
+        'does not search. Run it BEFORE the plan and start the plan from the '
+        'placed board (or author the intent as a place_plan)'),
     'place_route_loop.py': (
-        'routes and moves footprints in a loop; the plan format has no placement '
-        'step. Run it on the CLI'),
+        'iterates placement AGAINST routing; the loop is the point and a plan step '
+        'cannot express it. Run it on the CLI'),
     'place_seed.py': (
-        'seeds/repairs a placement from an intent; the plan format has no '
-        'placement step. Run it BEFORE the plan and start the plan from the '
-        'seeded board'),
+        'seeds/repairs from an intent by SEARCHING (rings, rotations, eviction); '
+        'replaying its outcome as declared coordinates would skip that search. '
+        'Run it BEFORE the plan, or author the intent as a place_plan'),
     'place_reconstruct.py': (
-        'reconstructs a damaged placement; the plan format has no placement '
-        'step. Run it BEFORE the plan and start the plan from its output'),
+        'reconstructs a damaged placement by solving an assignment; a plan step '
+        'declares poses rather than solving for them. Run it BEFORE the plan '
+        'and start the plan from its output'),
     'place_portfolio.py': (
-        'generates a SLATE of placements to choose between; the plan format has '
-        'no placement step, and picking one is a decision, not a replayable '
-        'step. Run it on the CLI and start the plan from the adopted board'),
+        'generates a SLATE of placements to choose between, and picking one is a '
+        'human decision, not a replayable step. Run it on the CLI and start '
+        'the plan from the adopted board'),
     'render_placement.py': (
         'renders a PNG; it changes no board and has nothing to replay'),
     'beautify_labels.py': (
