@@ -73,6 +73,15 @@ PACK_POLICIES = ('radial', 'rows', 'grid', 'ring')
 
 EDGES = ('north', 'south', 'east', 'west')
 
+# Ops whose SCHEMA is settled but whose resolver is not written yet. They are
+# refused by name at validation rather than at resolve time, and the authoring
+# contract below marks them, because the alternative is what shipped first: an
+# AI reads the schema, writes the canonical plan (whose own first op is
+# `place_keepout`), and has the WHOLE plan refused for using a documented key.
+# `plan_resolve.RESOLVED_ACTIONS` is derived from this, so the two cannot drift.
+UNIMPLEMENTED_ACTIONS = ('place_keepout', 'place_pack', 'place_repair',
+                         'place_polish')
+
 # `where` filter predicates. Structured rather than a string expression: a
 # parser for "row<3" is a second language to get wrong, and every filter these
 # ops need is one comparison against one field.
@@ -95,21 +104,21 @@ _OP_FIELDS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     'place_index':    (('name', 'select'), ('fields', 'partner', 'note')),
     'place_keepout':  (('rect',), ('reason', 'sides', 'allow', 'note')),
     'place_at':       (('ref', 'at'),
-                       ('rot', 'rot_prefer', 'within', 'mirror', 'clearance',
-                        'note')),
+                       ('rot', 'rot_prefer', 'within', 'mirror', 'note')),
     'place_array':    (('refs', 'pitch', 'origin'),
                        ('mirror', 'rot', 'rot_prefer', 'within', 'order',
-                        'where', 'index_x', 'index_y', 'clearance', 'note')),
+                        'where', 'index_x', 'index_y', 'note')),
     'place_slots':    (('refs', 'slots'),
                        ('mirror', 'rot', 'rot_prefer', 'within', 'order',
-                        'group_by', 'where', 'clearance', 'note')),
+                        'group_by', 'where', 'note')),
     'place_relative': (('refs', 'of', 'offset'),
                        ('pair_by', 'rot', 'rot_prefer', 'within', 'where',
-                        'order', 'clearance', 'note')),
-    'place_edge':     (('refs', 'edge'), ('overhang', 'within', 'order', 'note')),
+                        'order', 'note')),
+    'place_edge':     (('refs', 'edge'),
+                       ('overhang', 'rot', 'order', 'note')),
     'place_pack':     (('refs', 'zone'),
                        ('policy', 'rot', 'within', 'order', 'where',
-                        'tolerance', 'clearance', 'note')),
+                        'tolerance', 'note')),
     'place_lift':     (('refs',),
                        ('for', 'restore', 'within', 'rot', 'note')),
     'place_repair':   ((), ('refs', 'caps', 'params', 'note')),
@@ -462,6 +471,14 @@ def validate_ops(ops: Sequence[Dict]) -> List[str]:
                 f"{where}: unknown action {action!r} (known: "
                 f"{', '.join(PLACEMENT_ACTIONS)})")
             continue
+        if action in UNIMPLEMENTED_ACTIONS:
+            live = ', '.join(a for a in PLACEMENT_ACTIONS
+                             if a not in UNIMPLEMENTED_ACTIONS)
+            errors.append(
+                f"{where}: {action!r} has a settled schema but no resolver "
+                f"yet, so a plan using it cannot be executed. "
+                f"Implemented: {live}")
+            continue
         where = f"{where} ({action})"
         open_keys = ('params',) if action in ('place_repair',
                                               'place_polish') else ()
@@ -475,6 +492,24 @@ def validate_ops(ops: Sequence[Dict]) -> List[str]:
         if op.get('refs') is not None:
             name = _check_refs(where, op['refs'], indexes, errors)
             idx = indexes.get(name) if name else None
+            # `where`, `group_by` and `mirror.when` all name INDEX FIELDS.
+            # On a glob or `group:` selection there is no index to evaluate
+            # them against, and `select_refs` simply dropped them -- a
+            # recognised key producing a different placement in silence,
+            # which is the failure this validator exists to prevent.
+            if idx is None:
+                for key in ('where', 'group_by'):
+                    if op.get(key) is not None:
+                        errors.append(
+                            f"{where}.{key}: names index fields, but refs is "
+                            f"not an 'index:<name>' selection, so there are "
+                            f"no fields to filter on")
+                mir = op.get('mirror')
+                if isinstance(mir, dict) and mir.get('when') is not None:
+                    errors.append(
+                        f"{where}.mirror.when: names index fields, but refs "
+                        f"is not an 'index:<name>' selection, so there are "
+                        f"no fields to test")
 
         if action == 'place_keepout':
             _check_rect(f"{where}.rect", op.get('rect'), errors)
@@ -671,5 +706,9 @@ PLACEMENT_PLAN_SCHEMA = (
     'coordinates. Use "solve:outline_probe" instead of typing a coordinate '
     'you measured off the outline yourself. '
     'ANY op this tool cannot execute as written refuses the WHOLE plan and '
-    'places nothing, so do not guess at key names.'
+    'places nothing, so do not guess at key names. '
+    'NOT IMPLEMENTED YET, and refused if used: '
+    + ', '.join(UNIMPLEMENTED_ACTIONS) +
+    ' -- their schema is settled but no resolver is written, so do not put '
+    'them in a plan you intend to run.'
 )

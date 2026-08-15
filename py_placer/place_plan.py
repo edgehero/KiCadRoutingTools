@@ -119,10 +119,12 @@ Examples:
         print(f"  NOTE: could not read this board's floors ({e}); using "
               f"clearance {clearance}, edge {edge}")
 
-    dl = None
-    if a.deadline:
-        from krt_deadline import arm
-        dl = arm(a.deadline, tool='place_plan')
+    # Armed UNCONDITIONALLY, like every sibling (place_seed.py, place_
+    # portfolio.py, place_reconstruct.py, place_optimize.py, converge.py):
+    # that is what lets `arm` fall back to $KRT_DEADLINE_S, so a harness
+    # setting one budget for a chain does not silently get none for this step.
+    from krt_deadline import arm
+    dl = arm(a.deadline, tool='place_plan')
 
     try:
         res = resolve(pcb, a.input_file, ops, clearance=clearance,

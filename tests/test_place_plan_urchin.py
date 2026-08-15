@@ -164,6 +164,16 @@ with tempfile.TemporaryDirectory() as wd:
           rep['seated'] >= HAND_SEATED,
           f"{rep['seated']} seated, {rep['parked']} parked "
           f"({sorted(parks)})")
+    # The other half of the bar, which was defined and then never asserted:
+    # every part the hand script could not seat must be seated here or named
+    # as a park. A ref in neither list has gone missing.
+    accounted = set(seats) | set(parks)
+    check("every part the hand script parked is accounted for",
+          HAND_PARKED <= accounted,
+          f"unaccounted: {sorted(HAND_PARKED - accounted)}")
+    check("no park is unexplained: each names a reason",
+          all(p['reason'] for p in parks.values()),
+          str({r: p['reason'] for r, p in parks.items() if not p['reason']}))
 
     # --- the two the hand script could not seat -----------------------------
     for ref in ('SW17', 'SW34'):

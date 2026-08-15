@@ -271,12 +271,19 @@ check("a file-locked part is refused, not moved",
 # --------------------------------------------------------------------------
 # an op the resolver does not execute refuses the run
 # --------------------------------------------------------------------------
+# `plan_ops` now refuses an unimplemented op at VALIDATION, so this path is
+# only reachable by a caller that skipped validation -- which is exactly when
+# a defence-in-depth guard has to hold. Call resolve() with an unvalidated op.
+pcb_, path_ = board()
 try:
-    run([{"action": "place_pack", "refs": ["U1"], "zone": [0, 0, 20, 20]}])
+    resolve(pcb_, path_,
+            [{"action": "place_pack", "refs": ["U1"], "zone": [0, 0, 20, 20]}])
     check("an unimplemented op refuses", False, "it ran anyway")
 except PlanError as e:
-    check("an unimplemented op refuses, naming itself",
+    check("an unimplemented op refuses at resolve too, naming itself",
           'place_pack' in str(e) and 'nothing was placed' in str(e), str(e))
+finally:
+    os.unlink(path_)
 
 # --------------------------------------------------------------------------
 # determinism (#457): the same plan on the same board resolves identically

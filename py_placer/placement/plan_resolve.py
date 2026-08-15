@@ -1,12 +1,22 @@
 """Execute a placement plan: statements in, seated poses out.
 
-Every op resolves to `seeder._try_place` calls, which is what makes this
-cheap: the target a plan states is a HINT, and `_try_place` returns the
+Almost every op resolves to `seeder._try_place` calls, which is what makes
+this cheap: the target a plan states is a HINT, and `_try_place` returns the
 nearest FULLY-CONTAINED legal pose to it, trying the requested rotation in
 full before the rest of the 90-degree lattice, and relaxing courtyard
 clearance in three steps before giving up. So legality, the rotation
 fallback, the clearance ladder and the pile-exclusion rule all behave exactly
 as they do for `seed_from_intent`, and a plan cannot author an illegal board.
+
+`place_edge` is THE EXCEPTION, and it has to be: an edge connector overhangs
+the outline by design, and `_try_place` demands full containment, so it would
+refuse every legal edge seat. It uses `seeder._seat_edge` instead -- the same
+helper stage 1 of `seed_from_intent` uses. Two consequences a caller must
+know rather than discover: `_seat_edge` takes no exclude set (`seeder.py`'s
+`conflict_free` walks every part in `legality_ctx`), so on an unplaced pile
+an edge seat can be vetoed by parts still sitting at their meaningless input
+coordinates; and it runs no clearance ladder, so an edge Seat reports
+`clearance: None` rather than a number nothing measured.
 
 `wk/run19/urchin/arrange.py` used the same primitive for all 80 of its seats
 (`arrange.py:154-171`). The difference is that the ARRANGEMENT is now stated
@@ -35,14 +45,15 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from placement import seeder
-from placement.plan_ops import PlanError, parse_ref_selector
+from placement.plan_ops import (PLACEMENT_ACTIONS, UNIMPLEMENTED_ACTIONS,
+                                PlanError, parse_ref_selector)
 
 # Implemented so far. An op outside this set refuses by name rather than
 # being skipped -- see the module docstring.
-RESOLVED_ACTIONS = (
-    'place_index', 'place_at', 'place_array', 'place_slots',
-    'place_relative', 'place_edge', 'place_lift', 'place_lock',
-)
+# Derived, never hand-listed: a second list would drift from the validator's,
+# and then the authoring contract would advertise an op that refuses.
+RESOLVED_ACTIONS = tuple(a for a in PLACEMENT_ACTIONS
+                         if a not in UNIMPLEMENTED_ACTIONS)
 
 DEFAULT_EDGE_OVERHANG_MM = 0.5
 
@@ -56,7 +67,10 @@ class Seat:
     action: str
     target: Tuple[float, float]
     pose: Tuple[float, float, float]
-    clearance: float
+    # None when the op did not run a clearance ladder (place_edge). Reporting
+    # the state's nominal clearance there would be a number nothing measured,
+    # and `summary()['relaxed']` would never be able to see an edge seat.
+    clearance: Optional[float]
     moved_mm: float
     rot_requested: Optional[float] = None
     rot_changed: bool = False
@@ -65,7 +79,8 @@ class Seat:
         return {'ref': self.ref, 'step': self.step, 'action': self.action,
                 'target': [round(v, 4) for v in self.target],
                 'pose': [round(v, 4) for v in self.pose],
-                'clearance': round(self.clearance, 4),
+                'clearance': (None if self.clearance is None
+                              else round(self.clearance, 4)),
                 'moved_mm': round(self.moved_mm, 4),
                 'rot_requested': self.rot_requested,
                 'rot_changed': self.rot_changed}
@@ -117,6 +132,8 @@ class ResolveResult:
                                            default=0.0), 4),
                 'relaxed': sum(1 for n in self.notes
                                if 'relaxed clearance' in n),
+                'unmeasured_clearance': sum(1 for s in self.seats
+                                            if s.clearance is None),
                 'complete': self.complete}
 
 
@@ -251,11 +268,19 @@ def _sort_key(row: Dict, ref: str, order: Optional[Sequence[str]]):
         v = ref if name == 'ref' else row.get(name)
         # None sorts last either way: an unindexed member is not "smallest".
         missing = v is None
-        if isinstance(v, str):
-            key.append((missing, _Neg(v) if desc else v))
+        # An index field is not type-homogeneous by construction: `map`
+        # values are unconstrained and `partner.inherit` can overwrite one
+        # member's field with a differently-typed partner value. Sorting a
+        # mixed column used to raise straight out of resolve(); numbers sort
+        # before strings, and neither raises.
+        if missing:
+            key.append((2, 0.0, ''))
+        elif isinstance(v, (int, float)) and not isinstance(v, bool):
+            num = float(v)
+            key.append((0, -num if desc else num, ''))
         else:
-            num = 0.0 if missing else float(v)
-            key.append((missing, -num if desc else num))
+            t = str(v)
+            key.append((1, 0.0, _Neg(t) if desc else t))
     key.append(ref)
     return key
 
@@ -342,6 +367,23 @@ class _Resolver:
         # could never express one (seeder.py:26-32).
         angles: List[Optional[float]] = list(rot_prefer) if rot_prefer \
             else [rot]
+        # A part's legality geometry exists only at the angles in
+        # `bounds_by_rot` (its 90-degree lattice plus its own base angle).
+        # `_Part.rect` silently falls back to the 0-degree box for anything
+        # else, so a plan asking for 45 degrees was checked against the wrong
+        # courtyard and written off the board at exit 0. Refuse the angle
+        # instead, and name the ones that exist.
+        have = getattr(part, 'bounds_by_rot', None) or {}
+        bad = [a for a in angles
+               if a is not None and float(a) % 360.0 not in have]
+        if bad and have:
+            self.res.parks.append(Park(
+                ref=ref, step=step, action=action, target=(tx, ty),
+                within=within,
+                reason=f"rotation(s) {sorted(set(bad))} are not in this "
+                       f"part's legality lattice {sorted(have)}, so no "
+                       f"courtyard exists to check them against"))
+            return False
         info: Dict = {}
         for angle in angles:
             if angle is not None:
@@ -408,6 +450,18 @@ class _Resolver:
                   rot_prefer=op.get('rot_prefer'))
 
     # -- lattices --------------------------------------------------------
+    @staticmethod
+    def _mirror_xy(axis: str, x: float, y: float, msum: float):
+        """Reflect the coordinate the axis actually names.
+
+        `board:ymid` used to reflect X in the lattice ops (only `place_at`
+        branched correctly), so a y-mirror mixed the board's y-bounds sum into
+        an x coordinate.
+        """
+        if axis == 'board:xmid':
+            return msum - x, y
+        return x, msum - y
+
     def _mirror_sum(self, axis: str) -> float:
         """`mirror(v) = sum - v`, i.e. reflection about the board's midpoint.
 
@@ -420,7 +474,8 @@ class _Resolver:
 
     def _probe_axis(self, spec: Dict, axis: str, fixed: float,
                     members: Sequence[Tuple[str, int]], pitch: float,
-                    rot: Optional[float]) -> Optional[float]:
+                    rot: Optional[float],
+                    mirror_sum: Optional[float] = None) -> Optional[float]:
         """Smallest origin at which EVERY member of this lattice line, and
         every declared `also` rect, is fully on the board.
 
@@ -458,6 +513,12 @@ class _Resolver:
                 if part is None:
                     continue
                 v = origin + pitch * n
+                # A mirrored line must be PROBED on the side it will land on.
+                # Solving on the unmirrored side and reflecting the answer
+                # afterwards validates against the wrong geometry the moment
+                # the outline is not symmetric.
+                if mirror_sum is not None:
+                    v = mirror_sum - v
                 cx, cy = (fixed, v) if axis == 'y' else (v, fixed)
                 r = part.rot if rot is None else float(rot) % 360.0
                 if gate.rect_outside_amount(part.rect(cx, cy, r)) > 1e-9:
@@ -544,7 +605,7 @@ class _Resolver:
             if self._is_solve(oy_spec):
                 x = float(ox_spec) + px * col
                 if mirrored:
-                    x = msum - x
+                    x, _ = self._mirror_xy(mirror['axis'], x, 0.0, msum)
                 key = (mirrored, col)
                 if key not in solved:
                     line = [(r2, rw2) for r2, c2, rw2, m2 in members
@@ -558,13 +619,14 @@ class _Resolver:
                     line = [(r2, c2) for r2, c2, rw2, m2 in members
                             if rw2 == row and m2 == mirrored]
                     solved[key] = self._probe_axis(
-                        self._solve_spec(ox_spec), 'x', y, line, px, rot)
+                        self._solve_spec(ox_spec), 'x', y, line, px, rot,
+                        mirror_sum=msum if mirrored else None)
 
         for ref, col, row, mirrored in members:
             if self._is_solve(oy_spec):
                 x = float(ox_spec) + px * col
                 if mirrored:
-                    x = msum - x
+                    x, _ = self._mirror_xy(mirror['axis'], x, 0.0, msum)
                 base = solved.get((mirrored, col))
                 if base is None:
                     self.res.parks.append(Park(
@@ -584,14 +646,17 @@ class _Resolver:
                                f"of {'mirrored ' if mirrored else ''}line "
                                f"{row} fully on the board"))
                     continue
+                # `_probe_axis` was given `mirror_sum`, so it TESTED the
+                # mirrored side while returning the origin in unmirrored
+                # space -- the reflection therefore still happens here, once.
                 x = base + px * col
                 if mirrored:
-                    x = msum - x
+                    x, _ = self._mirror_xy(mirror['axis'], x, 0.0, msum)
             else:
                 x = float(ox_spec) + px * col
                 y = float(oy_spec) + py * row
                 if mirrored:
-                    x = msum - x
+                    x, y = self._mirror_xy(mirror['axis'], x, y, msum)
             self.seat(ref, round(x, 4), round(y, 4), step, 'place_array',
                       within=op.get('within'), rot=rot,
                       rot_prefer=op.get('rot_prefer'))
@@ -632,8 +697,9 @@ class _Resolver:
                 mirrored = bool(mirror
                                 and _passes(row, mirror.get('when'))) \
                     if mirror else False
-                x = msum - sx if mirrored else sx
-                self.seat(ref, round(x, 4), round(sy, 4), step, 'place_slots',
+                x, y = ((sx, sy) if not mirrored
+                        else self._mirror_xy(mirror['axis'], sx, sy, msum))
+                self.seat(ref, round(x, 4), round(y, 4), step, 'place_slots',
                           within=op.get('within'), rot=op.get('rot'),
                           rot_prefer=op.get('rot_prefer'))
 
@@ -725,7 +791,7 @@ class _Resolver:
                 p = self.st.parts[ref]
                 self.res.seats.append(Seat(
                     ref=ref, step=step, action='place_edge', target=(tx, ty),
-                    pose=(p.x, p.y, p.rot), clearance=self.st.clearance,
+                    pose=(p.x, p.y, p.rot), clearance=None,
                     moved_mm=math.hypot(p.x - tx, p.y - ty),
                     rot_requested=op.get('rot')))
             else:
@@ -757,6 +823,17 @@ class _Resolver:
         within = op.get('within')
         restore = op.get('restore', True)
 
+        both = sorted(set(blockers) & set(blocked))
+        if both:
+            # Lifting a part to make room for itself is not a trade, and the
+            # census would compare it against its own absence.
+            for ref in both:
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action='place_lift',
+                    reason='named as both a blocker (refs) and a blocked part '
+                           '(for) -- it cannot make room for itself'))
+            return
+
         movable = []
         for b in blockers:
             part = self.st.parts.get(b)
@@ -772,6 +849,18 @@ class _Resolver:
                     ref=b, step=step, action='place_lift',
                     reason="(locked yes) in the file -- not this tool's to "
                            "move, so it cannot be lifted either"))
+                continue
+            if b in self.pending:
+                # It is still in the pile, so it is not in anyone's way and
+                # there is nothing to lift. Censusing it would also be
+                # tautological: the count with it excluded is the count it
+                # already had, so "lifting it frees no pose" could not have
+                # come out any other way. Restoring it would additionally
+                # SEAT a part this plan never asked to place.
+                self.res.parks.append(Park(
+                    ref=b, step=step, action='place_lift',
+                    reason='not seated by this plan, so it is not an '
+                           'obstacle and lifting it would measure nothing'))
                 continue
             movable.append(b)
         if not movable:
@@ -805,6 +894,36 @@ class _Resolver:
         # Lift: the blockers rejoin the pile, so they stop being obstacles.
         home = {b: (self.st.parts[b].x, self.st.parts[b].y,
                     self.st.parts[b].rot) for b in movable}
+
+        # A trade is ALL OR NOTHING. Everything from here is undone together
+        # if any part of it cannot be completed legally -- the house standard
+        # (`reseat_scope`'s three-conjunct gate reverts the whole pass;
+        # `seed_from_intent`'s anchor rounds snapshot and restore). Without
+        # this, a blocker that cannot get back out of the way used to be put
+        # back at its old pose ANYWAY, which is now occupied by the part it
+        # was blocking: two coincident courtyards, written, with a note
+        # reading as success.
+        snap = {'poses': {r: (self.st.parts[r].x, self.st.parts[r].y,
+                              self.st.parts[r].rot)
+                          for r in set(movable) | set(blocked)
+                          if r in self.st.parts},
+                'pending': set(self.pending),
+                'seats': list(self.res.seats),
+                'parks': list(self.res.parks)}
+
+        def rollback(why: str):
+            for r, pose in snap['poses'].items():
+                self.st.apply_move(r, *pose)
+            self.pending = set(snap['pending'])
+            self.res.seats = list(snap['seats'])
+            self.res.parks = list(snap['parks'])
+            self.res.notes.append(why)
+            for ref in blocked:
+                for p in self.res.parks:
+                    if p.ref == ref:
+                        p.blockers = dict(census.get(ref, {}))
+                        p.censused = ref in census
+
         self.pending |= set(movable)
         seated_now = []
         for ref in blocked:
@@ -838,17 +957,34 @@ class _Resolver:
                                 f"no pose either, so they are not what is in "
                                 f"the way")
 
-        # Put the blockers back, now that what they blocked is in place.
+        # Put the blockers back, now that what they blocked is in place. Their
+        # old seat may well be taken now -- that is the point -- so each one
+        # searches from where it was, within the op's budget.
         if restore:
             for b in movable:
                 bx, by, brot = home[b]
                 if not self.seat(b, bx, by, step, 'place_lift',
                                  within=within, rot=brot):
-                    # It could not go back and its seat went to the part it
-                    # was blocking. That is a real trade, and it is reported
-                    # rather than silently reverted.
-                    self.st.apply_move(b, bx, by, brot)
-                    self.pending.discard(b)
+                    rollback(
+                        f"place_lift (step {step}) REVERTED: {b} was lifted "
+                        f"but has no legal pose to return to within "
+                        f"{within if within is not None else 'any distance'}"
+                        f"mm of where it was, so the trade cannot be "
+                        f"completed. Nothing was moved. Raise `within`, name "
+                        f"a different blocker, or seat {b} deliberately "
+                        f"somewhere else first.")
+                    return
+        else:
+            # `restore: false` hands the blockers to a later op. They are
+            # UNSEATED, and must be reported as such: leaving their earlier
+            # Seat in place would write the very pose this op lifted them out
+            # of, on top of whatever now occupies it.
+            for b in movable:
+                self.res.seats = [s for s in self.res.seats if s.ref != b]
+                self.res.parks.append(Park(
+                    ref=b, step=step, action='place_lift',
+                    reason='lifted with restore=false, so it is deliberately '
+                           'left unseated for a later op to place'))
 
         for ref in seated_now:
             freed = census.get(ref) or {}

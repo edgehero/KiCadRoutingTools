@@ -156,7 +156,14 @@ check("#629: it reports the poses each blocker frees, and they are not zero",
 # --------------------------------------------------------------------------
 # lifting the wrong part says so, instead of reporting a bare null again
 # --------------------------------------------------------------------------
-r2 = run([SEAT_SMALL, SEAT_BIG,
+# OTHER is seated FAR from the contested pocket first. A blocker that was
+# never seated is not an obstacle, and censusing it would be tautological --
+# the count with it excluded is the count it already had -- so the op refuses
+# that case separately (below) rather than reporting a zero it could not
+# have avoided.
+SEAT_OTHER = {"action": "place_at", "ref": "OTHER", "at": [14.0, 2.0],
+              "within": 1.0}
+r2 = run([SEAT_SMALL, SEAT_OTHER, SEAT_BIG,
           {"action": "place_lift", "refs": ["OTHER"], "for": ["BIG"],
            "within": 8.0}])
 big_park = next((p for p in r2.parks if p.ref == 'BIG'), None)
@@ -169,6 +176,20 @@ if big_park:
           big_park.blockers.get('OTHER') == 0, str(big_park.blockers))
     check("the reason says the lifted part is not what is in the way",
           'not what is in the way' in big_park.reason, big_park.reason)
+
+# A blocker still sitting in the pile is not in anyone's way, and the census
+# against it could only ever return the baseline. Refused, with that reason,
+# rather than reported as an innocent-looking zero.
+r2b = run([SEAT_SMALL, SEAT_BIG,
+           {"action": "place_lift", "refs": ["OTHER"], "for": ["BIG"],
+            "within": 8.0}])
+check("an unseated blocker is refused, not tautologically censused",
+      any(p.ref == 'OTHER' and 'not seated by this plan' in p.reason
+          for p in r2b.parks),
+      str([(p.ref, p.reason) for p in r2b.parks]))
+check("and the op does not SEAT a part the plan never asked to place",
+      'OTHER' not in {s.ref for s in r2b.seats},
+      str([s.ref for s in r2b.seats]))
 
 # --------------------------------------------------------------------------
 # a locked blocker is refused with the source named, not silently skipped
@@ -190,6 +211,72 @@ p = next((p for p in r4.parks if p.ref == 'BIG'), None)
 check("a part nothing parked has no target to retry, and says so",
       p is not None and 'no target to retry' in p.reason,
       p.reason if p else str(r4.summary()))
+
+# --------------------------------------------------------------------------
+# THE TRADE IS ALL OR NOTHING
+#
+# Both of these shipped a board with two coincident courtyards before the
+# gate existed, and the second one did it at exit 0 with zero parks and a
+# success note -- the worst possible shape, because nothing downstream would
+# look. A lift is a trade, and a trade that cannot be completed must leave
+# the board as it found it, the way reseat_scope and the anchor rounds do.
+# --------------------------------------------------------------------------
+def _poses(res):
+    """Where each part ENDS UP: a seat if the plan produced one, else the
+    pose it came in at. This is what write_placed_output writes."""
+    out = {}
+    for s in res.seats:
+        out[s.ref] = (round(s.pose[0], 3), round(s.pose[1], 3))
+    return out
+
+
+def _overlapping(res):
+    p = _poses(res)
+    if 'BIG' not in p or 'SMALL' not in p:
+        return False
+    return (abs(p['BIG'][0] - p['SMALL'][0]) < 5.7 - 1e-6
+            and abs(p['BIG'][1] - p['SMALL'][1]) < 5.7 - 1e-6)
+
+
+# (a) the blocker cannot get back out of the way within the budget
+r5 = run([SEAT_SMALL, SEAT_BIG,
+          {"action": "place_lift", "refs": ["SMALL"], "for": ["BIG"],
+           "within": 1.0, "restore": True}])
+check("a restore that cannot complete REVERTS the whole trade",
+      not _overlapping(r5), f"poses {_poses(r5)}")
+check("the revert says what it reverted and why",
+      any('REVERTED' in n for n in r5.notes),
+      str(r5.notes))
+check("after a revert the blocked part is parked again, not seated",
+      'BIG' not in {s.ref for s in r5.seats}
+      and 'BIG' in {p.ref for p in r5.parks},
+      f"seats {[s.ref for s in r5.seats]}, parks {[p.ref for p in r5.parks]}")
+check("the reverted park still carries the census",
+      any(p.ref == 'BIG' and p.censused for p in r5.parks),
+      str([(p.ref, p.censused, p.blockers) for p in r5.parks]))
+check("the incumbent is back where it started",
+      _poses(r5).get('SMALL') == (8.0, 7.0), str(_poses(r5)))
+
+# (b) restore:false -- the blocker is DELIBERATELY left lifted, so it must be
+# reported unseated rather than keeping the seat it was lifted out of
+r6 = run([SEAT_SMALL, SEAT_BIG,
+          {"action": "place_lift", "refs": ["SMALL"], "for": ["BIG"],
+           "within": 8.0, "restore": False}])
+check("restore:false does not write the pose it lifted the blocker out of",
+      not _overlapping(r6), f"poses {_poses(r6)}")
+check("restore:false reports the lifted part as parked",
+      'SMALL' in {p.ref for p in r6.parks}
+      and 'SMALL' not in {s.ref for s in r6.seats},
+      f"seats {[s.ref for s in r6.seats]}, parks {[p.ref for p in r6.parks]}")
+check("restore:false does not report a clean run",
+      r6.summary()['parked'] > 0, str(r6.summary()))
+
+# a part cannot make room for itself
+r7 = run([SEAT_SMALL, SEAT_BIG,
+          {"action": "place_lift", "refs": ["SMALL"], "for": ["SMALL"]}])
+check("a ref named as both blocker and blocked is refused, with the reason",
+      any(p.ref == 'SMALL' and 'itself' in p.reason for p in r7.parks),
+      str([(p.ref, p.reason) for p in r7.parks]))
 
 # --------------------------------------------------------------------------
 # determinism (#457)

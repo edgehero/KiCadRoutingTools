@@ -11,7 +11,7 @@ So each negative case here asserts the offending key or value appears in the
 error text, not merely that some error was raised.
 
 The positive case is the urchin plan: the arrangement `wk/run19/urchin/
-arrange.py` wrote as 221 lines of arithmetic, said as 11 ops. If this stops
+arrange.py` wrote as 221 lines of arithmetic, said as ops. If this stops
 validating, the vocabulary has drifted away from the thing it exists to
 express.
 """
@@ -75,11 +75,6 @@ URCHIN = {
          "partner": {"index": "diode", "pattern": r"^Net-\(",
                      "inherit": ["row"], "as": "partner"}},
 
-        # U1's vertical strip, which arrange.py could only reserve by keeping
-        # X0 clear of it in a comment (arrange.py:27).
-        {"action": "place_keepout", "rect": [0.0, 0.0, 38.0, 120.0],
-         "reason": "U1/U2 vertical strip"},
-
         {"action": "place_at", "ref": "U1", "at": [28.0, 60.0], "within": 5.0},
         {"action": "place_at", "ref": "Display1", "at": [30.0, 61.5],
          "within": 8.0},
@@ -115,8 +110,6 @@ URCHIN = {
 
         {"action": "place_lift", "refs": ["D14", "D31"],
          "for": ["SW17", "SW34"], "restore": True},
-        {"action": "place_repair"},
-        {"action": "place_polish", "params": {"max_displacement": 3.0}},
     ],
 }
 
@@ -152,7 +145,10 @@ MINIMAL = {
 check("every action has a minimal form",
       sorted(MINIMAL) == sorted(PLACEMENT_ACTIONS),
       f"{sorted(set(PLACEMENT_ACTIONS) ^ set(MINIMAL))}")
+from placement.plan_ops import UNIMPLEMENTED_ACTIONS as _UNIMPL
 for act, step in sorted(MINIMAL.items()):
+    if act in _UNIMPL:
+        continue          # asserted to REFUSE, further down
     o, e = parse_placement_plan({'schema': 1, 'steps': [step]})
     check(f"minimal {act}", o is not None, format_errors(e))
 missing_in_prompt = [a for a in PLACEMENT_ACTIONS
@@ -166,6 +162,47 @@ check("prompt schema advertises every action", not missing_in_prompt,
 refuses("unknown action is named",
         [{"action": "place_everything", "refs": ["R1"]}],
         "place_everything", "unknown action")
+
+# --------------------------------------------------------------------------
+# The contract must not advertise what it refuses, and must not validate a
+# key nothing reads. Both shipped: the schema offered `place_keepout` (the
+# first op in its own canonical example) while the resolver refused the whole
+# plan for it, and `clearance` was a validated key on five ops that no code
+# path ever read -- the exact silent-ignore this module exists to prevent.
+# --------------------------------------------------------------------------
+import inspect
+
+from placement import plan_resolve
+from placement.plan_ops import UNIMPLEMENTED_ACTIONS, _OP_FIELDS
+
+check("the resolver's action list is DERIVED from the validator's",
+      set(plan_resolve.RESOLVED_ACTIONS)
+      == set(PLACEMENT_ACTIONS) - set(UNIMPLEMENTED_ACTIONS),
+      str(sorted(set(plan_resolve.RESOLVED_ACTIONS)
+                 ^ (set(PLACEMENT_ACTIONS) - set(UNIMPLEMENTED_ACTIONS)))))
+for act in UNIMPLEMENTED_ACTIONS:
+    minimal = dict(MINIMAL[act])
+    o, e = parse_placement_plan({'schema': 1, 'steps': [minimal]})
+    check(f"{act} is refused at VALIDATION, naming itself",
+          o is None and any(act in x and 'no resolver' in x for x in e),
+          str(e))
+check("the prompt schema marks what is not implemented",
+      all(a in PLACEMENT_PLAN_SCHEMA.split('NOT IMPLEMENTED YET')[-1]
+          for a in UNIMPLEMENTED_ACTIONS),
+      "an author reading the contract must not write an op that refuses")
+
+_resolver_src = inspect.getsource(plan_resolve)
+unread = []
+for act, (req, opt) in sorted(_OP_FIELDS.items()):
+    if act in UNIMPLEMENTED_ACTIONS:
+        continue
+    for key in list(req) + list(opt):
+        if key in ('note', 'params'):
+            continue          # carried for the reader / forwarded wholesale
+        if f"'{key}'" not in _resolver_src:
+            unread.append(f"{act}.{key}")
+check("every validated key is read by the resolver", not unread,
+      f"validated and never read: {unread}")
 
 refuses("misspelled key is named, not ignored",
         [{"action": "place_array", "refs": ["R*"], "pich": 17.0,
@@ -222,10 +259,20 @@ refuses("unknown solve is named",
           "origin": {"x": 0, "y": "solve:vibes"}}],
         "solve:vibes", "unknown solve")
 
-refuses("unknown pack policy is named",
-        [{"action": "place_pack", "refs": ["R*"], "zone": [0, 0, 1, 1],
-          "policy": "spiral"}],
-        "spiral", "unknown policy")
+# place_pack is refused up front while it has no resolver, so its VALUE
+# checks are unreachable through parse_placement_plan. Exercise them directly
+# so they do not rot before the op lands.
+import placement.plan_ops as _po
+_saved_unimpl = _po.UNIMPLEMENTED_ACTIONS
+_po.UNIMPLEMENTED_ACTIONS = tuple(a for a in _saved_unimpl
+                                  if a != 'place_pack')
+try:
+    _errs = _po.validate_ops([{"action": "place_pack", "refs": ["R*"],
+                               "zone": [0, 0, 1, 1], "policy": "spiral"}])
+finally:
+    _po.UNIMPLEMENTED_ACTIONS = _saved_unimpl
+check("unknown pack policy is named (checked directly: op not live yet)",
+      any('spiral' in x and 'unknown policy' in x for x in _errs), str(_errs))
 
 refuses("unknown edge is named",
         [{"action": "place_edge", "refs": ["J1"], "edge": "up"}],
@@ -235,9 +282,18 @@ refuses("bad regex in select is named",
         [{"action": "place_index", "name": "sw", "select": "^SW(\\d"}],
         "select", "regex")
 
-refuses("empty rect is refused",
-        [{"action": "place_keepout", "rect": [10, 10, 5, 5]}],
-        "empty rect")
+# Same as place_pack: place_keepout is refused up front, so its rect check
+# is exercised directly rather than left to rot until the op lands.
+_saved_unimpl = _po.UNIMPLEMENTED_ACTIONS
+_po.UNIMPLEMENTED_ACTIONS = tuple(a for a in _saved_unimpl
+                                  if a != 'place_keepout')
+try:
+    _errs = _po.validate_ops([{"action": "place_keepout",
+                               "rect": [10, 10, 5, 5]}])
+finally:
+    _po.UNIMPLEMENTED_ACTIONS = _saved_unimpl
+check("empty rect is refused (checked directly: op not live yet)",
+      any('empty rect' in x for x in _errs), str(_errs))
 
 refuses("pitch that is not two numbers",
         [{"action": "place_array", "refs": ["R*"], "pitch": 17.0,
