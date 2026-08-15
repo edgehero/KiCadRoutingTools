@@ -72,6 +72,36 @@ def deficit_totals(ledgers) -> Dict[str, int]:
     return {'lanes': lanes, 'parts': parts, 'examined': len(ledgers)}
 
 
+# A container must HOST this fraction of the other parts to count as one.
+HOSTS_FRACTION = 0.30
+
+
+def _hosts_the_design(ref, gx0, gy0, gx1, gy1, fp, footprints) -> bool:
+    """Is this big footprint a frame around the design, or just a big part?
+
+    Area alone is not enough, and getting that wrong is worse than not
+    excluding at all. `CONTAINER_RATIO` is relative to the BOARD, so on a
+    genuinely too-small board ordinary connectors cross it -- measured on a
+    synthetically shrunk splitflap, 12 plain connectors were classed as
+    containers, which would have suppressed the very parts causing the
+    shortfall and understated the answer this option exists to give.
+
+    A real container hosts the design: other parts sit INSIDE it. rp2350's U8
+    contains most of the board; a big connector on a small board contains
+    nothing.
+    """
+    x0 = fp.x + gx0
+    y0 = fp.y + gy0
+    x1 = fp.x + gx1
+    y1 = fp.y + gy1
+    others = [o for r, o in footprints.items() if r != ref]
+    if len(others) < 4:
+        return False
+    inside = sum(1 for o in others
+                 if x0 <= o.x <= x1 and y0 <= o.y <= y1)
+    return inside >= HOSTS_FRACTION * len(others)
+
+
 def grow_board(pcb_data, pcb_file: str, *, clearance: float,
                board_edge_clearance: float) -> Dict:
     """Does the total part area fit inside the outline, and by how much not?
@@ -104,9 +134,11 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
     total = 0.0
     from_courtyard = from_pads = no_geometry = 0
     biggest = []
-    from placement.legality import rotate_local_bounds
+    from placement.legality import CONTAINER_RATIO, rotate_local_bounds
     from placement.utility import compute_footprint_bbox_local
     per_side = {'F.Cu': 0.0, 'B.Cu': 0.0}
+    containers = []
+    outline_area = (x1 - x0) * (y1 - y0)
     for ref, fp in sorted(pcb_data.footprints.items()):
         box = cy.get(ref)
         if box:
@@ -125,6 +157,19 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
         # 90/270 part is transposed.
         gx0, gy0, gx1, gy1 = rotate_local_bounds(*box, fp.rotation or 0.0)
         w, h = gx1 - gx0, gy1 - gy0
+        # A CONTAINER is a module-outline footprint hosting the design -- a
+        # frame, not a body -- and charging its area against the board is how
+        # this option told a SHIPPING board it does not fit. Measured on
+        # rp2350_fpga_eensy: U8's bbox is 1.15x the whole board and 66% of the
+        # busiest side, giving utilisation 1.91 and a demand for 526.67 mm2
+        # more area; without it the board reads 0.64 and fits. Same ratio and
+        # the same calibration part as legality.CONTAINER_RATIO, which exists
+        # for exactly this and which this function was not consulting.
+        if (outline_area > 0 and (w * h) >= CONTAINER_RATIO * outline_area
+                and _hosts_the_design(ref, gx0, gy0, gx1, gy1, fp,
+                                      pcb_data.footprints)):
+            containers.append((round(w * h, 2), ref))
+            continue
         # Each part also needs clearance around it; charging half the
         # clearance per side is what makes the sum comparable to the usable
         # area rather than to the parts' bare footprints.
@@ -137,9 +182,10 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
 
     # Utilisation is PER SIDE. Summing both sides against one side's usable
     # area is why this told the shipping OrangeCrab it does not fit and
-    # recommended shrinking a working board: front 899mm2 (0.83 of usable) and
-    # back 283mm2 (0.26) both fit comfortably, while their sum did not. A part
-    # on B.Cu does not compete for F.Cu area.
+    # recommended shrinking a working board: F.Cu 999.94mm2 and B.Cu 364.17
+    # against 1088.58 usable -- each side fits, their sum (1364.11, util
+    # 1.2531) does not. A part on B.Cu does not compete for F.Cu area.
+    # (ulx3s flips the same way, 1.3373 -> 0.9018.)
     busiest = max(per_side.values()) if per_side else 0.0
     util = (busiest / usable) if usable > 0 else float('inf')
     fits = busiest <= usable
@@ -158,6 +204,11 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
             'outline_area_mm2': round((x1 - x0) * (y1 - y0), 2),
             'utilisation': round(util, 4),
             'parts': len(pcb_data.footprints),
+            # Named, never silently dropped: a reader must be able to see
+            # WHY a 731mm2 part is absent from the sum.
+            'containers_excluded': [r for _a, r in sorted(containers,
+                                                          reverse=True)],
+            'container_area_mm2': round(sum(a for a, _r in containers), 2),
             'extent_from_courtyard': from_courtyard,
             'extent_from_pad_bbox': from_pads,
             'parts_without_geometry': no_geometry,
@@ -179,8 +230,19 @@ def grow_board(pcb_data, pcb_file: str, *, clearance: float,
         # 2971.0mm2 usable, which yields 2920.3 -- still 50.7mm2 under. A
         # square whose USABLE area holds the parts has side sqrt(busiest)
         # plus the edge clearance it loses on each side.
-        side = math.sqrt(max(0.0, busiest)) + 2.0 * board_edge_clearance
+        # ROUND UP to the published precision, then keep a hair of margin.
+        # sqrt(busiest) + 2*edge makes (side - 2*edge)^2 == busiest EXACTLY,
+        # and the action string publishes `{side:.1f}` -- so any downward
+        # rounding ships a proposal that is short. Measured across the corpus:
+        # 8 of 22 boards were short by 0.9-3.1 mm2, and the test that checks
+        # this passed only because splitflap's 55.1897 happens to round up.
+        exact = math.sqrt(max(0.0, busiest)) + 2.0 * board_edge_clearance
+        side = math.ceil(exact * 10.0) / 10.0
         out['measured']['shortfall_mm2_at_least'] = round(need, 2)
+        # The number, not just the prose. The proposal was reachable only by
+        # parsing the action string, which is also what the test audited -- so
+        # the audit read the same rounded text it was meant to check.
+        out['measured']['proposed_square_side_mm'] = side
         out['action'] = (
             f"the parts need AT LEAST {need:.1f} mm2 more usable area than "
             f"this outline has ({busiest:.1f} vs {usable:.1f} mm2 on the "
@@ -276,6 +338,11 @@ def add_layers(pcb_data, pcb_file: str, *, clearance: float,
         'not_modelled': 'nets that would escape on the new layers instead of '
                         'through a face -- that needs a routing attempt',
     }
+    # The BRANCHES moved to the board clearance; the prose must move with
+    # them. Quoting d_now (the fab floor) inside a branch chosen by d_board
+    # reintroduces the same "two questions, one word" defect one level down:
+    # measured on esp_prog at clearance 0.6, the else-branch printed "0
+    # deficit lane(s) remain" while d_board['lanes'] was 1.
     gain = d_now['lanes'] - d_more['lanes']
     if same_floor:
         out['action'] = (
@@ -294,15 +361,17 @@ def add_layers(pcb_data, pcb_file: str, *, clearance: float,
     elif gain > 0:
         out['action'] = (
             f"going from {n} to {n + step} copper layers takes the fab floor "
-            f"finer and removes {gain} of {d_now['lanes']} deficit lane(s) on its "
+            f"finer and removes {gain} of {d_now['lanes']} deficit lane(s) at the fab floor (this board is short {d_board['lanes']} at its own clearance) on its "
             f"own, before counting nets that would escape on the new layers. "
             f"Stackup is a fab-facing decision: this reports it and changes "
             f"nothing.")
     else:
         out['action'] = (
-            f"{d_now['lanes']} deficit lane(s) remain at {n + step} layers too -- "
-            f"the finer floor does not supply them, so this is a geometry "
-            f"problem (move what ate the span) rather than a stackup one.")
+            f"{d_board['lanes']} deficit lane(s) at this board's clearance, and "
+            f"{d_more['lanes']} still remain at the fab floor for {n + step} "
+            f"layers -- the finer floor does not supply them, so this is a "
+            f"geometry problem (move what ate the span) rather than a stackup "
+            f"one.")
     return out
 
 
@@ -536,19 +605,44 @@ def format_text(opts: Dict) -> str:
     return "\n".join(L)
 
 
+# Keys the text channel must never drop, whatever else is added beside them.
+# `_digest`'s positional `limit` silently truncated: adding the fab-floor pair
+# pushed `deficit_lanes_at_more` -- the "would more layers help" number the
+# whole option exists to answer -- off the end, and `parts=92` off grow_board.
+# A digest that drops the headline is not a digest.
+_DIGEST_ALWAYS = ('deficit_lanes_now', 'deficit_lanes_at_more',
+                  'deficit_lanes_at_fab_floor', 'utilisation',
+                  'busiest_side_area_mm2', 'shortfall_mm2_at_least',
+                  'proposed_square_side_mm', 'faces_in_deficit',
+                  'deficit_lanes', 'containers_excluded')
+
+
 def _digest(measured: Dict, limit: int = 5) -> str:
     """The scalar measurements, compactly. Nested rows are named, not dumped:
     a text digest that inlined a findings list is how a summary stops being
-    one (the same trap board_brief's locks tally fell into)."""
-    bits = []
+    one (the same trap board_brief's locks tally fell into).
+
+    `_DIGEST_ALWAYS` keys are emitted whether or not they fall inside `limit`,
+    and a non-empty dict is named with its size rather than skipped entirely --
+    `part_area_by_side_mm2` was added so a reader could check `utilisation`
+    against a number, and being a dict it never appeared in the text channel
+    it was added for.
+    """
+    bits, forced = [], []
     for k, v in measured.items():
-        if isinstance(v, (int, float)) and not isinstance(v, bool):
-            bits.append(f"{k}={v}")
-        elif isinstance(v, bool):
-            bits.append(f"{k}={'yes' if v else 'no'}")
+        if isinstance(v, bool):
+            bit = f"{k}={'yes' if v else 'no'}"
+        elif isinstance(v, (int, float)):
+            bit = f"{k}={v}"
         elif isinstance(v, (list, tuple)):
-            bits.append(f"{k}[{len(v)}]")
-    return ', '.join(bits[:limit]) if bits else 'measured'
+            bit = f"{k}[{len(v)}]"
+        elif isinstance(v, dict) and v:
+            bit = f"{k}{{{len(v)}}}"
+        else:
+            continue
+        (forced if k in _DIGEST_ALWAYS else bits).append(bit)
+    out = forced + [b for b in bits if b not in forced]
+    return ', '.join(out[:max(limit, len(forced))]) if out else 'measured'
 
 
 def _wrap(text: str, width: int) -> List[str]:

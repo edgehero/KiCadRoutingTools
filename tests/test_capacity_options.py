@@ -14,6 +14,7 @@ two of these options reported "no face is short of lanes" on a board with 38
 of them. So every deficit number here is compared against the emitter's own
 dict rather than an attribute that may not exist.
 """
+import glob
 import os
 import subprocess
 import sys
@@ -95,35 +96,24 @@ check("the shortfall is named 'at_least' -- it is a NECESSARY condition",
       "the docstring must say the area test is not sufficient")
 
 # A board that cannot possibly hold its parts: same parts, tiny outline.
-tiny = None
-with open(SMALL, encoding='utf-8') as f:
-    src = f.read()
-import re
-m2 = re.search(r'\(gr_rect\s*\(start ([\d.-]+) ([\d.-]+)\)\s*\(end '
-               r'([\d.-]+) ([\d.-]+)\)', src)
-if m2 is None:
-    # splitflap's outline is drawn as gr_lines; shrink via a synthetic board
-    # instead of guessing at its geometry.
-    check("a too-small board reports a shortfall", True,
-          "SKIPPED: this fixture's outline is not a single gr_rect")
-else:
-    x0, y0, x1, y1 = (float(v) for v in m2.groups())
-    shrunk = src.replace(m2.group(0),
-                         f'(gr_rect\n\t\t(start {x0} {y0})\n\t\t'
-                         f'(end {x0 + (x1 - x0) / 6:.3f} '
-                         f'{y0 + (y1 - y0) / 6:.3f})')
-    fd, tiny = tempfile.mkstemp(suffix='.kicad_pcb')
-    with os.fdopen(fd, 'w') as f:
-        f.write(shrunk)
-    tp = parse_kicad_pcb(tiny)
-    tg = grow_board(tp, tiny, clearance=0.2, board_edge_clearance=0.5)
-    check("a too-small board reports a shortfall in mm2",
-          tg['ran'] and tg['fits_by_area'] is False
-          and tg['measured']['shortfall_mm2_at_least'] > 0,
-          str(tg.get('measured')))
-    check("and says the outline is a mechanical decision it will not make",
-          'mechanical decision' in tg.get('action', ''), tg.get('action'))
-    os.unlink(tiny)
+#
+# This used to depend on the fixture's outline being a single `gr_rect`, and
+# splitflap's is gr_lines -- so the else-branch never ran and the if-branch
+# booked `check(..., True)` with a SKIPPED reason. A literal-True check with
+# an explanation is still a green tick on an examination nobody performed, and
+# it sat here for the entire life of the option it was meant to guard.
+# Overriding `board_bounds` needs no outline geometry at all.
+tp = parse_kicad_pcb(SMALL)
+_bx0, _by0, _bx1, _by1 = tp.board_info.board_bounds
+tp.board_info.board_bounds = (_bx0, _by0, _bx0 + (_bx1 - _bx0) / 6.0,
+                              _by0 + (_by1 - _by0) / 6.0)
+tg = grow_board(tp, SMALL, clearance=0.2, board_edge_clearance=0.5)
+check("a too-small board reports a shortfall in mm2",
+      tg['ran'] and tg['fits_by_area'] is False
+      and tg['measured']['shortfall_mm2_at_least'] > 0,
+      str(tg.get('measured')))
+check("and says the outline is a mechanical decision it will not make",
+      'mechanical decision' in tg.get('action', ''), tg.get('action'))
 
 # --------------------------------------------------------------------------
 # deficit_totals: the bug that made two options lie
@@ -319,19 +309,92 @@ bx0, by0, bx1, by1 = tp.board_info.board_bounds
 tp.board_info.board_bounds = (bx0, by0, bx0 + (bx1 - bx0) / 3.0,
                               by0 + (by1 - by0) / 3.0)
 tg = grow_board(tp, SMALL, clearance=0.2, board_edge_clearance=0.5)
-if tg.get('ran') and not tg['fits_by_area']:
-    side_mm = float(_re.search(r'about ([\d.]+) x', tg['action']).group(1))
-    edge = 0.5
-    usable_of_proposal = (side_mm - 2 * edge) ** 2
-    need = tg['measured']['busiest_side_area_mm2']
-    check("the proposed square's USABLE area actually holds the parts",
-          usable_of_proposal >= need - 1e-6,
-          f"{side_mm:.1f}mm square -> usable {usable_of_proposal:.1f} mm2 "
-          f"vs parts {need:.1f} mm2")
+# Audit the PUBLISHED number and the prose, and audit them ACROSS THE
+# CORPUS. Checking one board checked one rounding: `sqrt(busiest)+2*edge`
+# makes (side-2e)^2 == busiest exactly, so any downward rounding of the
+# `{side:.1f}` in the action string ships a proposal that is short.
+# Measured before the ceil: 8 of 22 corpus boards were short by 0.9-3.1
+# mm2, and this assertion passed only because splitflap's 55.1897 happens
+# to round UP. It also parsed the same rounded string it was auditing.
+boards = sorted(glob.glob(os.path.join(REPO, 'kicad_files', '*.kicad_pcb')))
+short, checked = [], 0
+for bd in boards:
+    try:
+        bp = parse_kicad_pcb(bd)
+        bb = bp.board_info.board_bounds
+        if not bb:
+            continue
+        bp.board_info.board_bounds = (bb[0], bb[1],
+                                      bb[0] + (bb[2] - bb[0]) / 3.0,
+                                      bb[1] + (bb[3] - bb[1]) / 3.0)
+        g = grow_board(bp, bd, clearance=0.2, board_edge_clearance=0.5)
+    except Exception:                            # noqa: BLE001
+        continue
+    if not g.get('ran') or g['fits_by_area']:
+        continue
+    checked += 1
+    side_mm = g['measured']['proposed_square_side_mm']
+    published = float(_re.search(r'about ([\d.]+) x',
+                                 g['action']).group(1))
+    need = g['measured']['busiest_side_area_mm2']
+    if (side_mm - 1.0) ** 2 < need - 1e-6 or published != side_mm:
+        short.append((os.path.basename(bd), side_mm, published,
+                      round((side_mm - 1.0) ** 2, 2), round(need, 2)))
+check("the proposed square holds the parts on EVERY corpus board",
+      not short, f"{len(short)} short of {checked}: {short[:4]}")
+check("and enough boards were exercised for that to mean something",
+      checked >= 8, f"only {checked} board(s) came back too-small")
+check("the proposal is a NUMBER, not only prose",
+      isinstance(tg['measured'].get('proposed_square_side_mm'), float),
+      str(tg['measured'].get('proposed_square_side_mm')))
+
+# A CONTAINER part -- a module-outline footprint hosting the design -- must not
+# be charged against the board. rp2350_fpga_eensy's U8 bbox is 1.15x the whole
+# board; charging it gave utilisation 1.91 and demanded 526.67mm2 more area on
+# a SHIPPING board, which is the same failure the per-side split cured.
+RP = os.path.join(REPO, 'kicad_files', 'rp2350_fpga_eensy_prePlane.kicad_pcb')
+if os.path.isfile(RP):
+    rp = parse_kicad_pcb(RP)
+    rg = grow_board(rp, RP, clearance=0.2, board_edge_clearance=0.5)
+    check("a container footprint is excluded and NAMED",
+          'U8' in rg['measured']['containers_excluded'],
+          str(rg['measured']['containers_excluded']))
+    check("and the shipping board is no longer told it does not fit",
+          rg['fits_by_area'] is True,
+          f"util {rg['measured']['utilisation']}")
+    check("the container is big enough that excluding it matters",
+          rg['measured']['container_area_mm2'] > 0.4 * rg['measured'][
+              'outline_area_mm2'],
+          str(rg['measured']['container_area_mm2']))
+
 else:
-    check("the too-small fixture is genuinely too small", False,
-          f"ran={tg.get('ran')} fits={tg.get('fits_by_area')} "
-          f"-- this branch must not be skipped silently: {tg.get('reason')}")
+    check("the rp2350 container fixture exists", False, RP)
+
+# ...but AREA ALONE must not classify. CONTAINER_RATIO is relative to the
+# board, so on a genuinely too-small board ordinary parts cross it -- and
+# excluding them would suppress the very parts causing the shortfall, making
+# this option understate the answer it exists to give. Measured on the shrunk
+# fixture before the hosting test: 12 plain connectors classed as containers
+# and the shortfall reported as 1262.39 instead of 2805.90.
+check("a big part on a SMALL board is not a container (it hosts nothing)",
+      tg['measured']['containers_excluded'] == [],
+      str(tg['measured']['containers_excluded']))
+check("so the too-small board reports the FULL shortfall",
+      tg['measured']['shortfall_mm2_at_least'] > 2000.0,
+      f"{tg['measured']['shortfall_mm2_at_least']} -- suppressing the big "
+      f"parts understates this to ~1262")
+
+# The options.py half of the pad-size and rotation fixes had NO coverage: an
+# audit reverted each in options.py alone and the suite stayed 43/43, while
+# esp_prog's utilisation moved 0.2475 -> 0.5156. Pin the numbers directly.
+EP = os.path.join(REPO, 'kicad_files', 'esp_prog.kicad_pcb')
+if os.path.isfile(EP):
+    ep = parse_kicad_pcb(EP)
+    eg = grow_board(ep, EP, clearance=0.25, board_edge_clearance=0.5)
+    check("grow_board uses pad SIZE, not pad centres",
+          eg['measured']['part_area_mm2'] > 200.0,
+          f"{eg['measured']['part_area_mm2']} -- the pad-centre form gives "
+          f"~106.7 on this board, understating by 51%")
 
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
