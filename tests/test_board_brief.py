@@ -97,10 +97,16 @@ for src in ('decap', 'sheet'):
 
 from placement.escape import escape_ledger
 led = escape_ledger(pcb, pcb_file=BOARD, clearance=brief['clearance'])
+esc = brief['measurements'].get('escape') or {}
 check("measurements.escape.parts == escape_ledger's length",
-      (brief['measurements'].get('escape') or {}).get('parts') == len(led),
-      f"{(brief['measurements'].get('escape') or {}).get('parts')} vs "
-      f"{len(led)}")
+      esc.get('parts') == len(led), f"{esc.get('parts')} vs {len(led)}")
+# `PartEscape` has no `worst_deficit` ATTRIBUTE -- only a to_dict() key -- so
+# a getattr with a 0 default silently reports every board as deficit-free.
+# Compare against the emitter's own dict, which is where the name is real.
+want_parts = sum(1 for p in led if p.to_dict()['worst_deficit'] > 0)
+check("measurements.escape.deficit_parts == the emitter's own worst_deficit",
+      esc.get('deficit_parts') == want_parts,
+      f"{esc.get('deficit_parts')} vs {want_parts}")
 
 from placement.lock_advisor import advise_locks, to_json as lock_json
 adv = lock_json(advise_locks(pcb, pcb_file=BOARD,

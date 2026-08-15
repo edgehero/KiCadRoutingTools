@@ -229,11 +229,17 @@ def measurements_section(pcb, pcb_file, skipped, clearance, edge):
     led = _safe('measurements.escape', escape_ledger, skipped, pcb,
                 pcb_file=pcb_file, clearance=clearance)
     if led is not None:
-        rows = [_jsonable(p) for p in led[:WORST_N]]
-        out['escape'] = {'parts': len(led), 'worst': rows,
-                         'deficit_parts': sum(
-                             1 for p in led
-                             if getattr(p, 'worst_deficit', 0) > 0)}
+        # `PartEscape` exposes `worst` (a FaceLedger or None) and NO
+        # `worst_deficit` attribute -- that name exists only as a key in its
+        # to_dict(). A getattr(..., 'worst_deficit', 0) therefore always
+        # returns the default, silently reporting every board as having no
+        # face in deficit.
+        from placement.options import deficit_totals
+        tot = deficit_totals(led)
+        out['escape'] = {'parts': len(led),
+                         'worst': [_jsonable(p) for p in led[:WORST_N]],
+                         'deficit_parts': tot['parts'],
+                         'deficit_lanes': tot['lanes']}
 
     from placement.lock_advisor import advise_locks, to_json as lock_json
     adv = _safe('measurements.locks', advise_locks, skipped, pcb,
