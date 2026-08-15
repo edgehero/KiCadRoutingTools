@@ -64,6 +64,12 @@ REFUSED_TOOLS = {
         'generates a SLATE of placements to choose between; the plan format has '
         'no placement step, and picking one is a decision, not a replayable '
         'step. Run it on the CLI and start the plan from the adopted board'),
+    'place_plan.py': (
+        'runs a placement plan; the ROUTING plan format has no placement step '
+        'yet. Run it BEFORE the plan and start the plan from its output. '
+        '(Unlike the others this one IS a plan, in its own format -- '
+        'placement/plan_ops.py -- so replaying it needs no conversion: keep '
+        'the plan JSON beside the manifest)'),
     'render_placement.py': (
         'renders a PNG; it changes no board and has nothing to replay'),
     'beautify_labels.py': (

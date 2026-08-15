@@ -40,7 +40,8 @@ from placement.plan_ops import PlanError, parse_ref_selector
 # Implemented so far. An op outside this set refuses by name rather than
 # being skipped -- see the module docstring.
 RESOLVED_ACTIONS = (
-    'place_index', 'place_at', 'place_relative', 'place_edge', 'place_lock',
+    'place_index', 'place_at', 'place_array', 'place_slots',
+    'place_relative', 'place_edge', 'place_lock',
 )
 
 DEFAULT_EDGE_OVERHANG_MM = 0.5
@@ -392,10 +393,249 @@ class _Resolver:
             self.pcb, op, self.res.indexes, self.res.notes)
 
     def op_place_at(self, op, step):
-        x, y = op['at']
-        self.seat(op['ref'], float(x), float(y), step, 'place_at',
+        x, y = (float(v) for v in op['at'])
+        mirror = op.get('mirror')
+        if mirror:
+            # The other half's coordinate, without the author doing the
+            # subtraction: arrange.py:189-202 carries thirteen hand-mirrored
+            # constants, each one a place the axis could have been mistyped.
+            if mirror['axis'] == 'board:xmid':
+                x = self._mirror_sum(mirror['axis']) - x
+            else:
+                y = self._mirror_sum(mirror['axis']) - y
+        self.seat(op['ref'], round(x, 4), round(y, 4), step, 'place_at',
                   within=op.get('within'), rot=op.get('rot'),
                   rot_prefer=op.get('rot_prefer'))
+
+    # -- lattices --------------------------------------------------------
+    def _mirror_sum(self, axis: str) -> float:
+        """`mirror(v) = sum - v`, i.e. reflection about the board's midpoint.
+
+        arrange.py:28 had this as a hand-transcribed constant --
+        `MIRROR_X = 17.599913 + 239.1983`, the sum of the board's own x
+        bounds, read off the file and typed back in. Read it instead.
+        """
+        x0, y0, x1, y1 = self.st.board
+        return (x0 + x1) if axis == 'board:xmid' else (y0 + y1)
+
+    def _probe_axis(self, spec: Dict, axis: str, fixed: float,
+                    members: Sequence[Tuple[str, int]], pitch: float,
+                    rot: Optional[float]) -> Optional[float]:
+        """Smallest origin at which EVERY member of this lattice line, and
+        every declared `also` rect, is fully on the board.
+
+        This is the construct the intent schema could never hold. The
+        per-column stagger arrange.py used ({34.0, 28.5, 25.5, 30.0, 39.5},
+        arrange.py:85-103) is not a design parameter -- it is a measurement of
+        that outline's arcs, and a zone rect can only be authored. Solving it
+        here means the plan states the intent ("a column of three, as high as
+        this outline allows") and the board supplies the number.
+
+        Rects are taken at the array's declared rotation, or at 0 when it
+        declares none: an unplaced pile's rotation is a generator default and
+        not a decision (seeder.py:90-96), so probing at it would measure a
+        bounding box the lattice never intends to use.
+        """
+        u = self.st.usable
+        lo = u[1] if axis == 'y' else u[0]
+        hi = u[3] if axis == 'y' else u[2]
+        start = spec.get('from')
+        start = lo if start is None else float(start)
+        step = float(spec.get('step')
+                     or max(0.1, getattr(self.st, 'grid_step', 0.1) or 0.1))
+        limit = spec.get('limit')
+        limit = int(limit) if limit is not None \
+            else max(1, int((hi - lo) / step))
+        down = spec.get('direction') == 'down'
+        also = spec.get('also') or []
+        gate = self.st.edge_gate
+
+        for k in range(limit + 1):
+            origin = start - step * k if down else start + step * k
+            ok = True
+            for ref, n in members:
+                part = self.st.parts.get(ref)
+                if part is None:
+                    continue
+                v = origin + pitch * n
+                cx, cy = (fixed, v) if axis == 'y' else (v, fixed)
+                r = part.rot if rot is None else float(rot) % 360.0
+                if gate.rect_outside_amount(part.rect(cx, cy, r)) > 1e-9:
+                    ok = False
+                    break
+                for a in also:
+                    ox, oy = a['offset']
+                    w, h = a['extent']
+                    rect = (cx + ox - w / 2.0, cy + oy - h / 2.0,
+                            cx + ox + w / 2.0, cy + oy + h / 2.0)
+                    if gate.rect_outside_amount(rect) > 1e-9:
+                        ok = False
+                        break
+                if not ok:
+                    break
+            if ok:
+                return round(origin, 4)
+        return None
+
+    @staticmethod
+    def _is_solve(v) -> bool:
+        return isinstance(v, str) or isinstance(v, dict)
+
+    @staticmethod
+    def _solve_spec(v) -> Dict:
+        return {} if isinstance(v, str) else {k: val for k, val in v.items()
+                                              if k != 'solve'}
+
+    def _lattice_members(self, op, step, idx, action):
+        """(ref, col, row, mirrored) for every member that carries the index
+        fields the lattice needs. A member that does not is PARKED with the
+        field named -- a lattice cannot position a part it has no index for,
+        and quietly defaulting it to 0 stacks the whole board at one seat."""
+        ix, iy = op.get('index_x'), op.get('index_y')
+        mirror = op.get('mirror')
+        out = []
+        for ref in self.refs(op['refs'], op.get('where'), op.get('order')):
+            row = (idx['members'].get(ref, {}) if idx else {})
+            vals = {}
+            missing = None
+            for name, key in (('index_x', ix), ('index_y', iy)):
+                if key is None:
+                    vals[name] = 0
+                    continue
+                v = row.get(key)
+                if v is None:
+                    missing = key
+                    break
+                vals[name] = v
+            if missing is not None:
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action=action,
+                    reason=f"the index gives it no {missing!r}, so this "
+                           f"lattice has no position for it"))
+                continue
+            mirrored = bool(mirror and _passes(row, mirror.get('when'))) \
+                if mirror else False
+            out.append((ref, vals['index_x'], vals['index_y'], mirrored))
+        return out
+
+    def op_place_array(self, op, step):
+        idx = self._index_of(op['refs'])
+        members = self._lattice_members(op, step, idx, 'place_array')
+        if not members:
+            return
+        px, py = (float(v) for v in op['pitch'])
+        origin = op['origin']
+        rot = op.get('rot')
+        mirror = op.get('mirror')
+        msum = self._mirror_sum(mirror['axis']) if mirror else 0.0
+
+        ox_spec, oy_spec = origin.get('x'), origin.get('y')
+        if self._is_solve(ox_spec) and self._is_solve(oy_spec):
+            raise PlanError(
+                f"step {step} (place_array): both origin axes ask to be "
+                f"solved, which is not a lattice -- solve one against the "
+                f"outline and state the other")
+
+        # A solved axis is solved PER LINE of the other index, which is what
+        # makes it a stagger rather than one number: arrange.py probed a y0
+        # for each column separately, against that column's own x.
+        solved: Dict[Any, Optional[float]] = {}
+        for ref, col, row, mirrored in members:
+            if self._is_solve(oy_spec):
+                x = float(ox_spec) + px * col
+                if mirrored:
+                    x = msum - x
+                key = (mirrored, col)
+                if key not in solved:
+                    line = [(r2, rw2) for r2, c2, rw2, m2 in members
+                            if c2 == col and m2 == mirrored]
+                    solved[key] = self._probe_axis(
+                        self._solve_spec(oy_spec), 'y', x, line, py, rot)
+            elif self._is_solve(ox_spec):
+                y = float(oy_spec) + py * row
+                key = (mirrored, row)
+                if key not in solved:
+                    line = [(r2, c2) for r2, c2, rw2, m2 in members
+                            if rw2 == row and m2 == mirrored]
+                    solved[key] = self._probe_axis(
+                        self._solve_spec(ox_spec), 'x', y, line, px, rot)
+
+        for ref, col, row, mirrored in members:
+            if self._is_solve(oy_spec):
+                x = float(ox_spec) + px * col
+                if mirrored:
+                    x = msum - x
+                base = solved.get((mirrored, col))
+                if base is None:
+                    self.res.parks.append(Park(
+                        ref=ref, step=step, action='place_array',
+                        reason=f"no origin on this outline puts every member "
+                               f"of {'mirrored ' if mirrored else ''}line "
+                               f"{col} fully on the board"))
+                    continue
+                y = base + py * row
+            elif self._is_solve(ox_spec):
+                y = float(oy_spec) + py * row
+                base = solved.get((mirrored, row))
+                if base is None:
+                    self.res.parks.append(Park(
+                        ref=ref, step=step, action='place_array',
+                        reason=f"no origin on this outline puts every member "
+                               f"of {'mirrored ' if mirrored else ''}line "
+                               f"{row} fully on the board"))
+                    continue
+                x = base + px * col
+                if mirrored:
+                    x = msum - x
+            else:
+                x = float(ox_spec) + px * col
+                y = float(oy_spec) + py * row
+                if mirrored:
+                    x = msum - x
+            self.seat(ref, round(x, 4), round(y, 4), step, 'place_array',
+                      within=op.get('within'), rot=rot,
+                      rot_prefer=op.get('rot_prefer'))
+
+    def op_place_slots(self, op, step):
+        """Named irregular pockets, handed out by a stated rule.
+
+        arrange.py:121-132 is the shape: two thumb coordinates, and the rule
+        "per half, the thumb on the HIGHER column takes the inner slot". The
+        slots are a fact about the outline; the assignment is a decision, and
+        both belong in the plan rather than in a zip() nobody can review.
+        """
+        idx = self._index_of(op['refs'])
+        refs = self.refs(op['refs'], op.get('where'), op.get('order'))
+        slots = [(float(a), float(b)) for a, b in op['slots']]
+        mirror = op.get('mirror')
+        msum = self._mirror_sum(mirror['axis']) if mirror else 0.0
+        group_by = op.get('group_by')
+
+        buckets: Dict[Any, List[str]] = {}
+        for ref in refs:
+            row = (idx['members'].get(ref, {}) if idx else {})
+            key = tuple(row.get(g[1:] if g.startswith('-') else g)
+                        for g in (group_by or ()))
+            buckets.setdefault(key, []).append(ref)
+
+        for key in sorted(buckets, key=lambda k: tuple(
+                (v is None, str(v)) for v in k)):
+            group = buckets[key]
+            if len(group) > len(slots):
+                for ref in group[len(slots):]:
+                    self.res.parks.append(Park(
+                        ref=ref, step=step, action='place_slots',
+                        reason=f"only {len(slots)} slot(s) declared for "
+                               f"{len(group)} member(s) in this group"))
+            for ref, (sx, sy) in zip(group, slots):
+                row = (idx['members'].get(ref, {}) if idx else {})
+                mirrored = bool(mirror
+                                and _passes(row, mirror.get('when'))) \
+                    if mirror else False
+                x = msum - sx if mirrored else sx
+                self.seat(ref, round(x, 4), round(sy, 4), step, 'place_slots',
+                          within=op.get('within'), rot=op.get('rot'),
+                          rot_prefer=op.get('rot_prefer'))
 
     def op_place_relative(self, op, step):
         children = set(self.refs(op['refs'], op.get('where')))

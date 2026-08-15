@@ -94,7 +94,9 @@ class PlanError(ValueError):
 _OP_FIELDS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     'place_index':    (('name', 'select'), ('fields', 'partner', 'note')),
     'place_keepout':  (('rect',), ('reason', 'sides', 'allow', 'note')),
-    'place_at':       (('ref', 'at'), ('rot', 'within', 'clearance', 'note')),
+    'place_at':       (('ref', 'at'),
+                       ('rot', 'rot_prefer', 'within', 'mirror', 'clearance',
+                        'note')),
     'place_array':    (('refs', 'pitch', 'origin'),
                        ('mirror', 'rot', 'rot_prefer', 'within', 'order',
                         'where', 'index_x', 'index_y', 'clearance', 'note')),
@@ -633,7 +635,7 @@ PLACEMENT_PLAN_SCHEMA = (
     '"inherit": ["<field to copy from the partner>"], "as": "partner"}} | '
     '{"action": "place_keepout", "rect": [x0,y0,x1,y1], "reason": "<why>"} | '
     '{"action": "place_at", "ref": "<ref>", "at": [x,y], "rot": <deg>, '
-    '"within": <mm>} | '
+    '"within": <mm>, "mirror": {"axis": "board:xmid"}} | '
     '{"action": "place_array", "refs": "index:<name>", "pitch": [dx,dy], '
     '"origin": {"x": <mm>|"solve:outline_probe", "y": <mm>|{"solve": '
     '"outline_probe", "from": <mm>, "step": <mm>, "limit": <steps>, '
