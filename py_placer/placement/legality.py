@@ -353,6 +353,45 @@ class BoardOutlineGate:
                     break
         return frozenset(owned)
 
+    # -- level 2b: per-rect bbox prefilter, exact
+    def _edges_touching(self, rect, edges):
+        """The subset of `edges` that can possibly come within `margin` of
+        `rect`.
+
+        EXACT, not a heuristic, and that is the whole reason it is safe to put
+        in front of the threshold tests: if an edge's bounding box is
+        separated from the rect's bbox by more than `margin` on EITHER axis,
+        then every point of that edge differs from every point of the rect by
+        more than `margin` on that axis alone, so their distance exceeds
+        `margin` and the edge cannot contribute.
+
+        It is not usable in front of `edge_clearance`, which reports the true
+        minimum distance rather than testing it against a threshold -- the
+        nearest edge there may be arbitrarily far away.
+
+        Why it matters: `edges_near` prunes per PART, sized by a displacement
+        budget, and the seeder's state has no budget at all (pose_score builds
+        its QuenchState without `build_neighbor_lists`, so `_travel_budget` is
+        infinite and `edges_near` returns every edge). Measured on run 19's
+        urchin, a 638-edge outline: `rect_outside_amount` 8.9 ms per call,
+        with this 0.73 ms. `_try_place` calls it for every candidate offset.
+        """
+        m = self.margin
+        lo_x, lo_y, hi_x, hi_y = rect[0] - m, rect[1] - m, rect[2] + m, rect[3] + m
+        out = []
+        for e in edges:
+            ax, ay, bx, by = e
+            if (ax if ax > bx else bx) < lo_x:
+                continue
+            if (ax if ax < bx else bx) > hi_x:
+                continue
+            if (ay if ay > by else by) < lo_y:
+                continue
+            if (ay if ay < by else by) > hi_y:
+                continue
+            out.append(e)
+        return out
+
     # -- level 3: the exact tests
     def rect_blocked(self, rect, edges=None, skip_rings=None) -> bool:
         """True when a rect leaves the real outline, enters a cutout, or comes
@@ -371,9 +410,11 @@ class BoardOutlineGate:
         for (px, py) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
             if not _point_on_board(px, py, self.outer, self.cutouts):
                 return True
+        near = self._edges_touching(
+            rect, self.edges() if edges is None else edges)
         for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1),
                                  (x1, y1, x0, y1), (x0, y1, x0, y0)):
-            for (ex1, ey1, ex2, ey2) in (self.edges() if edges is None else edges):
+            for (ex1, ey1, ex2, ey2) in near:
                 if _seg_seg_dist_coords(ax, ay, bx, by,
                                         ex1, ey1, ex2, ey2) < self.margin:
                     return True
@@ -428,9 +469,13 @@ class BoardOutlineGate:
                 # so an off-board corner always outweighs a mere margin graze.
                 amt += max(self.margin,
                            _point_to_rings_distance(px, py, self.rings))
+        # Only edges that can come within `margin` can contribute a term, and
+        # `_edges_touching` selects exactly those -- so this stays the same
+        # number while measuring against a short list. See its docstring.
+        near = self._edges_touching(rect, use)
         for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1),
                                  (x1, y1, x0, y1), (x0, y1, x0, y0)):
-            d = min((_seg_seg_dist_coords(ax, ay, bx, by, *e) for e in use),
+            d = min((_seg_seg_dist_coords(ax, ay, bx, by, *e) for e in near),
                     default=float('inf'))
             if d < self.margin:
                 amt += self.margin - d
