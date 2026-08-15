@@ -136,6 +136,13 @@ Walk the ladder in order and say which rung applies:
        python3 -X utf8 py_placer/place_seed.py {a.board} seed.kicad_pcb --intent fp.json
    The seeder grades its own output against the same intent; exit 4 means the
    seed does not satisfy the intent it was built from, and says which rule broke.
+   A part it cannot seat is no longer a dead end: it censuses the seated
+   neighbours, evicts the one that frees the most poses, seats the part, then
+   puts the blocker back -- gated and reverted whole if the board does not
+   improve. READ `no_pose_blockers` in its JSON_SUMMARY -- it maps each
+   unseated ref to each blocker and the poses lifting that blocker frees,
+   which IS the next move where a bare "no legal pose" was a dead end.
+   `--evict-depth 0` censuses and moves nothing, if you want the call.
 3. The arrangement is STRUCTURAL and an intent cannot hold it -- a key matrix,
    a mirrored pair of halves, a row at a pitch, a part whose ROTATION is the
    decision. An intent has no pitch, no mirror, no rotation and no origin you
