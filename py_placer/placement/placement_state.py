@@ -329,8 +329,17 @@ def _global_rect(fp, side_boxes, rotate_local_bounds):
     return (fp.x + lx0, fp.y + ly0, fp.x + lx1, fp.y + ly1)
 
 
-def format_report(state: PlacementState, tool: str = 'placement') -> str:
-    """Human text for a refusal or a warning."""
+def format_report(state: PlacementState, tool: str = 'placement',
+                  allow_unplaced: bool = False) -> str:
+    """Human text for a refusal or a warning.
+
+    `allow_unplaced` is what the CALLER already decided. Without it this
+    printed "Override with --allow-unplaced" to a run that had ALREADY passed
+    that flag, and told a from-scratch placer to "place the parts in KiCad
+    first" -- advice that contradicts the tool being run. An instruction the
+    reader has already followed is worse than no instruction: it reads as the
+    tool not knowing what it was asked to do.
+    """
     lines = []
     if state.unplaced:
         lines.append(
@@ -339,13 +348,21 @@ def format_report(state: PlacementState, tool: str = 'placement') -> str:
             f"distinct position(s)).")
         for r in state.reasons:
             lines.append(f"  - {r}")
-        lines.append(
-            "  This toolchain refines an existing placement; it does not place a "
-            "board from scratch. Place the parts in KiCad first.")
+        if allow_unplaced:
+            lines.append(
+                "  Proceeding anyway (--allow-unplaced): every part's input "
+                "coordinate is meaningless, so an op that does not state a "
+                "target has nothing to work from. State mechanical poses with "
+                "place_fixed and the rest with place_at/place_pack.")
+        else:
+            lines.append(
+                "  Most of this toolchain refines an existing placement rather "
+                "than creating one. To place from scratch, either run "
+                "place_plan.py with a plan that states where the parts go, or "
+                "pass --allow-unplaced here.")
         lines.append(
             "  To see what the file currently contains:  "
             "python3 render_placement.py <board> -o state.png")
-        lines.append("  Override with --allow-unplaced.")
     elif state.partially_unplaced:
         lines.append(f"{tool}: WARNING - {state.reasons[-1]}")
     if state.has_copper:
@@ -368,7 +385,7 @@ def gate_or_exit(pcb_data, pcb_file, tool: str, *, allow_unplaced: bool = False,
     """
     import sys
     st = assess_placement(pcb_data, pcb_file)
-    msg = format_report(st, tool)
+    msg = format_report(st, tool, allow_unplaced=allow_unplaced)
     blocking = (st.unplaced and not allow_unplaced) or (st.has_copper and not allow_routed)
     if msg:
         print(msg, file=sys.stderr if (blocking and not warn_only) else sys.stdout)

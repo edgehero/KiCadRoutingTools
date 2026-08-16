@@ -720,5 +720,20 @@ PLACEMENT_PLAN_SCHEMA = (
     'NOT IMPLEMENTED YET, and refused if used: '
     + ', '.join(UNIMPLEMENTED_ACTIONS) +
     ' -- their schema is settled but no resolver is written, so do not put '
-    'them in a plan you intend to run.'
+    'them in a plan you intend to run. '
+    # GENERATED from _OP_FIELDS, never hand-listed. The prose above is a
+    # readable sketch and was missing fields the validator accepts -- `note`
+    # on every op, plus rot_prefer / sides / allow / tolerance -- discoverable
+    # only by sending a bad key and reading the refusal. A contract that says
+    # "do not guess at key names" must not omit the names. This suffix cannot
+    # drift: tests/test_place_plan_schema.py asserts every _OP_FIELDS entry
+    # appears in it.
+    'EVERY accepted key, by action (required | optional): '
+    + '; '.join(
+        f"{action}: "
+        + (' '.join(_OP_FIELDS[action][0]) or '-')
+        + ' | '
+        + (' '.join(_OP_FIELDS[action][1]) or '-')
+        for action in PLACEMENT_ACTIONS if action in _OP_FIELDS)
+    + '.'
 )

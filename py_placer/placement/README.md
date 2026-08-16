@@ -218,10 +218,14 @@ Three properties worth knowing before you author one:
   blockers cannot be re-seated, the way `reseat_scope`'s gate and the anchor
   rounds do.
 
-`place_keepout`, `place_pack`, `place_repair` and `place_polish` have settled
-schemas and **no resolver yet**; they are refused by name at validation rather
-than advertised, so a plan using them fails at authoring time and not after
-half the board has moved.
+Some ops have a settled schema and **no resolver yet**; they are refused by
+name at validation rather than advertised, so a plan using them fails at
+authoring time and not after half the board has moved. **The authoritative
+list is `plan_ops.UNIMPLEMENTED_ACTIONS`, and `place_plan.py --print-schema`
+prints it** — do not trust a list written out in prose here. This paragraph
+named `place_keepout` and `place_pack` for months after both shipped, and an
+agent authoring a plan nearly abandoned `place_pack` — the op that did 85% of
+its work — on the strength of that sentence.
 
 `place_edge` is the one op that does not go through `_try_place` — an edge
 part overhangs by design and `_try_place` demands full containment — so it

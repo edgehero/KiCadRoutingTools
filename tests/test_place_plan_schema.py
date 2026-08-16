@@ -27,7 +27,8 @@ for p in (REPO,):
         sys.path.insert(0, os.path.join(p, 'py_tools'))
         sys.path.insert(0, os.path.join(p, 'py_placer'))
 
-from placement.plan_ops import (PLACEMENT_ACTIONS, PLACEMENT_PLAN_SCHEMA,
+from placement.plan_ops import (_OP_FIELDS, PLACEMENT_ACTIONS,
+                                PLACEMENT_PLAN_SCHEMA,
                                 format_errors, parse_placement_plan,
                                 parse_ref_selector, validate_ops)
 
@@ -143,6 +144,19 @@ MINIMAL = {
     'place_polish': {"action": "place_polish"},
     'place_lock': {"action": "place_lock", "refs": ["MH*"]},
 }
+# The authoring contract says "do not guess at key names", so it must not omit
+# any. It used to omit `note` on every op plus rot_prefer / sides / allow /
+# tolerance, discoverable only by sending a bad key and reading the refusal --
+# which is exactly the guessing it forbids. The schema now GENERATES the field
+# index from _OP_FIELDS; this pins that it stays complete.
+_absent = [(a, f) for a, (req, opt) in _OP_FIELDS.items()
+           for f in req + opt if f not in PLACEMENT_PLAN_SCHEMA]
+check("the schema names EVERY key the validator accepts", not _absent,
+      f"{len(_absent)} omitted: {_absent[:6]}")
+check("and every action appears in the generated index",
+      all(f"{a}:" in PLACEMENT_PLAN_SCHEMA for a in _OP_FIELDS),
+      str([a for a in _OP_FIELDS if f"{a}:" not in PLACEMENT_PLAN_SCHEMA]))
+
 check("every action has a minimal form",
       sorted(MINIMAL) == sorted(PLACEMENT_ACTIONS),
       f"{sorted(set(PLACEMENT_ACTIONS) ^ set(MINIMAL))}")
