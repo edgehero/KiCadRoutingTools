@@ -1220,6 +1220,7 @@ class _Resolver:
         policy = op.get('policy', 'radial')
         tol = float(op.get('tolerance') or 0.5)
         cx, cy = (zone[0] + zone[2]) / 2.0, (zone[1] + zone[3]) / 2.0
+        before = len(self.res.parks)
 
         if policy == 'radial':
             # Ordered by descending pin count, like the zone stage, so
@@ -1230,6 +1231,7 @@ class _Resolver:
                 self.seat(ref, cx, cy, step, 'place_pack',
                           within=op.get('within'), rot=op.get('rot'),
                           constraint=zone, tol=tol)
+            self._zone_capacity(op, step, refs, zone, before)
             return
 
         targets = self._pack_targets(refs, zone, policy)
@@ -1237,6 +1239,53 @@ class _Resolver:
             self.seat(ref, round(tx, 4), round(ty, 4), step, 'place_pack',
                       within=op.get('within'), rot=op.get('rot'),
                       constraint=zone, tol=tol)
+        self._zone_capacity(op, step, refs, zone, before)
+
+    def _zone_capacity(self, op, step, refs, zone, before):
+        """When a pack overflows, say by how much -- in mm2.
+
+        An overfull zone used to produce N identical refusals at one
+        coordinate: `PARK C76/R22/R23/R24/R4: no legal pose within 6mm of
+        (178.2, 101.0)`. Five refs, one target, and no answer to the only
+        question the author has, which is *how much bigger does the zone need
+        to be*. The whole-board version of that answer already exists in
+        `options.grow_board`; this is the same arithmetic scoped to a zone,
+        so the two cannot drift into disagreeing.
+
+        Reported as a NOTE, never a refusal -- the house rule for this
+        channel -- and only when the pack actually parked something, because
+        a zone that is tight but sufficient is not a finding.
+        """
+        parked = [p for p in self.res.parks[before:]]
+        if not parked:
+            return
+        zw, zh = abs(zone[2] - zone[0]), abs(zone[3] - zone[1])
+        zone_area = zw * zh
+        clr = getattr(self.st, 'clearance', 0.0) or 0.0
+        need = 0.0
+        for ref in refs:
+            part = self.st.parts.get(ref)
+            if part is None:
+                continue
+            r = part.rect(0.0, 0.0, part.rot)
+            need += (r[2] - r[0] + clr) * (r[3] - r[1] + clr)
+        short = need - zone_area
+        head = (f"place_pack step {step}: {len(parked)} of {len(refs)} part(s) "
+                f"did not fit")
+        if short > 0:
+            self.res.notes.append(
+                f"{head} -- the zone is {zone_area:.1f} mm2 and these parts "
+                f"need at least {need:.1f} mm2, so it is short by "
+                f"{short:.1f} mm2 ({need / zone_area:.2f}x). Widen the zone, "
+                f"move parts out of it, or split the pack.")
+        else:
+            # Area is a NECESSARY condition, not a sufficient one; saying
+            # "it fits by area" when parts parked would be the wrong lesson.
+            self.res.notes.append(
+                f"{head}, though the zone has the area for them "
+                f"({zone_area:.1f} mm2 for {need:.1f} mm2 of parts, "
+                f"{need / zone_area:.2f}x): they are blocked by shape or by "
+                f"what is already in the zone, not by total area.")
 
     def _pack_targets(self, refs, zone, policy):
         """Where each member of a pack should aim, before legality.
