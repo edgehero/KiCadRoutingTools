@@ -149,6 +149,60 @@ def classify_part(fp, ref: str) -> PartClass:
     return PartClass(None, None)
 
 
+# Part classes whose POSITION is a mechanical fact rather than a placement
+# decision. `testpoint` is deliberately absent: a test point is placed to suit
+# the layout, not the enclosure.
+MECHANICAL_CLASSES = ('mount_hole', 'fiducial', 'edge_receptacle',
+                      'edge_actuator')
+
+
+def mechanical_parts(pcb_data) -> Dict[str, Dict]:
+    """The parts whose position a real new board would already know.
+
+    Lives here, beside `classify_part`, because it is the ONLY pose-derived
+    answer in the toolchain that survives an unplaced board: `classify_part`
+    reads footprint name, reference prefix and pin function and never a
+    coordinate, so a pile classifies exactly as the placed board does. Every
+    other channel that could name the mechanically-fixed parts is geometric
+    and collapses -- `lock_advisor`'s high-confidence list measured 7 refs on
+    a placed watchy and 1 on the same board piled, and 10 -> 0 on ulx3s,
+    because its two-channel promotion needs a geometric rule to fire.
+
+    It was `tests/stress/stage_unaided.classify_exempt`, which is a stress
+    harness -- so the one artifact naming a board's mechanical parts was
+    something no product path could read. Both callers project from this:
+    the stager wants `(x, y, rot)` and a reason, the brief wants the class
+    and its evidence.
+
+    `at` is REPORTED, never asserted. On a pile it is the pile coordinate,
+    which is the honest answer -- the caller decides what that is worth.
+    """
+    out: Dict[str, Dict] = {}
+    for ref, fp in sorted((getattr(pcb_data, 'footprints', None) or {}).items()):
+        cls = classify_part(fp, ref)
+        name = getattr(cls, 'name', None) if cls else None
+        locked = bool(getattr(fp, 'locked', False))
+        if name in MECHANICAL_CLASSES:
+            why = (f"{name} (confidence {getattr(cls, 'confidence', '?')}): "
+                   f"its position is a mechanical fact a real new board would "
+                   f"already know")
+        elif locked:
+            why = ("(locked yes) in the source: the board's author pinned it, "
+                   "and a run that may not move it must know where it is")
+        else:
+            continue
+        out[ref] = {
+            'class': name,
+            'confidence': getattr(cls, 'confidence', None) if cls else None,
+            'evidence': list(getattr(cls, 'evidence', ()) or ()),
+            'locked_in_source': locked,
+            'reason': why,
+            'at': [round(fp.x, 6), round(fp.y, 6),
+                   round(fp.rotation or 0.0, 6)],
+        }
+    return out
+
+
 def pose_plausible(cls: Optional[str], outside_amount: Optional[float],
                    edge_clearance: Optional[float],
                    seat_tol: float = SEAT_TOL_MM) -> Optional[bool]:

@@ -243,7 +243,25 @@ one artifact — outline, free space, part extents and classes, groups, decap
 tethers, escape-lane deficits and who ate them, lock advice, and the human's
 requirements carried verbatim. It **assembles, it does not compute**: every
 number comes from the emitter that owns it, and `sources` names that function
-per section, so the brief cannot drift from the graders.
+per section (with what that section REQUIRES of the input), so the brief
+cannot drift from the graders.
+
+It also carries what a plan needs to state a coordinate at all: `parts[*].at`
+and `parts[*].rect` in the board frame, the outline / cutout / milled ring
+vertices `place_keepout` takes as its `rect`, and a `mechanical` section
+naming the parts whose position is a mechanical fact — class, confidence,
+evidence, and whether the pose stands alone or is a pile coordinate. That
+section is built from `part_class.mechanical_parts`, which classifies from
+footprint name, reference prefix and pin function and never from a
+coordinate, so it is the one channel that still answers on an unplaced board
+(`measurements.locks.high` is geometric and collapses: 7 refs to 1 on watchy,
+10 to 0 on ulx3s).
+
+On a piled board — `state.unplaced`, or more than half the parts sharing a
+coordinate — the brief **nulls** every position-derived key and lists them in
+`position_dependent.invalid`, names the pose-derived keys it KEEPS in
+`also_pose_derived`, and says which test fired in `gate`. Everything in
+neither list is a netlist, footprint or outline fact and holds.
 
 `py_tools/check_capacity.py` answers the question the outline prohibition
 promises and nothing computed: *how much too small is this board?* Five

@@ -54,12 +54,6 @@ for _p in (ROOT, os.path.join(ROOT, 'py_router'),
 
 SCHEMA = 1
 
-# Part classes whose POSITION is a mechanical fact rather than a placement
-# decision, so inheriting it is legitimate -- provided it is declared. These
-# are `placement.part_class`'s own names, not a second taxonomy.
-MECHANICAL_CLASSES = ('mount_hole', 'fiducial', 'edge_receptacle',
-                      'edge_actuator')
-
 
 def sha256_file(path):
     h = hashlib.sha256()
@@ -69,32 +63,21 @@ def sha256_file(path):
     return h.hexdigest()
 
 
-def classify_exempt(pcb_data, pcb_file):
+def classify_exempt(pcb_data, pcb_file=None):
     """{ref: (x, y, rot)} plus {ref: reason} for the parts a real new board
     would genuinely know the position of.
 
-    Deliberately narrow, and derived from `part_class`, which classifies from
-    footprint name, reference prefix and pin function and NEVER from a
-    coordinate (`part_class.py:103`). A classifier that read poses would be
-    deciding what to leak by looking at the answer.
+    A PROJECTION of `placement.part_class.mechanical_parts`, not a second
+    taxonomy. It used to be the implementation, which meant the only thing in
+    the tree that could name a board's mechanical parts lived in a stress
+    harness -- so `board_brief` could not answer "where do the fixed parts
+    go?" and an unaided author had to read `mechanical.json`, an artifact no
+    product path emits. Same classifier, two readers.
     """
-    from placement.part_class import classify_part
-    refs, reasons = {}, {}
-    for ref, fp in sorted(pcb_data.footprints.items()):
-        cls = classify_part(fp, ref)
-        name = getattr(cls, 'name', None) if cls else None
-        why = None
-        if name in MECHANICAL_CLASSES:
-            why = (f"{name} (confidence {getattr(cls, 'confidence', '?')}): "
-                   f"its position is a mechanical fact a real new board would "
-                   f"already know")
-        elif getattr(fp, 'locked', False):
-            why = ("(locked yes) in the source: the board's author pinned it, "
-                   "and a run that may not move it must know where it is")
-        if why:
-            refs[ref] = (round(fp.x, 6), round(fp.y, 6),
-                         round(fp.rotation or 0.0, 6))
-            reasons[ref] = why
+    from placement.part_class import mechanical_parts
+    found = mechanical_parts(pcb_data)
+    refs = {r: tuple(v['at']) for r, v in found.items()}
+    reasons = {r: v['reason'] for r, v in found.items()}
     return refs, reasons
 
 
