@@ -1120,6 +1120,21 @@ class PlanExecutor:
             # and so must this, or a GUI run reports a clean placement while
             # parts sit where the plan could not put them.
             self.log(f"AI plan: place_plan PARK {park.ref}: {park.reason}")
+            # The census, with the window it was taken in -- mirrors
+            # place_plan.py's park block. A count without its lattice is not
+            # comparable to another count, and the GUI is where the
+            # product's placements are actually driven from.
+            if park.censused and park.blockers:
+                _top = sorted(park.blockers.items(),
+                              key=lambda kv: (-kv[1], kv[0]))
+                _w = (f" [counted at {park.census_step_mm}mm"
+                      + (f" out to {park.census_radius_mm}mm"
+                         if park.census_radius_mm is not None else "") + "]")
+                self.log(
+                    "AI plan: place_plan        blockers: "
+                    + ", ".join(f"{b}->{n}" for b, n in _top[:4])
+                    + (f" (+{len(_top) - 4} more)" if len(_top) > 4 else "")
+                    + f"; none lifted: {park.baseline_poses}{_w}")
         s = res.summary()
         self.log(f"AI plan: place_plan seated {s['seated']}, parked "
                  f"{s['parked']}, worst move {s['worst_move_mm']}mm")

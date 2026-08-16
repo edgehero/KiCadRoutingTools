@@ -32,6 +32,15 @@ ROTATIONS: Sequence[float] = (0.0, 90.0, 180.0, 270.0)
 
 
 _OFFSETS_CACHE = {}
+# The cache was unbounded and keyed on raw floats, which was harmless while
+# the key set was the four fixed (radius, step) pairs `_try_place` uses. A
+# pose census derives its step from the caller's `within`, so every distinct
+# budget in a plan minted a new permanent entry -- and the entries are not
+# small (a 16mm radius at 0.1 is 103,041 tuples, ~0.45s to build). LRU rather
+# than a clear-on-full, because the hot fixed pairs are inserted first and a
+# FIFO would evict exactly those.
+_OFFSETS_CACHE_MAX = 64
+_OFFSETS_ORDER: List = []
 
 
 def _offsets(radius: float, step: float):
@@ -50,6 +59,11 @@ def _offsets(radius: float, step: float):
     key = (radius, step)
     hit = _OFFSETS_CACHE.get(key)
     if hit is not None:
+        try:                                  # keep it hot
+            _OFFSETS_ORDER.remove(key)
+        except ValueError:
+            pass
+        _OFFSETS_ORDER.append(key)
         return hit
     out = [(0.0, 0.0)]
     n = max(1, int(round(radius / step)))
@@ -65,6 +79,9 @@ def _offsets(radius: float, step: float):
         ring_pts.sort(key=lambda d: (d[0] * d[0] + d[1] * d[1]))
         out.extend(ring_pts)
     _OFFSETS_CACHE[key] = out
+    _OFFSETS_ORDER.append(key)
+    while len(_OFFSETS_ORDER) > _OFFSETS_CACHE_MAX:
+        _OFFSETS_CACHE.pop(_OFFSETS_ORDER.pop(0), None)
     return out
 
 

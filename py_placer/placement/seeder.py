@@ -133,6 +133,256 @@ def pose_ok(state, ref: str, x: float, y: float, rot: float,
 CENSUS_RADIUS_MM = 16.0
 CENSUS_STEP_MM = 1.0
 CENSUS_CAP = 64
+def zone_gate(part, constraint, tol: float):
+    """`(predicate, anchor_zone)` for "is this pose inside the zone".
+
+    ONE definition, shared by the seat search and the pose census. It used to
+    live as a closure inside `_try_place`, which meant the census -- the
+    thing that tells a plan author WHY a part could not be seated -- had no
+    zone concept at all. Measured on splitflap_driver: three parts packed
+    into a 2x2mm zone parked, and the census answered over an unconstrained
+    3mm disc, so one park read `baseline_poses: 64` ("64 legal poses with
+    nothing lifted") about a part the same op had just refused to seat, and
+    two more advised lifting U1 when the zone was the problem.
+
+    The ANCHOR relaxation is the half that must not be dropped when copying.
+    A zone smaller than the courtyard cannot contain it at any rotation --
+    the spec-COORDINATE pattern -- so containment relaxes to
+    anchor-point-in-zone, which makes such zones satisfiable by
+    construction; `floorplan.rule_zone_containment` grades them the same
+    way. A census that mirrors only the strict branch under-counts exactly
+    where the relaxation applies: C1 into a 0.4mm zone at its own pose
+    censuses 0 with the strict rule and 294 with this one, while
+    `_try_place` seats it either way. That is a confident zero, which is the
+    one census answer worse than no census -- so this returns the same pair
+    of branches to both callers rather than letting a second copy drift.
+    """
+    if constraint is None:
+        return (lambda x, y, rot: True), False
+    from placement.floorplan import zone_fits_courtyard
+    anchor = not any(
+        zone_fits_courtyard(constraint, part.rect(0.0, 0.0, r), tol)
+        for r in (part.rot % 360, (part.rot + 90) % 360))
+
+    if anchor:
+        def _in(x, y, rot):
+            return (constraint[0] - tol <= x <= constraint[2] + tol
+                    and constraint[1] - tol <= y <= constraint[3] + tol)
+    else:
+        def _in(x, y, rot):
+            return _rect_inside(part.rect(x, y, rot), constraint, tol)
+    return _in, anchor
+
+
+# A census sweep never exceeds this many locations. It is the ONLY bound on
+# the cost, so it is stated as a count rather than left to fall out of a
+# radius: (2*25+1)^2 = 2601 locations, x4 rotations = ~10k `pose_ok` calls
+# worst case, for the blocked part that has to exhaust the ladder.
+CENSUS_MAX_LOCATIONS = 2601
+
+
+def census_window(within, grid_step=0.1):
+    """The `(radius, step)` a pose census should sample a budget at.
+
+    Lives here, beside `_try_place`, because it encodes what `_try_place`
+    actually searches and must move with it.
+
+    **Take the FINEST lattice whose sweep fits the budget of locations, and
+    never a lattice coarser than `SEARCH_FINE_STEP_MM`.** The rule this
+    replaces was `within / 8`, which lands on no lattice `_try_place` visits
+    (0.1125 at `within=0.9`, 0.1875 at 1.5, 0.4875 at 3.9), so a park could
+    report "lifting X frees 34 poses" and the retry find not one of them.
+
+    The 1.0mm ring is deliberately excluded even though `_try_place` sweeps
+    it. That ring exists to cross 30mm cheaply, not to decide whether a part
+    fits, and a census that renders a verdict on it produces the one output
+    worse than no census: a confident zero. Measured on splitflap_driver
+    with an earlier "coarsest lattice with >= 6 samples" rule -- which chose
+    1.0mm the moment the budget reached 6.0 -- a part that `_try_place`
+    seats at FULL clearance censused `baseline 0, every blocker 0,
+    censused: true` at `within=6.0`, while `within=5.99` counted 44. The
+    cliff was not removed by that rule, only moved from 4.0 to 6.0.
+
+    **The radius is the budget, clamped twice**: to `SEARCH_RADIUS_MM`,
+    beyond which `_try_place` does not look at all once `max_disp` is set
+    (so counting there is counting poses the retry can never visit); and to
+    whatever `CENSUS_MAX_LOCATIONS` affords. `count_legal_poses` applies
+    `max_disp` as a `continue` AFTER `_offsets` materialises the disc, so an
+    unclamped radius is a list-building cost with nothing to show for it --
+    a fixed 16mm built 103,041 offsets to hand back 81 at `within=0.5`, and
+    an unclamped `within=500` built 1,002,001 (~72MB, 28s) before probing a
+    single pose.
+
+    **A TRUNCATED radius is not an error but it is not the whole answer** --
+    `radius < within` means the census looked at the near field only, and
+    the caller must say so rather than report the count bare.
+
+    A census is not comparable ACROSS budgets -- a coarser lattice counts
+    fewer poses over more ground -- which is why the window is reported with
+    the count. What must be commensurate is baseline vs each blocker, and
+    that holds because one census uses one window throughout.
+
+    **THIS COSTS MORE THAN THE RULE IT REPLACES, AND THAT IS THE TRADE.**
+    Measured, ten censused parks on splitflap_driver, before -> after:
+    `within` 0.5 3.19s -> 1.41s (the radius clamp; 2.3x FASTER), 1.4 3.99 ->
+    5.72, 2.0 5.36 -> 10.99 (the worst, 2.05x), 3.0 10.28 -> 11.16, 5.0
+    16.85 -> 22.52. Total 40.9s -> 53.0s, **1.30x**. The extra time buys a
+    lattice the seat search actually visits and the removal of the confident
+    zero; `CENSUS_CAP` still short-circuits the case where poses exist, so
+    the full price is only paid by the genuinely blocked part -- which is
+    the one whose answer matters.
+    """
+    grid = max(0.05, float(grid_step or 0.1))
+    if within is None:
+        return CENSUS_RADIUS_MM, CENSUS_STEP_MM
+    try:
+        budget = float(within)
+    except (TypeError, ValueError):          # noqa: BLE001
+        budget = 0.0
+    # NaN before the clamp: `min(nan, x)` is nan, and `math.ceil(inf)` raises
+    # OverflowError straight out of `op_place_lift`, which has no census
+    # guard. `plan_ops` validates `within > 0` and json.loads accepts
+    # `Infinity`, so both are plan-reachable.
+    if math.isnan(budget) or budget < 0.0:
+        budget = 0.0
+    budget = min(budget, SEARCH_RADIUS_MM)
+
+    # Finest first. `grid` is what `_try_place` reaches inside
+    # SEARCH_XFINE_RADIUS_MM; SEARCH_FINE_STEP_MM is the floor on coarseness.
+    cands = sorted({s for s in (grid, SEARCH_FINE_STEP_MM) if s >= grid - 1e-9})
+    max_rings = max(1, (math.isqrt(CENSUS_MAX_LOCATIONS) - 1) // 2)
+    step = cands[-1]
+    for s in cands:
+        if max(1, int(math.ceil(budget / s - 1e-9))) <= max_rings:
+            step = s
+            break
+    rings = min(max(1, int(math.ceil(budget / step - 1e-9))), max_rings)
+    return round(rings * step, 6), step
+
+
+def _feasible_centre_box(part, constraint, tol, anchor):
+    """Where `part`'s CENTRE may sit for the zone to hold it, over rotations.
+
+    Derived, not approximated. Containment at rotation r is
+    `zone[0]-tol <= x + b_r[0]` and `x + b_r[2] <= zone[2]+tol`, so
+    `x` in `[zone[0]-tol-b_r[0], zone[2]+tol-b_r[2]]`, and the UNION over
+    rotations is `[zone[0]-tol-max_r(b_r[0]), zone[2]+tol-min_r(b_r[2])]`.
+
+    THE COURTYARD IS NOT CENTRED ON THE FOOTPRINT ORIGIN -- `part.rect` is
+    `(x+b[0], y+b[1], x+b[2], y+b[3])` with `b` the raw local bounds, and 17
+    of 65 parts on splitflap_driver and 6 of 89 on tigard have an offset
+    centre (up to 10.15mm on tigard J3). A symmetric half-extent deflation
+    therefore SHIFTS the box: measured, J18/J19/J20 censused 0 while
+    `_try_place` seated them at full clearance. Two earlier forms of this
+    function were wrong here in opposite directions (max half-extent = a
+    subset, min half-extent = a shifted box), which is why this is now the
+    algebra rather than a bound.
+    """
+    x0, y0, x1, y1 = (float(v) for v in constraint)
+    if anchor:
+        # Anchor zones constrain the ANCHOR POINT, so the centre box is the
+        # zone itself; no courtyard term enters.
+        return x0 - tol, y0 - tol, x1 + tol, y1 + tol
+    max_b0x = max_b0y = -float('inf')
+    min_b2x = min_b2y = float('inf')
+    for rot in (part.rot, part.rot + 90.0, part.rot + 180.0, part.rot + 270.0):
+        b = part.rect(0.0, 0.0, rot % 360)
+        max_b0x = max(max_b0x, b[0])
+        max_b0y = max(max_b0y, b[1])
+        min_b2x = min(min_b2x, b[2])
+        min_b2y = min(min_b2y, b[3])
+    return (x0 - tol - max_b0x, y0 - tol - max_b0y,
+            x1 + tol - min_b2x, y1 + tol - min_b2y)
+
+
+def zone_census_offsets(part, constraint, tol, tx, ty, grid_step=0.1,
+                        max_disp=None):
+    """`(step, [(dx, dy), ...], reach_mm)` for a census under a ZONE.
+
+    A disc of `within` is the wrong sample set once a constraint applies:
+    the reachable poses are bounded by the zone, not by the budget, so
+    `census_window` spends its whole location cap on ground the zone
+    excludes and then has to coarsen the step to afford it. Measured on
+    splitflap_driver, R1 packed into a 2x2mm zone: `census_window(3.0, 0.1)`
+    picks step 0.25, and the zone leaves a feasible x-window for R1's centre
+    **0.07mm wide** -- so a census that filters that disc by the zone counts
+    ZERO with the blocker lifted, while `_try_place` reaches the window on
+    its 0.1mm ring and seats. Threading the constraint without this moves
+    the confident zero from the relaxation axis to the lattice axis instead
+    of removing it.
+
+    So: enumerate the feasible-CENTRE box instead, on the lattices
+    `_try_place` sweeps AT EACH DISTANCE. That last clause is the half an
+    earlier version got wrong: it chose one step by location count alone, so
+    a large zone fell to the 1.0mm ring (the verdict `census_window` refuses
+    to render) and a distant zone was sampled at 0.1mm where the search only
+    reaches 0.25mm -- 4 of 8 parks in one ordinary `place_pack` then promised
+    poses the retry could never collect.
+
+    `reach_mm` is how far from the target the sweep actually got. Smaller
+    than the budget means the near field only, and the caller must say so:
+    `_try_place` skips its whole-board fallback whenever `max_disp` is set,
+    so nothing beyond `SEARCH_FINE_RADIUS_MM` is reachable anyway, and the
+    location cap can bite before even that.
+    """
+    grid = max(0.05, float(grid_step or 0.1))
+    _in, anchor = zone_gate(part, constraint, tol)
+    lo_x, lo_y, hi_x, hi_y = _feasible_centre_box(part, constraint, tol,
+                                                 anchor)
+    # Nothing past the fine ring is reachable once `max_disp` is set, so the
+    # box is clipped there BEFORE it is materialised -- that is also the
+    # guard against a hostile zone (a 2000mm rect used to build a 4,004,001
+    # entry list, ten times per park, uncached).
+    reach = SEARCH_FINE_RADIUS_MM if max_disp is None \
+        else min(float(max_disp), SEARCH_FINE_RADIUS_MM)
+    lo_x, hi_x = max(lo_x, tx - reach), min(hi_x, tx + reach)
+    lo_y, hi_y = max(lo_y, ty - reach), min(hi_y, ty + reach)
+    if hi_x < lo_x or hi_y < lo_y:
+        # The zone cannot hold this part at all, or the budget cannot reach
+        # it. ONE offset, so the caller still evaluates the target itself and
+        # the answer is a measured zero rather than an empty sweep that never
+        # ran -- and `reach_mm` 0.0 says the sweep never left the target.
+        return grid, [(0.0, 0.0)], 0.0
+
+    def _lattice(step, rmax):
+        """Target-aligned points of `step` inside the box and within `rmax`."""
+        i0 = int(math.ceil((lo_x - tx) / step - 1e-9))
+        i1 = int(math.floor((hi_x - tx) / step + 1e-9))
+        j0 = int(math.ceil((lo_y - ty) / step - 1e-9))
+        j1 = int(math.floor((hi_y - ty) / step + 1e-9))
+        pts = []
+        for i in range(i0, i1 + 1):
+            dx = i * step
+            if abs(dx) > rmax + 1e-9:
+                continue
+            for j in range(j0, j1 + 1):
+                dy = j * step
+                if dx * dx + dy * dy <= rmax * rmax + 1e-9:
+                    pts.append((round(dx, 6), round(dy, 6)))
+        return pts
+
+    # TWO lattices, exactly as `_try_place` does it: `grid_step` out to
+    # SEARCH_XFINE_RADIUS_MM, then SEARCH_FINE_STEP_MM out to the reach.
+    # The 1.0mm ring is deliberately excluded -- a census must not render a
+    # verdict on it (see `census_window`).
+    seen, out = set(), []
+    for step, rmax in ((grid, min(reach, SEARCH_XFINE_RADIUS_MM)),
+                       (max(grid, SEARCH_FINE_STEP_MM), reach)):
+        for d in _lattice(step, rmax):
+            if d not in seen:
+                seen.add(d)
+                out.append(d)
+    if not out:
+        return grid, [(0.0, 0.0)], 0.0
+    out.sort(key=lambda d: (d[0] * d[0] + d[1] * d[1]))
+    if len(out) > CENSUS_MAX_LOCATIONS:
+        out = out[:CENSUS_MAX_LOCATIONS]
+    reach = math.sqrt(max(d[0] * d[0] + d[1] * d[1] for d in out))
+    step_used = grid if any(
+        abs(d[0]) <= SEARCH_XFINE_RADIUS_MM
+        and abs(d[1]) <= SEARCH_XFINE_RADIUS_MM for d in out) else \
+        max(grid, SEARCH_FINE_STEP_MM)
+    return step_used, out, round(reach, 6)
 
 
 # How many incumbents one stuck part may censused against. Bounded because
@@ -143,8 +393,8 @@ EVICT_MAX_BLOCKERS = 8
 
 
 def _evict_candidates(state, ref: str, tx: float, ty: float,
-                      placed: Set[str], lock_refs: Sequence[str]
-                      ) -> List[str]:
+                      placed: Set[str], lock_refs: Sequence[str],
+                      constraint=None, tol: float = 0.5) -> List[str]:
     """Seated, movable parts that could possibly be in `ref`'s way at (tx,ty).
 
     A superset, not a heuristic: the box is every pose `ref` can take within
@@ -164,6 +414,21 @@ def _evict_candidates(state, ref: str, tx: float, ty: float,
     reach = max(r[2] - r[0], r[3] - r[1]) / 2.0 + CENSUS_RADIUS_MM
     clr = state.clearance
     locked = set(lock_refs or ())
+    # UNDER A ZONE THE TARGET IS NOT THE CENTRE OF THE QUESTION. `place_pack`
+    # lays its members out on their own stride, so a member's target can sit
+    # wholly outside the zone (measured: 3.3mm out on a 2x2 zone), and both
+    # the box and the nearest-first cap were keyed on it -- so the 8 chosen
+    # need not be the 8 that overlap the zone the part must actually reach.
+    # Box on the union, rank by distance to the region being contested.
+    bx0, by0, bx1, by1 = tx - reach, ty - reach, tx + reach, ty + reach
+    cx, cy = tx, ty
+    if constraint is not None:
+        bx0 = min(bx0, constraint[0] - tol - reach)
+        by0 = min(by0, constraint[1] - tol - reach)
+        bx1 = max(bx1, constraint[2] + tol + reach)
+        by1 = max(by1, constraint[3] + tol + reach)
+        cx = min(max(tx, constraint[0]), constraint[2])
+        cy = min(max(ty, constraint[1]), constraint[3])
     out: List[Tuple[float, str]] = []
     for other in sorted(placed):
         if other == ref or other not in state.parts:
@@ -172,10 +437,10 @@ def _evict_candidates(state, ref: str, tx: float, ty: float,
         if op.locked or other in locked:
             continue          # not this tool's to move -- see reseat_scope
         orect = op.rect(op.x, op.y, op.rot)
-        if (orect[2] + clr < tx - reach or orect[0] - clr > tx + reach
-                or orect[3] + clr < ty - reach or orect[1] - clr > ty + reach):
+        if (orect[2] + clr < bx0 or orect[0] - clr > bx1
+                or orect[3] + clr < by0 or orect[1] - clr > by1):
             continue
-        out.append((math.hypot(op.x - tx, op.y - ty), other))
+        out.append((math.hypot(op.x - cx, op.y - cy), other))
     out.sort()
     return [b for _d, b in out[:EVICT_MAX_BLOCKERS]]
 
@@ -187,7 +452,8 @@ def count_legal_poses(state, ref: str, tx: float, ty: float,
                       cap: int = CENSUS_CAP,
                       max_disp: Optional[float] = None,
                       rotations: Optional[Sequence[float]] = None,
-                      forbid: Sequence = ()) -> int:
+                      forbid: Sequence = (),
+                      constraint=None, tol: float = 0.5) -> int:
     """How many legal poses `ref` has near (tx, ty), counting at most `cap`.
 
     This is issue #629's measurement. Three consecutive sweeps in run 19
@@ -201,18 +467,39 @@ def count_legal_poses(state, ref: str, tx: float, ty: float,
     the same predicate `_try_place` seats on, at the state's own clearance
     (NOT the relaxed ladder): a count is meant to say whether there is room,
     and counting poses that only exist at a 0.02mm floor would promise seats
-    the ordinary search does not take.
+    the ordinary search does not take. Measured cost of that divergence on
+    splitflap_driver: 4 of 65 movable parts census 0 while `_try_place`
+    seats them on a relaxed rung, 6 of 65 with a zone. Reported, not fixed --
+    see the paragraph above.
+
+    **With a `constraint`, the zone is honoured and the SAMPLE SET comes
+    from the zone too** (`zone_census_offsets`). Both halves are needed: the
+    predicate alone leaves the census answering over a disc the zone
+    excludes, and the disc alone leaves it counting poses that are outside
+    the zone the seat had to satisfy. `radius`/`step` are ignored when a
+    constraint is given -- the zone supersedes them.
     """
     from pose_score import _offsets
     part = state.parts[ref]
     rots = list(rotations) if rotations is not None \
         else [part.rot] + [(part.rot + d) % 360 for d in (90.0, 180.0, 270.0)]
+    in_zone, _anchor = zone_gate(part, constraint, tol)
+    if constraint is None:
+        offsets = _offsets(radius, step)
+    else:
+        _step, offsets, _reach = zone_census_offsets(
+            part, constraint, tol, tx, ty,
+            getattr(state, 'grid_step', 0.1), max_disp)
     n = 0
-    for dx, dy in _offsets(radius, step):
+    for dx, dy in offsets:
         if max_disp is not None and math.hypot(dx, dy) > max_disp + 1e-9:
             continue
         x, y = round(tx + dx, 3), round(ty + dy, 3)
         for rot in rots:
+            # Zone first: it is four float compares, where `pose_ok` ends in
+            # `candidate_valid`. Measured 19x faster on a small zone.
+            if not in_zone(x, y, rot):
+                continue
             if pose_ok(state, ref, x, y, rot, exclude, forbid):
                 n += 1
                 if n >= cap:
@@ -264,26 +551,9 @@ def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
     def _ok(x, y, rot):
         return pose_ok(state, ref, x, y, rot, exclude, forbid)
 
-    # A zone smaller than the courtyard cannot contain it at any rotation --
-    # the spec-COORDINATE pattern. Containment then relaxes to anchor-point-
-    # in-zone, which makes such zones satisfiable by construction; the grader
-    # (floorplan.rule_zone_containment) applies the same relaxation.
-    anchor_zone = False
-    if constraint is not None:
-        from placement.floorplan import zone_fits_courtyard
-        anchor_zone = not any(
-            zone_fits_courtyard(constraint, part.rect(0.0, 0.0, r), tol)
-            for r in (part.rot % 360, (part.rot + 90) % 360))
-        if anchor_zone and info is not None:
-            info['anchor_zone'] = True
-
-    def _in_zone(x, y, rot):
-        if constraint is None:
-            return True
-        if anchor_zone:
-            return (constraint[0] - tol <= x <= constraint[2] + tol
-                    and constraint[1] - tol <= y <= constraint[3] + tol)
-        return _rect_inside(part.rect(x, y, rot), constraint, tol)
+    _in_zone, anchor_zone = zone_gate(part, constraint, tol)
+    if anchor_zone and info is not None:
+        info['anchor_zone'] = True
 
     full = state.clearance
     try:
@@ -1101,10 +1371,21 @@ def seed_from_intent(pcb_data, pcb_file: str, intent, rng: random.Random, *,
                 break
             tx, ty, constraint, tol = unseated_ctx[ref]
             base_excl = unplaced - {ref}
-            baseline = count_legal_poses(state, ref, tx, ty, base_excl)
-            cands = _evict_candidates(state, ref, tx, ty, placed, lock_refs)
+            # The constraint has been unpacked here since this rung was
+            # written and was then dropped on the next two lines, so a part
+            # that failed to seat INSIDE A ZONE was censused over the open
+            # board. The retry below already passes it (`constraint=
+            # constraint` at the `_try_place` call), so the measurement and
+            # the retry were answering different questions -- and this one
+            # reaches `place_seed`'s JSON_SUMMARY, which the placement skill
+            # tells an agent to read.
+            zkw = dict(constraint=constraint, tol=tol)
+            baseline = count_legal_poses(state, ref, tx, ty, base_excl, **zkw)
+            cands = _evict_candidates(state, ref, tx, ty, placed, lock_refs,
+                                      constraint=constraint, tol=tol)
             freed = {b: count_legal_poses(state, ref, tx, ty,
-                                          base_excl | {b}) for b in cands}
+                                          base_excl | {b}, **zkw)
+                     for b in cands}
             no_pose_blockers[ref] = dict(freed)
             useful = sorted((n, b) for b, n in freed.items() if n > baseline)
             if not evict_depth:

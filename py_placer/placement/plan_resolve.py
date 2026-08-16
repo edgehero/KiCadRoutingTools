@@ -124,6 +124,27 @@ class Park:
     # no_pose_blockers has the same shape and keeps its baseline in a
     # different structure entirely (`evictions[].poses_before`).
     baseline_poses: Optional[int] = None
+    #: The lattice `baseline_poses` and `blockers` were counted on. A census
+    #: is commensurate WITHIN itself (one window for the baseline and every
+    #: blocker) and NOT across budgets: a coarser lattice counts fewer poses
+    #: over more ground. Reported so a reader compares the right things --
+    #: 253 at 0.1mm and 113 at 0.25mm are not a decrease.
+    census_step_mm: Optional[float] = None
+    #: How far the census actually looked. SMALLER than `within` means the
+    #: sweep was capped and the counts describe the NEAR FIELD only -- a
+    #: bounded census with its bound stated, rather than an unbounded one
+    #: (`within: 500` built a 1,002,001-offset disc, ~72MB, before probing a
+    #: single pose) or a silent truncation.
+    census_radius_mm: Optional[float] = None
+    #: The zone this seat had to satisfy, if any, and its tolerance. Carried
+    #: for two reasons. It makes the counts READABLE -- a count under a
+    #: constraint is not comparable to an unconstrained one, so the zone
+    #: belongs beside `census_step_mm`. And it makes them RECOVERABLE:
+    #: `place_lift` retries a part an earlier op parked, and with no zone on
+    #: the record it retried unconstrained and wrote the part outside the
+    #: zone its own plan had confined it to, then reported a seat.
+    constraint: Optional[Tuple[float, float, float, float]] = None
+    tol: Optional[float] = None
 
     def to_dict(self) -> Dict:
         return {'ref': self.ref, 'step': self.step, 'action': self.action,
@@ -132,7 +153,12 @@ class Park:
                 else [round(v, 4) for v in self.target],
                 'within': self.within,
                 'blockers': dict(self.blockers), 'censused': self.censused,
-                'baseline_poses': self.baseline_poses}
+                'baseline_poses': self.baseline_poses,
+                'census_step_mm': self.census_step_mm,
+                'census_radius_mm': self.census_radius_mm,
+                'constraint': (None if self.constraint is None
+                               else [round(v, 4) for v in self.constraint]),
+                'tol': self.tol}
 
 
 @dataclass
@@ -423,7 +449,7 @@ class _Resolver:
     # -- seating ---------------------------------------------------------
     def seat(self, ref: str, tx: float, ty: float, step: int, action: str,
              *, within: Optional[float] = None, rot=None, rot_prefer=None,
-             constraint=None, tol: float = 0.5) -> bool:
+             constraint=None, tol: float = 0.5, census: bool = True) -> bool:
         if ref not in self.st.parts:
             self.res.parks.append(Park(
                 ref=ref, step=step, action=action,
@@ -473,6 +499,9 @@ class _Resolver:
             self.res.parks.append(Park(
                 ref=ref, step=step, action=action, target=(tx, ty),
                 within=within,
+                constraint=(tuple(constraint) if constraint is not None
+                            else None),
+                tol=(tol if constraint is not None else None),
                 reason=f"rotation(s) {sorted(set(bad))} are not in this "
                        f"part's legality lattice {sorted(have)}, so no "
                        f"courtyard exists to check them against"))
@@ -514,18 +543,31 @@ class _Resolver:
             self.res.parks.append(Park(
                 ref=ref, step=step, action=action, target=(tx, ty),
                 within=within,
+                constraint=(tuple(constraint) if constraint is not None
+                            else None),
+                tol=(tol if constraint is not None else None),
                 reason='the deadline expired during this search -- nothing '
                        'was measured'))
             return False
         budget = f"within {within:g}mm of " if within is not None else "near "
         park = Park(
             ref=ref, step=step, action=action, target=(tx, ty), within=within,
-            reason=f"no legal pose {budget}({tx:.1f}, {ty:.1f})")
-        self._census(park, ref, tx, ty, within)
+            reason=f"no legal pose {budget}({tx:.1f}, {ty:.1f})",
+            constraint=(tuple(constraint) if constraint is not None else None),
+            tol=(tol if constraint is not None else None))
+        # `census=False` is for a caller that has ALREADY censused this seat
+        # and will fill the Park itself. Censusing again here would measure a
+        # different board: `_census` derives its candidates and its baseline
+        # from `self.pending`, which `place_lift` has just added the lifted
+        # blockers to. That produced a Park whose `blockers` came from before
+        # the lift and whose `baseline_poses` and reason sentence came from
+        # after it -- two board states, two resolutions, one record.
+        if census:
+            self._census(park, ref, tx, ty, within, constraint, tol)
         self.res.parks.append(park)
         return False
 
-    def _census(self, park, ref, tx, ty, within):
+    def _census(self, park, ref, tx, ty, within, constraint=None, tol=0.5):
         """Which movable neighbours are in this part's way, and what lifting
         each would free.
 
@@ -554,24 +596,27 @@ class _Resolver:
             cands = seeder._evict_candidates(
                 self.st, ref, tx, ty,
                 {r for r in self.st.parts if r not in self.pending},
-                set(self.res.lock_refs))
+                set(self.res.lock_refs), constraint=constraint, tol=tol)
             if not cands:
                 park.censused = True          # measured: nothing movable near
                 return
-            # SAMPLE FINER THAN THE BUDGET, or the census answers a question
-            # nobody asked. CENSUS_STEP_MM is 1.0mm, so a park with
-            # `within: 0.5` had exactly ONE offset survive the prune -- the
-            # census reported "4 poses" meaning one location at four
-            # rotations, and could not see the disc `_try_place` actually
-            # searched at grid_step 0.1. Measured false negative: a part
-            # 0.4mm off its blocker censused all-zero with `censused: true`,
-            # while lifting that blocker frees 64 poses at step 0.1. A
-            # confident zero is worse than no census.
-            step = seeder.CENSUS_STEP_MM
-            if within is not None and within < step * 4.0:
-                step = max(getattr(self.st, 'grid_step', 0.1) or 0.1,
-                           within / 8.0)
-            kw = dict(max_disp=within, step=step, forbid=self.keepouts)
+            # SAMPLE THE BUDGET ON A LATTICE THE SEAT SEARCH ACTUALLY VISITS.
+            # `census_window` owns both halves of that (see its docstring);
+            # what matters here is that ONE window is used for the baseline
+            # and every blocker, so the numbers below are commensurate with
+            # each other whatever budget the op carried.
+            radius, step = seeder.census_window(
+                within, getattr(self.st, 'grid_step', 0.1))
+            kw = dict(max_disp=within, radius=radius, step=step,
+                      forbid=self.keepouts, constraint=constraint, tol=tol)
+            if constraint is not None:
+                # The zone supersedes the disc, so report the window the
+                # census really used rather than the one it did not --
+                # including how far it actually got, which is NOT `within`
+                # when the zone is far or the location cap bites.
+                step, _offs, radius = seeder.zone_census_offsets(
+                    self.st.parts[ref], constraint, tol, tx, ty,
+                    getattr(self.st, 'grid_step', 0.1), within)
             baseline = seeder.count_legal_poses(
                 self.st, ref, tx, ty, base, **kw)
             freed = {}
@@ -580,7 +625,38 @@ class _Resolver:
                     self.st, ref, tx, ty, base | {b}, **kw)
             park.blockers = dict(freed)
             park.baseline_poses = baseline
+            park.census_step_mm = step
+            park.census_radius_mm = radius
             park.censused = True
+            if constraint is not None:
+                # Say the counts are zone-scoped, or a reader compares them
+                # with an unconstrained park's and concludes the board got
+                # fuller. This is also the sentence that separates "the board
+                # is full" from "your zone is full" -- the capacity note the
+                # pack op emits answers the second, and these counts must not
+                # look like an answer to the first.
+                park.reason += (
+                    f"; counted INSIDE the zone "
+                    f"[{constraint[0]:g}, {constraint[1]:g}, "
+                    f"{constraint[2]:g}, {constraint[3]:g}] (tol {tol:g}) -- "
+                    f"poses outside it were never candidates")
+                if not radius:
+                    # The one actionable fact when the sweep never left the
+                    # target: the budget cannot reach the zone from here, so
+                    # an all-zero census says nothing about the zone at all.
+                    park.reason += (
+                        "; and the sweep never left the target -- this "
+                        "budget cannot reach that zone from this target, so "
+                        "the zero says nothing about what is in the way")
+                elif within is not None and radius < within - 1e-9:
+                    park.reason += (
+                        f"; the sweep reached {radius:g}mm of the "
+                        f"{within:g}mm budget, so these are near-field counts")
+            elif within is not None and radius is not None \
+                    and radius < within - 1e-9:
+                park.reason += (
+                    f"; the census looked {radius:g}mm out, not the full "
+                    f"{within:g}mm -- these counts are the near field")
             useful = sorted(((n, b) for b, n in freed.items() if n > baseline),
                             reverse=True)
             if useful:
@@ -1189,29 +1265,76 @@ class _Resolver:
         # Retry targets come from the earlier op that parked them: the plan
         # says WHICH parts are blocked, and where they were meant to go is
         # already on the record.
+        #
+        # THE ZONE IS PART OF "WHERE IT WAS MEANT TO GO". Carrying only
+        # (target, within) meant the retry re-seated without the constraint
+        # the original op imposed, so a part `place_pack` had confined to a
+        # zone was written OUTSIDE it and reported as a seat -- measured on
+        # splitflap_driver, R1 landed 3.86mm clear of its zone with a note
+        # crediting a lift that had freed nothing (64 poses before, 64
+        # after). That is a wrong board, not a wrong number.
+        # FIRST-WINS, EXCEPT A CONSTRAINT UPGRADES. First-wins was pure
+        # bookkeeping while the tuple was (target, within); with a zone on it
+        # it became a correctness choice, and the wrong one -- a `place_at`
+        # that parked the ref earlier with no zone silently outranked the
+        # `place_pack` that later demanded one, so the retry ran
+        # unconstrained and seated the part 4.5mm outside the zone with no
+        # record that a zone was ever asked for. A later park that carries a
+        # constraint is a more specific statement of where the part must go,
+        # so it replaces an unconstrained incumbent.
         parked_at = {}
         for p in self.res.parks:
-            if p.target is not None and p.ref not in parked_at:
-                parked_at[p.ref] = (p.target, p.within)
+            if p.target is None:
+                continue
+            prev = parked_at.get(p.ref)
+            if prev is not None and not (prev[2] is None
+                                         and p.constraint is not None):
+                continue
+            parked_at[p.ref] = (p.target, p.within, p.constraint,
+                                p.tol if p.tol is not None else 0.5)
 
         # Census BEFORE anything moves, so the numbers describe the board the
         # plan actually met.
+        #
+        # Deliberately NOT gated on `self.census_parks`, which `_census`
+        # honours. That flag turns off the AUTOMATIC census on ordinary
+        # parks; `place_lift` is an author explicitly asking which of these
+        # named parts is in the way, and answering "measurement disabled" to
+        # a request to measure would make the op useless. The cost is
+        # bounded the same way -- `census_window` caps the sweep.
         census: Dict[str, Dict[str, int]] = {}
         baseline: Dict[str, int] = {}
+        census_step: Dict[str, float] = {}
+        census_radius: Dict[str, float] = {}
         for ref in blocked:
             if ref not in self.st.parts or ref not in parked_at:
                 continue
-            (tx, ty), budget = parked_at[ref]
+            (tx, ty), budget, zone, ztol = parked_at[ref]
             cap = budget if budget is not None else within
             base = set(self.pending) - {ref}
+            # Same window helper `_census` uses, and for the same reason:
+            # these two calls ran at the default CENSUS_STEP_MM of 1.0mm, so
+            # for any retry budget under a millimetre the only offset to
+            # survive the `max_disp` prune was (0, 0) -- one location at four
+            # rotations, every count in {0..4}. The step fix landed in
+            # `_census` alone and this, the op the census exists FOR, kept
+            # answering at 1.0mm.
+            radius, step_mm = seeder.census_window(
+                cap, getattr(self.st, 'grid_step', 0.1))
+            kw = dict(max_disp=cap, radius=radius, step=step_mm,
+                      forbid=self.keepouts, constraint=zone, tol=ztol)
+            if zone is not None:
+                step_mm, _o, radius = seeder.zone_census_offsets(
+                    self.st.parts[ref], zone, ztol, tx, ty,
+                    getattr(self.st, 'grid_step', 0.1), cap)
+            census_step[ref] = step_mm
+            census_radius[ref] = radius
             baseline[ref] = seeder.count_legal_poses(
-                self.st, ref, tx, ty, base, max_disp=cap,
-                forbid=self.keepouts)
+                self.st, ref, tx, ty, base, **kw)
             census[ref] = {}
             for b in movable:
                 census[ref][b] = seeder.count_legal_poses(
-                    self.st, ref, tx, ty, base | {b}, max_disp=cap,
-                    forbid=self.keepouts)
+                    self.st, ref, tx, ty, base | {b}, **kw)
 
         # Lift: the blockers rejoin the pile, so they stop being obstacles.
         home = {b: (self.st.parts[b].x, self.st.parts[b].y,
@@ -1233,6 +1356,47 @@ class _Resolver:
                 'seats': list(self.res.seats),
                 'parks': list(self.res.parks)}
 
+        def stamp(park, ref):
+            """Write this op's ONE pre-lift measurement onto a park, whole.
+
+            All four fields together, and only onto a park that carries no
+            census of its own. Two halves of that matter:
+
+            It never DOWNGRADES. The old form ended `p.censused = ref in
+            census`, which wrote False over a True whenever `ref` was skipped
+            above -- leaving a park claiming nothing was measured beside a
+            populated `baseline_poses` and a reason naming a blocker.
+
+            It never overwrites an existing census. On the rollback path the
+            restored parks are the EARLIER op's, already censused by
+            `_census` at their own window; replacing their numbers and
+            leaving their reason sentence is how a park came to read
+            `blockers={'C10': 0}` beside "would free 34".
+            """
+            if ref not in census or park.censused:
+                return
+            park.blockers = dict(census[ref])
+            park.baseline_poses = baseline.get(ref)
+            park.census_step_mm = census_step.get(ref)
+            park.census_radius_mm = census_radius.get(ref)
+            park.censused = True
+            top = sorted(((n, b) for b, n in census[ref].items()),
+                         reverse=True)
+            if top and top[0][0] > (baseline.get(ref) or 0):
+                park.reason += (
+                    f"; lifting {top[0][1]} would take it from "
+                    f"{baseline.get(ref)} to {top[0][0]} pose(s) "
+                    f"(measured at {census_step.get(ref)}mm, before the lift)")
+            elif top:
+                # "no ADDITIONAL pose", not "no pose". With a non-zero
+                # baseline this used to say the lift frees nothing while the
+                # blockers dict beside it held non-zero counts.
+                park.reason += (
+                    f" -- and lifting {', '.join(movable)} frees no "
+                    f"additional pose (still {baseline.get(ref)} at "
+                    f"{census_step.get(ref)}mm), so they are not what is in "
+                    f"the way")
+
         def rollback(why: str):
             for r, pose in snap['poses'].items():
                 self.st.apply_move(r, *pose)
@@ -1243,8 +1407,7 @@ class _Resolver:
             for ref in blocked:
                 for p in self.res.parks:
                     if p.ref == ref:
-                        p.blockers = dict(census.get(ref, {}))
-                        p.censused = ref in census
+                        stamp(p, ref)
 
         self.pending |= set(movable)
         seated_now = []
@@ -1255,10 +1418,20 @@ class _Resolver:
                     reason='nothing earlier in this plan parked it, so there '
                            'is no target to retry it at'))
                 continue
-            (tx, ty), budget = parked_at[ref]
+            (tx, ty), budget, zone, ztol = parked_at[ref]
+            # census=False: this op censused the SAME seat above, before the
+            # lift. Letting seat() census again measures a board where the
+            # blockers are already out of the way -- a different question,
+            # answered into the same four fields.
+            #
+            # `constraint=zone`: the retry must satisfy the SAME constraint
+            # the op that parked it did. Without this the lift "succeeded" by
+            # dropping the requirement -- R1 seated 3.86mm outside the zone
+            # place_pack gave it, and the run reported a seat.
             ok = self.seat(ref, tx, ty, step, 'place_lift',
                            within=budget if budget is not None else within,
-                           rot=op.get('rot'))
+                           rot=op.get('rot'), census=False,
+                           constraint=zone, tol=ztol)
             # Either way the earlier park is SUPERSEDED: this op answered the
             # question it asked. Carrying both would report one part as
             # seated-and-parked on success, and on failure would leave the
@@ -1271,13 +1444,7 @@ class _Resolver:
             else:
                 for p in self.res.parks:
                     if p.ref == ref and p.step == step:
-                        p.blockers = dict(census.get(ref, {}))
-                        p.censused = ref in census
-                        if census.get(ref) and not any(census[ref].values()):
-                            p.reason += (
-                                f" -- and lifting {', '.join(movable)} frees "
-                                f"no pose either, so they are not what is in "
-                                f"the way")
+                        stamp(p, ref)
 
         # Put the blockers back, now that what they blocked is in place. Their
         # old seat may well be taken now -- that is the point -- so each one
@@ -1315,7 +1482,9 @@ class _Resolver:
                 self.res.notes.append(
                     f"{ref}: seated after lifting "
                     f"{', '.join(b for b, _ in top)} "
-                    f"(poses at its target: {baseline.get(ref, 0)} before, "
+                    f"(poses at its target, counted at "
+                    f"{census_step.get(ref)}mm: {baseline.get(ref, 0)} "
+                    f"before, "
                     + ', '.join(f"{n} with {b} lifted" for b, n in top) + ")")
 
     def op_place_keepout(self, op, step):

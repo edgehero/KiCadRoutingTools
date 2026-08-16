@@ -150,6 +150,19 @@ Examples:
         print(f"  NOTE: {n}")
     for park in res.parks:
         print(f"  PARK {park.ref}: {park.reason}")
+        # The window, on the human channel too. A census count without its
+        # lattice is the "253 at 0.1mm vs 113 at 0.25mm is not a decrease"
+        # confusion, and this line was the only thing most readers see --
+        # the field reached `--json` readers alone.
+        if park.censused and park.blockers:
+            _w = (f" [counted at {park.census_step_mm}mm"
+                  + (f" out to {park.census_radius_mm}mm"
+                     if park.census_radius_mm is not None else "") + "]")
+            _top = sorted(park.blockers.items(), key=lambda kv: (-kv[1], kv[0]))
+            print(f"        blockers: "
+                  + ", ".join(f"{b}->{n}" for b, n in _top[:4])
+                  + (f" (+{len(_top) - 4} more)" if len(_top) > 4 else "")
+                  + f"; none lifted: {park.baseline_poses}{_w}")
     s = res.summary()
     print(f"Seated {s['seated']} part(s); {s['parked']} parked; "
           f"{s['locked']} to lock; worst move {s['worst_move_mm']}mm")
