@@ -79,15 +79,24 @@ def active_lever() -> Optional[Dict]:
 
 
 def _caller() -> str:
-    """The outermost frame outside py_placer -- the run-19 detector.
+    """The outermost frame outside the placement PACKAGE -- the run-19 detector.
 
     A hand script that imports `placement.writer` and writes poses records
     ITSELF here, whatever it does or does not declare.
+
+    It used to skip every frame under `/py_placer/`, which is where all the
+    lever CLIs live (`place_seed.py`, `place_plan.py`, ...) -- so the field
+    documented as the detector recorded `<unknown>` for exactly the tools it
+    exists to identify, and `<frozen runpy>` under `python -m`. Only the
+    package internals are uninteresting; the CLI that called them is the
+    answer.
     """
     try:
         for fr in inspect.stack()[1:]:
             fn = fr.filename.replace('\\', '/')
-            if '/py_placer/' in fn or fn.endswith('provenance.py'):
+            if '/py_placer/placement/' in fn or fn.endswith('provenance.py'):
+                continue
+            if fn.startswith('<'):               # <frozen runpy>, <string>
                 continue
             return f"{os.path.basename(fr.filename)}:{fr.lineno} in {fr.function}"
     except Exception:                            # noqa: BLE001
@@ -117,12 +126,35 @@ def sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
+_PENDING: Dict[str, Dict] = {}
+
+
+def commit_write(output_file: str) -> Optional[Dict]:
+    """Finish the row `record_write(pending=True)` started, now the file exists.
+
+    Split in two so the REFUSAL can happen before the write. The gate used to
+    run after it, which made refusing decorative -- the poses were already on
+    disk and the exception only described a file it had helped produce.
+    """
+    row = _PENDING.pop(os.path.abspath(output_file), None)
+    if row is None:
+        return None
+    root = row.pop('_root')
+    row['board_sha256'] = (sha256_file(output_file)
+                           if os.path.isfile(output_file) else None)
+    with open(os.path.join(root, LEDGER_NAME), 'a', encoding='utf-8') as f:
+        f.write(json.dumps(row, sort_keys=True) + '\n')
+    return row
+
+
 def record_write(input_file: str, output_file: str,
-                 placements: Sequence[Dict]) -> Optional[Dict]:
+                 placements: Sequence[Dict],
+                 pending: bool = False) -> Optional[Dict]:
     """Append one row for a pose write. Returns it, or None outside a regime.
 
     Raises `UnaidedViolation` when a regime is in force and no lever is
-    declared.
+    declared. With `pending=True` the row is held until `commit_write`, so a
+    refusal can precede the write rather than follow it.
     """
     root = regime_for(output_file)
     lever = active_lever()
@@ -167,13 +199,18 @@ def record_write(input_file: str, output_file: str,
 
     row = {'t': time.time(), 'schema': SCHEMA,
            'path': os.path.abspath(output_file),
-           'board_sha256': sha256_file(output_file),
            'parent_sha256': (sha256_file(input_file)
                              if os.path.isfile(input_file) else None),
            'lever': lever['lever'], 'lever_argv': lever['lever_argv'],
            'declared': True, 'caller': _caller(),
            'refs_written': sorted(p.get('reference') for p in placements),
            'refs_moved': sorted(r for r in moved if r)}
+    if pending:
+        row['_root'] = root
+        _PENDING[os.path.abspath(output_file)] = row
+        return row
+    row['board_sha256'] = (sha256_file(output_file)
+                           if os.path.isfile(output_file) else None)
     with open(os.path.join(root, LEDGER_NAME), 'a', encoding='utf-8') as f:
         f.write(json.dumps(row, sort_keys=True) + '\n')
     return row

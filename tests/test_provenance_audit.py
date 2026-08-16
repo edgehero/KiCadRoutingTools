@@ -6,20 +6,32 @@ genuinely BLIND -- nothing read the control -- and genuinely NOT the engine's.
 `fence_audit` says CLEAN on that, correctly, because it asks a different
 question. This must not.
 
-Four cases, and the third is the load-bearing one:
+Five cases, and the third is the load-bearing one:
 
   1. a run through a registered lever            -> CLEAN (0)
-  2. a write through the funnel with no lever    -> refused at write time
+  2. a write through the funnel with no lever    -> refused BEFORE the write
   3. a hand edit of `(at ...)` as RAW TEXT       -> VIOLATION (4)
-  4. no ledger at all                            -> UNPROVEN (5), never 4
+  4. no ledger, and poses MOVED                  -> VIOLATION (4)
+  5. no ledger, and nothing moved                -> UNPROVEN (5)
 
 Case 3 is why the audit reconciles the BOARD rather than reading the log: a
 script that never imports the writer leaves no row to be missing, and an audit
 that trusted the ledger would report CLEAN on a board it never authored.
 
-Case 4 is why UNPROVEN exists. `fence_audit` collapses "no manifest" into
-LEAK; doing that here would retroactively accuse every run predating the
-instrument.
+Cases 4 and 5 are the same check split on the board's own evidence, and an
+audit found them merged the wrong way: `audit()` returned UNPROVEN whenever
+there were no rows, WITHOUT looking at the poses, which swallowed exactly the
+run-19 case the instrument was built for -- a purely hand-placed board has no
+ledger BECAUSE nothing engine-side ran, and it came back "I cannot prove it"
+instead of "I proved it false". Runs predating the instrument are still
+protected, by the earlier manifest check: a work dir nobody staged returns
+UNPROVEN before the ledger is consulted at all.
+
+The last block is the one that would have caught the whole thing being inert:
+it ARMS a regime and runs a real CLI. Nothing called `declare_lever` outside
+this file, so every real run was UNPROVEN, and arming a regime by hand made
+`place_optimize.py` raise -- it is in LEVER_REGISTRY but declared nothing, so
+the gate refused the engine itself.
 """
 import json
 import os
@@ -176,11 +188,30 @@ with PV.declare_lever('place_plan.py', ['place_plan.py']):
     write_placed_output(staged, out, some_moves(staged))
 os.unlink(os.path.join(wd, PV.LEDGER_NAME))
 code, doc = PA.audit(wd, out)
-check("a missing ledger is UNPROVEN, not a violation",
-      code == PA.UNPROVEN and doc['verdict'] == 'UNPROVEN',
-      f"{code} {doc.get('verdict')}")
-check("and it says nothing was measured, rather than accusing",
-      'Not a violation' in doc.get('reason', ''), doc.get('reason'))
+# Deleting the ledger of a run that MOVED parts is indistinguishable from
+# never having had one, and the board still shows the movement -- so this is
+# a violation with a witness, not an unmeasured run. The audit used to return
+# UNPROVEN here because it checked `if not rows` BEFORE computing `moved`,
+# which swallowed the purely hand-placed case (run 19's) the whole instrument
+# was built for: it came back 5 instead of 4.
+check("a missing ledger with MOVED poses is a VIOLATION, not merely unproven",
+      code == PA.VIOLATION, f"{code} {doc.get('verdict')}")
+check("and it says the board is the witness",
+      'the board is the witness' in doc.get('reason', ''), doc.get('reason'))
+check("it names the refs nothing accounts for",
+      len(doc.get('unclaimed_refs') or []) == 3,
+      str(doc.get('unclaimed_refs')))
+
+# ...but a staged run where NOTHING moved is genuinely unproven, not accused.
+wd2, staged2 = fresh()
+out2 = os.path.join(wd2, 'copy.kicad_pcb')
+import shutil as _sh
+_sh.copy(staged2, out2)
+code2, doc2 = PA.audit(wd2, out2)
+check("a staged run with no ledger and NO movement stays UNPROVEN",
+      code2 == PA.UNPROVEN, f"{code2} {doc2.get('verdict')}")
+check("and that branch says nothing was measured, rather than accusing",
+      'Not a violation' in doc2.get('reason', ''), doc2.get('reason'))
 
 # a work dir that was never staged is UNPROVEN too
 d = tempfile.mkdtemp()
@@ -216,6 +247,69 @@ check("the CLI exits 0 on a clean chain", r.returncode == 0,
 check("the CLI prints a VERDICT and a JSON_SUMMARY",
       'VERDICT: CLEAN' in r.stdout and 'JSON_SUMMARY:' in r.stdout,
       r.stdout[-200:])
+
+# --------------------------------------------------------------------------
+# ARMED, END TO END, through a real CLI
+#
+# The instrument had no working armed state at all: nothing called
+# declare_lever outside this file, so every real run was UNPROVEN, and arming
+# a regime by hand made place_optimize.py RAISE -- it is in LEVER_REGISTRY but
+# declared nothing, so the gate refused the engine itself. Both halves are
+# asserted here, because "it works if you call it right" was already true and
+# was useless.
+# --------------------------------------------------------------------------
+plan = os.path.join(REPO, 'tests', 'fixtures', 'unaided',
+                    'flat_hierarchy_plan.json')
+fh = os.path.join(REPO, 'kicad_files', 'flat_hierarchy.kicad_pcb')
+if os.path.isfile(plan) and os.path.isfile(fh):
+    # The committed plan is written for flat_hierarchy; `fresh()` stages
+    # splitflap. Running a plan against the wrong board parks nearly every ref
+    # and exits 4 -- a fixture mismatch that reads exactly like a product
+    # failure, which is why the board is staged explicitly here.
+    _d = tempfile.mkdtemp()
+    wd = os.path.join(_d, 'wk')
+    os.makedirs(wd)
+    staged = os.path.join(wd, 'board.kicad_pcb')
+    SU.stage(fh, staged, truth_dir=os.path.join(_d, '_truth'))
+    PV.start_regime(wd, staged)
+    out = os.path.join(wd, 'placed.kicad_pcb')
+    r = subprocess.run(
+        [sys.executable, '-X', 'utf8',
+         os.path.join('py_placer', 'place_plan.py'),
+         staged, plan, '-o', out, '--deadline', '300'],
+        capture_output=True, text=True, cwd=REPO, timeout=900,
+        env=dict(os.environ, PYTHONIOENCODING='utf-8'))
+    check("a real CLI runs INSIDE an armed regime without raising",
+          r.returncode == 0 and os.path.isfile(out),
+          f"rc={r.returncode} {(r.stdout + r.stderr)[-300:]}")
+    code, doc = PA.audit(wd, out)
+    check("and the run audits CLEAN, with the lever named",
+          code == PA.CLEAN and doc.get('levers') == ['place_plan.py'],
+          f"{code} {doc.get('verdict')} {doc.get('levers')}")
+    check("every moved pose is claimed -- not a subset",
+          doc['moved'] > 0 and doc['claimed'] >= doc['moved'],
+          f"moved {doc['moved']} claimed {doc['claimed']}")
+    check("the ledger records the CALLER as the CLI, not <unknown>",
+          any('place_plan' in (row.get('caller') or '')
+              for row in PV.read_ledger(wd)),
+          str([row.get('caller') for row in PV.read_ledger(wd)]))
+else:
+    check("the unaided plan fixture and its board exist", False,
+          f"{plan} / {fh}")
+
+# The refusal must precede the write. It used to raise AFTER f.write(), so the
+# poses were already on disk and the "gate" described a file it had helped
+# produce.
+wd, staged = fresh()
+victim = os.path.join(wd, 'never.kicad_pcb')
+try:
+    write_placed_output(staged, victim, some_moves(staged))
+    check("an undeclared write is refused BEFORE the file is written", False,
+          "it wrote anyway")
+except PV.UnaidedViolation:
+    check("an undeclared write is refused BEFORE the file is written",
+          not os.path.exists(victim),
+          "the board must not exist -- refusing means not writing")
 
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

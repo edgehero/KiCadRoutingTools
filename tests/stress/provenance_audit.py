@@ -99,14 +99,35 @@ def audit(workdir, delivered=None):
         delivered = max(cands, key=os.path.getmtime)
 
     rows = PV.read_ledger(workdir)
+    moved = moved_refs(poses(staged), poses(delivered))
     if not rows:
+        # COMPUTE `moved` FIRST. This returned UNPROVEN before looking at the
+        # board, which swallowed the exact case the instrument was built for:
+        # a purely hand-placed board has no ledger BECAUSE nothing engine-side
+        # ran, and it came back 5 ("I cannot prove it") instead of 4 ("I
+        # proved it false"). Those two must be different numbers -- it is the
+        # reason this file has four exit codes -- and the board itself
+        # distinguishes them. No ledger AND no movement is genuinely
+        # unproven; no ledger and 65 moved parts is a violation with a
+        # witness.
+        if moved:
+            return VIOLATION, {
+                'verdict': 'UNAIDED VIOLATION', 'delivered': delivered,
+                'staged': staged, 'ledger_rows': 0, 'moved': len(moved),
+                'claimed': 0, 'unclaimed_refs': moved[:40],
+                'undeclared_refs': {}, 'levers': [], 'callers': [],
+                'reason': (
+                    f"{len(moved)} pose(s) differ from the staged board and "
+                    f"there is NO ledger at all -- nothing engine-side wrote "
+                    f"them. This is the hand-placed case, not an unmeasured "
+                    f"one: the board is the witness.")}
         return UNPROVEN, {
             'verdict': 'UNPROVEN', 'delivered': delivered,
-            'reason': 'no pose-provenance ledger: this run predates the '
-                      'instrument, or nothing wrote a pose. Not a violation '
-                      '-- nothing was measured.'}
-
-    moved = moved_refs(poses(staged), poses(delivered))
+            'moved': 0,
+            'reason': 'no pose-provenance ledger AND no pose differs from the '
+                      'staged board: this run predates the instrument, or '
+                      'nothing wrote a pose. Not a violation -- nothing was '
+                      'measured and nothing moved.'}
     claimed, undeclared = {}, {}
     for row in rows:
         lever = row.get('lever')

@@ -276,18 +276,29 @@ def write_placed_output(input_file: str, output_file: str,
             close = content.rindex(')')
             content = content[:close] + '\n'.join(elements) + '\n)' + content[close+1:]
 
+    # THE SINGLE POSE FUNNEL, and it must run BEFORE the write. Every
+    # footprint `(at ...)` rewrite in py_placer comes through here, so this is
+    # the one place that can answer "was every pose in this board produced by
+    # a registered engine lever?". Outside an unaided regime it is a no-op and
+    # the behaviour is byte-identical; inside one, an undeclared write raises.
+    #
+    # It used to raise AFTER `f.write(content)`, which made the refusal
+    # decorative: the poses were already on disk, so the "gate" reported a
+    # violation about a file it had just helped produce. Refusing means not
+    # writing.
+    #
+    # NOTE the qualifier -- "in py_placer". The GUI writes poses through
+    # pcbnew (`ai_plan._run_place_plan`, `fanout_gui`, `placement_gui`) and
+    # does NOT come through here, so a GUI-driven placement leaves no row.
+    # See provenance.record_write for what that means for a verdict.
+    from placement import provenance
+    provenance.record_write(input_file, output_file, placements,
+                            pending=True)
+
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    # THE SINGLE POSE FUNNEL. Every footprint `(at ...)` rewrite in this repo
-    # comes through here -- verified across all call sites in py_placer -- so
-    # this is the one place that can answer "was every pose in this board
-    # produced by a registered engine lever?". Outside an unaided regime it
-    # is a no-op and the behaviour is byte-identical; inside one, an
-    # undeclared write raises. See placement/provenance.py for why that is an
-    # accounting boundary and not a security one.
-    from placement import provenance
-    provenance.record_write(input_file, output_file, placements)
+    provenance.commit_write(output_file)
 
     print(f"Modified {modified_count} footprint positions")
     print(f"Successfully wrote {output_file}")

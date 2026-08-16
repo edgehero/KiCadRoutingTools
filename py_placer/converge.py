@@ -1440,7 +1440,13 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    # NO cli_banner here (deliberate): converge's stdout is a JSON API --
-    # `record` and `status` print documents that callers json.loads() whole
-    # (tests/test_converge.py does). The other instruments' stdout is a log.
-    sys.exit(main())
+    # Declare the lever for the WHOLE run, so every pose this CLI
+    # writes carries its name. Nothing called declare_lever outside
+    # tests, so the unaided instrument had no armed state at all:
+    # unarmed it is silent, and armed by hand it refused the engine.
+    from placement.provenance import declare_lever
+    with declare_lever('converge.py', sys.argv):
+        # NO cli_banner here (deliberate): converge's stdout is a JSON API --
+        # `record` and `status` print documents that callers json.loads() whole
+        # (tests/test_converge.py does). The other instruments' stdout is a log.
+        sys.exit(main())

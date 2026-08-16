@@ -1097,9 +1097,8 @@ class QuenchState:
         # candidate of this part until something moves. Without the cache this
         # branch runs a full neighbour sweep per rejected candidate, which on a
         # dense board is most of them.
-        cur_board, cur_overlap = (
-            self.violation_parts(ref, exclude=exclude) if exclude
-            else self._incumbent_violation(ref))
+        cur_board, cur_overlap = self._incumbent_violation(ref,
+                                                           exclude=exclude)
         if cur_overlap > EPS_IMPROVE or cur_board <= EPS_IMPROVE:
             # Overlapping, or already legal: original rule, legal poses only.
             return False
@@ -1153,11 +1152,29 @@ class QuenchState:
             return False
         return cur.hole <= base.hole + EPS_IMPROVE
 
-    def _incumbent_violation(self, ref):
-        v = self._inc_violation.get(ref)
+    def _incumbent_violation(self, ref, exclude=None):
+        """The incumbent pose's violation, cached per (ref, exclude).
+
+        The `exclude` half is why this exists. `candidate_valid`'s rejection
+        path guarded the cache with `if exclude:` and fell through to an
+        uncached `violation_parts` whenever one was supplied -- and the seeder
+        ALWAYS supplies one (the unplaced pile), so on the path that matters
+        the cache never ran. Measured over 30s of a real seeding run: 61,119
+        incumbent-pose calls, of which 61,092 (99.96%) were exact repeats of
+        the same (ref, clearance, exclude). Each one walks the neighbours and
+        the outline; the comment three lines above the guard already said this
+        must not happen.
+
+        The key is a frozenset, so it costs O(|exclude|) hashing against a
+        full neighbour-and-outline sweep -- cheap by a wide margin. The whole
+        cache is cleared on every move (see apply_move), which is what makes
+        an incumbent answer safe to hold at all.
+        """
+        key = (ref, frozenset(exclude) if exclude else None)
+        v = self._inc_violation.get(key)
         if v is None:
-            v = self.violation_parts(ref)
-            self._inc_violation[ref] = v
+            v = self.violation_parts(ref, exclude=exclude)
+            self._inc_violation[key] = v
         return v
 
     def _edges_near(self, ref) -> list:
