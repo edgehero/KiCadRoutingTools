@@ -41,13 +41,26 @@ with a grader is a bug in one of them, never a second opinion here).
 
 | key | decision |
 |---|---|
-| `state.unplaced` / `state.stacked_suspect_refs` | is this a pile at all, and which refs form it |
+| `state.unplaced` / `state.stacked_suspect_refs` / `state.reasons` | is this a pile at all, which refs form it, and which signal fired |
+| `position_dependent.invalid` | **read this before any number below it.** On a piled board the keys it names are `null` — measured from part positions, and there are none yet. Includes `structure.decap_tethers`, `structure.groups.decap` and `structure.groups.netprefix`, so the grouping an author reaches for first is among them |
+| `position_dependent.also_pose_derived` | KEPT but pose-derived, each with its caveat: `parts[*].extent_mm` (swaps W/H with rotation — a staged board carries rotation 0, so 25–43% of parts are transposed), the per-face escape table, `worst[]` membership, `renders.*`. Not null, not trustworthy as-is |
+| `position_dependent.gate` | which test fired — `state.unplaced`, or the pile fraction. The stager's mechanical exemptions can keep `state.unplaced` False on a board that is 89% piled, so the fraction is the one that catches it |
 | `board.milled_contours` | **non-zero means #628 territory** — an interior milled ring a pad can sit inside while every placement gate calls it legal |
+| `board.cutout_rings` / `outline_rings` / `milled_contour_rings` | ring vertices in board coordinates. These are the source for `place_keepout`'s `rect`: a part in a cutout is unroutable and no bounding-box view shows it |
+| `board.outline_source` | `edge_cuts_contours` or `bounding_box`. The parser short-circuits a plain axis-aligned rectangle and returns no contour, so on those boards `outline_rings` is the bbox — correct, but derived rather than read |
+| `board.copper_area_mm2` | outline minus cutouts, by shoelace. **Not** `options.grow_board`'s `usable_area_mm2`, which is the bbox minus the edge band and is cutout-blind |
+| `parts.<ref>.at` / `.rect` | where the part is now, board frame. `rect` is the same absolute rect `legality.graded_parts_from_file` grades. On an unplaced board this is the pile coordinate — cross-read `state` |
 | `parts.<ref>.extent_source` | `pad_bbox` means that part has NO courtyard, so its extent carries no margin — do not treat it like a courtyard number |
-| `fit[].fits` / `.centre_bounds` | whether a `WxH` part has anywhere to go at all, and roughly where. `fits: false` is a capacity finding, not a placement one — go to A3 |
-| `measurements.escape.deficit_lanes` | lanes short across the board. Non-zero is a BINDING constraint: net ordering only chooses which nets strand |
-| `measurements.locks.tally.unlocked_high` | same gate as section A; the brief carries it so one read covers both |
+| `mechanical.refs` | the parts whose position is a mechanical fact, with class, confidence and evidence. **Pose-independent**, so unlike `measurements.locks` it still answers on a pile |
+| `mechanical.refs.<ref>.pose_shared_with` | empty = that part sits alone at its coordinate, so its `at` is a real pose and can be asserted with `place_fixed`. Non-empty = it is in the pile and the coordinate means nothing |
+| `fit[].fits` / `.centre_bounds` | whether a `WxH` part has anywhere to go at all, and roughly where. `fits: false` is a capacity finding, not a placement one — go to A3. **Valid on an unplaced board** — it probes the outline, never another part |
+| `measurements.escape.deficit_lanes` | lanes short across the board. Non-zero is a BINDING constraint: net ordering only chooses which nets strand. `null` on an unplaced board |
+| `measurements.locks.tally.unlocked_high` | same gate as section A; the brief carries it so one read covers both. `null` on an unplaced board — use `mechanical` there instead |
 | `skipped` | **a section that did not run.** Non-empty means the brief is incomplete — never read a missing section as "nothing to report" |
+
+`null` and absent are different answers here: `null` means "this key exists and
+this board cannot support it" (with the path named in `position_dependent`),
+while an absent section means it did not run and `skipped` says why.
 
 ## A3. Capacity options — `py_tools/check_capacity.py BOARD --json wk/capacity.json`
 
@@ -70,6 +83,8 @@ route fine, because the area test is necessary and not sufficient.
 |---|---|
 | `parks[]` | **every part the plan could not seat**, with `target`, `within` and `reason`. Empty is the only clean result; exit 4 means non-empty |
 | `parks[].blockers` / `.censused` | issue #629's answer. `censused: false` means nobody looked; `censused: true` with all-zero values means the parts you named are innocent |
+| `parks[].census_step_mm` / `.census_radius_mm` | the window those counts were taken in. **Counts are commensurate WITHIN one park and not across budgets** — 253 poses at 0.1 mm and 113 at 0.25 mm are not a decrease. A `census_radius_mm` below the op's `within` means the sweep was capped and the counts are the near field |
+| `parks[].constraint` / `.tol` | the zone this seat had to satisfy. Non-null means every count in the park is **inside that zone** — do not compare it with an unconstrained park's. When the zone itself is the problem, read the op's capacity note (`the usable zone is X mm2 and these parts need AT LEAST Y`), not the blocker list: the blockers answer "what is in the way *within the zone*", the note answers "is the zone big enough at all" |
 | `seats[].moved_mm` | how far the seat landed from what the plan asked for. A large value means the BOARD disagreed with your intent — read it before concluding the plan worked |
 | `seats[].rot_changed` | the requested rotation was not legal and the lattice fallback fired |
 | `summary.relaxed` | seats taken at a courtyard clearance below the asked-for floor |
