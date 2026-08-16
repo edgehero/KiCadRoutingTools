@@ -244,12 +244,27 @@ def test_stage_unaided_declares_and_sanitizes_the_project():
 
 
 def test_stage_unaided_discloses_a_project_less_source():
-    """A board with no .kicad_pro stages, but says the floor did not travel."""
+    """A board with no .kicad_pro stages, but says the floor did not travel.
+
+    The fixture is CHOSEN AT RUN TIME from whatever is genuinely
+    project-less, not hardcoded. It was `watchy`, and then watchy gained its
+    real upstream project -- at which point the test quietly returned early
+    and stopped testing anything. A fixture whose disappearance turns a check
+    into a no-op is the failure mode this suite keeps re-learning.
+    """
     sys.path.insert(0, os.path.join(ROOT, 'tests', 'stress'))
     from stage_unaided import stage
-    src = os.path.join(ROOT, 'kicad_files', 'watchy.kicad_pcb')
-    if os.path.isfile(os.path.splitext(src)[0] + '.kicad_pro'):
-        return          # watchy gained a project; this case moved elsewhere
+    src = None
+    for cand in sorted(os.listdir(os.path.join(ROOT, 'kicad_files'))):
+        if not cand.endswith('.kicad_pcb'):
+            continue
+        p = os.path.join(ROOT, 'kicad_files', cand)
+        if not os.path.isfile(os.path.splitext(p)[0] + '.kicad_pro'):
+            src = p
+            break
+    assert src, ('every board now has a .kicad_pro, so this case cannot be '
+                 'exercised -- delete the test or add a project-less fixture, '
+                 'do not let it pass vacuously')
     with tempfile.TemporaryDirectory() as tmp:
         out = os.path.join(tmp, 'board.kicad_pcb')
         doc = stage(src, out)

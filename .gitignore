@@ -59,6 +59,17 @@ kicad_files/.history/
 !/kicad_files/interf_u_unrouted_placed.kicad_pcb
 !/kicad_files/routed_output.kicad_pcb
 
+# Sibling PROJECTS that are spec, not output. `/kicad_files/*kicad_pro` above
+# exists because the chain drops a .kicad_pro next to every board it writes,
+# and six such files were once committed for boards that are generated and
+# ignored. These are the opposite case: the DRC floor a real board declares,
+# for a board that is itself tracked. Without them the board grades at the
+# toolchain's fallback 0.25/0.55 rather than its own rules (#441), and
+# test_457_fresh_clone_fixtures already enforces the invariant that makes
+# this safe -- a tracked project must have a tracked board.
+!/kicad_files/watchy.kicad_pro
+!/kicad_files/tigard.kicad_pro
+
 #Other
 /git_version*
 
