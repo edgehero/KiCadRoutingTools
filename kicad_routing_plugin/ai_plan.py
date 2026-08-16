@@ -1092,6 +1092,27 @@ class PlanExecutor:
             fp.SetOrientationDegrees(p["new_rotation"])
             fp.SetPosition(pcbnew.VECTOR2I(mm_to_iu(p["new_x"]),
                                            mm_to_iu(p["new_y"])))
+        # RECORD, the way write_placed_output does for the CLI. The GUI is a
+        # SECOND pose funnel -- it applies poses through pcbnew and never
+        # touches placement.writer -- so a GUI-driven placement left no ledger
+        # row at all. That was disclosed as a gap while the audit only ever
+        # returned UNPROVEN; once "no ledger and poses moved" became a
+        # VIOLATION, the same silence turned into an affirmative accusation
+        # against the engine's own front end. Same engine, same lever name,
+        # same ledger.
+        try:
+            from placement.provenance import declare_lever, record_write
+            board_path = board.GetFileName()
+            with declare_lever('place_plan.py', ['place_plan.py (GUI)']):
+                record_write(board_path, board_path, res.placements)
+        except Exception as e:                       # noqa: BLE001
+            # Outside a regime this is a no-op; inside one an UnaidedViolation
+            # is the point. Anything else is a bookkeeping failure and must
+            # not take the placement down with it.
+            from placement.provenance import UnaidedViolation
+            if isinstance(e, UnaidedViolation):
+                raise
+            self.log(f"AI plan: place_plan: pose provenance not recorded ({e})")
         for note in res.notes:
             self.log(f"AI plan: place_plan: {note}")
         for park in res.parks:

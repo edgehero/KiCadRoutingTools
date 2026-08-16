@@ -171,6 +171,11 @@ Examples:
 
 
 if __name__ == "__main__":
-    from console_encoding import enable_utf8_console
-    enable_utf8_console()  # cp1252-safe non-ASCII prints (issue #152)
-    main()
+    # In LEVER_REGISTRY, so it must DECLARE -- an entry that writes
+    # poses without declaring makes an armed regime refuse the engine
+    # itself, which is the failure the registry exists to prevent.
+    from placement.provenance import declare_lever
+    with declare_lever('place_fanout_clearance.py', sys.argv):
+        from console_encoding import enable_utf8_console
+        enable_utf8_console()  # cp1252-safe non-ASCII prints (issue #152)
+        main()

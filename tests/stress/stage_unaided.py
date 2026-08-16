@@ -212,4 +212,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # In LEVER_REGISTRY, so it must DECLARE -- an entry that writes
+    # poses without declaring makes an armed regime refuse the engine
+    # itself, which is the failure the registry exists to prevent.
+    from placement.provenance import declare_lever
+    with declare_lever('stage_unaided.py', sys.argv):
+        sys.exit(main())

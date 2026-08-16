@@ -47,10 +47,21 @@ REGIME_NAME = '.unaided-manifest.json'
 LEVER_REGISTRY = (
     'place_seed.py', 'place_plan.py', 'place_optimize.py',
     'place_reconstruct.py', 'place_portfolio.py', 'place_route_loop.py',
-    'place_fanout_clearance.py', 'beautify_labels.py', 'converge.py',
+    'place_fanout_clearance.py', 'converge.py',
     # Staging tools author poses BY DESIGN -- that is what staging is.
+    # `perturb.py` is a LIBRARY with no __main__; it is reached through
+    # stage_unaided / stage_blind, whose declaration covers it by the
+    # innermost-wins rule.
     'perturb.py', 'stage_blind.py', 'stage_unaided.py',
 )
+
+# Registered but NOT pose writers. `beautify_labels.py` moves reference-
+# designator silkscreen through `write_label_output`, which is not the pose
+# funnel -- it never records and never raises, so listing it here would be a
+# decorative entry that implies a coverage this instrument does not have.
+# Named rather than silently omitted, because "why is it missing" is a
+# question someone will ask.
+NOT_POSE_WRITERS = ('beautify_labels.py',)
 
 _active: List[Dict] = []
 

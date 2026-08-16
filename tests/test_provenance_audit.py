@@ -311,5 +311,40 @@ except PV.UnaidedViolation:
           not os.path.exists(victim),
           "the board must not exist -- refusing means not writing")
 
+# --------------------------------------------------------------------------
+# EVERY registered lever must actually declare one
+#
+# An audit found 5 of 12 registry entries declaring nothing, three of which
+# write poses through the funnel -- so under an armed regime they raised
+# `UnaidedViolation` and the gate refused the engine itself. That is the exact
+# failure the registry exists to prevent, and it survived the commit that
+# claimed to fix it because only seven CLIs were armed.
+# --------------------------------------------------------------------------
+import glob as _glob
+
+_missing = []
+for _lever in PV.LEVER_REGISTRY:
+    _hits = (_glob.glob(os.path.join(REPO, 'py_placer', _lever))
+             + _glob.glob(os.path.join(REPO, 'tests', 'stress', _lever))
+             + _glob.glob(os.path.join(REPO, 'py_placer', 'placement', _lever)))
+    if not _hits:
+        continue
+    _src = open(_hits[0], encoding='utf-8').read()
+    # A library with no __main__ is reached through a declaring CLI; the
+    # innermost-wins rule covers it.
+    if 'declare_lever' not in _src and '__main__' in _src:
+        _missing.append(_lever)
+check("every registered lever with a __main__ actually declares one",
+      not _missing,
+      f"{_missing} -- these raise UnaidedViolation under an armed regime, "
+      f"refusing the engine")
+check("and the registry is not empty (else the check is vacuous)",
+      len(PV.LEVER_REGISTRY) >= 8, str(len(PV.LEVER_REGISTRY)))
+check("a tool that does NOT write poses is named, not silently registered",
+      hasattr(PV, 'NOT_POSE_WRITERS')
+      and 'beautify_labels.py' in PV.NOT_POSE_WRITERS,
+      "beautify_labels writes silkscreen through write_label_output, not the "
+      "pose funnel -- registering it would imply coverage that does not exist")
+
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

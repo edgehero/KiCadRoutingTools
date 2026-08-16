@@ -55,6 +55,11 @@ def poses(path):
             for r, f in pcb.footprints.items()}
 
 
+def added_refs(a, b):
+    """Refs present in the delivered board and absent from the staged one."""
+    return sorted(r for r in b if r not in a)
+
+
 def moved_refs(a, b):
     """Refs whose pose differs. Rotation compared MODULO 360, because the
     writer normalises -90 to 270 and a raw float compare would report an
@@ -63,7 +68,11 @@ def moved_refs(a, b):
     for ref, pb in sorted(b.items()):
         pa = a.get(ref)
         if pa is None:
-            out.append(ref)
+            # ADDED, not moved. A ref absent from the staged board has no
+            # pose to differ from, and counting it as moved made "someone
+            # dropped a test point into the work dir" an unaided VIOLATION.
+            # Adding a part is a real thing to disclose, so it is reported --
+            # under its own name, by the caller.
             continue
         drot = abs(((pa[2] - pb[2]) + 180.0) % 360.0 - 180.0)
         if (abs(pa[0] - pb[0]) > POSE_TOL_MM or abs(pa[1] - pb[1]) > POSE_TOL_MM
@@ -89,17 +98,28 @@ def audit(workdir, delivered=None):
                                     f'is not readable: {staged!r}'}
 
     if delivered is None:
+        # Newest .kicad_pcb, EXCLUDING intermediates. The chain routinely
+        # drops `*.staging.kicad_pcb` and `*.polish` next to a board, and
+        # picking one used to yield a soft UNPROVEN -- harmless. Now that a
+        # ledger-less moved pose is a VIOLATION, a mis-picked artifact is an
+        # affirmative accusation, so the guess has to be narrower.
+        ARTIFACTS = ('.staging.kicad_pcb', '.polish.kicad_pcb',
+                     '_before.kicad_pcb', '_control.kicad_pcb')
         cands = [os.path.join(workdir, n) for n in sorted(os.listdir(workdir))
                  if n.endswith('.kicad_pcb')
+                 and not any(n.endswith(a) for a in ARTIFACTS)
                  and os.path.abspath(os.path.join(workdir, n))
                  != os.path.abspath(staged)]
         if not cands:
             return UNPROVEN, {'verdict': 'UNPROVEN',
-                              'reason': 'no delivered board in the work dir'}
+                              'reason': 'no delivered board in the work dir '
+                                        '(staging artifacts are not one)'}
         delivered = max(cands, key=os.path.getmtime)
 
     rows = PV.read_ledger(workdir)
-    moved = moved_refs(poses(staged), poses(delivered))
+    _sp, _dp = poses(staged), poses(delivered)
+    moved = moved_refs(_sp, _dp)
+    added = added_refs(_sp, _dp)
     if not rows:
         # COMPUTE `moved` FIRST. This returned UNPROVEN before looking at the
         # board, which swallowed the exact case the instrument was built for:
@@ -115,6 +135,7 @@ def audit(workdir, delivered=None):
                 'verdict': 'UNAIDED VIOLATION', 'delivered': delivered,
                 'staged': staged, 'ledger_rows': 0, 'moved': len(moved),
                 'claimed': 0, 'unclaimed_refs': moved[:40],
+                'added_refs': added[:40],
                 'undeclared_refs': {}, 'levers': [], 'callers': [],
                 'reason': (
                     f"{len(moved)} pose(s) differ from the staged board and "
@@ -140,7 +161,8 @@ def audit(workdir, delivered=None):
     bad = sorted(r for r in moved if r in undeclared and r not in claimed)
     doc = {'workdir': os.path.abspath(workdir), 'staged': staged,
            'delivered': delivered, 'ledger_rows': len(rows),
-           'moved': len(moved), 'claimed': len(claimed),
+           'moved': len(moved), 'added_refs': added[:40],
+           'claimed': len(claimed),
            'unclaimed_refs': unclaimed[:40],
            'undeclared_refs': {r: undeclared[r] for r in bad[:40]},
            'levers': sorted({r.get('lever') for r in rows if r.get('lever')}),

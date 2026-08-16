@@ -234,19 +234,24 @@ def main(src, workdir, truthdir, kinds=None):
 
 
 if __name__ == '__main__':
-    import argparse
-    ap = argparse.ArgumentParser(
-        description=__doc__.strip().splitlines()[0],
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('src'); ap.add_argument('workdir'); ap.add_argument('truthdir')
-    ap.add_argument('--kind', action='append', metavar='KIND',
-                    help='narrow the draw to this perturbation kind '
-                         '(repeatable). Valid: ' + ' '.join(P.KINDS) + '. The '
-                         'kinds displace very different fractions of a board '
-                         '(measured: pile 67%%, translate 27%%), so a run that '
-                         'wants the PLACEMENT half exercised has a reason to '
-                         'ask. It costs one bit of the fence -- still blind to '
-                         'block, dose and seed, but not to kind -- so SAY SO '
-                         'in the report.')
-    _a = ap.parse_args()
-    main(_a.src, _a.workdir, _a.truthdir, _a.kind)
+    # In LEVER_REGISTRY, so it must DECLARE -- an entry that writes
+    # poses without declaring makes an armed regime refuse the engine
+    # itself, which is the failure the registry exists to prevent.
+    from placement.provenance import declare_lever
+    with declare_lever('stage_blind.py', sys.argv):
+        import argparse
+        ap = argparse.ArgumentParser(
+            description=__doc__.strip().splitlines()[0],
+            formatter_class=argparse.RawDescriptionHelpFormatter)
+        ap.add_argument('src'); ap.add_argument('workdir'); ap.add_argument('truthdir')
+        ap.add_argument('--kind', action='append', metavar='KIND',
+                        help='narrow the draw to this perturbation kind '
+                             '(repeatable). Valid: ' + ' '.join(P.KINDS) + '. The '
+                             'kinds displace very different fractions of a board '
+                             '(measured: pile 67%%, translate 27%%), so a run that '
+                             'wants the PLACEMENT half exercised has a reason to '
+                             'ask. It costs one bit of the fence -- still blind to '
+                             'block, dose and seed, but not to kind -- so SAY SO '
+                             'in the report.')
+        _a = ap.parse_args()
+        main(_a.src, _a.workdir, _a.truthdir, _a.kind)
