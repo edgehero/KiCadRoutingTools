@@ -87,6 +87,14 @@ class Seat:
     moved_mm: float
     rot_requested: Optional[float] = None
     rot_changed: bool = False
+    #: The zone this seat satisfied, if any. Recorded because a seat can be
+    #: UNDONE and redone: `place_lift` lifts a seated blocker out of the way
+    #: and puts it back afterwards, and with no zone on the Seat it came back
+    #: unconstrained -- so a blocker `place_pack` had put inside a zone could
+    #: be restored outside it and still counted as seated. The Park carries
+    #: the same pair for the same reason on the parked side.
+    constraint: Optional[Tuple[float, float, float, float]] = None
+    tol: Optional[float] = None
 
     def to_dict(self) -> Dict:
         return {'ref': self.ref, 'step': self.step, 'action': self.action,
@@ -526,7 +534,10 @@ class _Resolver:
                 self.res.seats.append(Seat(
                     ref=ref, step=step, action=action, target=(tx, ty),
                     pose=(p.x, p.y, p.rot), clearance=clr, moved_mm=moved,
-                    rot_requested=requested, rot_changed=changed))
+                    rot_requested=requested, rot_changed=changed,
+                    constraint=(tuple(constraint) if constraint is not None
+                                else None),
+                    tol=(tol if constraint is not None else None)))
                 if clr < self.st.clearance - 1e-9:
                     self.res.notes.append(
                         f"{ref}: seated at relaxed clearance {clr:g} "
@@ -1339,6 +1350,13 @@ class _Resolver:
         # Lift: the blockers rejoin the pile, so they stop being obstacles.
         home = {b: (self.st.parts[b].x, self.st.parts[b].y,
                     self.st.parts[b].rot) for b in movable}
+        # ...and the constraint each was seated under, from its most recent
+        # Seat, so the restore can put it back under the same demand.
+        home_zone: Dict[str, Tuple] = {}
+        for s in self.res.seats:
+            if s.ref in movable and s.constraint is not None:
+                home_zone[s.ref] = (s.constraint,
+                                    s.tol if s.tol is not None else 0.5)
 
         # A trade is ALL OR NOTHING. Everything from here is undone together
         # if any part of it cannot be completed legally -- the house standard
@@ -1449,11 +1467,19 @@ class _Resolver:
         # Put the blockers back, now that what they blocked is in place. Their
         # old seat may well be taken now -- that is the point -- so each one
         # searches from where it was, within the op's budget.
+        #
+        # WITH THE ZONE IT WAS SEATED UNDER. A blocker `place_pack` had put
+        # inside a zone came back unconstrained, so the lift could restore it
+        # OUTSIDE the zone and still count it as seated -- the same wrong
+        # board as the retry escape, reached from the other side. The zone
+        # rides on the Seat because this part was seated, not parked.
         if restore:
             for b in movable:
                 bx, by, brot = home[b]
+                bzone, btol = home_zone.get(b, (None, 0.5))
                 if not self.seat(b, bx, by, step, 'place_lift',
-                                 within=within, rot=brot):
+                                 within=within, rot=brot,
+                                 constraint=bzone, tol=btol):
                     rollback(
                         f"place_lift (step {step}) REVERTED: {b} was lifted "
                         f"but has no legal pose to return to within "

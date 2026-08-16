@@ -749,6 +749,32 @@ out3 = [(s.action, s.pose) for s in esc3.seats if s.ref == 'R1'
 check("so no lift retry escapes via a rotation-lattice park either",
       not out3, f"{out3} vs zone {ZONE}")
 
+# --- THE RESTORE SIDE. A blocker that was itself seated inside a zone is
+# lifted and put back; with no zone on its Seat it came back unconstrained,
+# so the lift could restore it OUTSIDE the zone and still count it seated.
+# Same wrong board as the retry escape, reached from the other side.
+ZONE_B = [round(C7.x - 1.5, 3), round(C7.y - 1.5, 3),
+          round(C7.x + 1.5, 3), round(C7.y + 1.5, 3)]
+res_b = run([{"action": "place_pack", "refs": ["C7"], "zone": ZONE_B,
+              "policy": "rows", "within": 3.0},
+             {"action": "place_at", "ref": "R1",
+              "at": [round(C7.x, 3), round(C7.y, 3)], "rot": 0,
+              "within": 0.5},
+             {"action": "place_lift", "refs": ["C7"], "for": ["R1"],
+              "within": 6.0}])
+c7_seats = [s for s in res_b.seats if s.ref == 'C7']
+check("the restore fixture seats C7 inside a zone first",
+      any(s.constraint is not None for s in c7_seats),
+      str([(s.action, s.pose, s.constraint) for s in c7_seats]))
+esc_b = [(s.action, s.pose) for s in c7_seats
+         if not (ZONE_B[0] - 0.5 <= s.pose[0] <= ZONE_B[2] + 0.5
+                 and ZONE_B[1] - 0.5 <= s.pose[1] <= ZONE_B[3] + 0.5)]
+check("a lifted blocker is restored INSIDE the zone it was seated under",
+      not esc_b,
+      f"{esc_b} vs zone {ZONE_B} -- the restore searched from the blocker's "
+      f"old pose with no constraint, so it could come back outside the zone "
+      f"place_pack had put it in and still be reported as seated")
+
 # --------------------------------------------------------------------------
 # 10. `_evict_candidates` under a zone. Reverting its whole hunk left the
 # suite green, so the widened box and the zone-centred ranking were untested.
