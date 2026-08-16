@@ -81,6 +81,85 @@ def classify_exempt(pcb_data, pcb_file=None):
     return refs, reasons
 
 
+#: Project keys that are the AUTHOR'S, not the board's spec. Every one is
+#: empty on all 13 in-repo projects and read by nothing in this tree, so
+#: dropping them is lossless for every consumer -- but a hand-placed source
+#: fills them with board coordinates (`drc_exclusions` carries the offending
+#: items' positions; the viewports are named views like "MCU corner"), and
+#: `last_paths` carries the author's directories.
+_LEAKY_PROJECT_KEYS = (
+    ('board', 'design_settings', 'drc_exclusions'),
+    ('board', 'viewports'),
+    ('board', '3dviewports'),
+    ('board', 'layer_presets'),
+    ('pcbnew', 'last_paths'),
+)
+
+
+def sanitize_staged_project(out_board):
+    """Strip the source's IDENTITY from the carried project; declare the rest.
+
+    The project must travel -- without it the staged board grades at the
+    stock netclass (#441), and on flat_hierarchy that is 0.2 -> 0.25 with the
+    source flipping from `board netclass` to `fixed default`. But KiCad
+    stores `meta.filename` inside it, so a verbatim copy puts the SOURCE'S
+    NAME in the work dir: measured, the staged project read
+    `flat_hierarchy.kicad_pro`.
+
+    That defeats this module's own rule -- "the source is recorded by HASH,
+    not by path", because a path is one Read away from the original
+    placement -- and `fence_audit` could not see it: its `SCANNED_EXT` was
+    ('.kicad_pcb', '.json'), so it scanned one file and returned CLEAN.
+
+    Returns the declaration recorded in `mechanical.json`: what travelled,
+    and the floors the run will actually be graded at.
+    """
+    stem = os.path.splitext(out_board)[0]
+    # `.kicad_prl` does not enter the work dir. NOTHING in this repo reads it
+    # (grep: only copy-lists and a temp cleanup) -- it is KiCad's per-board
+    # view state, active layer and selection filter -- and it carries the
+    # source's name the same way `meta.filename` does. Measured: after
+    # sanitising the project, `board.kicad_prl` was the one remaining file in
+    # the work dir containing 'flat_hierarchy'. Carrying a file no consumer
+    # reads, at the cost of a second identity leak, is a bad trade. It still
+    # travels to the TRUTH dir, which is outside the fence.
+    prl = stem + '.kicad_prl'
+    dropped_prl = os.path.isfile(prl)
+    if dropped_prl:
+        os.remove(prl)
+    pro = stem + '.kicad_pro'
+    out = {'carried': os.path.isfile(pro), 'sanitized_keys': [],
+           'dropped_prl': dropped_prl}
+    if out['carried']:
+        with open(pro, encoding='utf-8') as f:
+            doc = json.load(f)
+        meta = doc.get('meta')
+        if isinstance(meta, dict) and meta.get('filename'):
+            meta['filename'] = os.path.basename(pro)
+            out['sanitized_keys'].append('meta.filename')
+        for path in _LEAKY_PROJECT_KEYS:
+            node = doc
+            for k in path[:-1]:
+                node = node.get(k) if isinstance(node, dict) else None
+                if node is None:
+                    break
+            if isinstance(node, dict) and node.get(path[-1]):
+                node[path[-1]] = [] if path[-1] != 'last_paths' else {}
+                out['sanitized_keys'].append('.'.join(path))
+        with open(pro, 'w', encoding='utf-8') as f:
+            json.dump(doc, f, indent=2)
+        out['sha256'] = sha256_file(pro)
+    # The numbers the run is graded at, whether or not a project travelled.
+    try:
+        from list_nets import board_floor_knobs
+        out['floors'] = board_floor_knobs(out_board)[2]
+    except Exception as e:                                   # noqa: BLE001
+        out['floors'] = f'unavailable: {type(e).__name__}: {e}'
+    for ext in ('.kicad_dru', '.kicad_prl'):
+        out[ext.lstrip('.')] = os.path.isfile(stem + ext)
+    return out
+
+
 def read_mechanical(path):
     with open(path, encoding='utf-8') as f:
         return json.load(f)
@@ -119,13 +198,21 @@ def stage(src, out_board, truth_dir=None, mechanical_out=None):
                                'new_rotation': 0.0})
     write_placed_output(src, out_board, placements)
     copy_siblings(src, out_board)
+    project = sanitize_staged_project(out_board)
 
     doc = {'schema': SCHEMA, 'kind': 'mechanical-declaration',
            'refs': exempt, 'reasons': reasons,
+           # The project is an input the run reads and it sets every
+           # clearance the placement is graded at -- and it was written down
+           # NOWHERE, while this file's own note claims the declaration is
+           # what makes an input legitimate. A project-less source is now a
+           # declared `carried: false` rather than silence.
+           'project': project,
            'note': 'the ONLY poses carried over from the source. Everything '
                    'else is at the board centre at rotation 0. A run may read '
                    'this; it is an input, not a leak, BECAUSE it is written '
-                   'down.'}
+                   'down. `project` names the floors the run will be graded '
+                   'at, for the same reason.'}
     mech = mechanical_out or os.path.join(os.path.dirname(out_board),
                                           'mechanical.json')
     with open(mech, 'w', encoding='utf-8') as f:
@@ -159,6 +246,16 @@ def main(argv=None):
     p.add_argument("workdir")
     p.add_argument("truthdir", nargs='?')
     a = p.parse_args(argv)
+
+    # WORKDIR is a directory, not the output board. Passing `wk/board.kicad_pcb`
+    # -- the obvious guess, and what the output is actually called -- made a
+    # DIRECTORY of that name containing `board.kicad_pcb/board.kicad_pcb`, and
+    # the next command's "cannot read" pointed at the argument rather than the
+    # mistake.
+    if a.workdir.lower().endswith('.kicad_pcb'):
+        p.error(f"WORKDIR is a directory, not a board: {a.workdir!r} names the "
+                f"output file. Pass the directory; the staged board is always "
+                f"written to WORKDIR/board.kicad_pcb.")
 
     if a.truthdir and os.path.abspath(a.truthdir).startswith(
             os.path.abspath(a.workdir) + os.sep):

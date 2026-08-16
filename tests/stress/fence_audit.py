@@ -198,7 +198,15 @@ def _json_poses(path):
 #: Extensions the scan opens. This module's thesis -- "the next carrier will
 #: have a different name" -- applies to EXTENSIONS exactly as it does to stems,
 #: and the scan used to stop at `.kicad_pcb`.
-SCANNED_EXT = ('.kicad_pcb', '.json')
+#:
+#: `.kicad_pro` earns its place the same way. The project MUST travel with a
+#: staged board or it grades at the stock netclass (#441), but KiCad stores
+#: `meta.filename` and `pcbnew.last_paths` inside it -- so a verbatim copy
+#: put the SOURCE'S NAME and the author's directories in the work dir, and
+#: this scan opened one file and returned CLEAN. A `.kicad_pro` carries no
+#: poses, so it is checked for IDENTITY rather than placement: see
+#: `_names_control`.
+SCANNED_EXT = ('.kicad_pcb', '.json', '.kicad_pro')
 
 
 #: A pad centre and a track end are "the same point" within this. Run 14
@@ -298,7 +306,32 @@ def copper_carries_poses(pcb, control_pads):
     return len(displaced), hits, rate, base
 
 
-def scan(workdir, control_poses, allow, control_pads=None):
+def _names_control(path, control_stem):
+    """Strings in this project that name the control's board.
+
+    A `.kicad_pro` carries no poses, so the leak it can commit is IDENTITY:
+    KiCad writes `meta.filename`, and `pcbnew.last_paths` holds the author's
+    own directories. Either one is a path back to the original placement,
+    which is exactly what "the source is recorded by HASH, not by path"
+    exists to prevent. Substring, not equality: `last_paths` embeds the stem
+    inside a longer path.
+    """
+    if not control_stem:
+        return []
+    try:
+        with open(path, encoding='utf-8') as f:
+            raw = f.read()
+    except Exception:                                # noqa: BLE001
+        return []
+    hits = []
+    for line in raw.splitlines():
+        if control_stem in line:
+            hits.append(line.strip()[:120])
+    return hits[:6]
+
+
+def scan(workdir, control_poses, allow, control_pads=None,
+         control_stem=None):
     """Every scannable file in workdir, scored against the control's poses."""
     rows = []
     for root, _dirs, files in os.walk(workdir):
@@ -312,6 +345,22 @@ def scan(workdir, control_poses, allow, control_pads=None):
                 continue
             _copper = None
             try:
+                if name.endswith('.kicad_pro'):
+                    # Identity, not poses: does this project name the board
+                    # the control came from? The stem is what a Read would
+                    # follow back to the original placement.
+                    hit = _names_control(path, control_stem)
+                    if hit:
+                        rows.append({
+                            'file': rel, 'kind': 'project',
+                            'match_frac': 1.0, 'refs_shared': 0,
+                            'worst_mm': None,
+                            'carries_truth': True,
+                            'truth_channel': 'identity',
+                            'names_source': hit,
+                            'sha256': _sha256(path),
+                            'mtime': os.path.getmtime(path)})
+                    continue
                 if name.endswith('.json'):
                     poses = _json_poses(path)
                     if poses is None:
@@ -383,7 +432,25 @@ def main(argv=None):
     # report the audit's own reference as a leak.
     control_real = os.path.realpath(args.control)
 
-    rows = [r for r in scan(args.workdir, control_poses, allow, control_pads)
+    # WHICH name is the leak: the SOURCE's, not the control's. Both stagers
+    # write the control as `control.kicad_pcb`, so its own stem names
+    # nothing; the source basename is recorded in `stage.json` beside it,
+    # which is the whole point of recording the source by hash and name
+    # THERE (outside the fence) rather than in the work dir.
+    _stem = None
+    _stage_json = os.path.join(os.path.dirname(os.path.abspath(args.control)),
+                               'stage.json')
+    if os.path.isfile(_stage_json):
+        try:
+            with open(_stage_json, encoding='utf-8') as _f:
+                _stem = os.path.splitext(
+                    json.load(_f).get('source_basename') or '')[0] or None
+        except Exception:                            # noqa: BLE001
+            _stem = None
+    if not _stem:
+        _stem = os.path.splitext(os.path.basename(args.control))[0]
+    rows = [r for r in scan(args.workdir, control_poses, allow, control_pads,
+                            control_stem=_stem)
             if os.path.realpath(os.path.join(args.workdir, r['file'])) != control_real]
 
     manifest_path = os.path.join(args.workdir, MANIFEST_NAME)
@@ -527,6 +594,14 @@ def main(argv=None):
                         f'stripped -- the tracks point at where each part '
                         f'belongs. Strip it with '
                         f'tests/stress/strip_copper_only.py')
+            elif row.get('truth_channel') == 'identity':
+                # A project carries no poses; what it can leak is the SOURCE'S
+                # NAME, which is one Read away from the original placement.
+                _how = ('NAMES THE SOURCE: '
+                        + '; '.join(row.get('names_source') or [])
+                        + '. A project must travel (#441) but KiCad stores '
+                          'meta.filename and pcbnew.last_paths inside it -- '
+                          'sanitise those before it enters the work dir')
             else:
                 _how = (f'carries the control\'s placement '
                         f'({row["match_frac"]:.3f} of {row["refs_shared"]} '
