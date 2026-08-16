@@ -139,7 +139,12 @@ def main(src, workdir, truthdir, kinds=None):
     # the work dir in the first place (run-12 Tier 0).
     control = os.path.join(truthdir, 'control.kicad_pcb')
     shutil.copyfile(src, control)
-    for ext in ('.kicad_pro', '.kicad_prl'):
+    # copy_board.SIBLING_EXTS, not a hand-written pair: this list said
+    # ('.kicad_pro', '.kicad_prl') and dropped `.kicad_dru`, so the per-layer
+    # clearance rules that OUTRANK --clearance (#498) did not reach the
+    # control -- silently, because an absent .kicad_dru reads as "no rules".
+    from copy_board import SIBLING_EXTS
+    for ext in SIBLING_EXTS:
         sib = os.path.splitext(src)[0] + ext
         if os.path.exists(sib):
             shutil.copyfile(sib, os.path.join(truthdir, 'control' + ext))

@@ -4484,7 +4484,8 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
         finally:
             if tmp:
                 for _p in (tmp, os.path.splitext(tmp)[0] + '.kicad_pro',
-                           os.path.splitext(tmp)[0] + '.kicad_prl'):
+                           os.path.splitext(tmp)[0] + '.kicad_prl',
+                           os.path.splitext(tmp)[0] + '.kicad_dru'):
                     try:
                         os.unlink(_p)
                     except OSError:

@@ -146,11 +146,128 @@ def test_route_loop_emits_a_json_summary():
         "main()'s return value is dropped by __main__, so a refusal exits 0")
 
 
+def test_one_sibling_list_no_hand_written_copies():
+    """Every sibling-extension tuple is `copy_board.SIBLING_EXTS` or imports it.
+
+    Eight sites spelled the list out by hand and THREE had drifted --
+    `stage_blind`, `fixture_boards` and `redo_diff_stage` carried
+    `.kicad_pro` + `.kicad_prl` and dropped `.kicad_dru`, the per-layer
+    clearance rules that OUTRANK `--clearance` (#498). The drop is silent by
+    construction: `read_board_layer_clearances` returns `({}, [])` for an
+    absent file, so a run grades an inner layer at the wrong value with no
+    diagnostic anywhere. A source-text gate, because the failure is a
+    COPY of a list, not a behaviour any one board exercises.
+    """
+    import re as _re
+    bad = []
+    for root, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in ('.git', '__pycache__', 'wk')]
+        for name in files:
+            if not name.endswith('.py'):
+                continue
+            path = os.path.join(root, name)
+            if os.path.basename(path) == 'copy_board.py':
+                continue
+            with open(path, encoding='utf-8', errors='replace') as fh:
+                text = fh.read()
+            # A tuple/list literal mentioning .kicad_pro and .kicad_prl but
+            # NOT .kicad_dru. Checked over a 3-LINE WINDOW, not one line:
+            # the first version was per-line, so wrapping a list across two
+            # lines silenced it -- which is how a gate stops gating.
+            lines = text.splitlines()
+            for i, line in enumerate(lines):
+                if not _re.search(r'[\(\[].*\.kicad_pro', line):
+                    continue
+                window = ' '.join(lines[i:i + 3])
+                if '.kicad_prl' in window and '.kicad_dru' not in window:
+                    bad.append(f"{os.path.relpath(path, ROOT)}: {line.strip()}")
+    assert not bad, (
+        "hand-written sibling list that omits .kicad_dru (carry it via "
+        "copy_board.SIBLING_EXTS; a cleanup list wants it too, or a temp "
+        "rules file survives the test):\n  " + "\n  ".join(bad[:6]))
+
+
+def test_stage_unaided_declares_and_sanitizes_the_project():
+    """The staged project travels, is declared, and does not name its source.
+
+    Three clauses, each a bug that shipped:
+      * the floors must survive staging -- without the .kicad_pro,
+        flat_hierarchy grades 0.2 -> 0.25 and the SOURCE flips from
+        'board netclass' to 'fixed default';
+      * `mechanical.json` must say what travelled, because this stager's own
+        rule is that an input is legitimate BECAUSE it is written down, and
+        the project -- which sets every clearance the placement is graded at
+        -- was written down nowhere;
+      * nothing in the work dir may name the source. KiCad stores
+        `meta.filename` in the project, so a verbatim copy put
+        'flat_hierarchy.kicad_pro' inside the fence.
+    """
+    sys.path.insert(0, os.path.join(ROOT, 'tests', 'stress'))
+    from stage_unaided import stage
+    from list_nets import board_floor_knobs
+
+    src = os.path.join(ROOT, 'kicad_files', 'flat_hierarchy.kicad_pcb')
+    if not os.path.isfile(os.path.splitext(src)[0] + '.kicad_pro'):
+        raise AssertionError('fixture lost its .kicad_pro; the test is void')
+    with tempfile.TemporaryDirectory() as tmp:
+        wk = os.path.join(tmp, 'wk')
+        os.makedirs(wk)
+        out = os.path.join(wk, 'board.kicad_pcb')
+        doc = stage(src, out, os.path.join(tmp, 'truth'))
+
+        # 1. floors survive -- VALUES AND SOURCES. A value-only check passes
+        #    on a board that coincidentally defaults to the same number.
+        want = board_floor_knobs(src)[2]
+        got = board_floor_knobs(out)[2]
+        assert got == want, f"floors changed across staging: {got} != {want}"
+        assert got['clearance']['source'] == 'board netclass', got
+
+        # 2. declared
+        proj = doc.get('project')
+        assert proj and proj.get('carried') is True, proj
+        assert proj.get('floors') == want, proj
+        assert proj.get('sha256'), proj
+
+        # 3. no file in the work dir names the source
+        stem = os.path.splitext(os.path.basename(src))[0]
+        named = []
+        for root, _d, files in os.walk(wk):
+            for n in files:
+                p = os.path.join(root, n)
+                with open(p, 'rb') as fh:
+                    if stem.encode() in fh.read():
+                        named.append(os.path.relpath(p, wk))
+        assert not named, (
+            f"work-dir file(s) name the source {stem!r}: {named} -- the source "
+            f"is recorded by HASH, not by path, and a path is one Read away "
+            f"from the original placement")
+
+
+def test_stage_unaided_discloses_a_project_less_source():
+    """A board with no .kicad_pro stages, but says the floor did not travel."""
+    sys.path.insert(0, os.path.join(ROOT, 'tests', 'stress'))
+    from stage_unaided import stage
+    src = os.path.join(ROOT, 'kicad_files', 'watchy.kicad_pcb')
+    if os.path.isfile(os.path.splitext(src)[0] + '.kicad_pro'):
+        return          # watchy gained a project; this case moved elsewhere
+    with tempfile.TemporaryDirectory() as tmp:
+        out = os.path.join(tmp, 'board.kicad_pcb')
+        doc = stage(src, out)
+        proj = doc.get('project')
+        assert proj and proj.get('carried') is False, proj
+        # and the fallback it will be graded at is NAMED, not implied
+        assert proj['floors']['clearance']['source'] == 'fixed default', proj
+        assert proj['floors']['clearance']['value'] == 0.25, proj
+
+
 TESTS = [
     test_place_optimize_carries_siblings,
     test_place_optimize_propagates_its_exit_code,
     test_route_loop_round0_copy_carries_siblings,
     test_route_loop_emits_a_json_summary,
+    test_one_sibling_list_no_hand_written_copies,
+    test_stage_unaided_declares_and_sanitizes_the_project,
+    test_stage_unaided_discloses_a_project_less_source,
 ]
 
 
