@@ -199,6 +199,15 @@ def main(src, workdir, truthdir, kinds=None):
             'than emitting a board whose damage is at the grid step -- that '
             'is what voided run 14.' % MAX_DRAWS)
 
+    # The work-dir project must not name the source. `perturb` copies the
+    # siblings so the damaged board still grades at the real floor (#441),
+    # but KiCad stores `meta.filename` inside the project -- measured, the
+    # blind work dir's board.kicad_pro read "watchy.kicad_pro", which is the
+    # one thing this stager exists to withhold. Same treatment as
+    # stage_unaided; `.kicad_prl` does not enter the work dir at all.
+    from stage_unaided import sanitize_staged_project
+    sanitize_staged_project(out)
+
     with open(os.path.join(truthdir, 'draw.json'), 'w', encoding='utf-8') as f:
         json.dump({'kind': kind, 'dose_mm': dose, 'seed': seed,
                    'dose_mm_applied': rec.get('dose_mm_applied'),

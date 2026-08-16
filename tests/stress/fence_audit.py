@@ -437,14 +437,22 @@ def main(argv=None):
     # nothing; the source basename is recorded in `stage.json` beside it,
     # which is the whole point of recording the source by hash and name
     # THERE (outside the fence) rather than in the work dir.
+    # BOTH stagers, because they record it under different names and a check
+    # that knows only one is inert for the other: `stage_unaided` writes
+    # stage.json/source_basename, `stage_blind` writes draw.json/source. The
+    # first version read stage.json alone and returned CLEAN on a blind work
+    # dir whose project said "watchy.kicad_pro".
     _stem = None
-    _stage_json = os.path.join(os.path.dirname(os.path.abspath(args.control)),
-                               'stage.json')
-    if os.path.isfile(_stage_json):
+    _truth = os.path.dirname(os.path.abspath(args.control))
+    for _name, _key in (('stage.json', 'source_basename'),
+                        ('draw.json', 'source')):
+        _p = os.path.join(_truth, _name)
+        if _stem or not os.path.isfile(_p):
+            continue
         try:
-            with open(_stage_json, encoding='utf-8') as _f:
-                _stem = os.path.splitext(
-                    json.load(_f).get('source_basename') or '')[0] or None
+            with open(_p, encoding='utf-8') as _f:
+                _raw = json.load(_f).get(_key) or ''
+            _stem = os.path.splitext(os.path.basename(_raw))[0] or None
         except Exception:                            # noqa: BLE001
             _stem = None
     if not _stem:
