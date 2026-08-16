@@ -55,8 +55,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 SCHEMA_VERSION = 1
 
 PLACEMENT_ACTIONS = (
-    'place_index', 'place_keepout', 'place_at', 'place_array', 'place_slots',
-    'place_relative', 'place_edge', 'place_pack', 'place_lift',
+    'place_index', 'place_keepout', 'place_fixed', 'place_at', 'place_array',
+    'place_slots', 'place_relative', 'place_edge', 'place_pack', 'place_lift',
     'place_repair', 'place_polish', 'place_lock',
 )
 
@@ -102,6 +102,9 @@ class PlanError(ValueError):
 _OP_FIELDS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     'place_index':    (('name', 'select'), ('fields', 'partner', 'note')),
     'place_keepout':  (('rect',), ('reason', 'sides', 'allow', 'note')),
+    # A MECHANICAL FACT, not a request: set the pose, never search, never
+    # move it, and treat it as an obstacle from then on.
+    'place_fixed':    (('ref', 'at'), ('rot', 'note')),
     'place_at':       (('ref', 'at'),
                        ('rot', 'rot_prefer', 'within', 'mirror', 'note')),
     'place_array':    (('refs', 'pitch', 'origin'),
@@ -669,6 +672,7 @@ PLACEMENT_PLAN_SCHEMA = (
     '"pattern": "<regex matching the net the two share, e.g. ^Net-\\\\(>", '
     '"inherit": ["<field to copy from the partner>"], "as": "partner"}} | '
     '{"action": "place_keepout", "rect": [x0,y0,x1,y1], "reason": "<why>"} | '
+    '{"action": "place_fixed", "ref": "<ref>", "at": [x,y], "rot": <deg>} | '
     '{"action": "place_at", "ref": "<ref>", "at": [x,y], "rot": <deg>, '
     '"within": <mm>, "mirror": {"axis": "board:xmid"}} | '
     '{"action": "place_array", "refs": "index:<name>", "pitch": [dx,dy], '
@@ -698,8 +702,15 @@ PLACEMENT_PLAN_SCHEMA = (
     '{"action": "place_lock", "refs": ["<glob>"]} '
     ']} '
     'Ops run IN ORDER and each seats against everything already seated, so '
-    'put the parts whose position is a mechanical fact first, then the large '
-    'anchors, then the lattices, then their satellites, then the rest. '
+    'put the parts whose position is a mechanical fact first (place_fixed), '
+    'then the large anchors, then the lattices, then their satellites, then '
+    'the rest. '
+    'place_fixed is the ONE op that does not search: it ASSERTS a pose the '
+    'mechanical drawing already fixed (a mounting hole, an edge receptacle), '
+    'never moves that part, and makes it an obstacle for everything after. '
+    'Use it instead of place_at for anything whose position is not yours to '
+    'choose -- place_at with a tiny `within` parks, and with a large one it '
+    'MOVES the hole. '
     'A target is a HINT: every op seats at the nearest fully-legal pose to it '
     'and reports how far that was, so state intent rather than solved '
     'coordinates. Use "solve:outline_probe" instead of typing a coordinate '

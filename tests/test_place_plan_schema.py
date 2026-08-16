@@ -137,6 +137,7 @@ MINIMAL = {
     'place_edge': {"action": "place_edge", "refs": ["J1"], "edge": "north"},
     'place_pack': {"action": "place_pack", "refs": ["R*"],
                    "zone": [0, 0, 10, 10]},
+    'place_fixed': {"action": "place_fixed", "ref": "H1", "at": [10, 10]},
     'place_lift': {"action": "place_lift", "refs": ["D1"]},
     'place_repair': {"action": "place_repair"},
     'place_polish': {"action": "place_polish"},

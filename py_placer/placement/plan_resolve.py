@@ -554,6 +554,57 @@ class _Resolver:
         self.res.indexes[op['name']] = _build_index(
             self.pcb, op, self.res.indexes, self.res.notes)
 
+    def op_place_fixed(self, op, step):
+        """Assert a pose as a mechanical fact. Set it; never search.
+
+        On a PILE, a mounting hole or an edge receptacle has no meaningful
+        pose, and there was no way to tell the plan where it belongs:
+        `place_at H1` at its own coordinate is refused at `within: 0`
+        ("must be > 0mm"), parks at 0.1, and at 3.0 MOVES THE HOLE 1.4mm --
+        a hole is not a request. `place_lock` pins a part where it already
+        is, which on a pile is the centre of the board.
+
+        So this is the one op that does not go through a seat gate at all.
+        It is a declaration of something the board's mechanical drawing
+        already fixed, and the plan is not entitled to move it. It is
+        reported as a Seat with `clearance: None` -- nothing measured one --
+        and it is excluded from the plan's movable set, so every later op
+        sees it as an obstacle (`plan_target_refs` skips it exactly as it
+        skips `place_lock`; without that a fixed part is INVISIBLE, which is
+        the defect `tests/test_plan_obstacles.py` pins).
+
+        Ordering matters and the schema says so: put these first. Until this
+        op runs the part sits at its incoming pose, which on a pile is the
+        middle of the board -- an obstacle in the wrong place.
+        """
+        ref = op['ref']
+        if ref not in self.st.parts:
+            self.res.parks.append(Park(
+                ref=ref, step=step, action='place_fixed',
+                reason='not a movable part on this board'))
+            return
+        x, y = (float(v) for v in op['at'])
+        part = self.st.parts[ref]
+        rot = float(op['rot']) % 360.0 if op.get('rot') is not None else part.rot
+        home = (part.x, part.y)
+        self.st.apply_move(ref, round(x, 4), round(y, 4), rot)
+        self.pending.discard(ref)
+        p = self.st.parts[ref]
+        self.res.seats.append(Seat(
+            ref=ref, step=step, action='place_fixed', target=(x, y),
+            pose=(p.x, p.y, p.rot), clearance=None,
+            moved_mm=math.hypot(p.x - home[0], p.y - home[1]),
+            rot_requested=op.get('rot')))
+        # A fixed pose can still be illegal -- it is asserted, not checked --
+        # so say when it is, rather than letting the board carry a silent
+        # overlap that every later op then routes around.
+        if not seeder.pose_ok(self.st, ref, p.x, p.y, p.rot,
+                              self.pending - {ref}, forbid=self.keepouts):
+            self.res.notes.append(
+                f"{ref}: fixed at ({p.x:g}, {p.y:g}) rot {p.rot:g}, which is "
+                f"not a legal pose on this board -- asserted anyway, because a "
+                f"mechanical fact outranks the seat gate. Grade the output.")
+
     def op_place_at(self, op, step):
         x, y = (float(v) for v in op['at'])
         mirror = op.get('mirror')
@@ -1396,11 +1447,12 @@ def plan_target_refs(pcb_data, pcb_file, state, ops) -> Tuple[Set[str], List[str
             except Exception as e:                       # noqa: BLE001
                 unresolved.append(f"step {i + 1} ({action}): {e}")
             continue
-        # place_lock PINS a part; it never seats one. Collecting its refs as
-        # targets would exclude them from the obstacle set -- so locking a
-        # part made it INVISIBLE and the next op could seat on top of it,
-        # which is precisely backwards. place_keepout names no parts at all.
-        if action in ('place_keepout', 'place_lock'):
+        # place_lock PINS a part and place_fixed ASSERTS one; neither seats.
+        # Collecting their refs as targets would exclude them from the
+        # obstacle set -- so locking or fixing a part made it INVISIBLE and
+        # the next op could seat on top of it, which is precisely backwards.
+        # place_keepout names no parts at all.
+        if action in ('place_keepout', 'place_lock', 'place_fixed'):
             continue
         for key in ('ref', 'refs', 'of', 'for'):
             value = op.get(key)
