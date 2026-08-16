@@ -89,17 +89,37 @@ def _hosts_the_design(ref, gx0, gy0, gx1, gy1, fp, footprints) -> bool:
     A real container hosts the design: other parts sit INSIDE it. rp2350's U8
     contains most of the board; a big connector on a small board contains
     nothing.
+
+    Two conditions beyond that, each added because the first version of this
+    guard failed the same way it was written to prevent:
+
+    * **SAME SIDE ONLY.** Utilisation is per-side, so a part on F.Cu cannot
+      host one on B.Cu. Layer-blind, an 18x25.5mm module on F.Cu was
+      "hosting" twenty 0402s underneath it on B.Cu and got excluded, and a
+      board whose true F.Cu utilisation was 1.10 reported `fits` at 0.55.
+    * **NOT A PILE.** On an unplaced board every part shares one coordinate,
+      so ANY part covering that point hosts 100% of the design. Measured on a
+      shrunk, piled haasoscope: a BGA-256 and a BGA-529 were classed as
+      containers and a real 524.86mm2 shortfall was reported as no shortfall
+      at all. Two BGAs are not "a frame, not a body". Require the hosted
+      parts to occupy several DISTINCT positions, which a pile cannot.
     """
     x0 = fp.x + gx0
     y0 = fp.y + gy0
     x1 = fp.x + gx1
     y1 = fp.y + gy1
-    others = [o for r, o in footprints.items() if r != ref]
+    side = getattr(fp, 'layer', None) or 'F.Cu'
+    others = [o for r, o in footprints.items()
+              if r != ref and (getattr(o, 'layer', None) or 'F.Cu') == side]
     if len(others) < 4:
         return False
-    inside = sum(1 for o in others
-                 if x0 <= o.x <= x1 and y0 <= o.y <= y1)
-    return inside >= HOSTS_FRACTION * len(others)
+    hosted = [o for o in others if x0 <= o.x <= x1 and y0 <= o.y <= y1]
+    if len(hosted) < HOSTS_FRACTION * len(others):
+        return False
+    # A frame hosts a LAYOUT, not a stack. Distinct positions is what
+    # separates the two, and it is exactly what a pile does not have.
+    spots = {(round(o.x, 3), round(o.y, 3)) for o in hosted}
+    return len(spots) >= max(4, 0.5 * len(hosted))
 
 
 def grow_board(pcb_data, pcb_file: str, *, clearance: float,
@@ -612,7 +632,8 @@ def format_text(opts: Dict) -> str:
 # A digest that drops the headline is not a digest.
 _DIGEST_ALWAYS = ('deficit_lanes_now', 'deficit_lanes_at_more',
                   'deficit_lanes_at_fab_floor', 'utilisation',
-                  'busiest_side_area_mm2', 'shortfall_mm2_at_least',
+                  'busiest_side_area_mm2', 'usable_area_mm2',
+                  'parts', 'shortfall_mm2_at_least',
                   'proposed_square_side_mm', 'faces_in_deficit',
                   'deficit_lanes', 'containers_excluded')
 
@@ -630,6 +651,7 @@ def _digest(measured: Dict, limit: int = 5) -> str:
     """
     bits, forced = [], []
     for k, v in measured.items():
+        empty = isinstance(v, (list, tuple, dict)) and not v
         if isinstance(v, bool):
             bit = f"{k}={'yes' if v else 'no'}"
         elif isinstance(v, (int, float)):
@@ -640,7 +662,13 @@ def _digest(measured: Dict, limit: int = 5) -> str:
             bit = f"{k}{{{len(v)}}}"
         else:
             continue
-        (forced if k in _DIGEST_ALWAYS else bits).append(bit)
+        # An EMPTY collection is never forced. Forcing `containers_excluded`
+        # unconditionally spent a slot on `[0]` and evicted
+        # usable_area_mm2/outline_area_mm2 -- the denominator `utilisation` is
+        # computed from -- on the 32 of 33 corpus boards that have no
+        # container. A digest that drops the denominator to report an empty
+        # list is worse than the truncation it was fixing.
+        (forced if (k in _DIGEST_ALWAYS and not empty) else bits).append(bit)
     out = forced + [b for b in bits if b not in forced]
     return ', '.join(out[:max(limit, len(forced))]) if out else 'measured'
 

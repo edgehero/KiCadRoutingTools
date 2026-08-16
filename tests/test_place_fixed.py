@@ -293,5 +293,44 @@ check("a ref that is not on the board parks, naming why",
       res6.parks and 'not a movable part' in res6.parks[0].reason,
       str([(p.ref, p.reason) for p in res6.parks]))
 
+# --------------------------------------------------------------------------
+# "never moves that part" -- against EVERY op, not just place_lift
+#
+# Only place_lift was ever given a check. place_at, place_array, place_slots,
+# place_edge and a SECOND place_fixed all moved an asserted pose, emitted a
+# second Seat for the same ref, and reported `complete: true` with no note --
+# and `placements` is in seating order, so the writer applied the later pose.
+# The schema text promises "never moves that part"; this is where it is kept.
+# --------------------------------------------------------------------------
+_T = list(TRUE['C1'][:2])
+_FIX = {"action": "place_fixed", "ref": "C1", "at": _T, "rot": TRUE['C1'][2]}
+_ROUTES = {
+    'place_at': {"action": "place_at", "ref": "C1", "at": [_T[0] + 6, _T[1]],
+                 "rot": TRUE['C1'][2], "within": 8},
+    'place_fixed_again': {"action": "place_fixed", "ref": "C1",
+                          "at": [_T[0] + 6, _T[1]], "rot": TRUE['C1'][2]},
+    'place_array': {"action": "place_array", "refs": ["C1"], "pitch": [2, 2],
+                    "origin": {"x": _T[0] + 4, "y": _T[1]}, "within": 8},
+    'place_slots': {"action": "place_slots", "refs": ["C1"],
+                    "slots": [[_T[0] + 6, _T[1]]], "within": 8},
+    'place_edge': {"action": "place_edge", "refs": ["C1"], "edge": "north",
+                   "overhang": 0.5},
+    'place_lift': {"action": "place_lift", "refs": ["C1"], "for": ["C2"],
+                   "within": 5},
+}
+_moved = []
+for _name, _step in _ROUTES.items():
+    _r = run(copy.deepcopy(SRC), [_FIX, _step])
+    _pl = [q for q in _r.placements if q['reference'] == 'C1']
+    if len(_pl) != 1 or abs(_pl[0]['new_x'] - _T[0]) > 1e-6 \
+            or abs(_pl[0]['new_y'] - _T[1]) > 1e-6:
+        _moved.append((_name, len(_pl),
+                       [(round(q['new_x'], 3), round(q['new_y'], 3))
+                        for q in _pl]))
+check("NO op moves a place_fixed part, and it is written exactly once",
+      not _moved, f"{len(_moved)} route(s) moved it: {_moved}")
+check("and all six routes were exercised", len(_ROUTES) == 6,
+      str(sorted(_ROUTES)))
+
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

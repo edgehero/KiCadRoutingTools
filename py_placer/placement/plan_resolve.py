@@ -414,6 +414,11 @@ class _Resolver:
         # relocate them. Without this, lifting a fixed part wrote it 4mm away
         # and reported `complete: true` with no note.
         self.fixed_refs: Set[str] = set(fixed_refs or ())
+        # Refs place_fixed has actually asserted SO FAR. Distinct from
+        # `fixed_refs`, which is pre-populated from the whole plan so a fixed
+        # part is an obstacle before its own step -- using that as the
+        # "already asserted" test made the FIRST assertion refuse itself.
+        self.asserted_refs: Set[str] = set()
 
     # -- seating ---------------------------------------------------------
     def seat(self, ref: str, tx: float, ty: float, step: int, action: str,
@@ -429,6 +434,22 @@ class _Resolver:
             self.res.parks.append(Park(
                 ref=ref, step=step, action=action,
                 reason='(locked yes) in the file -- not this tool\'s to move'))
+            return False
+        if ref in self.asserted_refs:
+            # place_fixed's contract is "never moves that part", and this is
+            # where that has to be enforced: `seat()` checked `part.locked`
+            # and nothing else, so place_at / place_array / place_slots /
+            # place_edge / a second place_fixed all moved an asserted pose,
+            # emitted a SECOND Seat for the same ref, and reported
+            # `complete: true` with no note. `placements` is in seating order,
+            # so the writer applied the later pose -- the assertion silently
+            # lost to a later op. Only place_lift refused, because it was the
+            # only one given a check.
+            self.res.parks.append(Park(
+                ref=ref, step=step, action=action,
+                reason='was asserted by place_fixed as a mechanical fact, so '
+                       'no later op may move it -- drop the place_fixed if '
+                       'the pose is really negotiable'))
             return False
 
         home = (part.x, part.y, part.rot)
@@ -613,6 +634,23 @@ class _Resolver:
         rot = float(op['rot']) % 360.0 if op.get('rot') is not None else part.rot
         home = (part.x, part.y)
 
+        # A second assertion of the same ref is a contradiction, not an
+        # update: this op does not go through `seat()`, so without this a
+        # later place_fixed moved an earlier one and wrote the ref twice.
+        # NOTE `asserted_refs`, not `fixed_refs`. The latter is pre-populated
+        # from the whole plan so a fixed part is an obstacle before its own
+        # step; testing it here made the FIRST assertion refuse itself, and
+        # the op then produced neither a seat nor a park -- silently nothing.
+        if ref in self.asserted_refs:
+            if abs(part.x - x) > 1e-6 or abs(part.y - y) > 1e-6 \
+                    or abs(((part.rot - rot) + 180.0) % 360.0 - 180.0) > 1e-6:
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action='place_fixed', target=(x, y),
+                    reason=f"was already asserted at ({part.x:g}, {part.y:g}) "
+                           f"rot {part.rot:g}; a mechanical fact cannot be "
+                           f"restated differently in the same plan"))
+            return
+
         # A rotation outside the part's legality lattice has NO courtyard to
         # check, so `part.rect` silently returns the 0-degree box. `seat()`
         # guards this ("a plan asking for 45 degrees was checked against the
@@ -653,6 +691,7 @@ class _Resolver:
         self.st.apply_move(ref, round(x, 4), round(y, 4), rot)
         self.pending.discard(ref)
         self.fixed_refs.add(ref)
+        self.asserted_refs.add(ref)
         p = self.st.parts[ref]
         self.res.seats.append(Seat(
             ref=ref, step=step, action='place_fixed', target=(x, y),
@@ -1026,6 +1065,15 @@ class _Resolver:
                     reason='(locked yes) in the file -- not this tool\'s '
                            'to move'))
                 continue
+            if ref in self.asserted_refs:
+                # place_edge does not go through `seat()`, so it needs the
+                # same guard: without it, an edge op moved an asserted
+                # mechanical fact 42mm and wrote the ref twice.
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action='place_edge',
+                    reason='was asserted by place_fixed as a mechanical fact, '
+                           'so no later op may move it'))
+                continue
             home = (part.x, part.y, part.rot)
             if op.get('rot') is not None:
                 self.st.apply_move(ref, part.x, part.y,
@@ -1338,50 +1386,94 @@ class _Resolver:
         self._zone_capacity(op, step, refs, zone, before)
 
     def _zone_capacity(self, op, step, refs, zone, before):
-        """When a pack overflows, say by how much -- in mm2.
+        """When a pack overflows for a CAPACITY reason, say by how much.
 
         An overfull zone used to produce N identical refusals at one
-        coordinate: `PARK C76/R22/R23/R24/R4: no legal pose within 6mm of
-        (178.2, 101.0)`. Five refs, one target, and no answer to the only
-        question the author has, which is *how much bigger does the zone need
-        to be*. The whole-board version of that answer already exists in
-        `options.grow_board`; this is the same arithmetic scoped to a zone,
-        so the two cannot drift into disagreeing.
+        coordinate -- five refs, one target, and no answer to the only
+        question the author has, which is how much bigger the zone must be.
+        `options.grow_board` answers that for a whole board; this is the same
+        per-part charge scoped to a zone.
 
-        Reported as a NOTE, never a refusal -- the house rule for this
-        channel -- and only when the pack actually parked something, because
-        a zone that is tight but sufficient is not a finding.
+        Three things this must NOT do, each of which it did:
+
+        * **Blame capacity for a park that is not about capacity.** It counted
+          every park the op produced, so an illegal `rot`, a `(locked yes)`
+          member, or a DEADLINE became "did not fit" -- and the deadline case
+          reported an unfinished search as a measured failure, contradicting
+          the park reason printed beside it.
+        * **Treat the zone rect as usable area.** The rect is never clipped to
+          the outline. A zone hanging off the board east edge measured 2400mm2
+          of rect against ~127mm2 of board, then told the author the parts
+          were "blocked by shape ... not by total area" -- ruling out the true
+          cause by name.
+        * **Charge both sides against one rect.** A part on B.Cu does not
+          compete with one on F.Cu for the same area; `grow_board` splits per
+          side for exactly this reason.
         """
-        parked = [p for p in self.res.parks[before:]]
+        # Only parks that are a capacity question. A park whose reason is a
+        # lock, a rotation lattice, a missing ref or an expired deadline is a
+        # different fact and must not be re-labelled as one.
+        NON_CAPACITY = ('locked yes', 'legality lattice', 'not a movable part',
+                        'deadline expired', 'mechanical fact')
+        parked = [p for p in self.res.parks[before:]
+                  if not any(k in p.reason for k in NON_CAPACITY)]
         if not parked:
             return
-        zw, zh = abs(zone[2] - zone[0]), abs(zone[3] - zone[1])
-        zone_area = zw * zh
+
+        # The zone as the board actually offers it: clipped to the outline and
+        # inset by the edge clearance, the way grow_board computes `usable`.
+        bounds = getattr(self.st, 'board', None)
+        zx0, zy0 = min(zone[0], zone[2]), min(zone[1], zone[3])
+        zx1, zy1 = max(zone[0], zone[2]), max(zone[1], zone[3])
+        clipped = False
+        if bounds:
+            edge = getattr(self.st, 'board_edge_clearance', 0.0) or 0.0
+            bx0, by0, bx1, by1 = bounds
+            ux0, uy0 = max(zx0, bx0 + edge), max(zy0, by0 + edge)
+            ux1, uy1 = min(zx1, bx1 - edge), min(zy1, by1 - edge)
+            clipped = (abs(ux0 - zx0) > 1e-6 or abs(uy0 - zy0) > 1e-6
+                       or abs(ux1 - zx1) > 1e-6 or abs(uy1 - zy1) > 1e-6)
+            zx0, zy0, zx1, zy1 = ux0, uy0, ux1, uy1
+        zone_area = max(0.0, zx1 - zx0) * max(0.0, zy1 - zy0)
+
         clr = getattr(self.st, 'clearance', 0.0) or 0.0
-        need = 0.0
+        per_side = {}
         for ref in refs:
             part = self.st.parts.get(ref)
             if part is None:
                 continue
             r = part.rect(0.0, 0.0, part.rot)
-            need += (r[2] - r[0] + clr) * (r[3] - r[1] + clr)
-        short = need - zone_area
+            a = (r[2] - r[0] + clr) * (r[3] - r[1] + clr)
+            side = (getattr(part, 'side', None) or 'F')
+            per_side[side] = per_side.get(side, 0.0) + a
+        need = max(per_side.values()) if per_side else 0.0
+        sides = (f" (busiest of {len(per_side)} sides)"
+                 if len(per_side) > 1 else "")
+        where = " (clipped to the board)" if clipped else ""
+
         head = (f"place_pack step {step}: {len(parked)} of {len(refs)} part(s) "
                 f"did not fit")
-        if short > 0:
+        if zone_area <= 0:
             self.res.notes.append(
-                f"{head} -- the zone is {zone_area:.1f} mm2 and these parts "
-                f"need at least {need:.1f} mm2, so it is short by "
-                f"{short:.1f} mm2 ({need / zone_area:.2f}x). Widen the zone, "
-                f"move parts out of it, or split the pack.")
+                f"{head} -- the zone lies entirely off the usable board area, "
+                f"so none of it is available. Move the zone onto the board.")
+            return
+        if need > zone_area:
+            self.res.notes.append(
+                f"{head} -- the usable zone is {zone_area:.1f} mm2{where} and "
+                f"these parts need AT LEAST {need:.1f} mm2{sides}, so it is "
+                f"short by at least {need - zone_area:.1f} mm2 "
+                f"({need / zone_area:.2f}x). Area is a necessary condition, "
+                f"not a sufficient one -- packing overhead means the zone that "
+                f"actually seats them is larger again. Widen the zone, move "
+                f"parts out of it, or split the pack.")
         else:
-            # Area is a NECESSARY condition, not a sufficient one; saying
-            # "it fits by area" when parts parked would be the wrong lesson.
             self.res.notes.append(
-                f"{head}, though the zone has the area for them "
-                f"({zone_area:.1f} mm2 for {need:.1f} mm2 of parts, "
-                f"{need / zone_area:.2f}x): they are blocked by shape or by "
-                f"what is already in the zone, not by total area.")
+                f"{head}, and total area is not the reason: the usable zone is "
+                f"{zone_area:.1f} mm2{where} for {need:.1f} mm2 of parts"
+                f"{sides} ({need / zone_area:.2f}x). Packing overhead, part "
+                f"shape, or parts already sitting in the zone accounts for it "
+                f"-- widening a little may still not be enough.")
 
     def _pack_targets(self, refs, zone, policy):
         """Where each member of a pack should aim, before legality.
