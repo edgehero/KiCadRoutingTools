@@ -683,13 +683,25 @@ What has NOT changed, and should not be read into the above:
   plan-path-only.
   **It does NOT close #630, and this document should not be read as claiming
   it does.** On the 87-part urchin pile the issue actually names, `place_seed`
-  does not terminate: two runs (eviction on and off) burned ~2 h 20 m wall
-  each with no result, and bounded at `--deadline 900` it exits 7 having
-  seeded 28 with `evictions: 0` and an empty `no_pose_blockers` — the rung
-  never fires because stage 3 never finishes. #630's complaint is a
-  REACHABILITY complaint, and the binding constraint on that board is
-  non-termination, not the missing rung. (Also: `--evict-depth` is typed `int`
-  but read as a boolean, so `5` behaves exactly like `1`.)
+  did not terminate: two runs (eviction on and off) burned ~2 h 20 m wall each
+  with no result, and bounded at `--deadline 900` it exited having seeded
+  **28** with `evictions: 0` and an empty `no_pose_blockers` — the rung never
+  fired because stage 3 never finished. #630's complaint is a REACHABILITY
+  complaint, and the binding constraint on that board was non-termination, not
+  the missing rung.
+
+  **Since measured again at 77 of 87, same 900 s deadline** (8 unseated, 9
+  never tried), after `_point_in_poly` was given a y-bucket edge index — it was
+  60% of total runtime, an unindexed scan over a 638-edge outline at ~51.6 µs a
+  call. That is a 2.75× improvement in parts seated and it does not close the
+  issue: the deadline still expires. Two attempts at `--deadline 2700` are
+  inconclusive rather than negative — both were killed by the measuring
+  harness (one by a `head -6` closing the pipe, one by a background-task cap)
+  at ~36 min while still progressing, so nothing is yet known about whether
+  the board completes given more time. Do not cite 2700 s either way.
+
+  (Also: `--evict-depth` is typed `int` but read as a boolean, so `5` behaves
+  exactly like `1`.)
 - Simultaneous routability is still not predicted. `loop_driver.py:1347-1350`
   says it: *"Both those tests are PER-NET, and simultaneous routability is not.
   A board can pass every one of them and still be unroutable."* The router
