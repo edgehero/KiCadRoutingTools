@@ -121,8 +121,30 @@ t0 = time.time()
 res4 = run(many)
 dt = time.time() - t0
 check("ten censused parks stay affordable", len(res4.parks) == 10 and dt < 60.0,
-      f"{len(res4.parks)} parks in {dt:.1f}s -- an unbounded census is "
-      f"~10-24s PER park, so this failing means max_disp stopped pruning")
+      f"{len(res4.parks)} parks in {dt:.1f}s")
+# A wall-clock budget is NOT a guard, and this one was measured not guarding:
+# injecting `max_disp=None` took the run from 6.5s to 13.1s and the check
+# stayed green. The real hazard is the opposite of slowness anyway --
+# CENSUS_STEP_MM is 1.0mm, so a park with `within: 0.5` had exactly ONE offset
+# survive the prune and the census reported a confident all-zero for a part
+# whose blocker was 0.4mm away. Pin the RESOLUTION, which is the property that
+# was broken and the one a timing check cannot see.
+C10 = pcb.footprints['C10']
+near = run([{"action": "place_at", "ref": "R1",
+             "at": [round(C10.x + 0.4, 3), round(C10.y, 3)],
+             "rot": 0, "within": 0.9}])
+check("the fixture parks (else the resolution check proves nothing)",
+      len(near.parks) == 1 and not near.seats,
+      f"seats {[s.ref for s in near.seats]}")
+np_ = near.parks[0]
+check("a sub-millimetre budget still finds the blocker 0.4mm away",
+      np_.blockers.get('C10', 0) > 0,
+      f"blockers {np_.blockers} -- at CENSUS_STEP_MM the only sampled offset "
+      f"is (0,0), which reports a confident zero for every candidate")
+check("and it does not report a confident all-zero census",
+      any(v > 0 for v in np_.blockers.values()),
+      f"censused={np_.censused} blockers={np_.blockers} -- an all-zero census "
+      f"with censused=true is worse than no census")
 check("and every one of them is censused",
       all(p.censused for p in res4.parks),
       str([(p.ref, p.censused) for p in res4.parks[:3]]))

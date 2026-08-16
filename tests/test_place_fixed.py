@@ -15,14 +15,28 @@ A hole is not a request, and the last line is the worst of the four: it looks
 like success. `place_lock` does not help either -- it pins a part where it
 already is, which on a pile is the middle of the board.
 
-So `place_fixed` is the one op that runs no seat gate. Three properties:
+So `place_fixed` is the one op that runs no seat gate. What it may and may
+not do -- the "may not" half is all counterexamples an audit found after the
+first version shipped claiming otherwise:
 
   1. it sets the pose EXACTLY, whatever the geometry says
-  2. it makes the part an obstacle for everything after it -- which means
-     `plan_target_refs` must skip it exactly as it skips `place_lock`, or a
-     fixed part is INVISIBLE and later ops seat on top of it
-  3. an illegal fixed pose is DISCLOSED, not silently accepted -- it is
-     asserted, not checked, and the run says which
+  2. it is an obstacle for every op, BEFORE and after its own step (it is
+     excluded from the pile set at construction, not only when its op runs --
+     on a pile every part is piled, so the `plan_target_refs` skip alone was
+     inert exactly where this op matters)
+  3. an illegal fixed pose is DISCLOSED and NAMES what it overlaps
+  4. it will NOT move a `(locked yes)` part -- a lock is precisely the
+     statement that a pose is not this tool's to change, and `place_at` and
+     `place_lift` both refuse one. Asserting the pose a locked part already
+     has is a legitimate no-op. It used to move them, and the writer
+     committed it.
+  5. it will NOT assert a rotation outside the part's legality lattice --
+     there is no courtyard for it, so `part.rect` silently returns the
+     0-degree box, the disclosure in (3) grades a shape the part does not
+     have, and every later op treats it as an obstacle with that wrong shape
+  6. `place_lift` will NOT lift it -- lifting one wrote it 4.000mm from its
+     assertion, emitted two placements for the same ref, and reported
+     `complete: true` with no note
 """
 import copy
 import os
@@ -75,7 +89,14 @@ def run(pcb, steps):
                    board_edge_clearance=0.5, grid_step=0.1)
 
 
-HOLES = ['HOLE1', 'HOLE2', 'HOLE3', 'HOLE4', 'HOLE5', 'HOLE6']
+# UNLOCKED mechanical-ish parts. HOLE1-6 are `(locked yes)` in this board, and
+# place_fixed refuses to MOVE a locked part -- correctly, since a lock is
+# exactly the statement that a pose is not this tool's to change. An earlier
+# version of this file fixed those six and asserted "every fixed part is
+# seated", which encoded the bug: place_fixed was moving locked parts and the
+# writer was committing the move.
+HOLES = ['J1', 'C1', 'C2', 'D1', 'U1']
+LOCKED = 'HOLE1'
 
 # --------------------------------------------------------------------------
 # 1. it sets the pose exactly, from a pile
@@ -138,24 +159,71 @@ check("so place_at at a LOOSE budget still cannot put it where it belongs",
 # --------------------------------------------------------------------------
 pcb4 = piled()
 res4 = run(pcb4, [
-    {"action": "place_fixed", "ref": "HOLE1", "at": list(TRUE['HOLE1'][:2]),
-     "rot": TRUE['HOLE1'][2]},
-    {"action": "place_at", "ref": "C1", "at": list(TRUE['HOLE1'][:2]),
-     "rot": 0, "within": 0.5},
+    {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2]},
+    {"action": "place_at", "ref": "C3", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2], "within": 0.5},
 ])
 check("a later op cannot seat on top of a fixed part",
-      [s.ref for s in res4.seats] == ['HOLE1']
-      and [p.ref for p in res4.parks] == ['C1'],
+      [s.ref for s in res4.seats] == ['C1']
+      and [p.ref for p in res4.parks] == ['C3'],
       f"seats {[s.ref for s in res4.seats]}, parks {[p.ref for p in res4.parks]}")
-# HOLE1 is `(locked yes)` in this board, so it is correctly NOT offered as a
-# liftable blocker -- an unliftable obstacle has no eviction to suggest. The
-# census still ran, which is the distinction `censused` carries.
-check("the park is censused even when the blocker cannot be lifted",
-      res4.parks and res4.parks[0].censused,
+check("the park is censused", res4.parks and res4.parks[0].censused,
       str(res4.parks[0].to_dict() if res4.parks else None))
-check("and a LOCKED obstacle is not offered as something to evict",
-      res4.parks and 'HOLE1' not in (res4.parks[0].blockers or {}),
-      str(res4.parks[0].blockers if res4.parks else None))
+
+# A LOCKED part is not this tool's to move, and place_fixed is not an
+# exemption -- place_at and place_lift both refuse one. It used to move them,
+# and the writer committed it: HOLE1 went from (229.87, 44.45) to (10, 10)
+# with nothing disclosing it.
+res_lock = run(copy.deepcopy(SRC), [
+    {"action": "place_fixed", "ref": LOCKED, "at": [10.0, 10.0]}])
+check("place_fixed REFUSES to move a (locked yes) part",
+      [p.ref for p in res_lock.parks] == [LOCKED] and not res_lock.seats,
+      f"seats {[(s.ref, s.pose[:2]) for s in res_lock.seats]}")
+check("and the refusal names the lock and what to do instead",
+      res_lock.parks and 'locked yes' in res_lock.parks[0].reason
+      and 'EXISTING pose' in res_lock.parks[0].reason,
+      str(res_lock.parks[0].reason if res_lock.parks else None))
+# ...but ASSERTING the pose it already has is a legitimate no-op.
+res_lock2 = run(copy.deepcopy(SRC), [
+    {"action": "place_fixed", "ref": LOCKED, "at": list(TRUE[LOCKED][:2]),
+     "rot": TRUE[LOCKED][2]}])
+check("asserting a locked part's EXISTING pose is allowed, and moves nothing",
+      [s.ref for s in res_lock2.seats] == [LOCKED]
+      and res_lock2.seats[0].moved_mm < 1e-6,
+      f"parks {[(p.ref, p.reason[:40]) for p in res_lock2.parks]}")
+
+# A rotation outside the part's legality lattice has NO courtyard, so
+# `part.rect` silently returns the 0-degree box -- the disclosure below would
+# then grade a shape the part does not have, and every later op would treat it
+# as an obstacle with that wrong shape. seat() guards this; place_fixed did not.
+res_rot = run(piled(), [
+    {"action": "place_fixed", "ref": "U3", "at": [96.52, 71.247], "rot": 45}])
+check("a rotation outside the legality lattice is REFUSED, not asserted",
+      [p.ref for p in res_rot.parks] == ['U3'] and not res_rot.seats,
+      f"seats {[(s.ref, s.pose) for s in res_rot.seats]}")
+check("and the refusal names the lattice",
+      res_rot.parks and 'legality lattice' in res_rot.parks[0].reason,
+      str(res_rot.parks[0].reason if res_rot.parks else None))
+
+# place_lift must not relocate an asserted mechanical fact. It used to: the
+# fixed part was written TWICE, ending 4.000mm from its assertion, with
+# `complete: true` and no note.
+res_lift = run(copy.deepcopy(SRC), [
+    {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2]},
+    {"action": "place_at", "ref": "C2", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2], "within": 0.5},
+    {"action": "place_lift", "refs": ["C1"], "for": ["C2"], "within": 5.0},
+])
+check("place_lift refuses to lift a place_fixed part",
+      any(p.ref == 'C1' and 'mechanical fact' in p.reason
+          for p in res_lift.parks),
+      str([(p.ref, p.reason[:50]) for p in res_lift.parks]))
+_c1 = [pl for pl in res_lift.placements if pl['reference'] == 'C1']
+check("so the fixed part is written exactly once, at its assertion",
+      len(_c1) == 1 and abs(_c1[0]['new_x'] - TRUE['C1'][0]) < 1e-6,
+      str(_c1))
 
 # With an UNLOCKED part fixed, the census does name it.
 pcb4b = piled()
@@ -193,17 +261,30 @@ check("a part fixed LATER in the plan is already an obstacle EARLIER",
 # --------------------------------------------------------------------------
 pcb5 = piled()
 res5 = run(pcb5, [
-    {"action": "place_fixed", "ref": "HOLE1", "at": list(TRUE['HOLE1'][:2]),
-     "rot": TRUE['HOLE1'][2]},
+    {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2]},
     # deliberately on top of the one just fixed
-    {"action": "place_fixed", "ref": "HOLE2", "at": list(TRUE['HOLE1'][:2]),
-     "rot": 0},
+    {"action": "place_fixed", "ref": "C2", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2]},
 ])
 check("both assertions are honoured -- a mechanical fact outranks the gate",
       len(res5.seats) == 2, str([s.ref for s in res5.seats]))
 check("and the illegal one is DISCLOSED in the notes",
-      any('not a legal pose' in n and 'HOLE2' in n for n in res5.notes),
+      any('not a legal pose' in n and 'C2' in n for n in res5.notes),
       str(res5.notes[-2:]))
+# The note must NAME what it hit. "not a legal pose" alone leaves the author
+# to find the other part by eye, and the commonest cause is a part this same
+# plan seated there.
+check("the disclosure names the part it overlaps",
+      any('C2' in n and 'overlaps C1' in n for n in res5.notes),
+      str([n for n in res5.notes if 'C2' in n]))
+# ...and it must NOT fire on a legal assertion, or it is noise.
+res5b = run(piled(), [
+    {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2]}])
+check("a LEGAL assertion produces no such note (the check is not vacuous)",
+      not [n for n in res5b.notes if 'not a legal pose' in n],
+      str(res5b.notes))
 
 # A ref that is not on the board parks rather than crashing.
 res6 = run(piled(), [{"action": "place_fixed", "ref": "NOSUCH",

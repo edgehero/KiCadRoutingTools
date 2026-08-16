@@ -354,7 +354,8 @@ def select_refs(value, pcb_data, indexes: Dict[str, Dict], *,
 # --------------------------------------------------------------------------
 class _Resolver:
     def __init__(self, pcb_data, pcb_file, state, deadline=None,
-                 progress=None, plan_refs=None, census_parks=True):
+                 progress=None, plan_refs=None, census_parks=True,
+                 fixed_refs=None):
         self.pcb = pcb_data
         self.pcb_file = pcb_file
         self.st = state
@@ -397,10 +398,22 @@ class _Resolver:
                 seen[key] = seen.get(key, 0) + 1
             piled = {r for r, p in state.parts.items()
                      if seen.get((round(p.x, 4), round(p.y, 4)), 0) > 1}
-            self.pending = movable & (set(plan_refs) | piled)
+            # A place_fixed ref is NEVER in the pile set, even when it shares
+            # the pile's coordinate. On a pile every part is `piled`, so the
+            # plan_target_refs skip was inert exactly where this op matters:
+            # an op running BEFORE the place_fixed saw it as invisible and
+            # could seat on top of it, producing the COINCIDENT ORIGINS /
+            # NOT BUILDABLE shape this module's docstring says was fixed.
+            self.pending = (movable & (set(plan_refs) | piled)) - set(
+                fixed_refs or ())
         self._groups: Optional[Dict[str, List[str]]] = None
         # Declared by place_keepout, honoured by every seat AFTER it.
         self.keepouts: List[Tuple] = []
+        # Asserted by place_fixed. These are mechanical facts, so nothing --
+        # including place_lift, which otherwise moves anything movable -- may
+        # relocate them. Without this, lifting a fixed part wrote it 4mm away
+        # and reported `complete: true` with no note.
+        self.fixed_refs: Set[str] = set(fixed_refs or ())
 
     # -- seating ---------------------------------------------------------
     def seat(self, ref: str, tx: float, ty: float, step: int, action: str,
@@ -524,14 +537,26 @@ class _Resolver:
             if not cands:
                 park.censused = True          # measured: nothing movable near
                 return
+            # SAMPLE FINER THAN THE BUDGET, or the census answers a question
+            # nobody asked. CENSUS_STEP_MM is 1.0mm, so a park with
+            # `within: 0.5` had exactly ONE offset survive the prune -- the
+            # census reported "4 poses" meaning one location at four
+            # rotations, and could not see the disc `_try_place` actually
+            # searched at grid_step 0.1. Measured false negative: a part
+            # 0.4mm off its blocker censused all-zero with `censused: true`,
+            # while lifting that blocker frees 64 poses at step 0.1. A
+            # confident zero is worse than no census.
+            step = seeder.CENSUS_STEP_MM
+            if within is not None and within < step * 4.0:
+                step = max(getattr(self.st, 'grid_step', 0.1) or 0.1,
+                           within / 8.0)
+            kw = dict(max_disp=within, step=step, forbid=self.keepouts)
             baseline = seeder.count_legal_poses(
-                self.st, ref, tx, ty, base, max_disp=within,
-                forbid=self.keepouts)
+                self.st, ref, tx, ty, base, **kw)
             freed = {}
             for b in cands:
                 freed[b] = seeder.count_legal_poses(
-                    self.st, ref, tx, ty, base | {b}, max_disp=within,
-                    forbid=self.keepouts)
+                    self.st, ref, tx, ty, base | {b}, **kw)
             park.blockers = dict(freed)
             park.baseline_poses = baseline
             park.censused = True
@@ -587,8 +612,47 @@ class _Resolver:
         part = self.st.parts[ref]
         rot = float(op['rot']) % 360.0 if op.get('rot') is not None else part.rot
         home = (part.x, part.y)
+
+        # A rotation outside the part's legality lattice has NO courtyard to
+        # check, so `part.rect` silently returns the 0-degree box. `seat()`
+        # guards this ("a plan asking for 45 degrees was checked against the
+        # wrong courtyard and written off the board at exit 0") and this op
+        # skipped the guard: rot 45 seated silently, the legality note below
+        # graded a shape the part does not have, and every later op then
+        # treated it as an obstacle with that wrong shape. 45 degrees is the
+        # edge-receptacle case this op exists for.
+        have = getattr(part, 'bounds_by_rot', None) or {}
+        if have and rot % 360.0 not in have:
+            self.res.parks.append(Park(
+                ref=ref, step=step, action='place_fixed', target=(x, y),
+                reason=f"rotation {rot:g} is not in this part's legality "
+                       f"lattice {sorted(have)}, so no courtyard exists to "
+                       f"check it -- a fixed pose is asserted, not searched, "
+                       f"so an unverifiable one is refused rather than "
+                       f"written"))
+            return
+
+        # A KiCad-locked part is not this tool's to move, and place_fixed is
+        # not an exemption -- `place_at` and `place_lift` both refuse one. But
+        # ASSERTING the pose it already has is a legitimate no-op: it is how a
+        # plan states the mechanical fact explicitly.
+        if getattr(part, 'locked', False):
+            if abs(part.x - x) > 1e-3 or abs(part.y - y) > 1e-3 \
+                    or abs(((part.rot - rot) + 180.0) % 360.0 - 180.0) > 1e-3:
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action='place_fixed', target=(x, y),
+                    reason=f"is (locked yes) in the file at "
+                           f"({part.x:g}, {part.y:g}) rot {part.rot:g} -- not "
+                           f"this tool's to move, and place_fixed is not an "
+                           f"exemption. Assert its EXISTING pose, or unlock it "
+                           f"in KiCad"))
+                return
+            self.res.notes.append(
+                f"{ref}: is (locked yes) and already at the asserted pose; "
+                f"place_fixed recorded it and moved nothing")
         self.st.apply_move(ref, round(x, 4), round(y, 4), rot)
         self.pending.discard(ref)
+        self.fixed_refs.add(ref)
         p = self.st.parts[ref]
         self.res.seats.append(Seat(
             ref=ref, step=step, action='place_fixed', target=(x, y),
@@ -600,10 +664,27 @@ class _Resolver:
         # overlap that every later op then routes around.
         if not seeder.pose_ok(self.st, ref, p.x, p.y, p.rot,
                               self.pending - {ref}, forbid=self.keepouts):
+            # Name WHAT it collides with. "not a legal pose" alone leaves the
+            # author to find the other part by eye, and the commonest cause is
+            # a part this same plan already seated there.
+            hits = []
+            mine = p.rect(p.x, p.y, p.rot)
+            for other, op_part in self.st.parts.items():
+                if other == ref or other in self.pending:
+                    continue
+                r2 = op_part.rect(op_part.x, op_part.y, op_part.rot)
+                if (min(mine[2], r2[2]) - max(mine[0], r2[0]) > 0
+                        and min(mine[3], r2[3]) - max(mine[1], r2[1]) > 0):
+                    hits.append(other)
+            where = (f" It overlaps {', '.join(sorted(hits)[:4])}."
+                     if hits else
+                     " Nothing overlaps it, so the outline or a keepout is "
+                     "what refuses it.")
             self.res.notes.append(
                 f"{ref}: fixed at ({p.x:g}, {p.y:g}) rot {p.rot:g}, which is "
                 f"not a legal pose on this board -- asserted anyway, because a "
-                f"mechanical fact outranks the seat gate. Grade the output.")
+                f"mechanical fact outranks the seat gate.{where} Grade the "
+                f"output.")
 
     def op_place_at(self, op, step):
         x, y = (float(v) for v in op['at'])
@@ -1025,6 +1106,21 @@ class _Resolver:
                     ref=b, step=step, action='place_lift',
                     reason="(locked yes) in the file -- not this tool's to "
                            "move, so it cannot be lifted either"))
+                continue
+            if b in self.fixed_refs:
+                # A place_fixed pose is a mechanical fact. Lifting one wrote
+                # it 4.000mm from where it was asserted, emitted TWO
+                # placements for the same ref (the writer applies the last),
+                # and reported `complete: true` with no note -- the plan's own
+                # declaration silently overridden by a later op. The
+                # still-in-the-pile guard below could not catch it, because
+                # op_place_fixed removes the ref from `pending`.
+                self.res.parks.append(Park(
+                    ref=b, step=step, action='place_lift',
+                    reason='was asserted by place_fixed as a mechanical fact, '
+                           'so it cannot be lifted -- state a different '
+                           'blocker, or drop the place_fixed if the pose is '
+                           'really negotiable'))
                 continue
             if b in self.pending:
                 # It is still in the pile, so it is not in anyone's way and
@@ -1538,9 +1634,11 @@ def resolve(pcb_data, pcb_file: str, ops: Sequence[Dict], *,
             pcb_data, pcb_file, clearance=clearance,
             board_edge_clearance=board_edge_clearance, grid_step=grid_step)
     plan_refs, unresolved = plan_target_refs(pcb_data, pcb_file, state, ops)
+    fixed_refs = {op['ref'] for op in ops
+                  if op.get('action') == 'place_fixed' and op.get('ref')}
     r = _Resolver(pcb_data, pcb_file, state, deadline=deadline,
                   progress=progress, plan_refs=plan_refs,
-                  census_parks=census_parks)
+                  census_parks=census_parks, fixed_refs=fixed_refs)
     for note in unresolved:
         r.res.notes.append(
             f"could not pre-resolve a selection, so nothing it names was "
