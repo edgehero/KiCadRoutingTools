@@ -1302,7 +1302,11 @@ Examples:
     p.add_argument('--defect-json', action='append', default=None,
                    metavar='PATH',
                    help='a `defect-record` document (check_reachability '
-                        '--defect-json). Repeatable. Each defect gets its own '
+                        '--defect-json). Repeatable. This is --view with the '
+                        'guesswork removed, NOT a new zoom: it takes the '
+                        'throat COORDINATE from the record (nothing else '
+                        'publishes it) and derives the box size from the '
+                        'measured shortfall. Each defect gets its own '
                         'panel, cropped tight enough that the SHORTFALL is at '
                         'least 16 px -- a 41um throat on a 34mm board at the '
                         'default scale is 1.2 px, which is why run 20 had '
