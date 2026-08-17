@@ -127,6 +127,47 @@ out = _l2('--render-json', _NOCHK)
 check('a render without the checklist key does too',
       'coarse' in out and 'a_off_outline.pad_copper' in out, out[:600])
 
+print('--- the render must be OF THIS BOARD, or it does not count ---')
+# THE FAIL-OPEN DIRECTION. This channel REPLACES the coarse count rather than
+# max()ing it, so every way of getting the wrong document turns a refusal into
+# a pass. L3 board-binds its render; L2 did not, and was the only stage reading
+# a document it never checked the identity of.
+_OTHER = os.path.join(_D, 'other.kicad_pcb')
+with open(_OTHER, 'w', encoding='utf-8') as fh:
+    fh.write('(kicad_pcb (version 20260206) (generator test) (net 0 ""))')
+_FOREIGN = _w('foreign.json', {
+    'instrument': {'board': os.path.abspath(_OTHER), 'summary_json': 'x.log'},
+    'checklist': {'a_off_outline': {'pad_copper': []}}, 'moved_refs': []})
+out = _l2('--render-json', _FOREIGN)
+check('a render of a DIFFERENT board does not silence the gate',
+      '<error>' in out and 'pad copper OFF the board' in out,
+      out[:400] + ' -- an empty pad_copper from another board would otherwise '
+      'read as "this board is clean"')
+check('and the basis line says WHY it was not used',
+      'DIFFERENT board' in out, out[:600])
+check('...falling back to the coarse count, which is still a real measurement',
+      'coarse' in out, out[:600])
+
+_NOINST = _w('noinst.json', {
+    'checklist': {'a_off_outline': {'pad_copper': []}}})
+out = _l2('--render-json', _NOINST)
+check('a render with no instrument.board is refused the same way',
+      '<error>' in out and 'no instrument.board' in out, out[:600])
+
+print('--- and a malformed render is a fallback, never a crash ---')
+for _name, _doc in (('list_top.json', [1, 2, 3]),
+                    ('list_checklist.json',
+                     {'instrument': {'board': os.path.abspath(_BOARD)},
+                      'checklist': ['not', 'a', 'dict']}),
+                    ('str_off.json',
+                     {'instrument': {'board': os.path.abspath(_BOARD)},
+                      'checklist': {'a_off_outline': 'nope'}}),
+                    ('inst_list.json',
+                     {'instrument': ['x'], 'checklist': {}})):
+    out = _l2('--render-json', _w(_name, _doc))
+    check(f'{_name} does not crash the stage',
+          'Traceback' not in out and 'coarse' in out, out[:300])
+
 print('--- the waiver still works, and still covers only what it names ---')
 out = _l2('--render-json', _RENDER, '--accept-residue', 'oob_pad_count')
 check('--accept-residue oob_pad_count still waives this gate',

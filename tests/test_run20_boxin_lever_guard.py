@@ -60,10 +60,16 @@ _HB = os.path.join(_D, 'hint.kicad_pcb')
 with open(_HB, 'w', encoding='utf-8') as fh:
     fh.write('(kicad_pcb (version 20260206) (generator t)\n'
              ' (layers (0 "F.Cu" signal) (2 "B.Cu" signal))\n (net 0 ""))')
+# BOTH floors declared. The first version of this fixture declared only a
+# track floor -- and then asserted `at_floor is True`, which is exactly the
+# defect below: one readable floor is not enough to say the geometry is spent.
+# The fixture was relying on the bug, so it had to change with the fix.
 with open(os.path.join(_D, 'hint.kicad_pro'), 'w', encoding='utf-8') as fh:
     json.dump({'board': {'design_settings': {
         'rules': {'min_track_width': 0.15},
-        'defaults': {'track_width': 0.15}}}}, fh)
+        'defaults': {'track_width': 0.15}}},
+        'net_settings': {'classes': [
+            {'name': 'Default', 'clearance': 0.15, 'track_width': 0.15}]}}, fh)
 
 
 class _Cfg:
@@ -118,6 +124,72 @@ hint3, verdict3 = RD.static_boxin_hint(_RESULT, _Cfg(), _NoSrc(),
                                        return_verdict=True)
 check('with no readable floor it says UNKNOWN rather than guessing',
       verdict3.get('at_floor') is None and 'unknown' in hint3.lower(), hint3)
+
+print('--- at_floor needs BOTH floors, not either ---')
+# `or` here asserted "at the floor" from ONE readable floor. A board declaring
+# min_track_width but no netclass has NO clearance floor (clearance has no
+# board-constraint fallback in list_nets._FLOOR_SOURCES), so a run at
+# clearance 0.90 against a 0.15 track floor reported at_floor TRUE -- and L4
+# REFUSED the parameter lever, when dropping `--clearance 0.9` was the working
+# move. An axis whose floor cannot be read may have travel.
+_HB2 = os.path.join(_D, 'trackonly.kicad_pcb')
+with open(_HB2, 'w', encoding='utf-8') as fh:
+    fh.write('(kicad_pcb (version 20260206) (generator t) (net 0 ""))')
+with open(os.path.join(_D, 'trackonly.kicad_pro'), 'w', encoding='utf-8') as fh:
+    json.dump({'board': {'design_settings': {
+        'rules': {'min_track_width': 0.15}}}}, fh)
+
+
+class _P2:
+    source_path = _HB2
+
+    class board_info:
+        board_bounds = (0, 0, 40, 30)
+
+
+class _CWide(_Cfg):
+    clearance, track_width = 0.90, 0.15
+
+
+_h, _v = RD.static_boxin_hint(_RESULT, _CWide(), _P2(), return_verdict=True)
+check('one readable floor is NOT enough to claim at_floor',
+      _v.get('at_floor') is None,
+      f"{_v.get('at_floor')} floors={_v.get('floors')} -- clearance 0.90 with "
+      f"an unreadable clearance floor; asserting at-floor here refuses the one "
+      f"lever that works")
+check('and the hint does not tell the operator the family is spent',
+      'PLACEMENT/FLOORPLAN FINDING' not in _h, _h[:300])
+
+# ...and True is still REACHABLE, or the guard would never fire again.
+with open(os.path.join(_D, 'both.kicad_pro'), 'w', encoding='utf-8') as fh:
+    json.dump({'board': {'design_settings': {'rules': {'min_track_width': 0.15}}},
+               'net_settings': {'classes': [
+                   {'name': 'Default', 'clearance': 0.15,
+                    'track_width': 0.15}]}}, fh)
+_HB3 = os.path.join(_D, 'both.kicad_pcb')
+with open(_HB3, 'w', encoding='utf-8') as fh:
+    fh.write('(kicad_pcb (version 20260206) (generator t) (net 0 ""))')
+
+
+class _P3:
+    source_path = _HB3
+
+    class board_info:
+        board_bounds = (0, 0, 40, 30)
+
+
+_h, _v = RD.static_boxin_hint(_RESULT, _Cfg(), _P3(), return_verdict=True)
+check('with BOTH floors read and neither having travel, at_floor is True',
+      _v.get('at_floor') is True, str(_v.get('floors')))
+
+
+class _CTravel(_Cfg):
+    clearance, track_width = 0.30, 0.15
+
+
+_h, _v = RD.static_boxin_hint(_RESULT, _CTravel(), _P3(), return_verdict=True)
+check('and travel on EITHER axis makes it False',
+      _v.get('at_floor') is False, str(_v.get('floors')))
 
 print('--- and L4 refuses the lever, rather than warning about it ---')
 

@@ -1118,12 +1118,31 @@ def l2(a):
             # Not a refusal -- L3 is where a render is a gate. But the basis
             # line must not claim a precision this gate did not get.
             _oob_basis += f' -- {_rjerr}'
+        elif not isinstance(_rj, dict):
+            _oob_basis += ' -- the render is not a JSON object'
         else:
-            _pc = (((_rj or {}).get('checklist') or {})
-                   .get('a_off_outline') or {}).get('pad_copper')
-            if not isinstance(_pc, list):
-                _oob_basis += (' -- the render carries no '
-                               'checklist.a_off_outline.pad_copper')
+            # BOARD-BIND IT, exactly as _guard_route_render does for L3. This
+            # channel REPLACES the coarse count rather than max()ing it, so
+            # every way of getting the wrong document fails OPEN: a render of
+            # another board with an empty `pad_copper` turned a refusal into a
+            # pass on a board with three parts hanging off the outline. L2 was
+            # the only stage reading a document it did not bind.
+            _shown = ((_rj.get('instrument') or {}).get('board')
+                      if isinstance(_rj.get('instrument'), dict) else None)
+            if not _shown:
+                _oob_basis += (' -- the render carries no instrument.board, so '
+                               'it cannot say WHICH board it looked at '
+                               '(re-render with --json-out, not bare --json)')
+            elif os.path.normcase(os.path.abspath(_shown)) !=                     os.path.normcase(os.path.abspath(a.board)):
+                _oob_basis += (f' -- the render is of a DIFFERENT board '
+                               f'({_shown}), so it says nothing about this one')
+            else:
+                _chk = _rj.get('checklist')
+                _off = _chk.get('a_off_outline') if isinstance(_chk, dict) else None
+                _pc = _off.get('pad_copper') if isinstance(_off, dict) else None
+                if not isinstance(_pc, list):
+                    _oob_basis += (' -- the render carries no '
+                                   'checklist.a_off_outline.pad_copper')
     if isinstance(_pc, list):
         _oob_refs = [r[0] if isinstance(r, (list, tuple)) and r else r
                      for r in _pc]

@@ -556,21 +556,20 @@ def static_boxin_hint(result, config, pcb_data=None, *, return_verdict=False):
             _floor_c = _floor_t = None
     _has_c = _floor_c is not None and config.clearance > _floor_c + 1e-9
     _has_t = _floor_t is not None and config.track_width > _floor_t + 1e-9
-    _known = _floor_c is not None or _floor_t is not None
-    if _known and not (_has_c or _has_t):
-        # Name only what was READ. A board whose clearance floor is unreadable
-        # while its track floor is not has travel on one axis that this cannot
-        # see, and claiming "both are at the floor" there would be the same
-        # class of overclaim the whole hint is being fixed for.
+    # BOTH axes, not either. `or` here asserted "at the floor" from ONE readable
+    # floor -- so a board declaring min_track_width but no netclass (clearance
+    # has no board-constraint fallback in list_nets._FLOOR_SOURCES) reported
+    # at_floor TRUE while running at clearance 0.90 against a 0.15 track floor,
+    # and L4 REFUSED the parameter lever on it. Dropping `--clearance 0.9` was
+    # precisely the working move. An axis whose floor cannot be read may have
+    # travel; the honest answer there is UNKNOWN, which refuses nothing.
+    _both_read = _floor_c is not None and _floor_t is not None
+    if _both_read and not (_has_c or _has_t):
         _at = ', '.join(
             f'{k} {v:g}' for k, v in (('clearance', _floor_c),
                                       ('track', _floor_t)) if v is not None)
-        _unread = ', '.join(k for k, v in (('clearance', _floor_c),
-                                           ('track', _floor_t)) if v is None)
         _advice = (
             f"the geometry is ALREADY at this board's declared floor ({_at}), "
-            + (f"and no floor could be read for {_unread}, "
-               if _unread else '')
             + f"so there is nothing left to pair a finer grid with. A finer "
               f"grid alone resolves the SAME obstacles more precisely -- it "
               f"does not make the gap wider. THIS IS A PLACEMENT/FLOORPLAN "
@@ -613,4 +612,8 @@ def static_boxin_hint(result, config, pcb_data=None, *, return_verdict=False):
          # `at_floor` is None when no floor could be read -- unknown, never a
          # silent False.
          'floors': {'clearance': _floor_c, 'track_width': _floor_t},
-         'at_floor': (None if not _known else not (_has_c or _has_t))})
+         # False when SOME axis provably has travel; True only when BOTH floors
+         # were read and neither does; None when an unread floor leaves it
+         # genuinely unknown. The guard at L4 refuses only on True.
+         'at_floor': (False if (_has_c or _has_t)
+                      else (True if _both_read else None))})
