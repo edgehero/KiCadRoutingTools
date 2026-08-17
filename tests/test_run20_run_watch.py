@@ -245,5 +245,131 @@ if os.path.isdir(wk):
 else:
     print('       (wk/run20 absent -- skipping the real-corpus checks)')
 
+print('--- a stall is a SYMPTOM, not an outcome ---')
+# Run 20's timer exited on a 20-minute stall while the run was still working,
+# and from that point the absence of events -- the timer's entire signal --
+# meant nothing, because nothing was watching. A watcher that stops watching
+# when it sees something worrying is the opposite of a watcher.
+#
+# Driven on a FAKE CLOCK: a real one would make this a 20-minute test, and a
+# test nobody runs pins nothing.
+import io                                                          # noqa: E402
+import contextlib                                                  # noqa: E402
+
+check('the escalation ladder is multiplicative and rises',
+      RW._STALL_LADDER == (1.0, 2.0, 4.0)
+      and list(RW._STALL_LADDER) == sorted(RW._STALL_LADDER),
+      str(RW._STALL_LADDER) + ' -- repeating the same sentence four times does '
+      'not make an 80-minute silence read differently from a 20-minute one')
+
+
+def _fake_run(events, stall_min=20.0, max_min=0, stall_exit=False):
+    """Drive watch_timer over a scripted timeline.
+
+    `events` is [(minute, touch_or_not), ...]; the clock and the work-dir
+    signature are both faked, so the whole run is instantaneous.
+    """
+    d = tempfile.mkdtemp()
+    state = {'t': 0.0, 'i': 0, 'sig': 0}
+    _t0 = 1_000_000.0
+
+    def _time():
+        return _t0 + state['t'] * 60.0
+
+    def _walk(_wd, _exts=None):
+        return []
+
+    def _sleep(_s):
+        if state['i'] >= len(events):
+            raise SystemExit
+        state['t'], touched = events[state['i']]
+        state['i'] += 1
+        if touched:
+            state['sig'] += 1
+
+    # The signature comes from _walk; fake it by returning a changing list.
+    def _walk2(_wd, _exts=None):
+        return [os.path.join(d, f'f{state["sig"]}.log')]
+
+    buf = io.StringIO()
+    old = (RW.time.time, RW.time.sleep, RW._walk, RW.os.path.getmtime,
+           RW.os.path.getsize)
+    RW.time.time, RW.time.sleep, RW._walk = _time, _sleep, _walk2
+    RW.os.path.getmtime = lambda p: 0.0
+    RW.os.path.getsize = lambda p: 0
+    try:
+        with contextlib.redirect_stdout(buf):
+            try:
+                RW.watch_timer(d, os.path.join(d, 'NEVER'), 1.0, stall_min,
+                               max_min, stall_exit=stall_exit)
+            except SystemExit:
+                pass
+    finally:
+        (RW.time.time, RW.time.sleep, RW._walk, RW.os.path.getmtime,
+         RW.os.path.getsize) = old
+    return [ln for ln in buf.getvalue().splitlines() if ln.strip()]
+
+
+# Quiet for 25 minutes: one notice, and the watch does NOT end.
+out = _fake_run([(m, False) for m in range(1, 30)])
+_st = [ln for ln in out if 'STALLED' in ln]
+check('a quiet stretch emits ONE stall notice, not one per poll',
+      len(_st) == 1, f'{len(_st)}: {_st[:3]}')
+check('and the notice says it is not terminal',
+      _st and 'NOT a terminal state' in _st[0], str(_st))
+# "It continues" is only demonstrable by PAIRING: the same timeline with and
+# without --stall-exit. A single run's output cannot distinguish "kept polling
+# and had nothing more to say" from "returned".
+_pair_on = _fake_run([(m, False) for m in range(1, 50)], stall_exit=False)
+_pair_off = _fake_run([(m, False) for m in range(1, 50)], stall_exit=True)
+check('the watch CONTINUES past a stall, where --stall-exit ends it',
+      len([x for x in _pair_on if 'STALLED' in x]) == 2
+      and len([x for x in _pair_off if 'STALLED' in x]) == 1,
+      f'{len([x for x in _pair_on if "STALLED" in x])} vs '
+      f'{len([x for x in _pair_off if "STALLED" in x])} on the same timeline '
+      f'-- the second notice can only exist if the first did not return')
+
+# Quiet, then activity, then quiet again: TWO episodes, with a RESUMED between.
+out = _fake_run([(m, False) for m in range(1, 26)]
+                + [(26, True)]
+                + [(m, False) for m in range(27, 55)])
+_st = [ln for ln in out if 'STALLED' in ln]
+check('activity RE-ARMS the notice: a second episode is reported',
+      len(_st) >= 2, f'{len(_st)}: {[x[:60] for x in _st]}')
+check('and the resumption is announced, so the first notice is not left '
+      'reading as the end',
+      any('RESUMED' in ln for ln in out), str(out[:4]))
+
+# Sustained silence: escalating thresholds, each named, then it stops repeating.
+out = _fake_run([(m, False) for m in range(1, 130)])
+_st = [ln for ln in out if 'STALLED' in ln]
+check('a sustained silence escalates through the ladder',
+      len(_st) == len(RW._STALL_LADDER),
+      f'{len(_st)} notices for {len(RW._STALL_LADDER)} rungs: '
+      f'{[x[:70] for x in _st]}')
+check('each notice names the threshold it fired at',
+      all('threshold' in ln for ln in _st), str(_st[:1]))
+check('and the last one says it is the last',
+      _st and 'last stall notice' in _st[-1], str(_st[-1:]))
+
+out = _fake_run([(m, False) for m in range(1, 30)], stall_exit=True)
+check('--stall-exit restores the old behaviour exactly',
+      len([ln for ln in out if 'STALLED' in ln]) == 1
+      and not [ln for ln in out if 'RESUMED' in ln], str(out))
+
+out = _fake_run([(m, False) for m in range(1, 30)], stall_min=0)
+check('--stall-min 0 emits nothing at all',
+      not [ln for ln in out if 'STALLED' in ln], str(out))
+
+out = _fake_run([(m, False) for m in range(1, 40)], max_min=30)
+check('TIMEOUT is still terminal, and still reached through a stall',
+      any('TIMEOUT' in ln for ln in out)
+      and any('STALLED' in ln for ln in out), str(out))
+
+check('the contract in the docstring says so too',
+      'ZERO OR MORE STALL NOTICES' in (RW.__doc__ or ''),
+      'a contract change that only lives in the code is one the next reader '
+      'will undo')
+
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

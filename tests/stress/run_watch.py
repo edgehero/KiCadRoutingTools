@@ -10,14 +10,21 @@ silent through a crash, and silence is indistinguishable from "still
 running". That is the failure this file exists to avoid, so `bugs` matches
 the signatures you would ACT on -- tracebacks, refusals, leaks, rejected
 laps, a `blocking` that went UP -- and `timer` emits on every terminal state
-it can reach, including the ones nobody wants: stalled and timed out. If it
-cannot tell you the run finished, it tells you it stopped being able to
-tell.
+it can reach, including the one nobody wants: timed out. If it cannot tell you
+the run finished, it tells you it stopped being able to tell.
+
+The timer's contract is ONE START, ONE TERMINAL EVENT (DONE or TIMEOUT), and
+ZERO OR MORE STALL NOTICES between them. A stall is a SYMPTOM, not an outcome --
+a quiet work dir means the run may have died or may be thinking, and the watcher
+cannot tell which. It used to END the watch there, so run 20's timer exited on a
+20-minute stall while the run was still working, and from that point the absence
+of events (the timer's whole signal) meant nothing. `--stall-exit` restores that
+if a caller depended on it.
 
     # every new problem, as it appears (many events, until you stop it)
     python3 -X utf8 tests/stress/run_watch.py bugs --workdir wk/run20
 
-    # one event at the start, one when it ends (however it ends)
+    # one event at the start, stall notices as they happen, one when it ends
     python3 -X utf8 tests/stress/run_watch.py timer --workdir wk/run20 \
         --done wk/run20/DONE
 
@@ -663,12 +670,29 @@ def _fmt(sec):
     return f'{h:d}h{m:02d}m{s:02d}s' if h else f'{m:d}m{s:02d}s'
 
 
-def watch_timer(workdir, done_path, poll, stall_min, max_min):
-    """START now; ONE further event when the run reaches any terminal state.
+#: Escalating stall thresholds, as MULTIPLES of --stall-min. A run that goes
+#: quiet for 20 minutes and comes back is normal; one that has been quiet for 80
+#: is a different claim, and repeating the 20-minute sentence four times does not
+#: make it.
+_STALL_LADDER = (1.0, 2.0, 4.0)
 
-    Three terminal states, not one. A timer that only knows how to say
-    "finished" reports nothing at all when the run dies or wanders off, and
-    an absent notification reads exactly like work still in progress.
+
+def watch_timer(workdir, done_path, poll, stall_min, max_min,
+                stall_exit=False):
+    """START now; STALL notices as they happen; ONE event at a terminal state.
+
+    Two terminal states -- DONE and TIMEOUT -- and zero or more STALL notices
+    between them. STALLED used to END the watch, which is wrong for the thing it
+    reports: a quiet work dir is a SYMPTOM, not an outcome. Run 20's watcher
+    exited on a 20-minute stall while the run was thinking, and from then on the
+    absence of events -- the timer's whole signal -- meant nothing, because
+    nothing was watching. A watcher that stops watching when it sees something
+    worrying is the opposite of a watcher.
+
+    So: emit once per stall EPISODE, re-arm when activity resumes, and escalate
+    the reported threshold on repeat (--stall-min x 1, x2, x4) so a long silence
+    reads differently from a short one. `--stall-exit` restores the old
+    behaviour for a caller that depended on it.
     """
     t0 = time.time()
     stamp = os.path.join(workdir, '.run_watch_started')
@@ -688,6 +712,10 @@ def watch_timer(workdir, done_path, poll, stall_min, max_min):
           f'{os.path.relpath(done_path, workdir)}', flush=True)
 
     last_change, last_sig = time.time(), None
+    # Which rung of the ladder has been announced for THIS episode. Reset the
+    # moment anything changes, so a run that goes quiet, comes back and goes
+    # quiet again gets a fresh notice rather than silence.
+    rung = 0
     while True:
         if os.path.exists(done_path):
             print(f'TIMER STOP after {_fmt(time.time() - t0)} -- done marker '
@@ -705,14 +733,26 @@ def watch_timer(workdir, done_path, poll, stall_min, max_min):
                     pass
         sig = tuple(sorted(sig))
         if sig != last_sig:
-            last_sig, last_change = sig, time.time()
+            if rung:
+                print(f'TIMER RESUMED after {_fmt(time.time() - t0)} -- the '
+                      f'work dir changed again; the stall notice above did not '
+                      f'mean the run was over', flush=True)
+            last_sig, last_change, rung = sig, time.time(), 0
         idle = time.time() - last_change
-        if stall_min and idle > stall_min * 60:
+        if stall_min and rung < len(_STALL_LADDER)                 and idle > stall_min * 60 * _STALL_LADDER[rung]:
+            _mult = _STALL_LADDER[rung]
+            rung += 1
+            _last = rung >= len(_STALL_LADDER)
             print(f'TIMER STALLED after {_fmt(time.time() - t0)} -- nothing '
-                  f'in the work dir changed for {_fmt(idle)}. The run may '
-                  f'have died, or it is thinking; check before assuming '
-                  f'either', flush=True)
-            return 0
+                  f'in the work dir changed for {_fmt(idle)} '
+                  f'(threshold {stall_min * _mult:g}m'
+                  + (', the last stall notice for this episode' if _last
+                     else f', next at {stall_min * _STALL_LADDER[rung]:g}m')
+                  + '). The run may have died, or it is thinking; check before '
+                    'assuming either. NOT a terminal state -- this watch '
+                    'continues.', flush=True)
+            if stall_exit:
+                return 0
         if max_min and (time.time() - t0) > max_min * 60:
             print(f'TIMER TIMEOUT at {_fmt(time.time() - t0)} -- the deadline '
                   f'passed with no done marker', flush=True)
@@ -810,7 +850,14 @@ def main(argv=None):
                                   '(default: WORKDIR/DONE)')
     t.add_argument('--poll', type=float, default=POLL_SEC)
     t.add_argument('--stall-min', type=float, default=20.0,
-                   help='emit STALLED after this many idle minutes (0 = off)')
+                   help='emit STALLED after this many idle minutes, then again '
+                        'at 2x and 4x that (0 = off). NOT terminal: the watch '
+                        'continues and re-arms when activity resumes.')
+    t.add_argument('--stall-exit', action='store_true',
+                   help='restore the old behaviour: END the watch on the first '
+                        'stall. A watcher that stops watching when it sees '
+                        'something worrying reports nothing thereafter, which '
+                        'is why this is no longer the default.')
     t.add_argument('--max-min', type=float, default=0.0,
                    help='emit TIMEOUT after this many minutes (0 = off)')
 
@@ -836,7 +883,8 @@ def main(argv=None):
             return 0
     done = a.done or os.path.join(a.workdir, 'DONE')
     try:
-        return watch_timer(a.workdir, done, a.poll, a.stall_min, a.max_min)
+        return watch_timer(a.workdir, done, a.poll, a.stall_min, a.max_min,
+                           stall_exit=a.stall_exit)
     except KeyboardInterrupt:
         return 0
 
