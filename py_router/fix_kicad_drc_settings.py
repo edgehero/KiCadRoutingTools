@@ -463,8 +463,12 @@ def _fab_floor_disclosure(output_pcb: str, rules_before: dict, proj: dict,
             elif key == "min_via_drill":
                 objs = [v.drill for v in pcb.vias if v.drill]
             elif key == "min_via_annular_width":
+                # UNFILTERED. The census counts objects below the ORIGINAL floor,
+                # and a via whose ring is <= 0 is the furthest below it any via
+                # can be. Filtering `size > drill` here (as the writeback target
+                # must) excluded exactly the vias the disclosure exists to name.
                 objs = [(v.size - v.drill) / 2.0 for v in pcb.vias
-                        if v.size and v.drill and v.size > v.drill]
+                        if v.size and v.drill]
             else:
                 objs = []
             if objs:
@@ -519,10 +523,33 @@ def scan_board_minima(pcb_path: str):
             out["min_via_diameter"] = min(sizes)
         if via_drills:
             out["min_via_drill"] = min(via_drills)
-        annular = [(v.size - v.drill) / 2.0 for v in pcb.vias
-                   if v.size and v.drill and v.size > v.drill]
+        # Two annular keys, deliberately, because they answer two questions and
+        # one answer must not be used for the other:
+        #
+        #   min_via_annular_width           a WRITEBACK TARGET. Positive-ring
+        #       minimum, `size > drill` filtered. This is the value that gets
+        #       declared in the project, so it must be a floor a fab can hold:
+        #       a ring of 0 written here switches KiCad's annular rule OFF
+        #       (see the guard in `compute_targets`). Unchanged, byte-for-byte,
+        #       for `compute_targets` / `gui_utils.board_minima_from_live` /
+        #       `pcb_modification`.
+        #
+        #   min_via_annular_width_measured  a MEASUREMENT. Unfiltered, may be
+        #       <= 0. A measurement that drops the pathological case is lying,
+        #       and this one was: run 20 shipped three vias at 0.3mm diameter
+        #       on a 0.3mm drill -- a hole with no barrel land -- and because
+        #       the filter removed them, the board's declared 0.05 floor read
+        #       satisfied by the 0.075 ring of the vias that were fine.
+        annular_all = [(v.size - v.drill) / 2.0 for v in pcb.vias
+                       if v.size and v.drill]
+        annular = [a for a in annular_all if a > 0]
         if annular:
             out["min_via_annular_width"] = min(annular)
+        if annular_all:
+            out["min_via_annular_width_measured"] = min(annular_all)
+        n_bad = sum(1 for a in annular_all if a <= 0)
+        if n_bad:
+            out["vias_without_annular"] = n_bad
     # Through-hole pad / via drills set the smallest hole diameter on the board.
     hole = list(via_drills)
     for fp in pcb.footprints.values():

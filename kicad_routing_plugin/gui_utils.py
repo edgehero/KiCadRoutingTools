@@ -359,6 +359,13 @@ def board_minima_from_live(board):
     drill / via annular ring / through-hole diameter actually present, so KiCad's
     min-size rules can be floored at or below the board's own copper.
 
+    Deliberately NOT a twin of scan_board_minima's `min_via_annular_width_measured`
+    / `vias_without_annular`. Those are a GRADING channel (check_complete reads
+    them to catch a via with no barrel land, which the positive-ring filter here
+    correctly excludes because a floor of 0 switches KiCad's annular rule off).
+    This function feeds _write_drc_floors, which is a writeback, so it wants the
+    target and only the target. Not drift -- the split is the point.
+
     Why not just call scan_board_minima: it runs parse_kicad_pcb over the whole
     file, allocating thousands of GC-tracked objects. The GUI calls it from
     _write_drc_floors, which runs inside a wx TIMER dispatch, and that allocation

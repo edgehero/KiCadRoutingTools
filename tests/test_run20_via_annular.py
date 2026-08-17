@@ -197,5 +197,80 @@ t = FK.compute_targets(minima={})
 check('an absent measurement leaves the rule alone',
       'min_via_annular_width' not in t, str(t))
 
+print('--- the measurement stops filtering out the pathological case ---')
+# One board, three vias: a healthy 0.6/0.3 (ring 0.15), a marginal 0.45/0.3
+# (ring 0.075), and the run-20 shape 0.3/0.3 (ring 0.0, a hole with no barrel
+# land). The two keys must disagree, and the disagreement is the fix.
+_BOARD = '''(kicad_pcb (version 20260206) (generator test)
+ (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (44 "Edge.Cuts" user))
+ (gr_rect (start 0 0) (end 40 30) (layer "Edge.Cuts") (width 0.1))
+ (net 0 "") (net 1 "GND")
+ (segment (start 5 5) (end 9 5) (width 0.2) (layer "F.Cu") (net 1))
+ (via (at 10 10) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") (net 1))
+ (via (at 12 10) (size 0.45) (drill 0.3) (layers "F.Cu" "B.Cu") (net 1))
+ (via (at 14 10) (size 0.3) (drill 0.3) (layers "F.Cu" "B.Cu") (net 1))
+)'''
+_d = tempfile.mkdtemp()
+_b = os.path.join(_d, 'annular.kicad_pcb')
+with open(_b, 'w', encoding='utf-8') as fh:
+    fh.write(_BOARD)
+
+m = FK.scan_board_minima(_b)
+check('the WRITEBACK TARGET stays the positive-ring minimum (unchanged)',
+      abs(m.get('min_via_annular_width', -1) - 0.075) < 1e-9,
+      f"{m.get('min_via_annular_width')} -- compute_targets, "
+      f"gui_utils.board_minima_from_live and pcb_modification read this key")
+check('the MEASUREMENT reports the zero ring',
+      abs(m.get('min_via_annular_width_measured', -1) - 0.0) < 1e-9,
+      f"{m.get('min_via_annular_width_measured')} -- a measurement that filters "
+      f"out the defect is how three unmanufacturable vias graded clean")
+check('and the count of vias with no annular ring is published',
+      m.get('vias_without_annular') == 1, str(m.get('vias_without_annular')))
+check('the other minima are untouched by the split',
+      abs(m.get('min_via_diameter', -1) - 0.3) < 1e-9
+      and abs(m.get('min_via_drill', -1) - 0.3) < 1e-9
+      and abs(m.get('min_track_width', -1) - 0.2) < 1e-9, str(m))
+
+# A board with no pathology must not grow the new keys' bad news.
+_b2 = os.path.join(_d, 'healthy.kicad_pcb')
+with open(_b2, 'w', encoding='utf-8') as fh:
+    fh.write(_BOARD.replace(' (via (at 14 10) (size 0.3) (drill 0.3) '
+                            '(layers "F.Cu" "B.Cu") (net 1))\n', ''))
+m2 = FK.scan_board_minima(_b2)
+check('a healthy board reports no ringless vias at all',
+      'vias_without_annular' not in m2, str(m2))
+check('and there its two annular keys agree',
+      abs(m2['min_via_annular_width'] - m2['min_via_annular_width_measured']) < 1e-12,
+      str(m2))
+
+print('--- check_complete grades the measurement, not the target ---')
+sys.path.insert(0, REPO)
+import check_complete as CC                                        # noqa: E402
+
+check('exactly one floor key is redirected to a measurement',
+      CC.MEASURED_KEY == {'min_via_annular_width': 'min_via_annular_width_measured'},
+      str(CC.MEASURED_KEY))
+
+# The authored project declares the floor the run-20 board declared.
+_pro = os.path.join(_d, 'annular.kicad_pro')
+with open(_pro, 'w', encoding='utf-8') as fh:
+    fh.write('{"board": {"design_settings": {"rules": '
+             '{"min_via_annular_width": 0.05}}}}')
+res = CC.fab_floor_integrity(_b, _b)
+keys = [r['key'] for r in res.get('relaxed', [])]
+check('a zero-ring via makes the board UNSOUND against its own declaration',
+      'min_via_annular_width' in keys,
+      f"{res} -- graded against the filtered target this reads `relaxed: []`, "
+      f"which is what run 20 reported on a board carrying three of them")
+under = [r for r in res.get('relaxed', []) if r['key'] == 'min_via_annular_width']
+check('and it reports the measured 0.0, not the surviving 0.075',
+      under and abs(under[0]['on_board']) < 1e-12, str(under))
+
+res2 = CC.fab_floor_integrity(_b2, _b2)
+check('the healthy board is not newly condemned',
+      not [r for r in res2.get('relaxed', [])
+           if r['key'] == 'min_via_annular_width'],
+      str(res2) + ' -- 0.075 is above the declared 0.05')
+
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

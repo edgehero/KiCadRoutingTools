@@ -103,6 +103,19 @@ def copper_layers(board):
         return [], f'{type(exc).__name__}: {exc}'
 
 
+#: Floor keys whose `scan_board_minima` entry is a WRITEBACK TARGET rather than
+#: a measurement, mapped to the measurement to grade against instead.
+#:
+#: There is exactly one, and it is the whole point of the distinction:
+#: `min_via_annular_width` is filtered to positive rings, because a value of 0
+#: written into a project switches KiCad's annular rule off. That makes it the
+#: right number to DECLARE and the wrong number to GRADE -- a via with no barrel
+#: land is dropped from the sample by the same filter that keeps the declaration
+#: safe. Run 20 shipped three of them against a declared floor of 0.05 and this
+#: check said `relaxed: []`.
+MEASURED_KEY = {'min_via_annular_width': 'min_via_annular_width_measured'}
+
+
 def fab_floor_integrity(board, authored_from):
     """Does this board's copper sit below the floors its project ONCE declared?
 
@@ -135,7 +148,7 @@ def fab_floor_integrity(board, authored_from):
     relaxed = []
     unmeasured = []
     for key, label in FAB_FLOOR_KEYS:
-        was, is_ = authored.get(key), now.get(key)
+        was, is_ = authored.get(key), now.get(MEASURED_KEY.get(key, key))
         if isinstance(was, (int, float)) and not isinstance(is_, (int, float)):
             # The board DECLARES this floor and nothing here can measure it --
             # scan_board_minima reads object sizes only, no pairwise geometry,
