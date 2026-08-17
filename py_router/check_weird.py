@@ -73,19 +73,12 @@ _VIA_COINCIDENT_MM = 0.01  # stacked-via center distance
 _DUP_SEG_DECIMALS = 3      # ~1um endpoint quantization for exact duplicates
 
 
-def _finding(category, net, layer, x, y, detail, size=None, obj=None):
+def _finding(category, net, layer, x, y, detail, size=None):
     # size = the finding's characteristic magnitude in mm (dangle length,
     # gap, duplicated-copper length, via diameter ...). The --tolerance
     # filter drops findings smaller than the threshold; None = always report.
-    #
-    # `obj` is the Segment/Via the finding is ABOUT, when there is exactly one.
-    # Additive and unserialised -- every existing consumer reads named scalar
-    # keys -- and it exists so a REMOVAL pass can act on a finding without
-    # re-deriving it or parsing `detail` back into coordinates. This module
-    # stays read-only; it just stops being the only thing that knows which
-    # object it meant.
     return {'category': category, 'net': net, 'layer': layer,
-            'x': x, 'y': y, 'detail': detail, 'size': size, 'obj': obj}
+            'x': x, 'y': y, 'detail': detail, 'size': size}
 
 
 def _net_name(pcb_data: PCBData, net_id: int) -> str:
@@ -409,8 +402,7 @@ def _check_removable(net_id, name, net_segs, net_vias, net_pads, net_zones,
                 f"segment ({s.start_x:.3f}, {s.start_y:.3f})-"
                 f"({s.end_x:.3f}, {s.end_y:.3f}) w{s.width:.3f}: removal "
                 f"does not change net connectivity",
-                size=math.hypot(s.end_x - s.start_x, s.end_y - s.start_y),
-                obj=s))
+                size=math.hypot(s.end_x - s.start_x, s.end_y - s.start_y)))
 
 
 def _check_stacked(net_id, name, net_segs, net_vias, findings):
@@ -518,7 +510,7 @@ def _check_unsupported_vias(net_id, name, net_segs, net_vias, net_pads,
                 f"dangling via: same-net copper reaches it on {next(iter(sup))} "
                 f"only, so it spans {len(span)} layer(s) but joins none "
                 f"(KiCad via_dangling)",
-                size=getattr(v, 'size', None), obj=v))
+                size=getattr(v, 'size', None)))
 
 
 def _check_orphan_islands(net_id, name, net_segs, net_vias, net_pads,
