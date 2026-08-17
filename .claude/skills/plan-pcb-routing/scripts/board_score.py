@@ -154,9 +154,25 @@ def run_tool(root: str, tool: str, *args) -> tuple:
     return p.returncode, p.stdout
 
 
-def skipped(reason: str) -> dict:
-    """A component that did not run. `count` is None, never 0 (see Vacuity)."""
-    return {'ran': False, 'reason': reason, 'count': None}
+def skipped(reason: str, applicable: bool = True) -> dict:
+    """A component that did not run. `count` is None, never 0 (see Vacuity).
+
+    `applicable=False` says the BOARD CARRIES NO SUCH REQUIREMENT -- there is no
+    length-matched group declared, no impedance net, no per-net width clause --
+    so there is nothing to grade and passing the flag would INVENT a
+    requirement. That is a different fact from "measurable, and nobody asked",
+    and collapsing the two cost run 20 a waiver: L5 refused to close because
+    `length` and `net_widths` were both "never examined", and closing needed
+    `--accept-unclosed ungraded` -- one waiver covering a real gap (net_widths,
+    genuinely measurable) and a non-question (length, on a board with no match
+    group at all). A standing false waiver on every simple board is how a real
+    one stops being read.
+
+    The reason string was already here to carry the distinction; nothing
+    downstream read it.
+    """
+    return {'ran': False, 'reason': reason, 'count': None,
+            'applicable': applicable}
 
 
 def _unescape_net_name(s: str) -> str:
@@ -506,9 +522,38 @@ def score_floorplan(root: str, board: str, intent: str, tmp: str) -> dict:
             'violations': [v.get('rule') for v in (d.get('violations') or [])]}
 
 
+def _board_declares(board: str, key: str) -> bool:
+    """Does the board's sibling project DECLARE something of this kind?
+
+    The chain already records its own design intent there (#521): matched
+    groups and routed diff pairs under `protected_nets`, impedance specs under
+    `net_impedance`. A board carrying neither has no length group to match and
+    no impedance net to hold, so asking for those is not a gap in the grade --
+    there is nothing to grade, and passing the flag would invent a requirement.
+
+    Conservative: anything unreadable answers True, so a component stays
+    `ungraded` (which blocks a close-out) rather than being silently excused.
+    """
+    try:
+        from fix_kicad_drc_settings import find_project
+        pro = find_project(board)
+        if not os.path.isfile(pro):
+            return False
+        with open(pro, encoding='utf-8') as fh:
+            krt = (json.load(fh).get('kicad_routing_tools') or {})
+        return bool(krt.get(key))
+    except Exception:                                       # noqa: BLE001
+        return True
+
+
 def score_impedance(root: str, board: str, nets, tmp: str) -> dict:
     """check_impedance -- reference-plane continuity and declared-gap audit."""
     if not nets:
+        if not _board_declares(board, 'net_impedance'):
+            return skipped(
+                'this board declares no impedance net (no `net_impedance` in '
+                'its project), so there is no impedance requirement to grade',
+                applicable=False)
         return skipped('no --impedance-nets given; impedance is ungraded')
     out_json = os.path.join(tmp, 'impedance.json')
     rc, out = run_tool(root, 'check_impedance.py', board, '--nets', *nets,
@@ -547,6 +592,11 @@ def score_length(board: str, groups_file: str) -> dict:
     branch and matches no real signal path.
     """
     if not groups_file:
+        if not _board_declares(board, 'protected_nets'):
+            return skipped(
+                'this board declares no matched group or routed diff pair (no '
+                '`protected_nets` in its project), so there is no length-match '
+                'requirement to grade', applicable=False)
         return skipped('no --length-groups given; length matching is ungraded')
     if not os.path.isfile(groups_file):
         return skipped(f'length-groups file not found: {groups_file}')
@@ -960,7 +1010,17 @@ def main():
              'label': args.label, 'blocking': blocking,
              'blocking_by': {k: v.get('count') for k, v in parts.items()},
              'advisory': {k: v.get('count') for k, v in advisory.items()},
-             'ungraded': sorted(k for k, v in parts.items() if v.get('ran') is False),
+             # SPLIT. `ungraded` is measurable-but-unasked and still blocks a
+             # close-out; `not_applicable` is "this board has no such
+             # requirement" and does not. Both stay in the payload and on the
+             # printed line -- "not applicable" must be VISIBLE, not silently
+             # dropped, or the next reader cannot tell it from a gap.
+             'ungraded': sorted(k for k, v in parts.items()
+                                if v.get('ran') is False
+                                and v.get('applicable', True)),
+             'not_applicable': sorted(k for k, v in parts.items()
+                                      if v.get('ran') is False
+                                      and not v.get('applicable', True)),
              'unknown': sorted(unknown), 'quality': quality(args.board),
              'components': {**parts, **advisory},
              'floors': _floors(args.board, sizes),
@@ -987,6 +1047,8 @@ def main():
     _scope = []
     if score.get('ungraded'):
         _scope.append('ungraded: ' + ','.join(score['ungraded']))
+    if score.get('not_applicable'):
+        _scope.append('n/a: ' + ','.join(score['not_applicable']))
     if score.get('unknown'):
         _scope.append('UNKNOWN: ' + ','.join(score['unknown']))
     print(f"BLOCKING={blocking}  ({bits})  "
@@ -1042,6 +1104,11 @@ def main():
     if score['ungraded']:
         # Loud, because this is the difference between "clean" and "unexamined".
         print(f"UNGRADED (not scored, not passed): {', '.join(score['ungraded'])}")
+    if score.get('not_applicable'):
+        # Quieter, and still printed: a reader must be able to see WHY a
+        # component is absent from the score rather than infer it.
+        print("NOT APPLICABLE (this board declares no such requirement): "
+              + ', '.join(score['not_applicable']))
     if unknown:
         print(f"UNKNOWN (asked for, could not run): {', '.join(unknown)}")
         return 4
