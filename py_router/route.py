@@ -267,6 +267,7 @@ def _empty_results_data() -> dict:
         'segments_to_remove': [],
         'vias_to_remove': [],
         'blockers': [],
+        'boxed_in': [],
         'pad_pairs_open': [],
     }
 
@@ -3128,6 +3129,7 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
     # a net that failed early but was later rescued/rerouted is filtered out
     # here because the final failed sets are authoritative.
     blockers_report = []
+    boxed_in_report = []
     try:
         _final_failed_ids = list(dict.fromkeys(
             failed_single_ids + [m['net_id'] for m in failed_multipoint]))
@@ -3158,8 +3160,27 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                     'net': _name, 'stage': 'preexisting',
                     'blocked_by': [{'net': _bn, 'preexisting': True}
                                    for _bn in _pre103]})
+            # The static-vs-congestion verdict, as its OWN key. The router has
+            # printed "boxed in by static obstacles ... not by congestion" on
+            # every such failure since #95, and run 20 spent three grid
+            # refinements (0.05 -> 0.025 -> 0.0125, ~40 min) against exactly
+            # that sentence, because a sentence is not something a gate can read.
+            #
+            # DELIBERATELY NOT inside `blockers`. The routing skill's own
+            # classifier row is "`blockers` empty; the log says boxed in" --
+            # making `blockers` non-empty here would break the clause being
+            # fixed. The row becomes "`blockers` empty AND `boxed_in` names the
+            # net": one JSON test, no regex.
+            _bx = None
+            for _ev in (state.net_history.get(_nid) or []):
+                if _ev.get('event') == 'boxed_in_static':
+                    _bx = _ev.get('details') or _bx
+            if _bx:
+                boxed_in_report.append(dict(_bx, net=_name))
         if blockers_report:
             summary['blockers'] = blockers_report
+        if boxed_in_report:
+            summary['boxed_in'] = boxed_in_report
     except Exception:
         blockers_report = []
     # #409 follow-up: pad-pair routability tallies (PRR ingredients: connected
@@ -3305,6 +3326,11 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
             'vias_to_remove': stale_input_vias,
             # #409: same data as JSON_SUMMARY['blockers'] (may be empty).
             'blockers': blockers_report,
+            # ...and the static-vs-congestion verdict beside it, same data as
+            # JSON_SUMMARY['boxed_in']. The GUI reads results_data, not the
+            # printed summary, so a key that only reaches stdout does not
+            # reach the plugin (CLAUDE.md's Class-1 CLI/GUI gap).
+            'boxed_in': boxed_in_report,
             # #409 follow-up: same data as JSON_SUMMARY['pad_pairs_open']
             # (may be empty).
             'pad_pairs_open': pad_pairs_open_report,
