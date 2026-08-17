@@ -1156,10 +1156,25 @@ def l2(a):
         if _oob_refs is not None:
             _coarse, _ = _count('oob_pad_count')
             if _coarse is not None and _coarse != oob:
+                # NOT "the coarse one is a phantom". The two measure DIFFERENT
+                # things and the extra parts in the coarse count are usually
+                # real -- just a different finding. Measured on run 20: the
+                # coarse channel named R4 as well as SW2, and R4's copper is
+                # indeed on the outline (so `pad_copper` is right to omit it)
+                # while `check_drc --check-pad-edge` reports R4.1 and R4.2 in
+                # CONTACT with the board edge. Calling that a false positive,
+                # as this message first did, discards a genuine violation.
                 _corr = (f'\n\ncheck_assembly\'s coarse `oob_pad_count` says '
-                         f'{_coarse}; they differ because the coarse measure '
-                         f'inflates the outline by the grading clearance. The '
-                         f'per-pad count is the one to fix.')
+                         f'{_coarse}. They differ because the coarse measure '
+                         f'tests the pad AABB against an outline INFLATED by '
+                         f'the grading clearance -- so it also catches copper '
+                         f'that is ON the board but too close to its edge. '
+                         f'That is a real requirement, not noise: the extra '
+                         f'parts are a BOARD-EDGE CLEARANCE finding, and\n'
+                         f'  python3 -X utf8 py_router/check_drc.py {a.board} '
+                         f'--check-pad-edge\n'
+                         f'names them. Fix the per-pad count here; do not read '
+                         f'the difference as a false positive.')
         return err(
             f'The placement close-out reports blocking = 0, but {oob} part(s) '
             f'carry pad copper OFF the board, measured by {_oob_basis}.{_named} '

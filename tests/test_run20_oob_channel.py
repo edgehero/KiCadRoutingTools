@@ -8,9 +8,17 @@ circles -- tested against an outline INFLATED by the grading clearance. Its own
 
 L2 refused on the coarse number while already being handed the render that
 carries the precise one. On run 20 they disagreed -- coarse [R4, SW2], per-pad
-[SW2] -- and R4's copper was on the board the whole time. That single false
-positive is why `--accept-residue oob_pad_count` had to be used in BOTH cycles,
-and a waiver aimed at a phantom also covers the real finding beside it.
+[SW2] -- which is why `--accept-residue oob_pad_count` had to be used in BOTH
+cycles, and a waiver raised for one part also covers the other.
+
+R4 IS NOT A PHANTOM, and an earlier version of this file said it was. Its copper
+is on the outline, so `pad_copper` is right to omit it -- but
+`check_drc --check-pad-edge` reports R4.1 and R4.2 in CONTACT with the board
+edge. The two channels measure different requirements: copper OFF the outline
+at margin 0, versus the pad AABB against an outline inflated by the grading
+clearance, which is board-edge clearance. Reading their difference as a false
+positive discards a real violation, so the gate names it as an edge finding and
+prints the command that lists it.
 """
 import json
 import os
@@ -102,6 +110,16 @@ check('the refusal says WHICH measure it used',
       'a_off_outline.pad_copper' in out and 'per-pad' in out, out[:600])
 check('and discloses the coarse number as corroboration, named as coarse',
       'coarse' in out and '2' in out, out[:800])
+# The coarse channel is NOT a phantom, and the message must not say it is. On
+# run 20 the difference was R4, whose copper IS on the outline -- and which
+# `check_drc --check-pad-edge` reports in CONTACT with the board edge. The two
+# channels measure different requirements; calling the difference a false
+# positive discards a real violation.
+check('the difference is named as a BOARD-EDGE finding, not dismissed',
+      'BOARD-EDGE CLEARANCE' in out and '--check-pad-edge' in out,
+      out[:900] + ' -- the coarse measure inflates the outline by the grading '
+      'clearance, so it also catches copper that is on the board but too close '
+      'to its edge')
 
 print('--- when the precise channel says zero, the gate does not fire ---')
 out = _l2('--render-json', _RENDER_CLEAN)
