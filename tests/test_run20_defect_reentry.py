@@ -227,8 +227,16 @@ check('--accept-incommensurable is documented beside the accept rule',
       '--accept-incommensurable' in _txt, 'it existed and was used once in run '
       '20 and appeared in neither skill')
 check('with the run-20 case as the worked example',
-      'annular' in _txt and 'blocking rose 10 -> 13' in _txt,
+      'annular' in _txt and 'BLOCKING=12' in _txt,
       'a rule without the measurement that produced it becomes folklore')
+# The example quoted 10 -> 13, which was the RECORDED score and is no longer
+# reproducible: via-annular now counts for the parent too, so both boards read
+# 12 and the lap fails on being LEVEL rather than on rising. A worked example
+# that cannot be re-derived teaches the wrong lesson twice -- once about the
+# rule, once about trusting recorded numbers.
+check('and re-graded at HEAD, not quoted from the old score file',
+      're-derive with today' in _txt and 'undersized=3' in _txt
+      and 'undersized=0' in _txt, 'the example must carry both boards')
 check('and the rule is "the comparison is VOID", not "pick the smaller number"',
       'comparison is\nVOID' in _txt or 'comparison is VOID' in _txt, '')
 

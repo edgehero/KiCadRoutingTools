@@ -4605,17 +4605,35 @@ The mechanism already exists:
 python3 -X utf8 py_placer/converge.py record --ledger wk/ledger.jsonl \
     --board <board> --kind completion --score-file wk/score.json \
     --accept-incommensurable "cycle 2 removed 3 vias with NO annular ring \
-(unmanufacturable) and blocking rose 10 -> 13; the rise is undersized+3 on a \
-check that did not exist for the parent board's grade"
+(unmanufacturable); blocking is LEVEL at 12 because undersized -3 is cancelled \
+by broken +1 and drc +2, so the accept rule cannot see the trade"
 ```
 
-Run 20 is the worked example, and the honest version of it: a cycle that removed
-three vias with **zero annular ring** — holes with no barrel land, which no fab
-makes — was rejected because `blocking` went 10 → 13. Nothing counted the vias it
-had removed, so the improvement was invisible to the scalar while the cost was
-not. (That specific case is now fixed by construction — `via-annular` lands in
-`undersized`, *inside* `blocking`, so removing one scores better. The general
-shape is not, which is what this flag is for.)
+Run 20 is the worked example. A cycle removed three vias with **zero annular
+ring** — holes with no barrel land, which no fab makes — and could not be
+accepted.
+
+**Re-grade it with today's tools before quoting it.** The numbers moved, and
+this is the "re-derive with today's graders" rule applied to the skill's own
+example. As RECORDED in `wk/run20/score.json` the lap read `blocking` 10 → 13,
+and the rise was invisible-improvement-plus-visible-cost: nothing counted the
+vias it had removed, because no grader could see a ring-0 via. Re-graded at
+HEAD, where `via-annular` lands in `undersized` *inside* `blocking`:
+
+```
+routed.kicad_pcb     BLOCKING=12  unrouted=3 broken=6 drc=0 undersized=3
+routed_c2.kicad_pcb  BLOCKING=12  unrouted=3 broken=7 drc=2 undersized=0
+```
+
+The removal now earns its credit — `undersized` 3 → 0 — and the lap **still
+fails the accept rule**, because `broken` +1 and `drc` +2 cancel it exactly and
+`blocking` is LEVEL rather than decreased. It survives only on the quality
+tie-break (vias 143 → 141, copper 713 → 646 mm).
+
+That is a better illustration than the original, not a worse one: making the
+improvement visible did not make the comparison commensurable. Three components
+moved in three directions, and no scalar ordering of them is the right answer —
+which is what this flag is for.
 
 **A THIRD EXCEPTION, for a MANDATORY CHAIN STEP that manufactures `broken` by
 construction.** A fanout converts nets that had NO copper into nets whose copper
