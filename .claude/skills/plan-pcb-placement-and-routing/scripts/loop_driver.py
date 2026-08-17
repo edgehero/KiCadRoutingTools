@@ -592,11 +592,61 @@ def _log_invocation(a, stage, out, code):
                'out_sha': hashlib.sha256(
                    (out or '').encode('utf-8')).hexdigest()[:16],
                'out_lines': len((out or '').splitlines())}
+        _note_inner_half(p, row)
         with open(p, 'a', encoding='utf-8') as fh:
             fh.write(json.dumps(row, sort_keys=True) + '\n')
         return p
     except Exception:                                       # noqa: BLE001
         return None
+
+
+#: How long two invocations of the same stage against the same ledger have to be
+#: apart before they stop looking like the outer loop and an inner half both
+#: driving. Deliberately short: a legitimate re-run after fixing a refusal takes
+#: minutes of work, not seconds.
+_INNER_HALF_WINDOW_S = 180.0
+
+
+def _note_inner_half(logpath, row):
+    """Say so when an inner half appears to be driving the outer loop.
+
+    Run 20's routing teammate called `--stage L2` on the frozen board seconds
+    after being spawned -- the run-14 shape the delegation rule exists to
+    prevent, where the half that knows more than its parent quietly does the
+    parent's job and the classification never travels up. It was caught only
+    because a watcher happened to be reading the log.
+
+    REPORTS, never refuses. A legitimate re-run of a stage must not be blocked,
+    and this cannot distinguish the two with certainty -- it can only make the
+    shape visible at the moment it happens instead of in a post-mortem.
+    """
+    try:
+        with open(logpath, encoding='utf-8') as fh:
+            tail = fh.readlines()[-40:]
+    except OSError:
+        return
+    for line in reversed(tail):
+        try:
+            prev = json.loads(line)
+        except ValueError:
+            continue
+        if prev.get('stage') != row['stage']:
+            continue
+        if (row['t'] - float(prev.get('t') or 0)) > _INNER_HALF_WINDOW_S:
+            return                       # older than the window: nothing to say
+        if prev.get('board') == row['board'] and prev.get('cwd') == row['cwd']:
+            return                       # a plain re-run of the same thing
+        print(f'loop_driver NOTE: --stage {row["stage"]} was already invoked '
+              f'{row["t"] - float(prev.get("t") or 0):.0f}s ago against this '
+              f'same ledger, on a DIFFERENT board:\n'
+              f'    then: {prev.get("board")}\n'
+              f'    now:  {row["board"]}\n'
+              f'  If that earlier call was an inner half driving the outer '
+              f'loop, its classification never reaches the parent and the '
+              f'parent re-runs work it never authorised (the run-14 shape). '
+              f'Not refused -- a legitimate re-run looks the same from here.',
+              file=sys.stderr)
+        return
 
 
 #: Never open anything but the board you were given. A delegated half is a fresh

@@ -144,7 +144,16 @@ def main(argv=None):
                         "(default 4.0). Reachability is LOCAL; a whole board "
                         "at 10um costs memory for nothing")
     p.add_argument('--view', default=None, help="x0,y0,x1,y1 to override")
-    p.add_argument('--json', action='store_true')
+    p.add_argument('--json', action='store_true',
+                   help="dump the result dict to STDOUT. NOTE stdout also "
+                        "carries this tool's CMD: banner and any parser "
+                        "warning, so `json.load(stdout)` fails at char 0 -- "
+                        "use --json-out for a machine-readable answer.")
+    p.add_argument('--json-out', metavar='PATH', default=None,
+                   help="write the result dict to PATH. This is the "
+                        "machine-readable channel (the convention every other "
+                        "tool here uses); stdout stays human. Combines with "
+                        "the text output rather than replacing it.")
     args = p.parse_args(argv)
 
     from kicad_parser import parse_kicad_pcb  # _path put py_router on sys.path
@@ -251,6 +260,13 @@ def main(argv=None):
         return 2
 
     source = 'from --flags' if args.clearance is not None else 'from the board'
+    if args.json_out:
+        try:
+            with open(args.json_out, 'w', encoding='utf-8') as fh:
+                json.dump(r.to_dict(), fh, indent=2)
+            print(f"  JSON -> {args.json_out}")
+        except OSError as exc:
+            print(f"  could not write {args.json_out}: {exc}", file=sys.stderr)
     if args.json:
         print(json.dumps(r.to_dict(), indent=2))
     else:

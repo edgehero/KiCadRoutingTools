@@ -3502,12 +3502,25 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                                      if not _mnf9(n, net_names)})
                 _zpairs = [(n, l) for n, l in _zpairs if _mnf9(n, net_names)]
                 if _excluded9:
-                    print(f"{RED}  Plane finalize: zone net(s) "
+                    print(f"{RED}  WARNING: Plane finalize: zone net(s) "
                           f"{', '.join(_excluded9)} are OUTSIDE this route's "
                           f"--nets scope -- excluded from the finalize BY "
                           f"PLAN. Since #562 a pour alone connects nothing: "
                           f"unless a later route step covers these nets, "
                           f"their pads ship disconnected.{RESET}")
+                    # ...and in the SUMMARY, not only in the log. A later grade
+                    # can see disconnected plane pads but cannot tell whether a
+                    # step declined to weld them BY PLAN or failed to; run 20
+                    # hit this twice before designing around it, both times by
+                    # reading the log by eye.
+                    #
+                    # NOTE the printed `JSON_SUMMARY:` line predates the
+                    # finalize, so it does NOT carry this key. `summary` is in
+                    # `_SUMMARY_SINK` by reference, so `--json-out` does, as do
+                    # in-process callers reading the returned dict. A consumer
+                    # that greps the log line still needs the WARNING above --
+                    # which is why it is a WARNING now.
+                    summary['finalize_excluded_nets'] = _excluded9
             # PRE-GATE for the MODEL-BASED legs (engine taps/joins +
             # cleanup): run them only for zone nets the fill-aware checker
             # says are incomplete on THIS run's board (pcb_data == file

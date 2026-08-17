@@ -878,9 +878,10 @@ def cmd_replay(a):
 
 CONTINUE, DONE, STUCK, BUDGET = 4, 0, 5, 6
 
-#: Which half of the loop a ledger row belongs to. `systemic` is neither -- it
-#: changes how the chain measures itself, not the board -- so it can never make
-#: a half look like it is still improving.
+#: Which half of the loop a ledger row belongs to. `systemic` and
+#: `classification` are neither -- one changes how the chain measures itself,
+#: the other decides where to re-enter -- and neither changes the board, so
+#: neither can make a half look like it is still improving.
 _HALF = {'placement': 'placement', 'completion': 'routing'}
 
 
@@ -1327,8 +1328,16 @@ def build_parser():
     r.add_argument('--ledger', required=True)
     r.add_argument('--board', required=True)
     r.add_argument('--store', default=None)
-    r.add_argument('--kind', choices=('completion', 'placement', 'systemic'),
-                   default='completion')
+    r.add_argument('--kind',
+                   choices=('completion', 'placement', 'systemic',
+                            'classification'),
+                   default='completion',
+                   help="which half of the loop this lap belongs to. "
+                        "`classification` is the L3 lap that DECIDES the shape "
+                        "of the next re-entry; it changes no board, so like "
+                        "`systemic` it belongs to neither half. It had to be "
+                        "filed as `systemic` before, which made a decision "
+                        "look like a tool change.")
     r.add_argument('--lever', default=None)
     r.add_argument('--score', default=None, help='JSON')
     r.add_argument('--score-file', default=None, metavar='PATH',
