@@ -171,9 +171,15 @@ def main():
             continue
         _buckets.setdefault((round(_fp.x, 3), round(_fp.y, 3)),
                             []).append(_ref)
+    # NOTE this iterates DISTINCT REFERENCES. `pcb.footprints` is a dict keyed
+    # by reference, so two footprint blocks sharing one reference are ONE entry
+    # here and cannot form a coincident pair -- the check that exists to catch
+    # two parts at one point is structurally blind to two parts with one name.
+    # `duplicate_references` below is that case, reported separately.
     stack_groups = [{'point': [pt[0], pt[1]], 'refs': refs}
                     for pt, refs in sorted(_buckets.items())
                     if sum(1 for r in refs if not _marker(r)) >= 2]
+    dup_refs = dict(getattr(pcb, 'duplicate_references', None) or {})
 
     new_advisory = None
     if args.baseline:
@@ -190,6 +196,19 @@ def main():
                         if (q.a, q.b, q.kind) not in base_keys]
 
     print(f"Assembly audit of {args.board} (clearance {clearance}):")
+    if dup_refs:
+        # ADVISORY, never blocking: a duplicate reference is legal in KiCad and
+        # can be deliberate. But it must not be silent -- on run 20's board
+        # `coincident_origins` read 0 while TWO pairs sat at exactly coincident
+        # positions, because each pair was one dict entry.
+        _n = sum(dup_refs.values())
+        print(f"  DUPLICATE REFERENCES (advisory): {_n} footprint block(s) "
+              f"share {len(dup_refs)} reference(s) -- "
+              + ', '.join(f'{r} x{c}' for r, c in sorted(dup_refs.items())))
+        print(f"    Only the LAST block of each is parsed, so this audit sees "
+              f"{len(pcb.footprints)} parts and `coincident_origins` cannot "
+              f"compare the dropped ones. Legal, but rename them if they are "
+              f"meant to be distinct parts.")
     print(f"  blocking {g['blocking']}  advisory {g['advisory']}"
           f"  waived {g['waived']}"
           + (f"  new-vs-baseline {len(new_advisory)}"
@@ -287,6 +306,13 @@ def main():
             # finding about one point, and the fix is one re-seat per part.
             'coincident_origin_groups': stack_groups,
             'coincident_origins': len(stack_groups),
+            'coincident_origins_basis': (
+                'distinct references only -- footprints are keyed by '
+                'reference, so blocks sharing one reference are a single '
+                'entry here and cannot form a pair. See duplicate_references.'),
+            'duplicate_references': dup_refs,
+            'footprint_blocks': len(pcb.footprints) + sum(dup_refs.values())
+                                - len(dup_refs),
         }
         if new_advisory is not None:
             doc['baseline'] = args.baseline

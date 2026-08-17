@@ -476,6 +476,22 @@ class PCBData:
     # dropped. Empty on every board in the corpus -- no in-repo board uses
     # groups -- so consumers must treat absence as normal, not as an error.
     groups: Dict[str, List[str]] = field(default_factory=dict)
+    #: References that appear on MORE THAN ONE footprint block, and how many
+    #: blocks each has. `footprints` is a dict keyed by reference, so the later
+    #: block silently REPLACES the earlier one and every tool then reports a
+    #: part count one short per duplicate.
+    #:
+    #: Measured on wk/run20/board.kicad_pcb: 86 footprint blocks, 84 distinct
+    #: references -- TP4 and TP5 each appear twice, at exactly coincident
+    #: positions. Every tool said "84 parts", and `check_assembly`'s
+    #: `coincident_origins`, the one check that exists to catch precisely this,
+    #: read 0: it iterates the dict, so the coincident partner was not there to
+    #: be compared against.
+    #:
+    #: Additive and ADVISORY. A duplicate reference is legal in KiCad and can be
+    #: deliberate (a paired testpoint, a net tie), so nothing here refuses -- it
+    #: only stops being invisible.
+    duplicate_references: Dict[str, int] = field(default_factory=dict)
 
     def net_tie_exempt_pad_ids(self, net_id: int):
         """id()s of pads whose keep-out copper of `net_id` may IGNORE.
@@ -2338,7 +2354,9 @@ def _parse_ref_label(fp_text: str, ref_start: int,
     )
 
 
-def extract_footprints_and_pads(content: str, nets: Dict[int, Net], name_to_id: Dict[str, int] = None) -> Tuple[Dict[str, Footprint], Dict[int, List[Pad]]]:
+def extract_footprints_and_pads(content: str, nets: Dict[int, Net],
+                                name_to_id: Dict[str, int] = None,
+                                duplicates: Dict[str, int] = None) -> Tuple[Dict[str, Footprint], Dict[int, List[Pad]]]:
     """Extract footprints and their pads with global coordinates."""
     footprints = {}
     pads_by_net: Dict[int, List[Pad]] = {}
@@ -2703,6 +2721,12 @@ def extract_footprints_and_pads(content: str, nets: Dict[int, Net], name_to_id: 
             if net_id in nets:
                 nets[net_id].pads.append(pad)
 
+        # A reference is the dict key, so a second block with the same
+        # reference REPLACES the first and nothing says so. Count it. (Legal in
+        # KiCad and sometimes deliberate -- a paired testpoint, a net tie -- so
+        # this records, it does not refuse.)
+        if duplicates is not None and reference in footprints:
+            duplicates[reference] = duplicates.get(reference, 1) + 1
         footprints[reference] = footprint
 
     return footprints, pads_by_net
@@ -3500,7 +3524,22 @@ def parse_kicad_pcb(filepath: str, guide_layer: str = "User.1",
     # Extract components in order
     board_info = extract_layers(content)
     nets, name_to_id = extract_nets(content, kicad_version)
-    footprints, pads_by_net = extract_footprints_and_pads(content, nets, name_to_id)
+    _dups: Dict[str, int] = {}
+    footprints, pads_by_net = extract_footprints_and_pads(
+        content, nets, name_to_id, duplicates=_dups)
+    if _dups:
+        # AT THE FIRST LINE, beside the Edge.Cuts reclassification warning, and
+        # for the same reason: every tool downstream is about to report a part
+        # count that is short by exactly this much, and nothing else in the
+        # chain will mention it. (run 20: 86 blocks, 84 references.)
+        _n = sum(_dups.values())
+        print(f"WARNING: {_n} footprint block(s) share {len(_dups)} "
+              f"reference(s) -- {', '.join(f'{r} x{c}' for r, c in sorted(_dups.items()))}. "
+              f"Footprints are keyed BY REFERENCE, so only the LAST block of "
+              f"each survives: this board parses as "
+              f"{len(footprints)} parts, not {len(footprints) + _n - len(_dups)}. "
+              f"Legal in KiCad (a paired testpoint, a net tie), but every "
+              f"count downstream is short by {_n - len(_dups)}.")
     vias = extract_vias(content, name_to_id)
     segments = extract_segments(content, name_to_id)
     zones = extract_zones(content, name_to_id)
@@ -3529,6 +3568,7 @@ def parse_kicad_pcb(filepath: str, guide_layer: str = "User.1",
         guide_paths=guide_paths,
         keepout_zones=keepout_zones,
         groups=groups,
+        duplicate_references=_dups,
         source_path=os.path.abspath(filepath) if filepath else ""
     )
 
@@ -3843,6 +3883,7 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
 
     # --- Extract footprints and pads ---
     footprints = {}
+    _dups_live: Dict[str, int] = {}
     pads_by_net: Dict[int, List[Pad]] = {}
 
     for fp in board.GetFootprints():
@@ -4229,6 +4270,10 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
             if net_id in nets:
                 nets[net_id].pads.append(pad_obj)
 
+        # Parity with the text parser: `footprints` is keyed by reference, so a
+        # second block with the same one replaces the first silently.
+        if reference in footprints:
+            _dups_live[reference] = _dups_live.get(reference, 1) + 1
         footprints[reference] = footprint
 
     # --- Extract segments and vias (single pass over tracks) ---
@@ -4501,6 +4546,7 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
         pads_by_net=pads_by_net,
         zones=zones,
         groups=groups,
+        duplicate_references=_dups_live,
         guide_paths=guide_paths,
         keepout_zones=keepout_zones,
         # #498 parity with parse_kicad_pcb: sibling-file discovery (.kicad_dru)
