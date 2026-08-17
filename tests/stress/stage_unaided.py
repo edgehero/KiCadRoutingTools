@@ -96,8 +96,55 @@ _LEAKY_PROJECT_KEYS = (
 )
 
 
-def sanitize_staged_project(out_board):
+#: What replaces a string that names the source. Not deletion: a run reading
+#: the staged project should see that something was withheld, rather than a
+#: project that looks like it never carried provenance at all.
+_REDACTED = '[redacted: named the source board]'
+
+
+def _redact_source_stem(node, stem, path=(), hits=None):
+    """Replace every string ANYWHERE in the project that names `stem`.
+
+    The key list above is a list of carriers known to leak, and this module's
+    own thesis is that the next carrier will have a different name. It does:
+    measured on tigard, the leak was
+    `kicad_routing_tools.floor_provenance._note` ("tigard is a KiCad 5
+    design...") and `.source`
+    (`https://raw.githubusercontent.com/tigard-tools/tigard/.../tigard.kicad_pcb`)
+    -- an annotation this repo writes itself, in a node no key list contained,
+    naming the upstream board and giving a URL that serves its original
+    placement. `fence_audit` caught it; the stager did not.
+
+    So the backstop is content-shaped rather than key-shaped: whatever key it
+    lives under, a string that spells the source's stem is a path back to the
+    original poses. Numbers are untouched, which is what keeps the #441 floor
+    intact -- every value the floor is graded at is numeric.
+    """
+    if hits is None:
+        hits = []
+    if isinstance(node, dict):
+        for k, v in list(node.items()):
+            if isinstance(v, str) and stem in v.lower():
+                node[k] = _REDACTED
+                hits.append('.'.join(path + (str(k),)))
+            else:
+                _redact_source_stem(v, stem, path + (str(k),), hits)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            if isinstance(v, str) and stem in v.lower():
+                node[i] = _REDACTED
+                hits.append('.'.join(path + (str(i),)))
+            else:
+                _redact_source_stem(v, stem, path + (str(i),), hits)
+    return hits
+
+
+def sanitize_staged_project(out_board, source_stem=None):
     """Strip the source's IDENTITY from the carried project; declare the rest.
+
+    `source_stem` is the SOURCE board's stem (e.g. `tigard`). Pass it: the
+    key list is a list of known carriers, and the stem sweep is what catches
+    the ones nobody has met yet. Omitting it keeps the old key-only behaviour.
 
     The project must travel -- without it the staged board grades at the
     stock netclass (#441), and on flat_hierarchy that is 0.2 -> 0.25 with the
@@ -146,6 +193,10 @@ def sanitize_staged_project(out_board):
             if isinstance(node, dict) and node.get(path[-1]):
                 node[path[-1]] = [] if path[-1] != 'last_paths' else {}
                 out['sanitized_keys'].append('.'.join(path))
+        if source_stem:
+            hits = _redact_source_stem(doc, source_stem.lower())
+            out['redacted_source_strings'] = hits
+            out['sanitized_keys'].extend(hits)
         with open(pro, 'w', encoding='utf-8') as f:
             json.dump(doc, f, indent=2)
         out['sha256'] = sha256_file(pro)
@@ -198,7 +249,8 @@ def stage(src, out_board, truth_dir=None, mechanical_out=None):
                                'new_rotation': 0.0})
     write_placed_output(src, out_board, placements)
     copy_siblings(src, out_board)
-    project = sanitize_staged_project(out_board)
+    project = sanitize_staged_project(
+        out_board, os.path.splitext(os.path.basename(src))[0])
 
     doc = {'schema': SCHEMA, 'kind': 'mechanical-declaration',
            'refs': exempt, 'reasons': reasons,

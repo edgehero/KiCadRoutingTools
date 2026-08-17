@@ -205,8 +205,13 @@ def main(src, workdir, truthdir, kinds=None):
     # blind work dir's board.kicad_pro read "watchy.kicad_pro", which is the
     # one thing this stager exists to withhold. Same treatment as
     # stage_unaided; `.kicad_prl` does not enter the work dir at all.
+    # The stem is passed so the sweep can run: tigard's project carried
+    # `kicad_routing_tools.floor_provenance` -- prose this repo authored, in a
+    # node no key list contained, naming the upstream board AND linking the
+    # URL that serves its original placement. `fence_audit --mode create`
+    # refused the staged work dir over it; the stager had reported success.
     from stage_unaided import sanitize_staged_project
-    sanitize_staged_project(out)
+    sanitize_staged_project(out, os.path.splitext(os.path.basename(src))[0])
 
     with open(os.path.join(truthdir, 'draw.json'), 'w', encoding='utf-8') as f:
         json.dump({'kind': kind, 'dose_mm': dose, 'seed': seed,

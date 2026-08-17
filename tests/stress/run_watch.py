@@ -89,8 +89,64 @@ ROUTING_KINDS = frozenset({'completion', 'routing'})
 POLL_SEC = 5.0
 
 
+def _self_output_ids():
+    """(dev, ino) of whatever this watcher's own stdout/stderr point at.
+
+    A watcher must not scan its own output, and this one did. Measured on run
+    21, which armed `bugs` with `*> wk/run21/tigard/watch_bugs.log` -- inside
+    --workdir, because that is where the run tees everything so the watchers
+    can see it. Every line the watcher emitted then matched a signature on the
+    next poll, so hit N quoted hit N-1 verbatim:
+
+        NOT-BUILDABLE assembly0.json:1934: "verdict": "NOT BUILDABLE",
+        NOT-BUILDABLE watch_bugs.log:2: NOT-BUILDABLE assembly0.json:1934: ...
+        NOT-BUILDABLE watch_bugs.log:3: NOT-BUILDABLE watch_bugs.log:2: ...
+
+    Two hits become four, four become eight, and the ONE real finding is buried
+    under nesting copies of itself. This is the same class as the `.md`
+    exclusion above -- narration is not an incident -- except self-amplifying,
+    so it destroys the log rather than padding it.
+
+    Identified by inode rather than by name because the redirect target is
+    chosen by whoever arms the watcher, not by this file; a name list would
+    only cover the convention this repo happens to use today. `_is_self_output`
+    keeps that convention as the fallback for platforms reporting st_ino 0.
+    """
+    ids = set()
+    for fd in (1, 2):
+        try:
+            st = os.fstat(fd)
+        except OSError:
+            continue
+        if st.st_ino:
+            ids.add((st.st_dev, st.st_ino))
+    return ids
+
+
+#: Computed once, at import: the redirect cannot change under a running watcher.
+_SELF_OUTPUT_IDS = _self_output_ids()
+
+
+def _is_self_output(path):
+    """Is this file a WATCHER's output rather than a tool's?
+
+    Own stdout/stderr by inode, and any sibling watcher's log by the
+    `watch_*.log` convention. The sibling half matters for liveness too: three
+    watchers polling each other's logs are activity that never came from the
+    run, so a stalled run would keep reporting as alive.
+    """
+    try:
+        st = os.stat(path)
+    except OSError:
+        return False
+    if st.st_ino and (st.st_dev, st.st_ino) in _SELF_OUTPUT_IDS:
+        return True
+    name = os.path.basename(path)
+    return name.startswith('watch_') and name.endswith('.log')
+
+
 def _walk(workdir, exts=SCAN_EXT):
-    """Files under `workdir` with one of `exts`.
+    """Files under `workdir` with one of `exts`, never a watcher's own output.
 
     Default is SCAN_EXT (tool output). `watch_timer` passes WATCHED_EXT, which
     adds the journal: liveness and scanning are different questions and want
@@ -99,8 +155,12 @@ def _walk(workdir, exts=SCAN_EXT):
     for root, dirs, files in os.walk(workdir):
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for name in sorted(files):
-            if name.endswith(exts):
-                yield os.path.join(root, name)
+            if not name.endswith(exts):
+                continue
+            path = os.path.join(root, name)
+            if _is_self_output(path):
+                continue
+            yield path
 
 
 def _unchanged(path, stamps):
