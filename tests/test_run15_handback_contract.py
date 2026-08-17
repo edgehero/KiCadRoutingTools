@@ -226,6 +226,51 @@ class HandbackContractTest(unittest.TestCase):
             self.assertIn('disclosed hand-assist', out,
                           name + ' must carry the hand-script disclosure duty')
 
+    def test_l2_tells_the_teammate_how_to_hand_back_a_long_step(self):
+        """A subagent cannot block on a detached process, so it must not try.
+
+        Both routing halves in run 20 returned "still working, I'll wait" --
+        because a teammate has no way to sit on a backgrounded step and be
+        woken when it exits. The orchestrator armed the wait itself and resumed
+        them twice, and each round trip cost a re-read of the whole context.
+
+        The prompt now names the shape: LOG / MARKER / NEXT, and says it is a
+        correct hand-back rather than a failure -- an agent that thinks it has
+        failed will keep trying to finish, which is the behaviour being fixed.
+        """
+        _placed, out = self._l2_prompt()
+        for token in ('LOG=', 'MARKER=', 'NEXT='):
+            self.assertIn(token, out,
+                          f'the hand-back shape must name {token}')
+        self.assertIn('--deadline', out,
+                      'a hand-back whose step never terminates turns one '
+                      'blocked agent into two')
+        self.assertIn('correct hand-back, not a', out,
+                      'a half that hands back correctly must not report it as '
+                      'a failure, or the parent reads it as one')
+        self.assertIn('written by the STEP', out,
+                      'a marker the HALF writes says the work finished when '
+                      'it has not started')
+
+    def test_the_routing_skill_documents_the_same_pattern(self):
+        """The driver prompt is where a teammate reads it; the skill is where a
+        human does. A pattern in only one of the two drifts."""
+        sk = os.path.join(ROOT, '.claude', 'skills', 'plan-pcb-routing',
+                          'SKILL.md')
+        with open(sk, encoding='utf-8') as fh:
+            txt = fh.read()
+        self.assertIn('CANNOT BLOCK ON A DETACHED PROCESS', txt)
+        self.assertIn('COMPLETION MARKER', txt)
+        # It has to sit WITH the deadline guidance: the two are the same
+        # problem seen from the two ends, and separating them is how one gets
+        # applied without the other.
+        self.assertLess(abs(txt.index('CANNOT BLOCK ON A DETACHED PROCESS')
+                            - txt.index('Pass `--deadline` on any step')),
+                        6000,
+                        'the hand-back pattern belongs beside the --deadline '
+                        'guidance -- a hand-back without a deadline is two '
+                        'blocked agents instead of one')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

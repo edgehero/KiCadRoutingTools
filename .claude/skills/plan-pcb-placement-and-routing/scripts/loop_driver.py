@@ -1316,6 +1316,17 @@ Return, and return ONLY:
   5. anything left UNGRADED, named as unexamined rather than clean.
 
 Do not summarise the process, and do not retype the numbers.
+
+IF A STEP RUNS LONG, HAND BACK -- do not wait on it. You cannot: a teammate has
+no way to sit on a backgrounded process and be woken when it exits, and both
+routing halves in run 20 returned "still working, I'll wait" for exactly that
+reason. Launch it detached WITH --deadline, then return three things and stop:
+  LOG=<where it is writing>   MARKER=<the file whose appearance means done>
+  NEXT=<what consumes it>
+This loop arms the wait and resumes you. That is a correct hand-back, not a
+failure -- report it as one and it will be read as one. The marker must be
+written by the STEP, never by you: a "done" file you write before returning says
+the work finished when it has not started.
 </subagent_prompt>
 
 When it returns, continue here with the paths it named. Do not retype its

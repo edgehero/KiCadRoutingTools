@@ -1408,6 +1408,37 @@ only in `check_floorplan`'s `outline` block.
      shell's, so a caller that does not re-count sees no error and the lap is
      gone. Prefer `--score-file` over `--score "$(cat …)"`.
 
+- **A DELEGATED HALF CANNOT BLOCK ON A DETACHED PROCESS. Hand back, do not
+  wait.** Both routing teammates in run 20 returned mid-route with "still
+  working, I'll wait" — because they could not: a subagent has no way to sit on
+  a backgrounded step and be woken when it exits. The orchestrator had to arm
+  the wait itself and resume the teammate twice, and each of those round trips
+  cost a re-read of the whole context.
+
+  So a half that launches a detached step **returns**, with three things and
+  nothing else:
+
+  | | |
+  |---|---|
+  | the LOG PATH | where the step is writing, so the parent can watch it |
+  | the COMPLETION MARKER | the file whose appearance means "done" (`--done`), or the exact string to wait for in the log |
+  | what to do with the result | which stage or command consumes it when it lands |
+
+  The parent arms the wait (a background `run_watch.py timer --done <marker>`,
+  or its own blocking read) and RESUMES the half when it fires. That is a
+  handback, not a failure, and it must not be reported as one: a half that says
+  "I have launched X, here is where it lands, wake me" has done its job
+  correctly.
+
+  Two things that make this work and are easy to drop:
+
+  * **The marker must be written by the STEP, not by the half.** A half that
+    writes its own "done" file before returning has told the parent the work
+    finished when it has not started.
+  * **Pair it with `--deadline`.** A handback whose step never terminates turns
+    one blocked agent into two, and the parent's wait has no more information
+    than the half's did.
+
   A `'NoneType' object has no attribute 'items'` from the plane fragility field
   was, for a long time, the *caller's* own `AttributeError` printed where the
   diagnosis should be — the real reason (a 300 s fill timeout) was computed and
