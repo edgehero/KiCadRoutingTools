@@ -417,6 +417,144 @@ def _rect_pts(r, rect):
     return [min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)]
 
 
+#: How many device pixels the SHORTFALL must span for a defect panel to be
+#: worth calling a picture of that defect. Below this the two spans -- measured
+#: and required -- are indistinguishable and the panel is a picture of the
+#: neighbourhood, not of the finding.
+DEFECT_MIN_PX = 16
+
+
+def _board_sha(path):
+    """sha256 of a board file, or None. The same binding board_score uses."""
+    try:
+        import hashlib
+        with open(path, 'rb') as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def load_defect_records(paths, board_sha=None):
+    """Read `defect-record` documents; return (defects, notes).
+
+    Each defect is stamped with the file it came from and the record's board
+    binding. A record whose `board_sha` does not match the board being rendered
+    is DROPPED with a loud note: drawing it would put a measurement from one
+    board on top of another, at coordinates that happen to be valid.
+    """
+    out, notes = [], []
+    for path in (paths or []):
+        try:
+            with open(path, encoding='utf-8') as fh:
+                doc = json.load(fh)
+        except Exception as exc:                            # noqa: BLE001
+            notes.append(f'--defect-json {path}: unreadable ({exc})')
+            continue
+        if doc.get('kind') != 'defect-record':
+            notes.append(f"--defect-json {path}: kind is "
+                         f"{doc.get('kind')!r}, not 'defect-record'")
+            continue
+        sha = doc.get('board_sha')
+        if board_sha and sha and sha != board_sha:
+            notes.append(
+                f'--defect-json {path}: board_sha {sha[:12]} does NOT match '
+                f'this board ({board_sha[:12]}) -- SKIPPED. Drawing it would '
+                f'put one board\'s measurement on another at coordinates that '
+                f'happen to be valid.')
+            continue
+        if board_sha and not sha:
+            notes.append(f'--defect-json {path}: no board_sha, so it cannot be '
+                         f'proven to describe this board -- drawn anyway')
+        for d in (doc.get('defects') or []):
+            out.append(dict(d, _source=path))
+    return out, notes
+
+
+def defect_view(defect, size_px, min_px=DEFECT_MIN_PX):
+    """(view, px_per_mm, shortfall_px) for one defect -- or (None, ...).
+
+    SCALE IS THE POINT. The run-20 board is 33.8 x 46.0 mm; at --size 1600 that
+    is ~35 px/mm, and the defect was 41 um -- 1.4 px. A render of the right
+    board at the wrong scale is not evidence, and no mandate in the chain ever
+    asked for a crop AT a routing failure.
+
+    So the crop is derived from the MEASUREMENT: tighten until `short_mm`
+    spans `min_px`. At size 1600 and short 0.0405 mm that is a 4.05 mm box,
+    which still frames both blocking pads.
+    """
+    at = defect.get('at') or {}
+    if at.get('x') is None or at.get('y') is None:
+        return None, None, None
+    short = ((defect.get('measure') or {}).get('short_mm')) or 0.0
+    if short <= 0:
+        # No shortfall to size against (a defect kind that does not carry one).
+        # Fall back to the record's own view rather than inventing a scale.
+        v = defect.get('view')
+        if not v:
+            return None, None, None
+        side = max(v[2] - v[0], v[3] - v[1])
+    else:
+        side = min(short * size_px / float(min_px),
+                   max((defect.get('view') or [0, 0, 4, 4])[2]
+                       - (defect.get('view') or [0, 0, 4, 4])[0], 0.5))
+        side = max(side, 4.0 * short)      # never so tight the span leaves frame
+    half = side / 2.0
+    view = (at['x'] - half, at['y'] - half, at['x'] + half, at['y'] + half)
+    ppmm = size_px / side if side else 0.0
+    return view, ppmm, (short * ppmm if short else 0.0)
+
+
+def draw_defects(d, r, defects):
+    """A ring at the throat, the MEASURED span solid, the REQUIRED span dashed.
+
+    At the scale `defect_view` picks, those two differ by >= DEFECT_MIN_PX --
+    which is the whole reason the crop is sized from the measurement instead of
+    from the parts.
+    """
+    for x in defects:
+        at = x.get('at') or {}
+        if at.get('x') is None:
+            continue
+        cx, cy = r.tf.pt(at['x'], at['y'])
+        rad = max(6, _w(r, ((x.get('measure') or {}).get('gap_mm') or 0.2) / 2.0))
+        d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad],
+                  outline=(255, 64, 64), width=max(2, _w(r, 0.01)))
+        span = x.get('span') or {}
+        a, b = span.get('a') or {}, span.get('b') or {}
+        if a.get('x') is None or b.get('x') is None:
+            continue
+        p0, p1 = r.tf.pt(a['x'], a['y']), r.tf.pt(b['x'], b['y'])
+        d.line([p0[0], p0[1], p1[0], p1[1]], fill=(255, 64, 64),
+               width=max(2, _w(r, 0.012)))
+        # The REQUIRED span: the same direction, scaled to what was needed.
+        m = x.get('measure') or {}
+        have, need = m.get('gap_mm'), m.get('gap_need_mm')
+        if not have or not need or have <= 0:
+            continue
+        k = float(need) / float(have)
+        mx, my = (p0[0] + p1[0]) / 2.0, (p0[1] + p1[1]) / 2.0
+        q0 = (mx + (p0[0] - mx) * k, my + (p0[1] - my) * k)
+        q1 = (mx + (p1[0] - mx) * k, my + (p1[1] - my) * k)
+        # ALONGSIDE, not on top. `need/have` here is 1.09, so the required span
+        # drawn from the same midpoint lies almost entirely over the measured
+        # one and the reader sees dashes with a little red at the ends -- the
+        # comparison the panel exists to make, hidden by the drawing order.
+        # Offset perpendicular by a few pixels and the two are two lines.
+        dx, dy = q1[0] - q0[0], q1[1] - q0[1]
+        _L = math.hypot(dx, dy) or 1.0
+        _off = max(5, _w(r, 0.02) * 3)
+        nx, ny = -dy / _L * _off, dx / _L * _off
+        _dash(d, (q0[0] + nx, q0[1] + ny), (q1[0] + nx, q1[1] + ny),
+              max(6, _w(r, 0.05)), max(4, _w(r, 0.03)),
+              (255, 200, 64), max(2, _w(r, 0.012)))
+        # End caps, so the two lengths can be compared at their ends rather
+        # than eyeballed along their middles.
+        for _q in (q0, q1):
+            d.line([_q[0] + nx * 0.2, _q[1] + ny * 0.2,
+                    _q[0] + nx * 1.8, _q[1] + ny * 1.8],
+                   fill=(255, 200, 64), width=max(2, _w(r, 0.012)))
+
+
 def _dash(d, p0, p1, on_px, off_px, fill, width):
     """PIL has no dashed line."""
     x0, y0 = p0
@@ -634,7 +772,7 @@ class PanelSpec:
 
     def __init__(self, model, *, view=None, side=None, prominent=(), moves=(),
                  hot_nets=(), blocker_nets=(), pick_nets=(), label='',
-                 opts=None):
+                 opts=None, defects=()):
         self.model = model
         self.view = view
         self.side = side
@@ -643,6 +781,7 @@ class PanelSpec:
         self.hot_nets = set(hot_nets)
         self.blocker_nets = set(blocker_nets)
         self.pick_nets = set(pick_nets)     # ids, from --ratsnest-nets
+        self.defects = list(defects)        # from --defect-json
         self.label = label
         self.o = opts or {}
 
@@ -704,6 +843,11 @@ def overlay_for(spec: PanelSpec):
             draw_arrows(d, r, spec.moves)
         if o.get('labels', True):
             draw_ref_labels(d, r, m, prom)
+        if spec.defects:
+            # LAST. A defect panel exists to show one thing; a ratsnest or a
+            # ref label drawn over it would be the picture failing at its only
+            # job.
+            draw_defects(d, r, spec.defects)
         if o.get('legend', True):
             draw_legend(d, r, spec)
     return _draw
@@ -722,15 +866,23 @@ def draw_legend(d, r, spec) -> None:
     Only the keys this panel can actually show are drawn -- a legend listing
     arrows on a panel with no --before is itself misinformation.
     """
-    rows = [(C_CONFLICT, 'dashed', 'pad copper off-board'),
-            (C_CONFLICT, 'ring', 'pad/hole clearance short'),
-            (C_CONFLICT, 'solid', 'BODY STACK - parts overlap'),
-            (C_HOLE, 'ring', 'NPTH keepout'),
-            (C_LOCKED, 'hatch', 'KiCad-locked (never moved)')]
-    if spec.moves:
-        rows.append((C_ARROW, 'arrow', 'moved since --before'))
-    if spec.hot_nets:
-        rows.append((C_AIR_FAIL, 'line', 'failed net'))
+    if getattr(spec, 'defects', None):
+        # A defect panel's marks are its whole point, so they are the ONLY
+        # legend on it. Listing the legality key beside them would invite the
+        # reader to hunt for findings the crop was not sized to show.
+        rows = [(C_CONFLICT, 'solid', 'MEASURED gap (the throat)'),
+                ((255, 200, 64), 'dashed', 'REQUIRED gap (what would fit)'),
+                (C_CONFLICT, 'ring', 'throat location')]
+    else:
+        rows = [(C_CONFLICT, 'dashed', 'pad copper off-board'),
+                (C_CONFLICT, 'ring', 'pad/hole clearance short'),
+                (C_CONFLICT, 'solid', 'BODY STACK - parts overlap'),
+                (C_HOLE, 'ring', 'NPTH keepout'),
+                (C_LOCKED, 'hatch', 'KiCad-locked (never moved)')]
+        if spec.moves:
+            rows.append((C_ARROW, 'arrow', 'moved since --before'))
+        if spec.hot_nets:
+            rows.append((C_AIR_FAIL, 'line', 'failed net'))
     try:
         # Overlays draw on the SUPERSAMPLED canvas, which is `ss` times the
         # output size -- so `r.H` (the output height) put the legend at 1/ss of
@@ -1139,6 +1291,16 @@ Examples:
                    help='how blocks are derived (default: auto = kicad,sheet)')
     p.add_argument('--list-groups', action='store_true',
                    help='list the blocks --group-by would derive, and exit')
+    p.add_argument('--defect-json', action='append', default=None,
+                   metavar='PATH',
+                   help='a `defect-record` document (check_reachability '
+                        '--defect-json). Repeatable. Each defect gets its own '
+                        'panel, cropped tight enough that the SHORTFALL is at '
+                        'least 16 px -- a 41um throat on a 34mm board at the '
+                        'default scale is 1.2 px, which is why run 20 had '
+                        'renders of the right board that could not show the '
+                        'defect. Records whose board_sha does not match are '
+                        'reported and skipped.')
     p.add_argument('--focus', action='store_true',
                    help='also emit one cropped panel per failed-net cluster')
     p.add_argument('--focus-gap', type=float, default=10.0, metavar='MM')
@@ -1489,8 +1651,58 @@ def main(argv=None):
                                 label=(f"AFTER {tag}" if before_model is not None
                                        else tag),
                                 opts=opts))
+    # DEFECT PANELS FIRST, and before either --focus branch. A defect record
+    # carries an AUTHORITATIVE coordinate -- the instrument that measured the
+    # throat says where it is -- where `cluster_points` derives a view from pad
+    # positions and its own docstring apologises for exactly that. When both
+    # are available the measured one wins.
+    _defects, _dnotes = load_defect_records(
+        getattr(args, 'defect_json', None), board_sha=_board_sha(args.board))
+    for _n in _dnotes:
+        print(f'  {_n}', file=sys.stderr)
+    _defect_panels = []
+    for i, _dx in enumerate(_defects):
+        _dv, _ppmm, _spx = defect_view(_dx, args.size)
+        if _dv is None:
+            print(f'  --defect-json: defect {i + 1} carries no `at` coordinate '
+                  f'and no view -- no panel', file=sys.stderr)
+            continue
+        _m = _dx.get('measure') or {}
+        _who = '<->'.join((_dx.get('pads') or _dx.get('refs') or ['?'])[:2])
+        # The HONESTY LINE. If the shortfall still does not span the threshold
+        # the caption says so instead of shipping a picture that implies it does.
+        _scale = (f'{_ppmm:.0f} px/mm -> {_spx:.0f} px'
+                  if _spx >= DEFECT_MIN_PX - 0.5
+                  else f'{_ppmm:.0f} px/mm -> {_spx:.1f} px INVISIBLE AT THIS '
+                       f'SCALE')
+        _lbl = (f"defect {i + 1}/{len(_defects)} {_dx.get('kind', '?')} {_who}"
+                + (f" | {_m['gap_mm']:.4f}/{_m['gap_need_mm']:.4f}mm short "
+                   f"{1000.0 * _m['short_mm']:.1f}um"
+                   if _m.get('gap_mm') is not None
+                   and _m.get('short_mm') is not None else '')
+                + f' | {_scale}')
+        # The record names a COPPER LAYER; this tool's `side` vocabulary is
+        # 'F'/'B'/None. Passing 'F.Cu' through compared unequal to every part's
+        # side and dimmed the whole crop. An inner-layer throat has no side, so
+        # both are drawn at full brightness -- which is the honest answer.
+        _lay = ((_dx.get('at') or {}).get('layer') or '')
+        _side = {'F.Cu': 'F', 'B.Cu': 'B'}.get(_lay)
+        _defect_panels.append(PanelSpec(
+            model, view=_dv, side=_side,
+            prominent=set(_dx.get('refs') or ()) or prominent, moves=moves,
+            hot_nets=failed, blocker_nets=blockers, pick_nets=pick,
+            defects=[_dx],
+            # Airwires OFF on a defect panel. They are the biggest source of
+            # visual noise on a dense board and here they cross the finding
+            # itself -- on the run-20 crop, a dozen grey lines through the one
+            # 16-px measurement the panel exists to show. The label already
+            # names the net, which is what the ratsnest would have told you.
+            opts=dict(opts, ratsnest=False),
+            label=_lbl))
+    panels.extend(_defect_panels)
+
     _leg_pockets = []
-    if args.focus and not args.summary_json:
+    if args.focus and not args.summary_json and not _defect_panels:
         # Run-4 G7 made --focus warn here, because its clusters came from the
         # route summary's failed nets and without one it emitted a single panel
         # and said nothing. But the same question -- one pocket or scattered --
@@ -1603,6 +1815,26 @@ def main(argv=None):
             'moved_refs': [{'reference': m['reference'],
                             'dist': round(m['dist'], 4)} for m in moves],
             'failed_nets': sorted(failed), 'blocker_nets': sorted(blockers),
+            # The defects this render was ASKED to show, and what it managed
+            # to show them at. `shortfall_px` is the honesty figure: a reader
+            # (or `_guard_route_render`) can tell a picture OF the defect from
+            # a picture of its neighbourhood without opening the png.
+            'defects': [{'kind': dx.get('kind'), 'net': dx.get('net'),
+                         'refs': dx.get('refs'), 'pads': dx.get('pads'),
+                         'at': dx.get('at'),
+                         'short_mm': (dx.get('measure') or {}).get('short_mm'),
+                         'source': dx.get('_source')} for dx in _defects],
+            'defect_panels': [
+                {'label': sp.label, 'view': sp.view,
+                 'px_per_mm': (round(args.size / (sp.view[2] - sp.view[0]), 2)
+                               if sp.view and sp.view[2] > sp.view[0] else None),
+                 'shortfall_px': (round(
+                     ((sp.defects[0].get('measure') or {}).get('short_mm') or 0)
+                     * args.size / (sp.view[2] - sp.view[0]), 2)
+                     if sp.view and sp.view[2] > sp.view[0] and sp.defects
+                     else None),
+                 'min_px': DEFECT_MIN_PX}
+                for sp in _defect_panels],
             'metrics': dict(model.metrics),
             # The instrument block (run-4 G2): two renders of the SAME board
             # differing only in --ignore-nets read 632 vs 412 crossings in
@@ -1614,6 +1846,13 @@ def main(argv=None):
                 'before': os.path.abspath(args.before) if args.before else None,
                 'summary_json': (os.path.abspath(args.summary_json)
                                  if args.summary_json else None),
+                # Mirrors summary_json, so a gate can assert a defect render
+                # was made from a record the same way _guard_route_render
+                # already asserts a focus render was made from a route log.
+                'defect_json': [os.path.abspath(x)
+                                for x in (getattr(args, 'defect_json', None)
+                                          or [])],
+                'defect_notes': _dnotes,
                 # `clearance` used to record args.clearance, i.e. None on
                 # every run that did not pass the flag -- so the document
                 # named no clearance at all for the runs most likely to be
