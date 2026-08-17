@@ -3245,6 +3245,93 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
     except Exception:
         pad_pairs_open_report = []
 
+    # REQUESTED vs DELIVERED width. Nothing in this chain checked that a width
+    # it asked for actually landed. Measured on run 20's own delivered board
+    # against its own `--power-nets-widths 0.3 0.3 0.4 0.3`:
+    #
+    #     +3V3   narrowest 0.15 vs 0.3 requested   103 of 226 segments under
+    #     GND    narrowest 0.15 vs 0.3             59 of 60
+    #     VBUS   narrowest 0.20 vs 0.4              2 of 73
+    #     VDD    narrowest 0.15 vs 0.3              1 of 2
+    #
+    # None is a floor violation -- every segment is at or above the declared
+    # min_track_width -- so no checker had anything to say. The run asked for
+    # 0.3/0.3/0.4/0.3 and mostly got 0.15, and the only reason anybody found out
+    # was measuring the copper by hand afterwards.
+    #
+    # TAP segments are separated from TRUNK ones, and that is what makes this
+    # actionable rather than noisy: a power trace deliberately necks down to
+    # reach a pad narrower than the request, so counting those as shortfalls
+    # would flag correct copper on every board. Only a TRUNK segment under the
+    # request is a finding.
+    try:
+        _pw = getattr(config, 'power_net_widths', None) or {}
+        if _pw:
+            # `pads_by_net` rather than walking footprints: it is the net's own
+            # pad list, it is what the rest of this file uses, and a PCBData
+            # built without footprints (the GUI's in-memory path, and every
+            # synthetic fixture) still has it. Walking footprints found nothing
+            # on such a board and silently classified every neckdown as a
+            # shortfall -- the exact noise this separation exists to avoid.
+            _pad_w = {}
+            for _nid in _pw:
+                for _p in (pcb_data.pads_by_net.get(_nid) or ()):
+                    _pad_w.setdefault(_nid, []).append(
+                        (_p.global_x, _p.global_y,
+                         min(_p.size_x or 9e9, _p.size_y or 9e9)))
+            _rep = {}
+            for _nid, _req in sorted(_pw.items()):
+                _segs = [s for s in pcb_data.segments
+                         if s.net_id == _nid and s.width]
+                if not _segs:
+                    continue
+                _under = _tap = 0
+                for _s in _segs:
+                    if _s.width >= _req - 1e-9:
+                        continue
+                    # A tap: an END lands on a pad of this net whose own
+                    # narrow dimension is below the request, so the neckdown
+                    # is the pad's doing, not the router's.
+                    _is_tap = False
+                    for _px, _py, _pw_min in _pad_w.get(_nid, ()):
+                        if _pw_min >= _req - 1e-9:
+                            continue
+                        for _ex, _ey in ((_s.start_x, _s.start_y),
+                                         (_s.end_x, _s.end_y)):
+                            if abs(_ex - _px) <= 0.6 and abs(_ey - _py) <= 0.6:
+                                _is_tap = True
+                                break
+                        if _is_tap:
+                            break
+                    if _is_tap:
+                        _tap += 1
+                    else:
+                        _under += 1
+                _nm = (pcb_data.nets[_nid].name if _nid in pcb_data.nets
+                       else f'net_{_nid}')
+                _rep[_nm] = {'requested_mm': round(float(_req), 4),
+                             'narrowest_mm': round(min(s.width for s in _segs), 4),
+                             'segments_total': len(_segs),
+                             'segments_under': _under,
+                             'tap_segments': _tap}
+            if _rep:
+                summary['power_widths'] = _rep
+                _bad = {n: r for n, r in _rep.items() if r['segments_under']}
+                if _bad:
+                    print(f"{RED}  WARNING: requested power width NOT delivered "
+                          f"on {len(_bad)} net(s) -- widths are REQUESTS, and "
+                          f"nothing else in this chain measures the copper:"
+                          f"{RESET}")
+                    for _n, _r in sorted(_bad.items()):
+                        print(f"    requested {_r['requested_mm']:g}mm on {_n}; "
+                              f"{_r['segments_under']} of "
+                              f"{_r['segments_total']} trunk segment(s) "
+                              f"delivered at {_r['narrowest_mm']:g}mm"
+                              + (f" ({_r['tap_segments']} pad tap(s) excluded)"
+                                 if _r['tap_segments'] else ""))
+    except Exception:
+        pass
+
     # #487: trace-side ampacity for the POWER nets this call sized (the IPC
     # model was plane-only; a routed power trace's capacity went unreported).
     # Bottleneck segment at the layer's stackup copper weight; report-only,
