@@ -133,12 +133,19 @@ def merge_summaries(summaries: List[Dict], aborted: bool = False) -> Optional[Di
                 merged['pad_pairs_connected'] = first.get('pad_pairs_connected', 0)
                 if 'pad_pairs_open' in first:
                     merged['pad_pairs_open'] = first['pad_pairs_open']
-        if 'blockers' in first and 'blockers' not in merged:
-            _failed = set(merged.get('failed_single') or [])
-            _failed |= {d.get('net_name') if isinstance(d, dict) else d
-                        for d in (merged.get('failed_multipoint') or [])}
-            merged['blockers'] = [e for e in first['blockers']
-                                  if e.get('net') in _failed]
+        # `blockers` and `boxed_in` are both first-pass attribution: the
+        # reconcile sub-run re-routes a SUBSET and its summary carries neither,
+        # so without this a merged summary loses the evidence for nets that are
+        # still failing. Filtered to the nets that ARE still failing, so a net
+        # the reconcile fixed does not carry a stale accusation.
+        _failed = None
+        for _k in ('blockers', 'boxed_in'):
+            if _k in first and _k not in merged:
+                if _failed is None:
+                    _failed = set(merged.get('failed_single') or [])
+                    _failed |= {d.get('net_name') if isinstance(d, dict) else d
+                                for d in (merged.get('failed_multipoint') or [])}
+                merged[_k] = [e for e in first[_k] if e.get('net') in _failed]
 
     # Coverage-gate nets have NO routed result, so their pads never reach
     # multipoint_pads_total and a caller's

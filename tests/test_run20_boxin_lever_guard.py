@@ -293,8 +293,67 @@ check('a blank reason does NOT waive it',
 
 _BAD = os.path.join(_D, 'missing.json')
 out = _l4('--route-summary', _BAD)
-check('an unreadable summary is a NOTE, never a refusal',
-      '<error>' not in out and 'unreadable' in out, out[:400])
+check('a summary that cannot be read is a NOTE, never a refusal',
+      '<error>' not in out and 'no such file' in out and 'not checked' in out,
+      out[:400] + ' -- the loader now says WHICH way it failed (missing / not '
+      'JSON / no JSON_SUMMARY line) instead of one word for all three')
+
+print('--- --route-summary must accept the artifact L2 tells you to make ---')
+# L2's contract hands the operator `route.log -- the one carrying JSON_SUMMARY`.
+# `--route-summary` used to json.load it, fail, and SKIP the box-in
+# precondition with a NOTE -- so the guard that exists to stop 40 minutes of
+# futile grid laps was off for anyone who passed the artifact the loop asked
+# for, and it failed OPEN.
+_LOG = os.path.join(_D, 'route.log')
+with open(_LOG, 'w', encoding='utf-8') as fh:
+    fh.writelines([
+        'Loading board...',
+        os.linesep,
+        'JSON_SUMMARY: ' + json.dumps({
+            'failed_single': ['BUSY'], 'routed_single': [],
+            'boxed_in': [{'net': 'BUSY', 'verdict': 'boxed_in_static',
+                          'iterations': 812,
+                          'geometry': {'grid_step': 0.05, 'clearance': 0.15,
+                                       'track_width': 0.15},
+                          'floors': {'clearance': 0.15,
+                                     'track_width': 0.15},
+                          'at_floor': True}]}),
+        os.linesep,
+        'EXIT=1',
+        os.linesep,
+    ])
+out = _l4('--route-summary', _LOG)
+check('a route LOG drives the guard, not just a bare JSON summary',
+      '<error>' in out and 'boxed in by STATIC obstacles' in out,
+      out[:400] + ' -- it used to skip the check with a NOTE and open the stage')
+
+_NEITHER = os.path.join(_D, 'notes.txt')
+with open(_NEITHER, 'w', encoding='utf-8') as fh:
+    fh.write('just some prose')
+out = _l4('--route-summary', _NEITHER)
+check('a file that is neither says WHICH it is not, and does not refuse',
+      '<error>' not in out and 'neither a summary nor a route log' in out,
+      out[:400])
+
+print('--- boxed_in survives the reconcile merge ---')
+# `merge_summaries` rebuilt `blockers` from the first pass when the last one
+# lacked it and did nothing for `boxed_in` -- so on any run that fires the
+# reconciliation sub-pass (the common case) the key vanished and the guard went
+# silent on exactly the run it exists for.
+from route_summary import merge_summaries                          # noqa: E402
+_first = {'failed_single': ['BUSY', 'SCK'], 'routed_single': [],
+          'blockers': [{'net': 'SCK', 'blocked_by': []}],
+          'boxed_in': [{'net': 'BUSY', 'at_floor': True},
+                       {'net': 'FIXED', 'at_floor': True}]}
+_last = {'failed_single': ['BUSY', 'SCK'], 'routed_single': []}
+_m = merge_summaries([_first, _last]) or {}
+check('a merged summary keeps boxed_in, as it already kept blockers',
+      [e['net'] for e in (_m.get('boxed_in') or ())] == ['BUSY'],
+      f"{_m.get('boxed_in')} -- and FIXED is dropped because it is no longer "
+      f"failing, so a reconciled net carries no stale accusation")
+check('...and blockers still behaves exactly as before',
+      [e['net'] for e in (_m.get('blockers') or ())] == ['SCK'],
+      str(_m.get('blockers')))
 
 print('--- the skill says the same thing, in the row that misdirected ---')
 _SK = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'SKILL.md')

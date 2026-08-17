@@ -208,6 +208,45 @@ def _score_board_mismatch(board, payload):
 _CONGESTION_RATIO = 0.25
 
 
+def _load_route_summary(path):
+    """(summary, err). Accepts a bare JSON file OR a route LOG.
+
+    The loop's own L2 contract hands the operator `route.log -- the one carrying
+    JSON_SUMMARY`, and `--route-summary` used to `json.load` it, fail, and skip
+    the box-in precondition with a NOTE. The guard that exists to stop run 20's
+    40 minutes of futile grid laps was therefore OFF for anyone who passed the
+    artifact the loop told them to produce, and it failed OPEN.
+
+    Delegates to `route_summary.merge_route_summaries`, which is also what
+    `render_placement --summary-json` uses. NOT a "take the last JSON_SUMMARY"
+    scan: a run that fires the reconciliation sub-pass emits a SECOND summary
+    scoped to that subset, so the last line is the subset's tally, not the
+    run's -- route.py says so in its own comment.
+    """
+    if not path:
+        return None, ''
+    if not os.path.isfile(path):
+        return None, f'--route-summary {path}: no such file'
+    try:
+        txt = open(path, encoding='utf-8', errors='replace').read()
+    except OSError as exc:
+        return None, f'--route-summary {path}: unreadable ({exc})'
+    try:
+        return json.loads(txt), ''
+    except ValueError:
+        pass
+    try:
+        from route_summary import merge_route_summaries
+        merged = merge_route_summaries(txt)
+    except Exception as exc:                                # noqa: BLE001
+        return None, (f'--route-summary {path}: not JSON, and the log parse '
+                      f'failed ({type(exc).__name__}: {exc})')
+    if not merged:
+        return None, (f'--route-summary {path}: no JSON_SUMMARY line in it, so '
+                      f'it is neither a summary nor a route log')
+    return merged, ''
+
+
 def _guard_static_boxin(a):
     """(ok, why) -- refuse a GRID lever the router has already said cannot help.
 
@@ -234,13 +273,10 @@ def _guard_static_boxin(a):
     """
     if not getattr(a, 'route_summary', None):
         return True, ''
-    try:
-        with open(a.route_summary, encoding='utf-8') as fh:
-            summary = json.load(fh)
-    except Exception as exc:                                # noqa: BLE001
-        return True, (f'  NOTE: --route-summary {a.route_summary} is unreadable '
-                      f'({exc}), so the static-boxin precondition was not '
-                      f'checked.')
+    summary, _serr = _load_route_summary(a.route_summary)
+    if _serr:
+        return True, (f'  NOTE: {_serr}, so the static-boxin precondition was '
+                      f'not checked.')
     boxed = summary.get('boxed_in') or []
     if not boxed:
         return True, ''
@@ -1623,11 +1659,9 @@ def _propose_shape(a):
             notes.append(f'{path}: unreadable ({exc})')
     summary = None
     if getattr(a, 'route_summary', None):
-        try:
-            with open(a.route_summary, encoding='utf-8') as fh:
-                summary = json.load(fh)
-        except Exception as exc:                            # noqa: BLE001
-            notes.append(f'{a.route_summary}: unreadable ({exc})')
+        summary, _serr = _load_route_summary(a.route_summary)
+        if _serr:
+            notes.append(_serr)
     if not read and summary is None and not notes:
         return ''
 
