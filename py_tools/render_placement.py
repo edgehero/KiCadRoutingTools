@@ -473,14 +473,22 @@ def load_defect_records(paths, board_sha=None):
 def defect_view(defect, size_px, min_px=DEFECT_MIN_PX):
     """(view, px_per_mm, shortfall_px) for one defect -- or (None, ...).
 
-    SCALE IS THE POINT. The run-20 board is 33.8 x 46.0 mm; at --size 1600 that
-    is ~35 px/mm, and the defect was 41 um -- 1.4 px. A render of the right
-    board at the wrong scale is not evidence, and no mandate in the chain ever
-    asked for a crop AT a routing failure.
+    NOT A NEW ZOOM. `--view`, `--zoom-group` and `--focus` have all been here
+    for a long time and are good; the whole board at --size 1600 is ~35 px/mm,
+    where a 41 um defect is 1.4 px, and `--view` around the throat fixes that
+    in one flag. What was missing was the TARGET and the AMOUNT:
 
-    So the crop is derived from the MEASUREMENT: tighten until `short_mm`
+      * the target -- the throat coordinate was computed inside `widest_path`
+        and thrown away at `return float(val)`, so nothing could tell you where
+        to point `--view`. The only coordinate `check_reachability` printed was
+        the SEED pad, and on run 20 the throat was 0.66 mm from it.
+      * the amount -- there was no rule for how tight to crop, and no feedback
+        on whether the finding was resolvable in the box you chose.
+
+    So this derives the view from the MEASUREMENT: tighten until `short_mm`
     spans `min_px`. At size 1600 and short 0.0405 mm that is a 4.05 mm box,
-    which still frames both blocking pads.
+    which still frames both blocking pads. The caller can always override it
+    with `--view`; this only removes the guesswork.
     """
     at = defect.get('at') or {}
     if at.get('x') is None or at.get('y') is None:
