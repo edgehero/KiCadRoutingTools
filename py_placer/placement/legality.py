@@ -280,6 +280,44 @@ class BoardOutlineGate:
             self._edges = out
         return self._edges
 
+    def _ring_edge_set(self, skip_rings) -> frozenset:
+        """The EDGES belonging to `skip_rings`, as a set for exact filtering.
+
+        Ring ids index `cutouts + milled` (the `_swallow_pts` convention), which
+        is NOT the ordering of `self.rings` -- so the mapping is done from the
+        source lists rather than by index into `edges()`. Edges are built from
+        the same vertex tuples in both places, so equality is exact; both
+        orientations are stored because `edges()` walks each ring in one
+        direction only and a future caller might not.
+
+        Cached: `rect_blocked` is called in the innermost candidate loop.
+        """
+        if not skip_rings:
+            return frozenset()
+        key = frozenset(skip_rings)
+        cache = getattr(self, '_ring_edge_cache', None)
+        if cache is None:
+            cache = self._ring_edge_cache = {}
+        hit = cache.get(key)
+        if hit is not None:
+            return hit
+        out = set()
+        for rid in key:
+            if rid < len(self.cutouts):
+                ring = self.cutouts[rid]
+            elif rid - len(self.cutouts) < len(self.milled):
+                ring = self.milled[rid - len(self.cutouts)]
+            else:
+                continue
+            n = len(ring)
+            for i in range(n):
+                a, b = ring[i], ring[(i + 1) % n]
+                out.add((a[0], a[1], b[0], b[1]))
+                out.add((b[0], b[1], a[0], a[1]))
+        hit = frozenset(out)
+        cache[key] = hit
+        return hit
+
     # -- level 2: cached reachability prune
     def edges_near(self, key, seed_rect, travel: float, center=None) -> list:
         """Cached: the ring edges a part seeded at `seed_rect` could ever bring
@@ -409,9 +447,26 @@ class BoardOutlineGate:
         `edges_near`; omitted, every ring edge is measured.
 
         `skip_rings` (from `rings_enclosing`) exempts the tested part's OWN
-        milled rings from the swallow probe -- a connector over its own milled
-        relief may swallow it, and without this it is judged board-violating at
-        its own hand-placed pose.
+        milled rings -- a connector over its own milled relief may swallow it,
+        and without this it is judged board-violating at its own hand-placed
+        pose.
+
+        THE EXEMPTION COVERS THE EDGE-MARGIN TEST TOO, not only the swallow
+        probe. It did not, and the omission made the exemption almost useless:
+        a part whose own pads caused a contour to be reclassified as an inner
+        milled edge still had every pose within `margin` of that contour
+        vetoed -- which, for a part sitting INSIDE its own relief, is every
+        pose there is. Measured on run 20's SW2, which owns the strap slot its
+        two NPTH posts sit in: 0 legal poses of 14884 at the board's own
+        floors, and at margin 0, 508 of 9604 -- all at rot 0/180, none at SW2's
+        own rot 270. `place_optimize` with SW2 free and 83 refs locked moved it
+        0 mm with the edge term as the entire objective; `place_reconstruct`
+        reported "no legal pose within any cap". The run had to declare SW2 an
+        `edge_actuator` and waive it permanently.
+
+        PER-PART, never global: the ring stays a hard edge for every other
+        part, and `rings_enclosing` only ever returns MILLED ids, so the outer
+        outline and the genuine cutouts can never be exempted by this path.
         """
         from check_drc import _point_on_board, _seg_seg_dist_coords
         x0, y0, x1, y1 = rect
@@ -420,6 +475,9 @@ class BoardOutlineGate:
                 return True
         near = self._edges_touching(
             rect, self.edges() if edges is None else edges)
+        _own = self._ring_edge_set(skip_rings)
+        if _own:
+            near = [e for e in near if e not in _own]
         for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1),
                                  (x1, y1, x0, y1), (x0, y1, x0, y0)):
             for (ex1, ey1, ex2, ey2) in near:
@@ -481,6 +539,14 @@ class BoardOutlineGate:
         # `_edges_touching` selects exactly those -- so this stays the same
         # number while measuring against a short list. See its docstring.
         near = self._edges_touching(rect, use)
+        # Same exemption as rect_blocked's, and it MUST be the same: the two
+        # functions' agreement is what makes `violation() == 0` imply `not
+        # rect_blocked()`. Exempting the owned ring in one and not the other
+        # would give a part a legal verdict and a non-zero cost at the same
+        # pose, which every acceptance rule downstream reads as a regression.
+        _own = self._ring_edge_set(skip_rings)
+        if _own:
+            near = [e for e in near if e not in _own]
         for (ax, ay, bx, by) in ((x0, y0, x1, y0), (x1, y0, x1, y1),
                                  (x1, y1, x0, y1), (x0, y1, x0, y0)):
             d = min((_seg_seg_dist_coords(ax, ay, bx, by, *e) for e in near),
