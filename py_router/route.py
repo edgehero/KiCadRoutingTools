@@ -17,6 +17,11 @@ import env_knobs
 import sys
 import os
 import copy
+import math  # the power-width tap test rotates a point into pad-local space.
+             # THIRD time on this branch that a name was used without a
+             # module-scope import (record_net_event, sys, now math) -- the
+             # first one crashed route.py on every board where a reroute
+             # succeeded, so this is checked rather than assumed now.
 
 # Run startup checks before other imports
 from startup_checks import exit_on_error_if_main
@@ -294,6 +299,99 @@ def _finalize_depth(delta: int) -> None:
 
 def _plane_finalize_active() -> bool:
     return _PLANE_FINALIZE_DEPTH > 0
+
+
+def power_width_report(pcb_data, power_net_widths):
+    """{net: {requested_mm, narrowest_mm, segments_total, segments_under,
+    tap_segments}} -- did the width we ASKED for actually land?
+
+    A MODULE-LEVEL function, not an inline block, because the block version was
+    untestable: the only test that claimed to witness it on a real board
+    recomputed the numbers itself with a one-line comprehension and never
+    executed a line of the shipped logic. It therefore asserted the RAW
+    under-count while the shipped code emitted the tap-subtracted one, and
+    passed while the two disagreed. `route.py` and the test now call the same
+    function, so that particular lie is not available any more.
+
+    TAP vs TRUNK is the whole point. A power trace deliberately necks down to
+    reach a pad narrower than the request, so counting those as shortfalls
+    would flag correct copper on every board and the number would be ignored.
+    A segment is a TAP when an end lands on the COPPER of a same-net pad whose
+    own narrow dimension is below the request, on a layer that pad is actually
+    on.
+
+    Both halves of that were wrong in the first version, and both were measured
+    on wk/run20/routed.kicad_pcb:
+
+      * a fixed 0.6mm box around the pad CENTRE. A track ending 0.9mm into a
+        2.0mm-long pad was "not on it", while one ending 0.6mm away in free
+        space was. Landing FURTHER onto a pad flipped a tap into a shortfall --
+        on every SOT-223 tab, thermal paddle and edge finger.
+      * no layer test at all, so an F.Cu-only SMD pad excused a segment on
+        B.Cu: 3 of +3V3's 20 exclusions, one of them a 5.275mm B.Cu trunk at
+        half the requested width.
+
+    Returns {} when nothing was requested. Never raises on a malformed board --
+    a missing coordinate returns a partial report rather than taking the route
+    down with it.
+    """
+    from kicad_parser import pad_is_plated_through as _ppt
+    pw = dict(power_net_widths or {})
+    if not pw:
+        return {}
+    pads_by_net = {}
+    for nid in pw:
+        for q in (pcb_data.pads_by_net.get(nid) or ()):
+            if q.global_x is None or q.global_y is None:
+                continue
+            pads_by_net.setdefault(nid, []).append(
+                (q.global_x, q.global_y,
+                 (q.size_x or 0.0) / 2.0, (q.size_y or 0.0) / 2.0,
+                 min(q.size_x or 9e9, q.size_y or 9e9),
+                 getattr(q, 'rect_rotation', 0.0) or 0.0,
+                 set(q.layers or ()), bool(_ppt(q))))
+    out = {}
+    for nid, req in sorted(pw.items()):
+        segs = [s for s in pcb_data.segments if s.net_id == nid and s.width]
+        if not segs:
+            continue
+        under = tap = 0
+        for sg in segs:
+            if sg.width >= req - 1e-9:
+                continue
+            tol = sg.width / 2.0            # the track's own copper reach
+            is_tap = False
+            for (px, py, hx, hy, pmin, rot, lay,
+                 through) in pads_by_net.get(nid, ()):
+                if pmin >= req - 1e-9:
+                    continue
+                # A barrel is on every layer; an SMD pad only on its own.
+                if (not through and lay and sg.layer not in lay
+                        and '*.Cu' not in lay):
+                    continue
+                for ex, ey in ((sg.start_x, sg.start_y), (sg.end_x, sg.end_y)):
+                    dx, dy = ex - px, ey - py
+                    if rot:
+                        th = math.radians(-rot)
+                        dx, dy = (dx * math.cos(th) - dy * math.sin(th),
+                                  dx * math.sin(th) + dy * math.cos(th))
+                    if abs(dx) <= hx + tol and abs(dy) <= hy + tol:
+                        is_tap = True
+                        break
+                if is_tap:
+                    break
+            if is_tap:
+                tap += 1
+            else:
+                under += 1
+        nm = (pcb_data.nets[nid].name if nid in pcb_data.nets
+              else f'net_{nid}')
+        out[nm] = {'requested_mm': round(float(req), 4),
+                   'narrowest_mm': round(min(s.width for s in segs), 4),
+                   'segments_total': len(segs),
+                   'segments_under': under,
+                   'tap_segments': tap}
+    return out
 
 
 def batch_route(input_file: str, output_file: str, net_names: List[str],
@@ -3247,88 +3345,43 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
 
     # REQUESTED vs DELIVERED width. Nothing in this chain checked that a width
     # it asked for actually landed. Measured on run 20's own delivered board
-    # against its own `--power-nets-widths 0.3 0.3 0.4 0.3`:
+    # against its own `--power-nets-widths 0.3 0.3 0.4 0.3`, as the SHIPPED
+    # classifier reports it (trunk shortfalls, taps excluded):
     #
-    #     +3V3   narrowest 0.15 vs 0.3 requested   103 of 226 segments under
-    #     GND    narrowest 0.15 vs 0.3             59 of 60
-    #     VBUS   narrowest 0.20 vs 0.4              2 of 73
-    #     VDD    narrowest 0.15 vs 0.3              1 of 2
+    #     +3V3   narrowest 0.15 vs 0.3 requested    86 trunk of 226 under
+    #     GND    narrowest 0.15 vs 0.3              59 of 60
+    #     VBUS   narrowest 0.20 vs 0.4               1 of 73
+    #     VDD    narrowest 0.15 vs 0.3               0 of 2  (its one under-width
+    #                                                 segment is a pad tap)
+    #
+    # The RAW under-counts, before the tap separation, are 103 / 59 / 2 / 1 --
+    # and those are the numbers the first version of this comment quoted, which
+    # made the code and its own documentation disagree about VDD entirely.
     #
     # None is a floor violation -- every segment is at or above the declared
-    # min_track_width -- so no checker had anything to say. The run asked for
-    # 0.3/0.3/0.4/0.3 and mostly got 0.15, and the only reason anybody found out
-    # was measuring the copper by hand afterwards.
-    #
-    # TAP segments are separated from TRUNK ones, and that is what makes this
-    # actionable rather than noisy: a power trace deliberately necks down to
-    # reach a pad narrower than the request, so counting those as shortfalls
-    # would flag correct copper on every board. Only a TRUNK segment under the
-    # request is a finding.
+    # min_track_width -- so check_drc had nothing to say. `board_score`'s
+    # `net_widths` component measures the same thing when `--net-min-widths` is
+    # passed (run 20 DID pass it, in score_c2_advisory_widths), but it is
+    # opt-in, board-wide, and has no notion of a tap; this is the producer-side
+    # view, which knows which segments are taps.
     try:
-        _pw = getattr(config, 'power_net_widths', None) or {}
-        if _pw:
-            # `pads_by_net` rather than walking footprints: it is the net's own
-            # pad list, it is what the rest of this file uses, and a PCBData
-            # built without footprints (the GUI's in-memory path, and every
-            # synthetic fixture) still has it. Walking footprints found nothing
-            # on such a board and silently classified every neckdown as a
-            # shortfall -- the exact noise this separation exists to avoid.
-            _pad_w = {}
-            for _nid in _pw:
-                for _p in (pcb_data.pads_by_net.get(_nid) or ()):
-                    _pad_w.setdefault(_nid, []).append(
-                        (_p.global_x, _p.global_y,
-                         min(_p.size_x or 9e9, _p.size_y or 9e9)))
-            _rep = {}
-            for _nid, _req in sorted(_pw.items()):
-                _segs = [s for s in pcb_data.segments
-                         if s.net_id == _nid and s.width]
-                if not _segs:
-                    continue
-                _under = _tap = 0
-                for _s in _segs:
-                    if _s.width >= _req - 1e-9:
-                        continue
-                    # A tap: an END lands on a pad of this net whose own
-                    # narrow dimension is below the request, so the neckdown
-                    # is the pad's doing, not the router's.
-                    _is_tap = False
-                    for _px, _py, _pw_min in _pad_w.get(_nid, ()):
-                        if _pw_min >= _req - 1e-9:
-                            continue
-                        for _ex, _ey in ((_s.start_x, _s.start_y),
-                                         (_s.end_x, _s.end_y)):
-                            if abs(_ex - _px) <= 0.6 and abs(_ey - _py) <= 0.6:
-                                _is_tap = True
-                                break
-                        if _is_tap:
-                            break
-                    if _is_tap:
-                        _tap += 1
-                    else:
-                        _under += 1
-                _nm = (pcb_data.nets[_nid].name if _nid in pcb_data.nets
-                       else f'net_{_nid}')
-                _rep[_nm] = {'requested_mm': round(float(_req), 4),
-                             'narrowest_mm': round(min(s.width for s in _segs), 4),
-                             'segments_total': len(_segs),
-                             'segments_under': _under,
-                             'tap_segments': _tap}
-            if _rep:
-                summary['power_widths'] = _rep
-                _bad = {n: r for n, r in _rep.items() if r['segments_under']}
-                if _bad:
-                    print(f"{RED}  WARNING: requested power width NOT delivered "
-                          f"on {len(_bad)} net(s) -- widths are REQUESTS, and "
-                          f"nothing else in this chain measures the copper:"
-                          f"{RESET}")
-                    for _n, _r in sorted(_bad.items()):
-                        print(f"    requested {_r['requested_mm']:g}mm on {_n}; "
-                              f"{_r['segments_under']} of "
-                              f"{_r['segments_total']} trunk segment(s) "
-                              f"delivered at {_r['narrowest_mm']:g}mm"
-                              + (f" ({_r['tap_segments']} pad tap(s) excluded)"
-                                 if _r['tap_segments'] else ""))
+        _rep = power_width_report(pcb_data,
+                                  getattr(config, 'power_net_widths', None))
+        if _rep:
+            summary['power_widths'] = _rep
+            _bad = {n: r for n, r in _rep.items() if r['segments_under']}
+            if _bad:
+                print(f"{RED}  WARNING: requested power width NOT delivered "
+                      f"on {len(_bad)} net(s) -- widths are REQUESTS, and "
+                      f"nothing else in this chain measures the copper:"
+                      f"{RESET}")
+                for _n, _r in sorted(_bad.items()):
+                    _trunk = _r['segments_total'] - _r['tap_segments']
+                    print(f"    requested {_r['requested_mm']:g}mm on {_n}; "
+                          f"{_r['segments_under']} of {_trunk} trunk "
+                          f"segment(s) delivered at {_r['narrowest_mm']:g}mm"
+                          + (f" ({_r['tap_segments']} pad tap(s) excluded)"
+                             if _r['tap_segments'] else ""))
     except Exception:
         pass
 

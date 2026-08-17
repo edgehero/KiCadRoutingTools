@@ -144,26 +144,108 @@ def main():
     check('without --power-nets the key is ABSENT, not an empty dict',
           'power_widths' not in s2, str(s2.get('power_widths')))
 
+    print('--- the two cases that discriminate the classifier ---')
+    # Neither of these is exercised by the fixture above or by the run-20
+    # board, and without them the test cannot tell the shipped classifier from
+    # the one it replaced -- a mutation run proved exactly that.
+    from route import power_width_report
+    from kicad_parser import BoardInfo as _BI
+
+    def _one_net(pads, segs):
+        bi = _BI(layers={0: 'F.Cu', 31: 'B.Cu'},
+                 copper_layers=['F.Cu', 'B.Cu'],
+                 board_bounds=(0.0, 0.0, 20.0, 20.0))
+        return make_pcb(nets={RAIL: make_net(RAIL, 'VBUS')}, segments=segs,
+                        pads_by_net={RAIL: pads}, board_info=bi)
+
+    # (a) A LONG pad: 2.0 x 0.4 at (16,10), so its copper spans x 15.0..17.0.
+    # The segment ends at x=15.1 -- 0.1mm INSIDE the pad, and 0.9mm from its
+    # CENTRE. A centre box of 0.6 calls that a trunk shortfall; the pad
+    # rectangle calls it the tap it physically is.
+    _long = make_pad(RAIL, 16.0, 10.0, ref='U1', num='1', net_name='VBUS',
+                     size_x=2.0, size_y=0.4)
+    _feed = make_pad(RAIL, 2.0, 10.0, ref='J1', num='1', net_name='VBUS',
+                     size_x=2.0, size_y=2.0)
+    r = power_width_report(
+        _one_net([_feed, _long],
+                 [make_seg(2.0, 10.0, 15.1, 10.0, net_id=RAIL, width=0.2)]),
+        {RAIL: 0.5})['VBUS']
+    check('a track ending INSIDE a long pad is a tap, not a shortfall',
+          r['tap_segments'] == 1 and r['segments_under'] == 0,
+          f"{r} -- 0.9mm from the pad CENTRE but 0.1mm inside its copper; "
+          f"under a centre box, landing further onto the pad turned a tap into "
+          f"a defect, on every SOT-223 tab and thermal paddle")
+
+    # (b) The same geometry on a layer the pad is not on. An F.Cu-only SMD pad
+    # must not excuse B.Cu copper it can never touch.
+    r = power_width_report(
+        _one_net([_feed, _long],
+                 [make_seg(2.0, 10.0, 15.1, 10.0, net_id=RAIL, width=0.2,
+                           layer='B.Cu')]),
+        {RAIL: 0.5})['VBUS']
+    check('...but only on a layer that pad is actually on',
+          r['tap_segments'] == 0 and r['segments_under'] == 1,
+          f"{r} -- the pad is F.Cu-only; on run 20 this excused a 5.275mm "
+          f"B.Cu trunk at half the requested width")
+
+    # (c) A through-hole pad IS on every layer, so the same B.Cu segment is a
+    # tap again. Without this the layer test would be too strict.
+    _thru = make_pad(RAIL, 16.0, 10.0, ref='U1', num='1', net_name='VBUS',
+                     size_x=2.0, size_y=0.4, drill=0.3, pad_type='thru_hole',
+                     layers=('*.Cu',))
+    r = power_width_report(
+        _one_net([_feed, _thru],
+                 [make_seg(2.0, 10.0, 15.1, 10.0, net_id=RAIL, width=0.2,
+                           layer='B.Cu')]),
+        {RAIL: 0.5})['VBUS']
+    check('a barrel is on every layer, so it still excuses the neckdown',
+          r['tap_segments'] == 1 and r['segments_under'] == 0, str(r))
+
     print('--- and the board that produced the finding ---')
+    # THE WITNESS CALLS THE SHIPPED CODE. The first version of this block
+    # recomputed the numbers with a one-line comprehension and never executed a
+    # line of route.py -- so it asserted the RAW under-count while the shipped
+    # classifier emitted the tap-subtracted one, and passed while the two
+    # disagreed. Deleting the entire tap branch could not have failed it.
+    from route import power_width_report
     _r20 = os.path.join(REPO, 'wk', 'run20', 'routed.kicad_pcb')
     if os.path.isfile(_r20):
         b2 = io.StringIO()
         with redirect_stdout(b2):
             pcb = parse_kicad_pcb(_r20)
         name = {n.name: i for i, n in pcb.nets.items()}
-        want = {'GND': (0.3, 0.15, 59, 60), '+3V3': (0.3, 0.15, 103, 226),
-                'VBUS': (0.4, 0.20, 2, 73), 'VDD': (0.3, 0.15, 1, 2)}
+        req = {'GND': 0.3, '+3V3': 0.3, 'VBUS': 0.4, 'VDD': 0.3}
+        rep = power_width_report(
+            pcb, {name[k]: v for k, v in req.items() if k in name})
+        # (requested, narrowest, segments_under, segments_total, tap_segments)
+        want = {'+3V3': (0.3, 0.15, 86, 226, 17),
+                'GND':  (0.3, 0.15, 59,  60,  0),
+                'VBUS': (0.4, 0.20,  1,  73,  1),
+                'VDD':  (0.3, 0.15,  0,   2,  1)}
         bad = []
-        for nm, (req, narrow, under, total) in want.items():
-            nid = name.get(nm)
-            segs = [s for s in pcb.segments if s.net_id == nid and s.width]
-            got = (round(min(s.width for s in segs), 2) if segs else None,
-                   sum(1 for s in segs if s.width < req - 1e-9), len(segs))
-            if got != (narrow, under, total):
-                bad.append(f'{nm}: {got} != {(narrow, under, total)}')
-        check('the run-20 shortfalls are exactly as measured', not bad,
-              '; '.join(bad) + ' -- these four rows are the reason this '
-              'exists; if they drift, the board changed, not the tool')
+        for nm, (rq, narrow, under, total, taps) in want.items():
+            r = rep.get(nm)
+            if not r:
+                bad.append(f'{nm}: absent')
+                continue
+            got = (r['requested_mm'], r['narrowest_mm'], r['segments_under'],
+                   r['segments_total'], r['tap_segments'])
+            if got != (rq, narrow, under, total, taps):
+                bad.append(f'{nm}: {got} != {(rq, narrow, under, total, taps)}')
+        check('the run-20 rows are what the SHIPPED classifier emits', not bad,
+              '; '.join(bad) + ' -- these are the tap-SUBTRACTED counts. The '
+              'raw ones (103/59/2/1) are what the first version of this test '
+              'and the commit message both quoted, and they are not what the '
+              'code produces')
+        check('VDD is the case that separates the two: its one under-width '
+              'segment is a TAP, so it warns about nothing',
+              rep['VDD']['segments_under'] == 0
+              and rep['VDD']['tap_segments'] == 1, str(rep.get('VDD')))
+        check('and +3V3 lost 3 taps to the layer test',
+              rep['+3V3']['tap_segments'] == 17,
+              f"{rep['+3V3']} -- 20 before the layer test; three were excused "
+              f"by a pad the segment's layer does not carry, one of them a "
+              f"5.275mm B.Cu trunk at half the requested width")
     else:
         print('  (wk/run20/routed.kicad_pcb absent -- corpus witness skipped)')
 
