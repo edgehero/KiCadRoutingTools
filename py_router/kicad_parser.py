@@ -7,6 +7,10 @@ import os
 import re
 import math
 import json
+import sys  # parse-time WARNINGs go to STDERR -- see parse_kicad_pcb. There is
+             # a function-local `import sys` further down; module scope is where
+             # it has to be, or a warning raises NameError on the boards that
+             # need it most.
 import routing_defaults as defaults  # fab-floor outline width for 0-stroke copper polys (#337/M2)
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional
@@ -3539,7 +3543,7 @@ def parse_kicad_pcb(filepath: str, guide_layer: str = "User.1",
               f"each survives: this board parses as "
               f"{len(footprints)} parts, not {len(footprints) + _n - len(_dups)}. "
               f"Legal in KiCad (a paired testpoint, a net tie), but every "
-              f"count downstream is short by {_n - len(_dups)}.")
+              f"count downstream is short by {_n - len(_dups)}.", file=sys.stderr)
     vias = extract_vias(content, name_to_id)
     segments = extract_segments(content, name_to_id)
     zones = extract_zones(content, name_to_id)

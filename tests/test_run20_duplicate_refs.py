@@ -22,7 +22,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 for _p in (REPO, os.path.join(REPO, 'py_router'), os.path.join(REPO, 'py_tools')):
@@ -92,10 +92,15 @@ _DUP_U = _board('dup_u.kicad_pcb', [
 
 print('--- the parser counts what it dropped ---')
 
-buf = io.StringIO()
-with redirect_stdout(buf):
+# STDERR, not stdout. The warning has to stay OFF stdout: `check_reachability
+# --json` and five other tools dump a bare JSON document there, and a WARNING
+# line in front of it makes `json.loads` fail at char 0 -- the exact
+# cli-banner-vs-json-stdout trap this repo has already paid for once. Capturing
+# the wrong stream here is what let that ship.
+_so, _se = io.StringIO(), io.StringIO()
+with redirect_stdout(_so), redirect_stderr(_se):
     pcb = parse_kicad_pcb(_DUP)
-out = buf.getvalue()
+out = _se.getvalue()
 check('the duplicate is recorded on PCBData',
       pcb.duplicate_references == {'TP4': 2}, str(pcb.duplicate_references))
 check('and the dict still holds only ONE entry for it -- unchanged behaviour',
@@ -106,13 +111,19 @@ check('the warning fires at parse time, where every tool will see it',
       'WARNING' in out and 'TP4 x2' in out, out[:400])
 check('and it says what the count downstream will be short by',
       'short by 1' in out and '3 blocks' not in out, out[:400])
+check('and it is on STDERR, so a bare-JSON stdout stays parseable',
+      'WARNING' not in _so.getvalue(),
+      repr(_so.getvalue()[:200]) + ' -- check_reachability --json dumps a bare '
+      'document to stdout; a WARNING in front of it breaks json.loads at '
+      'char 0')
 
-buf = io.StringIO()
-with redirect_stdout(buf):
+_so2, _se2 = io.StringIO(), io.StringIO()
+with redirect_stdout(_so2), redirect_stderr(_se2):
     pcb2 = parse_kicad_pcb(_CLEAN)
 check('a board with distinct references records nothing and is silent',
-      not pcb2.duplicate_references and 'DUPLICATE' not in buf.getvalue()
-      and 'share' not in buf.getvalue(), str(pcb2.duplicate_references))
+      not pcb2.duplicate_references
+      and 'share' not in (_so2.getvalue() + _se2.getvalue()),
+      str(pcb2.duplicate_references))
 
 print('--- check_assembly names it, and says why it could not see it ---')
 
