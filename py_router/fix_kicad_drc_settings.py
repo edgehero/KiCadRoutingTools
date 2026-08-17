@@ -615,8 +615,18 @@ def compute_targets(clearance=None, hole_clearance=None, hole_to_hole=None,
     vdr = _floor(via_drill, minima.get("min_via_drill"))
     if vdr is not None:
         targets["min_via_drill"] = vdr
-    if "min_via_annular_width" in minima:
-        targets["min_via_annular_width"] = minima["min_via_annular_width"]
+    # The annular target is the ONE line that can disable KiCad's own annular
+    # rule, so it is guarded before the measurement beside it stops filtering.
+    #
+    # `min_via_annular_width` here is the positive-ring minimum: `scan_board_minima`
+    # drops vias whose ring is <= 0 (see its docstring). That filter is what kept
+    # this line honest -- run 20's board carries three 0.3/0.3 vias with a ring of
+    # exactly 0.0, and the unfiltered minimum is 0.0. Writing that into the project
+    # sets `min_via_annular_width: 0.0`, which switches OFF the only grader that
+    # would have caught them. A floor of zero is not a floor.
+    ann = minima.get("min_via_annular_width")
+    if ann is not None and ann > 0:
+        targets["min_via_annular_width"] = ann
     return targets
 
 

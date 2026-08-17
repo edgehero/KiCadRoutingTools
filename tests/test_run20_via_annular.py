@@ -172,5 +172,30 @@ check('200 ladder rebuilds warn once, not 200 times',
       n == 1, f'{n} warnings -- an undeduped guard printed 788 lines in one '
               f'routing run, 46% of its output')
 
+print('--- the writeback must never declare a floor of zero ---')
+# `compute_targets` maps the board's measured minima onto the only-loosen project
+# writeback. `min_via_annular_width: 0.0` does not mean "no annular requirement" to
+# KiCad -- it means the annular rule is OFF, i.e. the writeback would disable the
+# one grader that catches the vias being measured. This guard is a no-op TODAY
+# (`scan_board_minima` filters `size > drill`, so the key is always positive) and
+# becomes load-bearing the moment that measurement stops filtering.
+import fix_kicad_drc_settings as FK                                # noqa: E402
+
+t = FK.compute_targets(minima={'min_via_annular_width': 0.0})
+check('a measured annular of 0.0 is not written as a floor',
+      'min_via_annular_width' not in t,
+      f"{t} -- writing 0.0 switches OFF KiCad's annular rule")
+
+t = FK.compute_targets(minima={'min_via_annular_width': -0.05})
+check('nor is a negative one', 'min_via_annular_width' not in t, str(t))
+
+t = FK.compute_targets(minima={'min_via_annular_width': 0.075})
+check('a positive measurement still lands, unchanged',
+      abs(t.get('min_via_annular_width', -1) - 0.075) < 1e-12, str(t))
+
+t = FK.compute_targets(minima={})
+check('an absent measurement leaves the rule alone',
+      'min_via_annular_width' not in t, str(t))
+
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)
