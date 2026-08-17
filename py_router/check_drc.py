@@ -3484,6 +3484,13 @@ if __name__ == "__main__":
                              'default rung flags only a ring at or below ZERO '
                              '(a hole with no barrel land), so switching it off '
                              'means accepting unplateable vias.')
+    parser.add_argument('--no-fab-floor-origin', action='store_true',
+                        help="Do not raise the copper-to-hole floor to the "
+                             "project's kicad_routing_tools.fab_floor_origin. "
+                             "The origin is what the board declared BEFORE the "
+                             "chain's only-loosen writeback lowered it, so it "
+                             "is the honest floor; this escape exists for "
+                             "grading against what the board declares TODAY.")
     parser.add_argument('--annular-vs-board', action='store_true',
                         help="Also grade the annular ring against the board's own "
                              "declared min_via_annular_width. Opt-in: a stock, "
@@ -3637,11 +3644,37 @@ if __name__ == "__main__":
         # 0.2126 mm). Same shape as the two above: raise, never lower.
         _pro_hclr = float(_rules.get('constraints', {})
                           .get('min_hole_clearance') or 0.0)
+        _hclr_src = 'project min_hole_clearance'
+        # ...and the ORIGIN, which is the value the board declared before the
+        # chain rewrote it. The writeback only loosens, so `min_hole_clearance`
+        # in the project beside a routed board is the smallest thing the RUN
+        # produced, not what the board asked for. Measured on run 20: r3 graded
+        # at the ratcheted 0.15 reported 0 copper-to-hole violations; at the
+        # declared 0.254 it reports 36 -- and the run's own iteration 16 fixed
+        # all 36 once they were visible.
+        #
+        # ONLY this key. Grading min_track_width / min_via_diameter against the
+        # origin on a stock-default board storms (run 7: 5629 of 5933 segments
+        # under the original floor); that belongs at check_complete's verdict
+        # altitude as one line with counts, not as 5629 per-item violations.
+        if not args.no_fab_floor_origin:
+            try:
+                from fix_kicad_drc_settings import find_project
+                import json as _json
+                with open(find_project(args.pcb), encoding='utf-8') as _fh:
+                    _org = ((_json.load(_fh).get('kicad_routing_tools') or {})
+                            .get('fab_floor_origin') or {})
+                _o = float(_org.get('min_hole_clearance') or 0.0)
+                if _o > _pro_hclr:
+                    _pro_hclr, _hclr_src = _o, 'fab_floor_origin (the value the '\
+                        'board declared BEFORE the chain lowered it)'
+            except Exception:                                  # noqa: BLE001
+                pass
         if _pro_hclr > args.hole_clearance:
             args.hole_clearance = _pro_hclr
             if not args.quiet:
                 print(f"Copper-to-hole clearance {_pro_hclr:.4g} mm "
-                      f"(from project min_hole_clearance)")
+                      f"(from {_hclr_src})")
     except Exception as e:
         if not args.quiet:
             print(f"  (netclass/edge rules not read: {e})")

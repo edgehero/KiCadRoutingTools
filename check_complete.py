@@ -116,6 +116,53 @@ def copper_layers(board):
 MEASURED_KEY = {'min_via_annular_width': 'min_via_annular_width_measured'}
 
 
+#: Floor keys `scan_board_minima` cannot measure but ANOTHER instrument in this
+#: same document does. `min_hole_clearance` is pairwise geometry (copper against
+#: a drill hole), so no object-size scan can reach it -- but `check_drc` grades
+#: exactly that, and since it now raises its floor to `fab_floor_origin`, it
+#: grades it at the same baseline this check uses. Reporting it as "not measured"
+#: while the drc component in the same JSON carries the count is a worse answer
+#: than either instrument gives alone.
+FAB_FLOOR_KEYS_GRADED_BY_DRC = {
+    'min_hole_clearance': ('check_drc', ('track-hole', 'via-hole')),
+}
+
+
+def _resolve_graded_elsewhere(floors, score):
+    """Move keys out of `unmeasured` when a sibling component already graded them.
+
+    By REFERENCE, never re-measurement: it reads the drc component's own
+    `by_type`, so the two can never disagree. Anything it cannot confirm stays
+    `unmeasured` WITH a reason -- an unexplained promotion would be the same
+    silent pass this check exists to prevent.
+    """
+    if not floors.get('ran') or not floors.get('unmeasured'):
+        return
+    drc = ((score or {}).get('components') or {}).get('drc') or {}
+    keep, moved = [], []
+    for r in floors['unmeasured']:
+        spec = FAB_FLOOR_KEYS_GRADED_BY_DRC.get(r['key'])
+        if not spec:
+            keep.append(r)
+            continue
+        who, types = spec
+        if not drc.get('ran'):
+            r = dict(r, reason=f'{who} did not run, so nothing measured it')
+            keep.append(r)
+            continue
+        by = drc.get('by_type') or {}
+        # NOT verified: that the child graded at THIS baseline. board_score
+        # invokes check_drc without --no-fab-floor-origin, so it does, and the
+        # score payload carries no hole-clearance floor to confirm it against.
+        # Stated rather than assumed silently.
+        moved.append({**r, 'graded_by': who, 'types': list(types),
+                      'count': sum(int(by.get(t) or 0) for t in types),
+                      'floor_confirmed': False})
+    floors['unmeasured'] = keep
+    if moved:
+        floors['graded_elsewhere'] = moved
+
+
 def fab_floor_integrity(board, authored_from):
     """Does this board's copper sit below the floors its project ONCE declared?
 
@@ -131,19 +178,54 @@ def fab_floor_integrity(board, authored_from):
     """
     from fix_kicad_drc_settings import (FAB_FLOOR_KEYS, find_project,
                                         scan_board_minima)
-    if not authored_from:
-        return {'ran': False, 'reason': 'no --authored-from: the chain rewrites '
-                                        'the floors in place, so there is '
-                                        'nothing left to compare against'}
-    pro = find_project(authored_from)
-    if not os.path.isfile(pro):
-        return {'ran': False, 'reason': f'no project beside {authored_from}'}
-    try:
-        with open(pro, encoding='utf-8') as fh:
-            authored = ((json.load(fh).get('board') or {})
-                        .get('design_settings') or {}).get('rules') or {}
-    except Exception as exc:                                # noqa: BLE001
-        return {'ran': False, 'reason': f'unreadable project: {exc}'}
+    baseline = 'authored-from'
+    if authored_from:
+        pro = find_project(authored_from)
+        if not os.path.isfile(pro):
+            return {'ran': False, 'reason': f'no project beside {authored_from}',
+                    'baseline': None}
+        try:
+            with open(pro, encoding='utf-8') as fh:
+                authored = ((json.load(fh).get('board') or {})
+                            .get('design_settings') or {}).get('rules') or {}
+        except Exception as exc:                            # noqa: BLE001
+            return {'ran': False, 'reason': f'unreadable project: {exc}',
+                    'baseline': None}
+    else:
+        # FALLBACK. `kicad_routing_tools.fab_floor_origin` is the floors the
+        # board declared before the chain touched anything -- seeded on the
+        # first writeback and carried project-to-project exactly like
+        # protected_nets. This check has always known how to grade against a
+        # baseline and has never looked for the one the chain was already
+        # writing, so a run without --authored-from reported "did not run" on a
+        # board whose own project carried the answer.
+        #
+        # It is strictly NARROWER than --authored-from, and the difference is
+        # not cosmetic: the origin holds only the keys the project DECLARED at
+        # the first writeback, so a floor the human never wrote down has no
+        # baseline here and lands in `unmeasured` rather than `relaxed`. Pass
+        # --authored-from when you have the original board.
+        baseline = 'fab_floor_origin'
+        pro = find_project(board)
+        if not os.path.isfile(pro):
+            return {'ran': False, 'baseline': None,
+                    'reason': 'no --authored-from, and no project beside the '
+                              'board to read a fab_floor_origin from -- the '
+                              'chain rewrites the floors in place, so there is '
+                              'nothing left to compare against'}
+        try:
+            with open(pro, encoding='utf-8') as fh:
+                authored = ((json.load(fh).get('kicad_routing_tools') or {})
+                            .get('fab_floor_origin') or {})
+        except Exception as exc:                            # noqa: BLE001
+            return {'ran': False, 'reason': f'unreadable project: {exc}',
+                    'baseline': None}
+        if not authored:
+            return {'ran': False, 'baseline': None,
+                    'reason': f'no --authored-from, and {os.path.basename(pro)} '
+                              f'carries no fab_floor_origin (a chain run with '
+                              f'--no-fix-drc-settings never seeds one) -- '
+                              f'nothing to compare against'}
     now = scan_board_minima(board) or {}
     relaxed = []
     unmeasured = []
@@ -162,7 +244,8 @@ def fab_floor_integrity(board, authored_from):
             relaxed.append({'key': key, 'label': label, 'authored': was,
                             'on_board': is_})
     return {'ran': True, 'relaxed': relaxed, 'unmeasured': unmeasured,
-            'authored_from': authored_from}
+            'authored_from': authored_from, 'baseline': baseline,
+            'baseline_source': pro}
 
 
 def _grade(a, doc):
@@ -266,6 +349,7 @@ def _grade(a, doc):
         floors = {'ran': False,
                   'reason': f'the floor check itself failed: '
                             f'{type(exc).__name__}: {exc}'}
+    _resolve_graded_elsewhere(floors, score)
     doc['fab_floors'] = floors
 
     # ---- the verdict -------------------------------------------------------
@@ -305,6 +389,11 @@ def _grade(a, doc):
     # vanish, because `fab_floors.relaxed == []` is exactly the sentence a
     # reader takes for "every declared floor is honoured". Append it to the
     # INCOMPLETE reasons so it travels with the verdict.
+    for r in floors.get('graded_elsewhere') or []:
+        if r.get('count'):
+            reasons.append(f'{r["label"]} (declared {r["authored"]}) is graded '
+                           f'by {r["graded_by"]}, which found {r["count"]} '
+                           f'violation(s) of {"/".join(r["types"])}')
     if floors.get('unmeasured'):
         _um = ', '.join(f'{r["label"]} (declared {r["authored"]})'
                         for r in floors['unmeasured'])
@@ -315,10 +404,20 @@ def _grade(a, doc):
         worst = ', '.join(f'{r["label"]} {r["authored"]} -> {r["on_board"]}'
                           for r in floors['relaxed'])
         verdict, code_out = 'UNSOUND', UNSOUND
+        # WHICH baseline produced this must never be missing. The two are not
+        # equivalent -- `fab_floor_origin` holds only the keys declared at the
+        # first writeback -- and a reader who cannot tell them apart cannot tell
+        # a narrow pass from a real one.
+        _bl = ('the ORIGINAL board (--authored-from)'
+               if floors.get('baseline') == 'authored-from'
+               else f"the project's own fab_floor_origin "
+                    f"({os.path.basename(floors.get('baseline_source') or '?')}"
+                    f"; narrower than --authored-from -- pass it anyway)")
         why = (f'this board carries copper below floors its project once '
-               f'declared ({worst}). Every checker grades against the NEW '
-               f'value, so a clean report here means the rule moved, not the '
-               f'copper. Confirm the fab supports it before calling it done.')
+               f'declared ({worst}), measured against {_bl}. Every checker '
+               f'grades against the NEW value, so a clean report here means '
+               f'the rule moved, not the copper. Confirm the fab supports it '
+               f'before calling it done.')
     elif reasons:
         verdict, code_out = 'INCOMPLETE', INCOMPLETE
         why = '; '.join(reasons)

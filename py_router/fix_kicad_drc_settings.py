@@ -834,7 +834,11 @@ def add_drc_fix_args(parser, *, include_no_fix=True):
                        help="Do not adjust the output's .kicad_pro DRC constraints to match the "
                             "routed clearances/sizes afterwards. By default the written project's "
                             "Board Setup floors are loosened to the routed values so KiCad's DRC "
-                            "only flags genuine problems.")
+                            "only flags genuine problems. NOTE this also means no "
+                            "kicad_routing_tools.fab_floor_origin is seeded, so a chain run with "
+                            "this flag throughout leaves check_complete with no fallback baseline "
+                            "and check_drc with no honest copper-to-hole floor -- pass "
+                            "--authored-from to check_complete in that case.")
     g.add_argument("--keep-thermal", action="store_true",
                    help="When fixing DRC settings, leave thermal-relief severity (starved_thermal) "
                         "untouched instead of demoting it to a warning.")
@@ -1042,7 +1046,7 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
                                        diff_pair_gap=diff_pair_gap,
                                        diff_pair_width=diff_pair_width,
                                        clamp_nondefault_netclasses=clamp_nondefault_netclasses)
-    if not changes:
+    if not changes and not _origin_seeded:
         if verbose:
             print(f"  DRC settings already consistent ({out_pro})")
             # The floors did not move, but they may ALREADY be under the
@@ -1053,6 +1057,11 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
                 print(line)
         return out_pro
     if _origin_seeded:
+        # Seeded even when `changes` is empty. A FIRST writeback that happens to
+        # move nothing is the most valuable moment to record the baseline -- the
+        # floors are still the ones the human authored -- and returning early
+        # threw that away, so a chain whose first step was already consistent
+        # left every later grader with nothing to compare against.
         proj.setdefault("kicad_routing_tools", {})["fab_floor_origin"] = _origin
     # Atomic replace (#513 item 12): a kill mid-dump must not leave a
     # truncated/unparseable project stranding the DRC floor.
@@ -1061,7 +1070,11 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
         json.dump(proj, f, indent=2)
         f.write("\n")
     os.replace(_tmp_pro, out_pro)
-    if verbose:
+    if verbose and not changes:
+        print(f"  DRC settings already consistent ({out_pro}); recorded the "
+              f"fab-floor origin ({len(_origin)} key(s)) so a later grader has "
+              f"a baseline to compare against")
+    elif verbose:
         print(f"  DRC settings: wrote {len(changes)} value(s) to {out_pro} "
               f"to match the routed floors (close+reopen in KiCad if it "
               f"is open). WRITES, not changes: a key the project never "

@@ -1699,7 +1699,8 @@ check_complete is the one that fails CLOSED: board_score exits 0 with four of
 nine components ungraded, and it has no component at all for orphan stubs,
 weird copper or pad overlaps. --authored-from is what lets it see whether this
 board grades itself against floors it rewrote -- the writeback only ever
-loosens, so without the original project there is nothing left to compare to.
+loosens. Without it the check falls back to the project's own fab_floor_origin,
+which is narrower (only the keys declared at the first writeback), so pass it.
 
 Connectivity is orthogonal to DRC: a DRC-clean board can be entirely
 disconnected, because isolated copper has no clearance conflicts.
@@ -1993,10 +1994,14 @@ def _close_out(a, name):
                 f'  python3 -X utf8 check_complete.py {a.board} \\\n'
                 f'      --authored-from <the board this chain STARTED from> \\\n'
                 f'      --json wk/routing_close.json\n\n'
-                f'--authored-from is not optional bookkeeping: without it the '
-                f'floor check cannot run at all, and UNSOUND becomes '
-                f'unreachable. The chain rewrites the floors in place, so the '
-                f'original project is the only thing left to compare against.')
+                f'--authored-from is not optional bookkeeping. Without it the '
+                f'floor check falls back to the project\'s own '
+                f'fab_floor_origin, which is NARROWER: it holds only the keys '
+                f'the project declared at the FIRST writeback, so a floor the '
+                f'human never wrote down has no baseline and lands in '
+                f'`unmeasured` instead of `relaxed`. Pass it anyway -- the '
+                f'chain rewrites the floors in place, and the original project '
+                f'is the only complete record of what they were.')
 
     _missing = [k for k in CLOSE_KEYS if k not in doc]
     if _missing or doc.get('verdict') not in CLOSE_VERDICTS:
