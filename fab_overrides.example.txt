@@ -24,18 +24,21 @@
 #   track_width        0.127 (2L)/0.0889(4+) 0.10 (2L) / 0.0762 (4+)
 #   hole_to_hole       0.20               0.20      (via drill-to-drill)
 #   pad_hole_to_hole   0.45               0.45      (pad drill-to-drill)
-#   annular            0.25 (2L)/0.20(4+) 0.18 (2L) / 0.15 (4+)   (floors the via pair)
-#
-# `annular` is a RELATION over the two via keys -- ring = (via_diameter -
-# via_drill)/2 -- not an independent floor. Setting it here raises via_diameter
-# until the ring clears it. Even without it, a via_diameter/via_drill pair that
-# would leave a ring at or below zero is pinned up and warned about: that via is
-# a hole with no barrel land, and until run 20 nothing in this repo graded it.
+#   annular            0.25 (2L)/0.20(4+) 0.18 (2L) / 0.15 (4+)   (declared, graded)
 #   board_edge         0.20               0.20      (copper-to-board-outline min)
 #
 # NOTE: track_width and clearance are LAYER-DEPENDENT in the tier tables, but an
 # override here is a SINGLE value applied on every board regardless of layer count.
 # Only override them if you really want one fixed floor for 2- and 4+-layer boards.
+#
+# NOTE on `annular`: it is a RELATION over the two via keys -- the finished ring
+# is (via_diameter - via_drill)/2 -- so it is a value you DECLARE and check_drc
+# GRADES. It never silently resizes your via: if it did, copying the recommended
+# numbers out of the table above onto a tighter tier would inflate the very via
+# you asked to shrink. What IS enforced here, unconditionally, is the structural
+# case -- a via_diameter/via_drill pair leaving a ring at or below zero is a hole
+# with no barrel land, so it is pinned up and warned about. Run 20 shipped three
+# of those from a file declaring `via_diameter = 0.3` with `via_drill = 0.3`.
 # ---------------------------------------------------------------------------
 
 # --- Example: a fab that does JLCPCB's tighter "advanced" vias and drills, which

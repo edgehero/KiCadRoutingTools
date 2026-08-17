@@ -38,12 +38,13 @@ FLOOR_KEYS = ('clearance', 'track_width', 'via_diameter', 'via_drill',
 # is also the rung 'standard' escalates to. 'pad_hole_to_hole' and the annular
 # recommended/abs-min split are per the JLC spec.
 #
-# 'annular' here is the fab's RECOMMENDED ring and is deliberately NOT enforced
-# against these tables' own via pairs -- every rung would fail it (4-layer
-# standard ships (0.45-0.20)/2 = 0.125 against a declared 0.20), because the via
-# pair is the absolute minimum while this key is the comfortable one. It IS
-# enforced on an override file's via pair, where it is the user stating a real
-# limit: see _pin_via_ring.
+# 'annular' here is the fab's RECOMMENDED ring and is enforced against NO via
+# pair -- not these tables' (every rung would fail it: 4-layer standard ships
+# (0.45-0.20)/2 = 0.125 against a declared 0.20) and not an override file's
+# either, because the file's own reference table quotes these very numbers, so
+# honouring them silently inflated the via the user had just asked for. The key
+# is a DECLARATION to grade, and check_drc grades it. `_pin_via_ring` fixes only
+# the structural case: a ring of zero or less.
 _FAB_FLOORS = {
     2: {
         'standard': {'clearance': 0.127, 'track_width': 0.127,
@@ -111,55 +112,72 @@ def _layer_floors(copper_layer_count):
 # three vias shipped as holes with no barrel land that every grader called clean.
 _RING_EPS = 1e-9
 
-#: The smallest ring any built-in tier actually ships, derived from the tables so
-#: it cannot drift out of sync with them. Used as the pin target when an override
-#: file zeroes the ring without declaring an ``annular`` of its own: "ring > 0" is
-#: the invariant, but pinning to a nanometre would satisfy it with a number no
-#: fab can make. This is a value the repo already treats as achievable (it is the
-#: advanced rung's own ring, 2- and 4-layer alike).
-_MIN_SHIPPED_RING = min(
+#: The pin target: the smallest ring any built-in tier actually ships. "ring > 0"
+#: is the invariant, but pinning to a nanometre would satisfy it with a number no
+#: fab can make, so the target is a value this repo already treats as achievable
+#: (the advanced rung's own ring, 2- and 4-layer alike).
+#:
+#: Derived from the tables rather than written down, so it cannot drift out of
+#: sync -- but `min()` derives it in the direction that ERODES it: adding a
+#: tighter tier would silently lower the floor every zero-ring via is pinned to.
+#: `_MIN_SHIPPED_RING_FLOOR` is the backstop, and the test asserts the derivation
+#: against a recomputation rather than against a literal.
+_MIN_SHIPPED_RING_FLOOR = 0.05
+_MIN_SHIPPED_RING = max(_MIN_SHIPPED_RING_FLOOR, min(
     (f['via_diameter'] - f['via_drill']) / 2.0
     for _bylayer in _FAB_FLOORS.values() for f in _bylayer.values()
-)
+))
 
 
-def _pin_via_ring(floor, min_ring, where=''):
-    """Raise ``via_diameter`` until the ring clears ``min_ring``. Returns True if changed.
+def _pin_via_ring(floor, where='', _warned=set()):
+    """Raise ``via_diameter`` when the via ring is STRUCTURALLY impossible (<= 0).
 
-    Clamp-and-continue, matching ``enforce_fab_floors``' doctrine: a fab limit the
-    user got wrong must not abort the run, but it must not silently yield an
-    unmanufacturable via either.
+    Structural only, and that scope was cut down after a verification pass. An
+    earlier version also fired when the ring fell below an ``annular`` declared in
+    the override file, which looked principled and was not:
 
-    ``min_ring`` is the caller's decision and is deliberately NOT read from the
-    floor dict: the built-in tiers declare an ``annular`` their own via pairs do
-    not meet (4-layer standard is (0.45-0.20)/2 = 0.125 against a declared 0.20),
-    because that key is the fab's *recommended* ring while the via pair is its
-    absolute minimum. Enforcing the tier's own key against itself would resize
-    every default run's vias. Only an OVERRIDE file's annular -- the user stating
-    their real limit -- raises the bar above the structural ring > 0.
+      * `fab_overrides.example.txt` PRINTS the tiers' annular values as a
+        reference table, so a user copying `annular = 0.15` onto the advanced
+        tier moved its `via_diameter` from the 0.25 they had just asked for to
+        0.45 -- LARGER than the standard tier, from a file requesting something
+        tighter. A lone `annular = 0.20` line moved 4-layer standard 0.45 -> 0.60.
+        Measured: 32 of 56 override combinations changed behaviour.
+      * those tiers declare a *recommended* ring their own absolute-minimum via
+        pairs do not meet (4L standard: (0.45-0.20)/2 = 0.125 vs a declared 0.20),
+        which is exactly why this guard must not enforce that key against a via
+        pair. Honouring it from a FILE re-entered the same trap by another door.
+
+    So the declaration is graded, not silently satisfied: a ring below a declared
+    floor is a finding for `check_drc`, where the number is reported and the user
+    decides. Only "this via has no copper ring at all" is fixed here, because no
+    fab makes one and no value of any other key redeems it.
+
+    Clamp-and-continue matches ``enforce_fab_floors``' doctrine. Warns once per
+    distinct (dia, drill, target) -- the ladder is rebuilt per parameter, per
+    query and per net, and an undeduped warning printed 788 identical lines in
+    one routing run, 46% of its output.
     """
     dia, drill = floor.get('via_diameter'), floor.get('via_drill')
     if dia is None or drill is None:
         return False
     ring = (dia - drill) / 2.0
-    # TRIGGER and TARGET are separate, and conflating them was a real bug caught
-    # by test_fab_tiers: a `via_drill = 0.18` override on the advanced tier
-    # (dia 0.25) leaves a ring of 0.035 -- small, positive, and manufacturable.
-    # Raising via_diameter there would silently change a key the user did not
-    # list, breaking the overlay contract. So fire only on a ring that is
-    # structurally impossible (<= 0) or below a limit the user actually stated.
-    trigger = min_ring if min_ring else 0.0
-    if ring > trigger + _RING_EPS:
+    if ring > _RING_EPS:
         return False
-    # Target is a ring the repo already treats as achievable, never a nanometre.
-    need = drill + 2.0 * max(min_ring or 0.0, _MIN_SHIPPED_RING)
+    # Round like the neighbouring `fine` rung does: this value is persisted as a
+    # floor and printed to users, and raw arithmetic produced 0.44999999999999996
+    # -- one ULP below 0.45. This repo has been bitten by a one-ULP floor before.
+    need = round(drill + 2.0 * _MIN_SHIPPED_RING, 4)
     if dia >= need - _RING_EPS:
         return False
-    print(f"WARNING: {where}via_diameter {dia:g} with via_drill {drill:g} leaves an "
-          f"annular ring of {ring:g}mm, at or below the {trigger:g}mm floor. Pinning "
-          f"via_diameter to {need:g}mm. A via whose ring is <= 0 is a hole with no "
-          f"barrel land -- no fab makes one, and no DRC in this repo caught it "
-          f"before it shipped (run 20).")
+    key = (round(dia, 6), round(drill, 6), need)
+    if key not in _warned:
+        _warned.add(key)
+        print(f"WARNING: {where}via_diameter {dia:g} with via_drill {drill:g} leaves "
+              f"an annular ring of {ring:g}mm -- a hole with no barrel land, which "
+              f"no fab makes. Pinning via_diameter to {need:g}mm (the smallest ring "
+              f"any built-in tier ships). Declare `annular` in the override file to "
+              f"state a real limit; it is GRADED by check_drc, not silently applied "
+              f"here.")
     floor['via_diameter'] = need
     return True
 
@@ -190,7 +208,8 @@ def fab_floor_ladder(copper_layer_count, tier=None, overrides=None):
         # override's via_drill with the tier's via_diameter (or vice versa) and
         # land on a ring the user never inspected, so this runs on every
         # override path -- not only when both keys came from the file.
-        _pin_via_ring(floor, overrides.get('annular'), where='--fab-overrides: ')
+        _pin_via_ring(floor, where='--fab-overrides (merged with the '
+                                   f'{tier} tier): ')
         return [floor]
     if tier == 'standard':
         std = dict(base['standard'])
@@ -368,7 +387,7 @@ def parse_fab_overrides(path):
     # pin when the file itself supplied BOTH via keys; a lone via_drill is
     # completed by the tier and is guarded there instead.
     if 'via_diameter' in overrides and 'via_drill' in overrides:
-        _pin_via_ring(overrides, overrides.get('annular'), where=f'{path}: ')
+        _pin_via_ring(overrides, where=f'{path}: ')
     return overrides
 
 

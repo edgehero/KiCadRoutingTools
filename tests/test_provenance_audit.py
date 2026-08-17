@@ -357,18 +357,31 @@ check("a tool that does NOT write poses is named, not silently registered",
 #
 # --help is the cheapest possible execution: it exercises import, module-level
 # code and the argparse build without touching a board.
-_dead = []
+_dead, _unresolved = [], []
 for _lever in PV.LEVER_REGISTRY:
+    # Same three legs as the static check above. Dropping one made the two loops
+    # disagree about which levers they cover.
     _hits = (_glob.glob(os.path.join(REPO, 'py_placer', _lever))
-             + _glob.glob(os.path.join(REPO, 'tests', 'stress', _lever)))
+             + _glob.glob(os.path.join(REPO, 'tests', 'stress', _lever))
+             + _glob.glob(os.path.join(REPO, 'py_placer', 'placement', _lever)))
     if not _hits:
+        # NOT a silent pass. A lever renamed without updating LEVER_REGISTRY
+        # degrades every check in this file to vacuous, and `len(REGISTRY) >= 8`
+        # guards a vacuous registry, not vacuous resolution.
+        _unresolved.append(_lever)
         continue
     _src = open(_hits[0], encoding='utf-8').read()
     if '__main__' not in _src:
         continue                       # a library, reached through a CLI
-    _r = subprocess.run([sys.executable, '-X', 'utf8', _hits[0], '--help'],
-                        capture_output=True, text=True, timeout=120,
-                        cwd=REPO)
+    try:
+        _r = subprocess.run([sys.executable, '-X', 'utf8', _hits[0], '--help'],
+                            capture_output=True, text=True, timeout=120,
+                            cwd=REPO)
+    except subprocess.TimeoutExpired:
+        # Unwrapped, this escaped the file: no named failure and no
+        # "N passed, M failed" summary at all.
+        _dead.append(f'{_lever}: hung for 120s on --help')
+        continue
     if _r.returncode != 0:
         _tail = ((_r.stderr or _r.stdout or '').strip().splitlines() or [''])[-1]
         _dead.append(f'{_lever}: rc={_r.returncode} {_tail[:110]}')
@@ -376,6 +389,32 @@ check("every registered lever actually STARTS (--help exits 0)",
       not _dead,
       ' | '.join(_dead) + "  -- a lever that cannot start cannot author poses, "
       "and the source-text check above cannot see this")
+check("every registered lever RESOLVES to a file",
+      not _unresolved,
+      f"{_unresolved} -- an entry that resolves to nothing makes both the "
+      f"static and the runtime check above vacuous for it")
+
+# The --help loop covers LEVER_REGISTRY, which is ~10 files. The same bug class
+# -- a module-level name used but never imported -- is repo-wide and kills any
+# CLI it touches. Measured while fixing place_fanout_clearance.py:
+# tests/stress/fix_mixed_net_refs.py, a step the stress RUNBOOK tells you to
+# run, had been dead 129 commits with `NameError: name 'os' is not defined`.
+# A static sweep costs ~0.4s and covers every file, not just the registry.
+_TOOL_DIRS = ('tests/stress', 'py_placer', 'py_tools')
+try:
+    _ruff = subprocess.run(['ruff', 'check', '--select', 'F821',
+                            '--output-format=concise'] + list(_TOOL_DIRS),
+                           capture_output=True, text=True, timeout=300, cwd=REPO)
+    _f821 = [ln for ln in (_ruff.stdout or '').splitlines() if 'F821' in ln]
+    check("no CLI directory uses a name it never imported (ruff F821)",
+          not _f821,
+          ' | '.join(_f821[:6]) + f"  ({len(_f821)} total) -- this is the "
+          f"place_fanout_clearance / fix_mixed_net_refs bug class; each one is "
+          f"a tool that dies on every invocation")
+except (OSError, subprocess.TimeoutExpired):
+    print('  SKIP no ruff on PATH -- the F821 sweep did not run, so the '
+          'undefined-name bug class is UNCHECKED here (the --help loop still '
+          'covers LEVER_REGISTRY)')
 
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
