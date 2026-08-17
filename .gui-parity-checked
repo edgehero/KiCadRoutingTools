@@ -1,4 +1,47 @@
-6113245 2026-08-06 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
+cfdfb83 2026-08-17 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
+check_release_version.check_gui_parity reads `marker.read_text().split()[0]`
+and diffs it against HEAD. Every entry until 2026-08-06 opened with the word
+"HEAD" (or "ADDENDUM"), which git resolves happily -- so `git diff HEAD..HEAD`
+was empty and the release parity gate passed UNCONDITIONALLY. Keep a real SHA
+first or the gate is decorative.
+
+2026-08-17 parity audit 6113245..cfdfb83 (the run-20 toolchain branch, 22
+commits). Outcome: NO GAP FOUND, and unusually the reason is checkable rather
+than asserted -- the copper sets came back byte-identical.
+
+  Audit surface. Two new ENGINE parameters and four new CLI flags landed, so
+  the question was real:
+  * `run_drc` gained min_via_annular / check_annular / annular_vs_board /
+    fab_tier / fab_overrides, and check_drc's main gained
+    --min-via-annular-width / --no-annular-check / --annular-vs-board /
+    --no-fab-floor-origin. The GUI has NO run_drc call site (grepped
+    kicad_routing_plugin/: zero hits), so nothing to thread. The other two
+    in-process callers, bga_fanout and qfn_fanout, pass check_sizes=False and
+    are unaffected by construction.
+  * `batch_route` gained summary keys only -- `boxed_in`, `power_widths`,
+    `finalize_excluded_nets` -- no new kwargs. `boxed_in` IS threaded into
+    results_data beside `blockers`, because the GUI reads that and never the
+    printed summary; a test pins the two agree.
+  * `PCBData.duplicate_references` is filled by BOTH parse paths, which is the
+    build_pcb_data_from_board rule and the one place this branch could have
+    drifted silently.
+  * loop_driver / converge / board_score / check_complete / render_placement /
+    check_reachability are CLI-side only and have no GUI twin.
+
+  Gates run, on KiCad 10.0.0 / wx 4.2.2 (probed, not assumed -- CLAUDE.md is
+  right that "this session has no wx" is usually false):
+    test_cli_postpass_coverage   OK  8 registered, 15 in active CLI use, 0 failures
+    test_manifest_plan_parity    OK  36 flag-checks, 0 mismatches
+    test_settings_roundtrip      OK  185 keys, save/restore/legacy/re-save
+    test_gui_engine_parity       PARITY -- segments CLI=1335 GUI=1335,
+                                 vias CLI=140 GUI=140, cli-only=0 gui-only=0,
+                                 copper sets IDENTICAL
+
+  NOT run, and why: test_gui_livechain_rp2350 (long; the engine-parity gate
+  above already exercises the signal+plane chain this branch touched) and the
+  diff-pair/impedance path (this branch changed nothing there -- the annular
+  work is via geometry, which route_diff does not size).
+
 check_release_version.check_gui_parity reads `marker.read_text().split()[0]`
 and diffs it against HEAD. Every entry until now opened with the word "HEAD"
 (or "ADDENDUM"), which git resolves happily -- so `git diff HEAD..HEAD` was
