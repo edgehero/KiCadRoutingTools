@@ -530,12 +530,72 @@ def static_boxin_hint(result, config, pcb_data=None, *, return_verdict=False):
             grid_advice = (f"--grid-step {finer:g} scoped to just the failing nets "
                            f"via --nets (board-global it is ~{cells / 1e6:.0f}M "
                            f"cells/layer and may exhaust memory)")
+    # WHAT TO ADVISE depends on whether the geometry has anywhere left to go.
+    # The old text hardcoded `--clearance 0.15 --track-width 0.15` regardless of
+    # `config`, so on run 20 -- routing at exactly 0.15/0.15 -- it advised the
+    # values already in force, and the only novel token in the whole hint was
+    # the grid. Three grid refinements followed, ~40 minutes, with the same
+    # three nets failing at every resolution.
+    #
+    # The floor is the BOARD's own declaration, not the fab minimum. Going
+    # below what the board declares is the ratchet this repo keeps
+    # rediscovering -- a run that "finds travel" by routing under the board's
+    # own class has not found travel, it has moved the goalposts and every
+    # later grader then reads clean. Measured on run 20: at the fab rung
+    # (0.0762 track) there is apparent room; at the board's declared 0.15 there
+    # is none, and none was the truth.
+    _floor_c = _floor_t = None
+    _src = getattr(pcb_data, 'source_path', None) if pcb_data is not None else None
+    if _src:
+        try:
+            from list_nets import board_floor, read_design_rules
+            _dr = read_design_rules(_src)
+            _floor_c = board_floor(_src, 'clearance', design_rules=_dr)[0]
+            _floor_t = board_floor(_src, 'track_width', design_rules=_dr)[0]
+        except Exception:                                   # noqa: BLE001
+            _floor_c = _floor_t = None
+    _has_c = _floor_c is not None and config.clearance > _floor_c + 1e-9
+    _has_t = _floor_t is not None and config.track_width > _floor_t + 1e-9
+    _known = _floor_c is not None or _floor_t is not None
+    if _known and not (_has_c or _has_t):
+        # Name only what was READ. A board whose clearance floor is unreadable
+        # while its track floor is not has travel on one axis that this cannot
+        # see, and claiming "both are at the floor" there would be the same
+        # class of overclaim the whole hint is being fixed for.
+        _at = ', '.join(
+            f'{k} {v:g}' for k, v in (('clearance', _floor_c),
+                                      ('track', _floor_t)) if v is not None)
+        _unread = ', '.join(k for k, v in (('clearance', _floor_c),
+                                           ('track', _floor_t)) if v is None)
+        _advice = (
+            f"the geometry is ALREADY at this board's declared floor ({_at}), "
+            + (f"and no floor could be read for {_unread}, "
+               if _unread else '')
+            + f"so there is nothing left to pair a finer grid with. A finer "
+              f"grid alone resolves the SAME obstacles more precisely -- it "
+              f"does not make the gap wider. THIS IS A PLACEMENT/FLOORPLAN "
+              f"FINDING, NOT A PARAMETER ONE: measure it with "
+              f"check_reachability on the COPPER-FREE board and re-enter "
+              f"placement")
+    else:
+        _room = []
+        if _has_c:
+            _room.append(f"--clearance {_floor_c:g}")
+        if _has_t:
+            _room.append(f"--track-width {_floor_t:g}")
+        _advice = (
+            f"for fine-pitch parts try a finer grid PAIRED with the geometry "
+            f"that still has travel, e.g. {grid_advice}"
+            + (' ' + ' '.join(_room) if _room else '')
+            + (" (the grid is the COMPLEMENT, never the lever on its own)"
+               if _room else
+               " -- no declared floor was readable here, so whether the "
+               "geometry has travel is unknown; check the board's netclass "
+               "before spending a grid lap"))
     return _ret(
         f"Hint: search exhausted after only {iters} iterations with no rippable "
         f"blockers - the start/target pads are boxed in by static obstacles "
-        f"(neighboring pads + clearance), not by congestion. For fine-pitch "
-        f"parts try a finer grid and/or smaller clearance/track, e.g. "
-        f"{grid_advice} --clearance 0.15 --track-width 0.15 "
+        f"(neighboring pads + clearance), not by congestion. {_advice} "
         f"(current: grid {config.grid_step:g}, clearance {config.clearance:g}, "
         f"track {config.track_width:g} mm)",
         # The verdict, as data. `geometry` is what was IN FORCE -- whether that
@@ -546,4 +606,11 @@ def static_boxin_hint(result, config, pcb_data=None, *, return_verdict=False):
          'geometry': {'grid_step': config.grid_step,
                       'clearance': config.clearance,
                       'track_width': config.track_width,
-                      'via_diameter': getattr(config, 'via_diameter', None)}})
+                      'via_diameter': getattr(config, 'via_diameter', None)},
+         # The floors the geometry was compared against, and the ANSWER. The
+         # guard at L4 must not re-derive this: two instruments deriving one
+         # verdict two ways is how the same board gets classified twice.
+         # `at_floor` is None when no floor could be read -- unknown, never a
+         # silent False.
+         'floors': {'clearance': _floor_c, 'track_width': _floor_t},
+         'at_floor': (None if not _known else not (_has_c or _has_t))})

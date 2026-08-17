@@ -208,6 +208,93 @@ def _score_board_mismatch(board, payload):
 _CONGESTION_RATIO = 0.25
 
 
+def _guard_static_boxin(a):
+    """(ok, why) -- refuse a GRID lever the router has already said cannot help.
+
+    The router prints "boxed in by static obstacles ... not by congestion" on
+    every such failure, and since the `boxed_in` key it also SAYS it in JSON,
+    with the geometry it was running and whether that geometry sits at the
+    board's declared floor.
+
+    A finer grid resolves the SAME obstacles more precisely. It does not make a
+    gap wider. So when the geometry is at the floor, the parameter family is
+    spent and a grid lap is a measured waste: run 20 spent three of them,
+    0.05 -> 0.025 -> 0.0125, roughly 40 minutes, with `unrouted` at exactly
+    BUSY / Net-(U4-XTAL_P) / SCK at every resolution.
+
+    REFUSES on that case, mirroring `_guard_congestion` -- warn-only was tried
+    by circumstance in run 20, the warning was on screen on every residual
+    failure, and the three laps were spent anyway. REPORTS, never refuses, when
+    the geometry still has travel: there the grid is a legitimate COMPLEMENT to
+    a geometry change, just never the lever alone.
+
+    Silent when there is no `--route-summary`, no box-in verdict, or the verdict
+    cannot say whether the geometry is at the floor. This guard exists to stop a
+    KNOWN-futile lever; "I could not tell" must not become "you failed".
+    """
+    if not getattr(a, 'route_summary', None):
+        return True, ''
+    try:
+        with open(a.route_summary, encoding='utf-8') as fh:
+            summary = json.load(fh)
+    except Exception as exc:                                # noqa: BLE001
+        return True, (f'  NOTE: --route-summary {a.route_summary} is unreadable '
+                      f'({exc}), so the static-boxin precondition was not '
+                      f'checked.')
+    boxed = summary.get('boxed_in') or []
+    if not boxed:
+        return True, ''
+    nets = ', '.join(str(e.get('net')) for e in boxed[:6])
+    at_floor = [e for e in boxed if e.get('at_floor') is True]
+    unknown = [e for e in boxed if e.get('at_floor') is None]
+    g = (boxed[0].get('geometry') or {})
+    geom = (f"grid {g.get('grid_step')}, clearance {g.get('clearance')}, "
+            f"track {g.get('track_width')}")
+    if not at_floor:
+        _tail = ('' if not unknown else
+                 f' ({len(unknown)} of them could not read a declared floor, so '
+                 f'whether the geometry has travel is UNKNOWN there.)')
+        return True, (
+            f'  NOTE: the router reports {len(boxed)} net(s) boxed in by STATIC '
+            f'obstacles, not congestion: {nets}. Running {geom}.{_tail}\n'
+            f'  A finer grid resolves the same obstacles more precisely; it does '
+            f'not make a gap wider. Pair it with the geometry that still has '
+            f'travel -- the grid is the complement, never the lever alone.')
+    _why = str(getattr(a, 'accept_boxin', None) or '').strip()
+    if _why:
+        # The REASON, echoed into the stage body -- mirroring
+        # --accept-congestion. A waiver whose justification lives only in a
+        # shell history is one nobody can review later, and the ledger is what
+        # the next pass reads.
+        return True, (
+            f'  --accept-boxin: proceeding against a static-boxin verdict on '
+            f'{nets}, whose geometry is at the declared floor ({geom}).\n'
+            f'  Reason on the record: {_why}')
+    return False, (
+        f'The router says these nets are boxed in by STATIC obstacles, not by '
+        f'congestion, and the geometry is ALREADY at this board\'s declared '
+        f'floor:\n\n'
+        f'  nets:     {nets}\n'
+        f'  running:  {geom}\n'
+        f'  floors:   {(boxed[0].get("floors") or {})}\n\n'
+        f'A finer grid resolves the SAME obstacles more precisely. It does not '
+        f'make a gap wider, and there is no geometry left to pair it with -- so '
+        f'the parameter family is spent on these nets.\n\n'
+        f'Measured (run 20): three grid refinements against exactly this '
+        f'verdict, 0.05 -> 0.025 -> 0.0125, ~40 minutes, with `unrouted` at '
+        f'exactly BUSY / Net-(U4-XTAL_P) / SCK at every resolution.\n\n'
+        f'Measure it as placement instead -- check_reachability on the '
+        f'COPPER-FREE board, which is the only board on which a CAGED verdict '
+        f'means placement rather than rip-up depth:\n'
+        f'  python3 -X utf8 py_tools/check_reachability.py <copper-free board> \\\n'
+        f'      --pad <REF.PAD on one of those nets> --track <the floor> \\\n'
+        f'      --defect-json wk/defect.json\n'
+        f'  ... --stage L3 --defect-json wk/defect.json '
+        f'--route-summary {a.route_summary}\n\n'
+        f'If you have a reason this is still a parameter problem, say it:\n'
+        f'  --accept-boxin "<why a grid/parameter lever will help here>"')
+
+
 def _guard_congestion(a):
     """`parameter` is the DEFAULT ANSWER of a classifier that cannot see
     congestion, so it has to be the one that carries evidence.
@@ -1660,10 +1747,17 @@ def l4(a):
     if a.shape == 'parameter':
         # Refuses only when the congestion evidence is MISSING. The numbers
         # themselves report and never refuse -- see _guard_congestion.
+        # BOTH preconditions, and the boxin one FIRST: a grid lever the router
+        # has already said cannot help is futile whether or not the congestion
+        # evidence exists, so asking for that evidence first would send the
+        # operator off to render two boards for a lap that is refused anyway.
+        _bok, _bwhy = _guard_static_boxin(a)
+        if not _bok:
+            return err(_bwhy)
         _cok, _cwhy = _guard_congestion(a)
         if not _cok:
             return err(_cwhy)
-        _cread = f'\n{_cwhy}\n' if _cwhy else ''
+        _cread = ''.join(f'\n{x}\n' for x in (_bwhy, _cwhy) if x)
         return f'''<stage_instructions stage="L4" name="re-enter: parameter" of="5">
 {_cread}
 Re-enter the FAILING ROUTING STEP with the parameter changed. Nothing before it
@@ -2401,6 +2495,13 @@ def _args(argv=None):
     ap.add_argument('--congestion-baseline', default=None, metavar='PATH',
                     help='render_placement --json-out of the pre-placement '
                          'board, to compare --congestion-json against.')
+    ap.add_argument('--accept-boxin', default=None, metavar='REASON',
+                    help="proceed with a `parameter` re-entry even though the "
+                         "route summary reports the failing nets boxed in by "
+                         "STATIC obstacles at the board's declared floor. Takes "
+                         "the REASON, echoed into the stage body so it reaches "
+                         "the ledger. Run 20 spent three grid laps (~40 min) "
+                         "against exactly this verdict.")
     ap.add_argument('--accept-congestion', default=None, metavar='REASON',
                     help='Proceed with --shape parameter even though the '
                          'congestion read says the failure may be '

@@ -1178,7 +1178,8 @@ difference between a rule and a hope:
 | shipping | `loop_driver` **L5** refuses without a `check_complete` close-out, and refuses again when it CONTRADICTS `converge` | `<error>`, exit 4 |
 | recording the verdicts | `converge record --final` refuses without the three routed-board lenses, and forbids stop-condition 1 when any FAILED | exit 2, nothing written |
 | recording the read | `converge record --kind placement` NOTEs when `--render-json` is absent | a warning; the row is still written |
-| 3, 4, 5, 6, 7 | **nothing** | silence |
+| 3 (partially) | `loop_driver` **L4** refuses a grid/parameter lever when `--route-summary` reports the failing nets boxed in by STATIC obstacles at the board's declared floor | `<error>`, exit 4, unless `--accept-boxin "<reason>"` |
+| 4, 5, 6, 7 | **nothing** | silence |
 
 The gate checks that a render EXISTS, is of **this** board (`instrument.board`
 vs `--board`), carries a `checklist`, and agrees with `--expect-moved`. It
@@ -4406,6 +4407,14 @@ Re-run the chain only when a **placement** changed (which invalidates every rout
 board downstream) or when you are producing the final artifact. Everything else is
 a scoped retry on the board that already failed.
 
+**A scoped `--nets` retry on a net that is ALREADY CONNECTED is a no-op.** The
+router has nothing to improve there: the escalation ladder never fires, and the
+copper comes back byte-identical. To change the geometry of copper the router is
+happy with you must **rip** it (`--rip-existing-nets <exact names>`) or route the
+whole board. Naming it in `--nets` alone changes nothing. Run 20 spent a lap
+discovering this — a targeted via fix produced vias at identical coordinates in
+both boards.
+
 ##### 9.3b — READ THE ROUTER'S HINT. It names the flag and the nets.
 
 When `route.py` fails a net it prints the fix, and it is usually right:
@@ -4417,9 +4426,20 @@ ROUTE FAILED - no rippable blockers found
   rip. Retry with --rip-existing-nets 'QSPI_SD2' 'QSPI_SS' 'VCC3V3' ...
 ```
 ```
-  Hint: the start/target pads are boxed in by static obstacles ... try
-  --grid-step 0.025 --clearance 0.15 --track-width 0.15
+  Hint: ... boxed in by static obstacles ..., not by congestion. the geometry
+  is ALREADY at this board's declared floor (clearance 0.15, track 0.15), so
+  there is nothing left to pair a finer grid with. ... THIS IS A
+  PLACEMENT/FLOORPLAN FINDING, NOT A PARAMETER ONE
+  (current: grid 0.05, clearance 0.15, track 0.15 mm)
 ```
+
+**READ THE `(current: ...)` TAIL BEFORE ACTING ON THIS HINT.** It used to
+advise `--clearance 0.15 --track-width 0.15` unconditionally, so on a board
+routing at exactly 0.15/0.15 it recommended the values already in force and the
+only novel token in the sentence was the grid. It now derives the advice from
+the board's own declared floor and says outright when the parameter family is
+spent — but a *saved* log from before that change still carries the old wording,
+and the tail is how you tell.
 
 On one board these two hints, applied, took `unrouted` from 5 to 0. The router
 diagnoses better than the score does — the score said `drc`, the router said
@@ -4509,7 +4529,8 @@ top blocker on the exact keys, not on impressions:
 |---|---|---|
 | failures cluster into ≤2 pockets (`--focus` panels), their refs share one block, `blockers` non-empty | **floorplan** | back to **Step 0e** — re-zone. A 3 mm nudge cannot move a block 80 mm |
 | failures scattered, `blockers` non-empty, every failing ref is a ≤40-pin passive | **placement detail** | back to **Step 0c**, `place_route_loop` with the caps above |
-| `blockers` empty; the log says boxed in by static obstacles | **parameters** | stay here — grid, ripup budget, width. Placement is not the lever |
+| `blockers` empty; `boxed_in` names the net; **geometry has travel** above the board's declared floor | **parameters — geometry first** | shrink track/clearance/via toward that floor, and pair a finer grid **with** it. The grid is the COMPLEMENT, never the lever alone: a finer grid resolves the same obstacles more precisely, it does not make a gap wider |
+| `blockers` empty; `boxed_in` names the net; **geometry at the declared floor** | **placement / floorplan** | the parameter family is spent. Measure it with `check_reachability` on the **copper-free** board and re-enter placement. Measured (run 20): `0.05 -> 0.025 -> 0.0125` left `unrouted` at exactly BUSY / Net-(U4-XTAL_P) / SCK at every resolution, ~40 min. **L4 refuses a grid lever here** unless you pass `--accept-boxin "<reason>"` |
 | 2-layer board, heavy F.Cu skew, via count far above a hand layout | **parameters** | layer-cost rebalance, below |
 | `oob_count` or `overlap_area` rose after the last placement | **the placement is illegal** | discard it; do not route it |
 | `check_floorplan` exits 4 with `zone_containment` | **intent violated** | fix the placement to match, or say why the intent changed. Do not quietly rewrite the intent to match the board |
@@ -4987,7 +5008,7 @@ After running routing commands:
 
 | Failure Pattern | Likely Cause | Solution |
 |-----------------|--------------|----------|
-| "no rippable blockers found" | Route blocked by non-rippable obstacle | Use `--no-bga-zone`; if pads are "boxed in by static obstacles", shrink geometry / finer grid (see "Congestion escalation" below) |
+| "no rippable blockers found" | Route blocked by non-rippable obstacle | Use `--no-bga-zone`. If pads are "boxed in by static obstacles", read the hint's `(current: ...)` tail and the summary's `boxed_in[].at_floor`: **geometry has travel** → shrink it and pair a finer grid with it; **already at the declared floor** → the parameter family is spent, this is placement (see 9.3d). A finer grid alone resolves the same obstacles more precisely; it does not make a gap wider |
 | "Re-route FAILED: no path found" | Ripped net couldn't find new path | Capacity problem (`--max-iterations` self-extends, #529): `--max-ripup`, clearance, or layers |
 | Many multipoint pads failed on same component | Congested area | Shrink geometry toward the fab floor (see below); keep `--max-ripup` at ~5 (deeper measured worse) |
 | Many failures cluster in one channel/region | Tracks too fat for the channel | **Congestion escalation**: re-route the failed nets at smaller track/via/clearance down to the fab floor (see below) |
