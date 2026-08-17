@@ -91,13 +91,26 @@ def main():
         if "meta" not in proj["net_settings"]:
             fails.append("net_settings.meta missing (KiCad needs it to read classes)")
         # Non-routing severities ignored.
-        for cat in ("solder_mask_bridge", "lib_footprint_mismatch", "courtyards_overlap",
-                    "annular_width"):
+        for cat in ("solder_mask_bridge", "lib_footprint_mismatch", "courtyards_overlap"):
             if sev.get(cat) != "ignore":
                 fails.append(f"severity[{cat}] = {sev.get(cat)}, expected ignore")
-        # Thermal-relief shortfall demoted error -> warning (still visible).
-        if sev.get("starved_thermal") != "warning":
-            fails.append(f"severity[starved_thermal] = {sev.get('starved_thermal')}, expected warning")
+        # Demoted error -> warning: real-but-minor, and VISIBLE rather than
+        # hidden.
+        #
+        # `annular_width` moved here from the ignore list above (run 20). It was
+        # ignored as footprint/library noise, on the stated grounds that "the
+        # router does not create or fix these". For PAD annular rings that is
+        # true. For VIA annular rings it is false: net_rescue's escalation
+        # ladder built a via at 0.3mm diameter on a 0.3mm drill -- a hole with
+        # no barrel land -- and the `ignore` meant KiCad's own DRC could not say
+        # so either, so the board read clean in every instrument including
+        # KiCad's. Same argument and same resolution as run 6 gave
+        # courtyards_overlap: an ignore that GAGS the one check which catches a
+        # real defect is worse than the noise it suppresses. check_drc's
+        # structural rung is where it BLOCKS; here it only has to stay visible.
+        for cat in ("starved_thermal", "annular_width"):
+            if sev.get(cat) != "warning":
+                fails.append(f"severity[{cat}] = {sev.get(cat)}, expected warning")
         # The board file must be byte-for-byte unchanged (version preserved).
         if _md5(pcb) != md5_before:
             fails.append("the .kicad_pcb was modified (must only edit the .kicad_pro)")

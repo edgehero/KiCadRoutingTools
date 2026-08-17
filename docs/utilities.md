@@ -999,9 +999,18 @@ defaults, which produce noise in two ways:
    below them (hundreds of markers). They are spurious at the real manufacturing
    floor; `check_drc.py` never reports them.
 2. **Non-routing categories** — courtyard overlaps, solder-mask bridges and
-   footprint/library markers (`annular_width`, `lib_footprint_*`) the router
-   neither creates nor fixes — often dominate the report (e.g. ~200 annular +
-   ~150 library markers on the orangecrab stress board).
+   library markers (`lib_footprint_*`) the router neither creates nor fixes —
+   often dominate the report (~150 library markers on the orangecrab stress
+   board).
+
+   `annular_width` used to be in that list and is **not** any more. For a PAD
+   annular ring the "the router neither creates nor fixes these" argument holds;
+   for a VIA annular ring it is false, and run 20 is the proof — the rescue
+   ladder built a via at 0.3 mm diameter on a 0.3 mm drill, a hole with no
+   barrel land, and the `ignore` meant KiCad's own DRC could not say so either.
+   It is now demoted to **warning**: visible in KiCad, and blocking in
+   `check_drc.py`, whose structural rung flags any ring at or below zero.
+   `--keep-thermal` keeps it an error.
 
 The script sets the relevant **Constraints / Net Classes** to the per-object
 minima the board uses — copper `min_clearance` (+ Default net-class clearance),
@@ -1062,8 +1071,9 @@ Options:
   --keep-courtyards     Do not ignore the courtyard categories
   --keep-mask           Do not ignore solder_mask_bridge
   --keep-footprint      Do not ignore footprint/library categories
-                        (annular_width, lib_footprint_issues, lib_footprint_mismatch)
-  --keep-thermal        Keep starved_thermal an error (default: demote to warning)
+                        (lib_footprint_issues, lib_footprint_mismatch)
+  --keep-thermal        Keep the demote-to-warning categories (starved_thermal,
+                        annular_width) at error
   --ignore CAT [CAT...] Additional severity categories to set to "ignore"
   --ignore-warnings     Set EVERY category currently at "warning" severity to
                         "ignore" (hides all warning markers; errors untouched)
@@ -1110,7 +1120,8 @@ file vs. pcbnew API).
 
 ```bash
 # Default: derive floors from the board's own minima + project clearance; ignore
-# courtyard, solder-mask and footprint/library (annular_width, lib_footprint_*) noise
+# courtyard, solder-mask and library (lib_footprint_*) noise, demote
+# starved_thermal and annular_width to warnings
 python3 py_router/fix_kicad_drc_settings.py routed.kicad_pcb
 
 # Pin every floor to the routing parameters you gave route.py (recommended)
