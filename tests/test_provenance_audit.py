@@ -346,5 +346,36 @@ check("a tool that does NOT write poses is named, not silently registered",
       "beautify_labels writes silkscreen through write_label_output, not the "
       "pose funnel -- registering it would imply coverage that does not exist")
 
+# The check above reads the SOURCE for `declare_lever`. That is not enough, and
+# run 20 measured the gap: `place_fanout_clearance.py` contained the call, so
+# the static check passed, while the module raised
+#   NameError: name 'sys' is not defined
+# on EVERY invocation including --help -- because the `declare_lever(...,
+# sys.argv)` line was the file's only use of `sys` and nothing imported it. A
+# registered lever that cannot start is a lever that cannot author anything, so
+# the registry was describing a capability the repo did not have.
+#
+# --help is the cheapest possible execution: it exercises import, module-level
+# code and the argparse build without touching a board.
+_dead = []
+for _lever in PV.LEVER_REGISTRY:
+    _hits = (_glob.glob(os.path.join(REPO, 'py_placer', _lever))
+             + _glob.glob(os.path.join(REPO, 'tests', 'stress', _lever)))
+    if not _hits:
+        continue
+    _src = open(_hits[0], encoding='utf-8').read()
+    if '__main__' not in _src:
+        continue                       # a library, reached through a CLI
+    _r = subprocess.run([sys.executable, '-X', 'utf8', _hits[0], '--help'],
+                        capture_output=True, text=True, timeout=120,
+                        cwd=REPO)
+    if _r.returncode != 0:
+        _tail = ((_r.stderr or _r.stdout or '').strip().splitlines() or [''])[-1]
+        _dead.append(f'{_lever}: rc={_r.returncode} {_tail[:110]}')
+check("every registered lever actually STARTS (--help exits 0)",
+      not _dead,
+      ' | '.join(_dead) + "  -- a lever that cannot start cannot author poses, "
+      "and the source-text check above cannot see this")
+
 print(f"\n{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

@@ -17,6 +17,8 @@ Pipeline: bga_fanout.py -> place_fanout_clearance.py -> (gnd/power vias, route)
 import _path  # noqa: F401  (py_placer -> py_router/py_tools on sys.path)
 
 import os
+import sys  # declare_lever() below reads sys.argv -- without this the module
+             # raised NameError on EVERY invocation, --help included (run 20)
 
 from kicad_parser import parse_kicad_pcb
 import routing_defaults as defaults
