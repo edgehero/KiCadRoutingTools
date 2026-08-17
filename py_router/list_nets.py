@@ -281,12 +281,21 @@ def board_floor_declaration(pcb_path, design_rules=None):
     Why the graders need this rather than just a value (run-12 Tier 1.3): every
     floor accessor here answers ``None`` on such a board, and each grader then
     quietly substitutes its own constant (``routing_defaults.CLEARANCE`` 0.25,
-    check_drc's 0.2). Measured on tigard, which ships no project: a whole
-    placement baseline was graded against a fallback with nothing in the
+    check_drc's 0.2). Measured on tigard, which shipped no project AT THE TIME:
+    a whole placement baseline was graded against a fallback with nothing in the
     transcript recording that the number was a fallback rather than the board's
     own. That is the "grade at a floor the board was not routed to" failure
     CLAUDE.md warns about, reached from the other direction -- and unlike a
     board that declares 0.25, there is no value to compare against to notice it.
+
+    **tigard is no longer that example.** A `.kicad_pro` has since been migrated
+    in beside it -- see its `kicad_routing_tools.floor_provenance` -- and it now
+    declares min_clearance 0.15 / min_track_width 0.15 / min_via_diameter 0.5,
+    with a Default class of 0.15/0.15, so all three floors resolve as
+    'board netclass'. The FINDING stands and is why this function exists; the
+    board named in it will no longer reproduce it. To see the no-declaration
+    path, use a board with no sibling project at all -- `splitflap_driver` is
+    one, and `copy_board.py` warns when it copies such a board.
 
     Report-only. Nothing here changes a floor or an exit code; it exists so a
     grader can NAME its fallback.
