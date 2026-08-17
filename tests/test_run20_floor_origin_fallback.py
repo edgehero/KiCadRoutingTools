@@ -121,14 +121,44 @@ print('--- the origin is seeded even when the first writeback changes nothing --
 # The moment a first writeback happens to move nothing is the MOST valuable
 # moment to record a baseline -- the floors are still the human's. The old code
 # returned early there and threw it away.
-_d4, _b4 = _stage('noop', rules={})
+_d4, _b4 = _stage('noop', rules={'min_track_width': 0.15,
+                                 'min_clearance': 0.15,
+                                 'min_via_annular_width': 0.075})
 _pro4 = os.path.join(_d4, 'noop.kicad_pro')
-with open(_pro4, 'w', encoding='utf-8') as fh:
-    json.dump({'board': {'design_settings': {'rules': {
-        'min_track_width': 0.15, 'min_clearance': 0.15,
-        'min_via_annular_width': 0.075}}}}, fh)
-_before = json.load(open(_pro4, encoding='utf-8'))
+# Reaching the no-op path takes more than writing plausible rules. `changes`
+# counts WRITES, and a key the project never declared counts -- so a
+# hand-written project with three rules in it produces 18 changes and never
+# touches the branch under test. (It did, in the first version of this test:
+# the assertion passed on the ordinary write path and the fix shipped
+# untested, which a mutation run caught.) So: let the writeback run once to
+# reach a consistent state, then REMOVE the origin it seeded. That is exactly
+# the real-world shape too -- a project written by an older version, or by a
+# chain that ran --no-fix-drc-settings and was fixed by hand afterwards.
 FK.fix_project_for_output(_b4, clearance=0.15, verbose=False)
+_p4 = json.load(open(_pro4, encoding='utf-8'))
+_p4.pop('kicad_routing_tools', None)
+json.dump(_p4, open(_pro4, 'w', encoding='utf-8'), indent=2)
+
+_chg = []
+_orig_apply = FK.apply_targets_to_project
+
+
+def _spy(*a, **kw):
+    out = _orig_apply(*a, **kw)
+    _chg.append(list(out))
+    return out
+
+
+FK.apply_targets_to_project = _spy
+try:
+    FK.fix_project_for_output(_b4, clearance=0.15, verbose=False)
+finally:
+    FK.apply_targets_to_project = _orig_apply
+
+check('the fixture really is on the no-op path (this is the whole test)',
+      _chg and not _chg[-1],
+      f'{_chg[-1] if _chg else "?"} -- if `changes` is non-empty the assertion '
+      f'below passes on the ordinary write path and proves nothing')
 _after = json.load(open(_pro4, encoding='utf-8'))
 _org = (_after.get('kicad_routing_tools') or {}).get('fab_floor_origin') or {}
 check('a writeback that changes nothing still records the origin',
@@ -178,33 +208,104 @@ check('the SIZE floors are deliberately not raised to the origin',
 
 print('--- unmeasured resolves by REFERENCE to the drc component ---')
 
-f = {'ran': True, 'relaxed': [], 'unmeasured': [
-    {'key': 'min_hole_clearance', 'label': 'copper-to-hole clearance',
-     'authored': 0.254},
-    {'key': 'min_clearance', 'label': 'copper clearance', 'authored': 0.2}]}
-CC._resolve_graded_elsewhere(f, {'components': {'drc': {
-    'ran': True, 'by_type': {'track-hole': 36, 'pad-pad': 2}}}})
-check('a key another instrument graded moves out of `unmeasured`',
+def _floors_doc(**kw):
+    return {'ran': True, 'relaxed': [], 'unmeasured': [
+        {'key': 'min_hole_clearance', 'label': 'copper-to-hole clearance',
+         'authored': 0.254},
+        {'key': 'min_clearance', 'label': 'copper clearance', 'authored': 0.2}]}
+
+
+def _score(**drc):
+    return {'components': {'drc': drc}}
+
+
+f = _floors_doc()
+CC._resolve_graded_elsewhere(f, _score(
+    ran=True, by_type={'track-hole': 36, 'pad-pad': 2},
+    floors={'hole_clearance': 0.254}))
+check('a key another instrument graded AT THE DECLARATION moves out of '
+      '`unmeasured`',
       [x['key'] for x in f['unmeasured']] == ['min_clearance'], str(f))
 check('and it carries that instrument\'s own count, not a re-measurement',
       f['graded_elsewhere'][0]['count'] == 36
       and f['graded_elsewhere'][0]['graded_by'] == 'check_drc',
       str(f.get('graded_elsewhere')))
-check('it discloses that the FLOOR was not confirmed',
-      f['graded_elsewhere'][0].get('floor_confirmed') is False,
-      'the score payload carries no hole-clearance floor to confirm against; '
-      'saying so is better than assuming it silently')
+check('with the floor it was confirmed at',
+      f['graded_elsewhere'][0].get('floor_confirmed') is True
+      and abs(f['graded_elsewhere'][0]['graded_at'] - 0.254) < 1e-9,
+      str(f.get('graded_elsewhere')))
 
-f2 = {'ran': True, 'relaxed': [], 'unmeasured': [
-    {'key': 'min_hole_clearance', 'label': 'copper-to-hole clearance',
-     'authored': 0.254}]}
-CC._resolve_graded_elsewhere(f2, {'components': {'drc': {'ran': False}}})
-check('when the drc component did NOT run it stays unmeasured, with a reason',
-      len(f2['unmeasured']) == 1 and 'did not run' in f2['unmeasured'][0]['reason'],
+# THE defect this guard exists for, found by adversarial verification of the
+# first version: the child graded at the RATCHETED floor, not the declaration.
+# `--authored-from` is exactly the case where the two differ, and promoting
+# there turned an honest "not measured" into "graded, zero violations" on a
+# board with 36 real violations at the declared floor.
+f2 = _floors_doc()
+CC._resolve_graded_elsewhere(f2, _score(
+    ran=True, by_type={}, floors={'hole_clearance': 0.15}))
+check('a key graded BELOW the declaration is NOT promoted',
+      [x['key'] for x in f2['unmeasured']] == ['min_hole_clearance',
+                                               'min_clearance'],
       str(f2))
-check('exactly one key is delegated, and to a named instrument',
-      list(CC.FAB_FLOOR_KEYS_GRADED_BY_DRC) == ['min_hole_clearance'],
+check('and the reason names both floors and how to re-grade',
+      '0.15' in f2['unmeasured'][0]['reason']
+      and '0.254' in f2['unmeasured'][0]['reason']
+      and '--hole-clearance' in f2['unmeasured'][0]['reason'],
+      str(f2['unmeasured'][0]))
+
+f3 = _floors_doc()
+CC._resolve_graded_elsewhere(f3, _score(ran=True, by_type={}))
+check('a drc component that reports no floor at all is not promoted either',
+      'did not report the floor' in f3['unmeasured'][0].get('reason', ''),
+      str(f3['unmeasured'][0]))
+
+f4 = _floors_doc()
+CC._resolve_graded_elsewhere(f4, _score(ran=False))
+check('when the drc component did NOT run it stays unmeasured, with a reason',
+      'did not run' in f4['unmeasured'][0].get('reason', ''),
+      str(f4['unmeasured'][0]))
+check('exactly one key is delegated, to a named instrument, with the floor '
+      'field to confirm against',
+      list(CC.FAB_FLOOR_KEYS_GRADED_BY_DRC) == ['min_hole_clearance']
+      and CC.FAB_FLOOR_KEYS_GRADED_BY_DRC['min_hole_clearance'][2]
+      == 'hole_clearance',
       str(CC.FAB_FLOOR_KEYS_GRADED_BY_DRC))
+
+print('--- and the floor it graded at reaches the score payload ---')
+# The promotion above is only sound because board_score publishes what its
+# check_drc child graded at. It used to scrape one scalar out of stdout.
+_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'scripts',
+                   'board_score.py')
+_p = subprocess.run([sys.executable, _bs, _b, '--quiet'],
+                    capture_output=True, text=True, timeout=900)
+_ln = [x for x in (_p.stdout or '').splitlines() if x.startswith('SCORE_JSON=')]
+if _ln:
+    _sc = json.loads(_ln[0][len('SCORE_JSON='):])
+    _fl = (_sc['components']['drc'] or {}).get('floors') or {}
+    check('board_score carries check_drc\'s whole graded_at, not a scalar',
+          'hole_clearance' in _fl and 'size_floors' in _fl, str(_fl)[:300])
+    check('and `floors.requested` holds only floors, not forwarding flags',
+          all(isinstance(v, (int, float))
+              for v in (_sc['floors'].get('requested') or {}).values()),
+          str(_sc['floors'].get('requested')))
+else:
+    check('board_score produced a score line', False,
+          (_p.stdout or _p.stderr)[-300:])
+
+print('--- the UNSOUND verdict does not swallow the other findings ---')
+_p = subprocess.run([sys.executable, '-X', 'utf8',
+                     os.path.join(REPO, 'check_complete.py'), _b],
+                    capture_output=True, text=True, timeout=900)
+_v = [x for x in (_p.stdout or '').splitlines() if x.startswith('VERDICT:')]
+check('an UNSOUND board still reports what INCOMPLETE would have said',
+      _v and 'UNSOUND' in _v[0] and 'not superseded' in _v[0]
+      and 'weird_copper' in _v[0],
+      (_v[0] if _v else (_p.stdout or '')[-400:])
+      + ' -- UNSOUND is a MORE SEVERE verdict, not a replacement for what '
+        'INCOMPLETE would have said; the origin fallback made it the default '
+        'for chain outputs, so discarding those reasons newly hid them '
+        '(measured on run 20: blocking = 12 and a failing weird_copper both '
+        'vanished from the reason line)')
 
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

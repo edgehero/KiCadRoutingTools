@@ -314,7 +314,46 @@ check('size_margin loosens the strict rung too',
       not CD.check_via_annular(_V(0.3, 0.3), 0.0, size_margin=0.01,
                                strict=True)[0], '')
 
+print('--- the boundary survives float representation error ---')
+# The annular ring is the only size quantity here that is a DIFFERENCE of two
+# stored numbers, so it inherits their representation error where a direct
+# comparison would not. `(0.3 - 0.2) / 2` is 0.04999999999999999. Without an
+# epsilon, 379 vias on kicad_files/routed_output.kicad_pcb were reported as
+# violating a floor they exactly meet -- the report printing its own refutation,
+# "Ring: 0.0500mm ... <= min 0.0500mm (short 0.0000mm)" -- while 0.8/0.5 vias
+# with the same nominal ring graded clean because that pair is float-exact.
+check('the fixture is a real ULP case, not a hand-picked one',
+      (0.3 - 0.2) / 2.0 < 0.05, f'{(0.3 - 0.2) / 2.0!r} vs 0.05')
+check('a via EXACTLY at a declared floor passes despite the ULP',
+      not CD.check_via_annular(_V(0.3, 0.2), 0.05, strict=False)[0],
+      f'ring {(0.3 - 0.2) / 2.0!r} against a declared 0.05')
+for _dia, _dr, _fl in ((0.7, 0.4, 0.15), (0.35, 0.2, 0.075), (0.6, 0.4, 0.1)):
+    check(f'...and so does {_dia:g}/{_dr:g} against {_fl:g}',
+          not CD.check_via_annular(_V(_dia, _dr), _fl, strict=False)[0],
+          f'ring {(_dia - _dr) / 2.0!r}')
+check('one nanometre under a declared floor is still NOT a violation',
+      not CD.check_via_annular(_V(0.3, 0.2 + 1e-10), 0.05, strict=False)[0],
+      'the epsilon is 1nm -- four orders of magnitude below any fab tolerance')
+check('but a micrometre under one IS',
+      CD.check_via_annular(_V(0.3 - 2e-6, 0.2), 0.05, strict=False)[0], '')
+
+print('--- a degenerate via is not quietly skipped ---')
+# The via with the WORST possible ring -- a hole wider than its pad -- was
+# dropped by a `via.size and via.drill` truthiness guard at the call site,
+# re-introducing at the consumer exactly the "filter out the pathological
+# input" defect this whole change set removes. It survived only because
+# via-size happens to catch a zero diameter separately.
+_bad, _ring, _ = CD.check_via_annular(_V(0.0, 0.3), 0.0, strict=True)
+check('a via with zero diameter has a NEGATIVE ring and is flagged',
+      _bad and _ring < 0, f'{_bad} {_ring}')
+
 print('--- and it is wired end to end ---')
+_DEGEN = '''(kicad_pcb (version 20260206) (generator test)
+ (layers (0 "F.Cu" signal) (2 "B.Cu" signal) (44 "Edge.Cuts" user))
+ (gr_rect (start 0 0) (end 40 30) (layer "Edge.Cuts") (width 0.1))
+ (net 0 "") (net 1 "GND")
+ (via (at 10 10) (size 0) (drill 0.3) (layers "F.Cu" "B.Cu") (net 1))
+)'''
 import subprocess                                                  # noqa: E402
 _drc = os.path.join(REPO, 'py_router', 'check_drc.py')
 
@@ -324,6 +363,16 @@ def _drc_run(board, *extra):
                        + list(extra), capture_output=True, text=True, timeout=300)
     return r.returncode, (r.stdout or '') + (r.stderr or '')
 
+
+_bd = os.path.join(_d, 'degen.kicad_pcb')
+with open(_bd, 'w', encoding='utf-8') as fh:
+    fh.write(_DEGEN)
+rc, out = _drc_run(_bd)
+check('the degenerate via reaches the annular check AT THE CALL SITE',
+      'VIA-ANNULAR violations (1)' in out,
+      out[-400:] + ' -- a `via.size and via.drill` truthiness guard dropped it, '
+      'which is the same "filter out the pathological input" defect at the '
+      'consumer instead of the producer; only via-size caught it, separately')
 
 rc, out = _drc_run(_b)
 check('the three-via fixture reports VIA-ANNULAR and exits 1',
@@ -386,6 +435,92 @@ if _line:
 else:
     check('board_score produced a score line', False,
           (_r.stdout or _r.stderr)[-300:])
+
+print('--- the corpus, not just the fixture ---')
+# The board that exposed the ULP defect is in the repo: 379 vias at 0.3/0.2
+# against a project declaring exactly 0.05.
+_rp = os.path.join(REPO, 'kicad_files', 'routed_output.kicad_pcb')
+if os.path.isfile(_rp):
+    rc, out = _drc_run(_rp, '--annular-vs-board')
+    _n = 0
+    for _ln in out.splitlines():
+        if _ln.startswith('VIA-ANNULAR violations ('):
+            _n = int(_ln.split('(')[1].split(')')[0])
+    check('379 vias exactly at their declared floor are not flagged',
+          _n == 0, f'{_n} flagged -- ' + '; '.join(
+              _l.strip() for _l in out.splitlines()
+              if 'Ring:' in _l)[:160])
+else:
+    check('kicad_files/routed_output.kicad_pcb is present as a fixture',
+          False, 'the ULP regression has no corpus witness without it')
+
+print('--- what the score publishes about how it graded ---')
+_r2 = subprocess.run([sys.executable, _bs, _b, '--quiet',
+                      '--fab-tier', 'advanced'],
+                     capture_output=True, text=True, timeout=900)
+_l2 = [ln for ln in (_r2.stdout or '').splitlines()
+       if ln.startswith('SCORE_JSON=')]
+if _l2:
+    import json as _j2                                              # noqa: E402
+    sc2 = _j2.loads(_l2[0][len('SCORE_JSON='):])
+    _fl2 = (sc2['components']['drc'] or {}).get('floors') or {}
+    check('--fab-tier is FORWARDED to the check_drc child',
+          (_fl2.get('size_floors') or {}).get('fab_tier') == 'advanced',
+          f"{_fl2.get('size_floors')} -- dropping it made an override floor "
+          f"unreachable from the score, and the two tools graded one board at "
+          f"two different fab tiers with nothing saying so")
+    check('and the size floors travel with their SOURCES',
+          set(_fl2.get('size_floor_sources') or {}) >= {
+              'min_track_width', 'min_via_diameter', 'min_via_drill',
+              'min_via_annular_width'}, str(_fl2.get('size_floor_sources')))
+    check('the annular check reports its EFFECTIVE state',
+          _fl2.get('annular_check') is True, str(_fl2.get('annular_check')))
+else:
+    check('board_score ran with --fab-tier', False,
+          (_r2.stdout or _r2.stderr)[-300:])
+
+_r3 = subprocess.run([sys.executable, _drc, _b, '-q', '--max-print', '0',
+                      '--no-size-checks', '--json',
+                      os.path.join(_d, 'ns.json')],
+                     capture_output=True, text=True, timeout=300)
+if os.path.isfile(os.path.join(_d, 'ns.json')):
+    import json as _j3                                              # noqa: E402
+    _g3 = _j3.load(open(os.path.join(_d, 'ns.json'), encoding='utf-8'))['graded_at']
+    check('--no-size-checks reports annular_check FALSE, because it is off',
+          _g3.get('annular_check') is False
+          and _g3.get('annular_check_requested') is True,
+          f"{_g3.get('annular_check')} -- the rung lives inside the size-check "
+          f"block, and reporting `true` there told a reader the structural "
+          f"check had run on a board carrying three unmanufacturable vias")
+
+print('--- KiCad is no longer gagged on the category ---')
+# The run-20 board read clean in KiCad's OWN DRC too, and not because its
+# annular rule had been ratcheted (it was still 0.05, identical to its origin):
+# this repo wrote `rule_severities.annular_width = "ignore"`, on the stated
+# grounds that "the router does not create or fix these". For pad annular rings
+# that is true. For VIA annular rings it is false, and run 20 is the proof.
+import fix_kicad_drc_settings as _FK2                                # noqa: E402
+_plan = _FK2.severity_plan()
+check('annular_width is no longer ignored',
+      _plan.get('annular_width') != 'ignore', str(_plan))
+check('it is demoted to a WARNING -- visible in KiCad, blocking in check_drc',
+      _plan.get('annular_width') == 'warning',
+      'an error would restore the pad-annular noise the ignore was for; '
+      'silence would restore the gag. Same resolution as run 6 gave '
+      'courtyards_overlap')
+check('and the pad/library categories it used to travel with are unchanged',
+      all(_plan.get(c) == 'ignore' for c in _FK2.FOOTPRINT_CATS)
+      and 'annular_width' not in _FK2.FOOTPRINT_CATS, str(_FK2.FOOTPRINT_CATS))
+
+print('--- the census counts the vias it exists to name ---')
+_cens = _FK2._fab_floor_disclosure(
+    _b, {'min_via_annular_width': 0.05},
+    {'board': {'design_settings': {'rules': {'min_via_annular_width': 0.0}}}},
+    {'min_via_annular_width': 0.05})
+check('the disclosure counts the ringless via, not just the surviving ones',
+      any('1 of 3' in ln for ln in _cens),
+      f'{_cens} -- the census filtered `size > drill`, which excluded exactly '
+      f'the vias it exists to disclose')
 
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

@@ -1435,6 +1435,11 @@ def check_via_size(via: Via, min_via_diameter: float, min_via_drill: float,
 #: the top of every run_drc call so a stale answer can never be read as a fresh one.
 LAST_SIZE_FLOORS: Dict[str, object] = {}
 
+#: 1 nm. The annular ring is a DIFFERENCE of two stored numbers, so it carries
+#: their representation error; every other size check compares a stored value
+#: directly and needs no such slack. See `check_via_annular`.
+_RING_EPS = 1e-9
+
 
 def check_via_annular(via: Via, min_annular: float, size_margin: float = 0.0,
                       strict: bool = False) -> Tuple[bool, float, float]:
@@ -1466,8 +1471,20 @@ def check_via_annular(via: Via, min_annular: float, size_margin: float = 0.0,
     # The ONLY difference is the boundary: `>=` vs `>`. `size_margin` keeps its
     # meaning in both (a tolerance that LOOSENS), so a strict rung with a margin
     # still passes a ring within the margin of the floor.
-    bad = shortfall >= size_margin if strict else shortfall > size_margin
-    return bad, ring, shortfall
+    #
+    # _RING_EPS is NOT cosmetic and NOT a fudge factor. This is the one check in
+    # the file whose quantity is a DIFFERENCE of two stored numbers, so it
+    # inherits their representation error where a direct comparison would not:
+    # `(0.3 - 0.2) / 2` is 0.04999999999999999, one ULP under a declared 0.05.
+    # Without the epsilon, 379 vias on kicad_files/routed_output.kicad_pcb are
+    # reported as violating a floor they exactly meet -- the report printing its
+    # own refutation, `Ring: 0.0500mm ... <= min 0.0500mm (short 0.0000mm)` --
+    # while 0.8/0.5 vias with the same nominal ring grade clean because that
+    # pair happens to be float-exact. Tree-wide, 53281 vias sit on such a pair.
+    # A nanometre is four orders of magnitude below any fab's tolerance.
+    if strict:
+        return shortfall >= size_margin - _RING_EPS, ring, shortfall
+    return shortfall > size_margin + _RING_EPS, ring, shortfall
 
 
 def write_debug_lines(pcb_file: str, violations: List[dict], clearance: float, layer: str = "User.7"):
@@ -1723,7 +1740,10 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
             None = the structural floor only (a ring must be greater than zero).
             See `check_annular` for why the default is not the fab tier's value.
         check_annular: If True (default), flag vias whose annular ring is at or
-            below ZERO -- a hole with no barrel land. This rung is STRUCTURAL and
+            below ZERO -- a hole with no barrel land. NOTE this rung lives
+            inside the `check_sizes` block, so `check_sizes=False` disables it
+            regardless of this flag (`graded_at.annular_check` reports the
+            EFFECTIVE state, not the requested one). This rung is STRUCTURAL and
             deliberately not the fab tier's `annular` key: every built-in tier
             declares an `annular` its own minimum via pair does not meet (4-layer
             standard is (0.45-0.20)/2 = 0.125 against a declared 0.20), because
@@ -1963,9 +1983,16 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
         # The annular rungs, in precedence order. NOTE the fab tier's own
         # `annular` key is deliberately NOT a rung -- see run_drc's docstring.
         eff_min_annular = None
-        if min_via_annular is not None:
+        if min_via_annular is not None and min_via_annular > 0:
             eff_min_annular = min_via_annular
             size_floor_sources['min_via_annular_width'] = 'cli'
+        elif min_via_annular is not None:
+            # `--min-via-annular-width 0` asks for "a ring must exist", which is
+            # the STRUCTURAL rung -- not a declared floor of zero. Routing it to
+            # the cli rung made it a silent off-switch that still printed a
+            # floor, where --no-annular-check at least says UNCHECKED.
+            eff_min_annular = 0.0
+            size_floor_sources['min_via_annular_width'] = 'structural'
         elif _ov and 'annular' in _ov:
             eff_min_annular = _ov['annular']
             size_floor_sources['min_via_annular_width'] = \
@@ -3180,7 +3207,14 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
                     })
             # The relation, checked independently of the two scalars above: a via
             # can pass both and still have no copper land around its hole.
-            if eff_min_annular is not None and via.size and via.drill:
+            # `is not None`, NOT truthiness. A via with size 0 has the WORST
+            # possible ring (its hole is wider than its pad), and `via.size and`
+            # silently dropped exactly that case -- re-introducing, at the call
+            # site, the same "filter out the pathological input" defect this
+            # whole change set exists to remove. It survived only because
+            # via-size happens to catch a zero diameter separately.
+            if (eff_min_annular is not None and via.size is not None
+                    and via.drill is not None):
                 ann_bad, ring, ann_short = check_via_annular(
                     via, eff_min_annular, size_margin,
                     strict=(size_floor_sources.get('min_via_annular_width')
@@ -3600,6 +3634,9 @@ if __name__ == "__main__":
     # min_copper_edge_clearance; honor it unless --board-edge-clearance is
     # explicitly larger.
     net_clearances = None
+    # Defined BEFORE the try: the payload below reports it, and an exception in
+    # the project read must not turn a disclosure into a NameError.
+    _hclr_src = 'cli --hole-clearance' if args.hole_clearance else 'default'
     try:
         from list_nets import read_design_rules, net_clearance_map
         _rules = read_design_rules(args.pcb)
@@ -3725,6 +3762,13 @@ if __name__ == "__main__":
                 'clearance': args.clearance,
                 'clearance_margin': args.clearance_margin,
                 'hole_to_hole_clearance': args.hole_to_hole_clearance,
+                # COPPER-to-hole, and where it came from. Absent before, which
+                # left check_complete's `graded_elsewhere` unable to tell
+                # whether the drc pass had graded the floor it was delegating,
+                # so a run graded at a ratcheted 0.15 reported a declared 0.254
+                # as "graded, zero violations".
+                'hole_clearance': args.hole_clearance,
+                'hole_clearance_source': _hclr_src,
                 'board_edge_clearance': args.board_edge_clearance,
                 'per_net_clearances': bool(net_clearances),
                 'size_checks': not args.no_size_checks,
@@ -3735,7 +3779,13 @@ if __name__ == "__main__":
                 'size_floors': {k: v for k, v in LAST_SIZE_FLOORS.items()
                                 if k != 'sources'},
                 'size_floor_sources': LAST_SIZE_FLOORS.get('sources', {}),
-                'annular_check': (not args.no_annular_check),
+                # EFFECTIVE, not requested. The annular rung lives inside the
+                # `check_sizes` block, so --no-size-checks turns it off too --
+                # and reporting `true` there told a reader the structural rung
+                # had run on a board carrying three unmanufacturable vias.
+                'annular_check': bool(LAST_SIZE_FLOORS.get(
+                    'min_via_annular_width') is not None),
+                'annular_check_requested': (not args.no_annular_check),
                 'annular_vs_board': args.annular_vs_board,
                 # run-12 Tier 1.3: True when the BOARD declared no net class
                 # and no constraint, so every floor above is this tool's

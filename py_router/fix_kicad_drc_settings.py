@@ -74,17 +74,24 @@ COURTYARD_CATS = ["courtyards_overlap", "malformed_courtyard",
                   "npth_inside_courtyard", "pth_inside_courtyard"]
 MASK_CATS = ["solder_mask_bridge"]
 # Footprint / library-geometry issues inherited from the source board's
-# footprints (annular rings, pad/footprint library mismatches). The router does
-# not create or fix these, so they are pure noise when reviewing a routed board
-# -- on the stress boards they dominate the report (e.g. 199 annular_width + 149
-# lib_footprint markers on orangecrab). Ignored by default; --keep-footprint
-# restores them.
-FOOTPRINT_CATS = ["annular_width", "lib_footprint_issues", "lib_footprint_mismatch"]
-# Thermal-relief spoke shortfalls (a zone connects a pad with fewer spokes than
-# the zone's min). It is a real-but-minor fab detail, not a routing short, so
-# demote it from error to a WARNING (still visible, not blocking) rather than
-# hiding it. --keep-thermal leaves it an error.
-WARNING_CATS = ["starved_thermal"]
+# footprints (pad/footprint library mismatches). The router does not create or
+# fix these, so they are pure noise when reviewing a routed board -- on the
+# stress boards they dominate the report (149 lib_footprint markers on
+# orangecrab). Ignored by default; --keep-footprint restores them.
+FOOTPRINT_CATS = ["lib_footprint_issues", "lib_footprint_mismatch"]
+# Real-but-minor fab details: visible, not blocking. Demoted from error to
+# WARNING rather than hidden. --keep-thermal leaves them errors.
+#
+# `annular_width` moved here from FOOTPRINT_CATS, whose rationale for ignoring
+# it was "the router does not create or fix these". For pad annular rings that
+# is true; for VIA annular rings it is false, and run 20 is the proof --
+# net_rescue's escalation ladder built its via rungs from a --fab-overrides file
+# declaring via_diameter = via_drill = 0.3, and shipped three vias with no
+# barrel land. `ignore` meant KiCad's own DRC could not say so either, so the
+# board read clean in every instrument including KiCad's. Same argument, same
+# resolution as run 6's `courtyards_overlap`: an ignore that GAGS the one check
+# which catches a real defect is worse than the noise it suppresses.
+WARNING_CATS = ["starved_thermal", "annular_width"]
 
 # Severity rank for "only loosen" comparisons (higher = stricter).
 _SEV_RANK = {"error": 2, "warning": 1, "ignore": 0}
@@ -670,7 +677,12 @@ def severity_plan(keep_courtyards=False, keep_mask=False, keep_footprint=False,
     remains VISIBLE to any reader of the report; check_assembly is the
     blocking arbiter with its class waivers. The other courtyard-shape
     categories (malformed etc.) stay ignore -- library noise, not
-    placement facts."""
+    placement facts.
+
+    `annular_width` is the same shape and got the same answer (run 20): it was
+    ignored as footprint noise, which also gagged KiCad on three vias the ROUTER
+    created with no barrel land. Now a warning -- visible in KiCad, blocking in
+    check_drc, which is where the structural rung lives."""
     plan = {}
     for cat in extra_ignore:
         plan[cat] = "ignore"
@@ -840,8 +852,9 @@ def add_drc_fix_args(parser, *, include_no_fix=True):
                             "and check_drc with no honest copper-to-hole floor -- pass "
                             "--authored-from to check_complete in that case.")
     g.add_argument("--keep-thermal", action="store_true",
-                   help="When fixing DRC settings, leave thermal-relief severity (starved_thermal) "
-                        "untouched instead of demoting it to a warning.")
+                   help="When fixing DRC settings, leave the demote-to-warning "
+                        "categories (starved_thermal, annular_width) untouched "
+                        "instead of demoting them.")
     g.add_argument("--enable-used-layers", action="store_true",
                    help="Add any layer the board uses but that is missing from its (layers) table "
                         "back into the .kicad_pcb, so KiCad shows it as selectable and stops "
@@ -1336,7 +1349,10 @@ def main():
     ap.add_argument("--keep-courtyards", action="store_true", help="Do not ignore courtyard categories")
     ap.add_argument("--keep-mask", action="store_true", help="Do not ignore solder-mask bridge")
     ap.add_argument("--keep-footprint", action="store_true",
-                    help="Do not ignore footprint/library categories (annular_width, lib_footprint_*)")
+                    help="Do not ignore footprint/library categories (lib_footprint_*). "
+                         "NOTE annular_width is no longer among them -- it is demoted to "
+                         "a WARNING (see --keep-thermal), because the ROUTER can create "
+                         "a via with no barrel land and an ignore gagged KiCad on it.")
     # Shared DRC-fix flags (--keep-thermal, --enable-used-layers); the standalone
     # script always fixes, so --no-fix-drc-settings is omitted.
     add_drc_fix_args(ap, include_no_fix=False)

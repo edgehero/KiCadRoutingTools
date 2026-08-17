@@ -390,7 +390,8 @@ def score_assembly(root: str, board: str, intent: str, tmp: str,
             'pairs': doc.get('blocking_pairs') or []}
 
 
-def score_drc(root: str, board: str, clearance=None, sizes=None) -> tuple:
+def score_drc(root: str, board: str, clearance=None, sizes=None,
+              tmp: str = None) -> tuple:
     """(drc, undersized, rule_pairs) -- physical clearance violations,
     sub-floor copper, and #549 track-rule-governed pairs (advisory).
 
@@ -417,9 +418,27 @@ def score_drc(root: str, board: str, clearance=None, sizes=None) -> tuple:
     # --max-print 0 prints every violation of every type, so the per-type header
     # counts are complete rather than capped at the default 20.
     args += ['--max-print', '0']
+    # ...and --json, so `graded_at` is READ rather than scraped back out of the
+    # prose. It carries the whole floor family (clearance, hole clearance,
+    # hole-to-hole, board edge, and since the annular work the size floors with
+    # their sources), which the regex below could never reach. A consumer that
+    # needs to know whether a floor was graded at the value it cares about --
+    # check_complete's `graded_elsewhere` does -- cannot answer that from a
+    # scalar, and answering it wrong is a silent pass.
+    _gj = os.path.join(tmp, 'drc.json') if tmp else None
+    if _gj:
+        args += ['--json', _gj]
     rc, out = run_tool(root, 'check_drc.py', *args)
+    graded = None
+    if _gj and os.path.isfile(_gj):
+        try:
+            with open(_gj, encoding='utf-8') as fh:
+                graded = (json.load(fh) or {}).get('graded_at')
+        except Exception:                                   # noqa: BLE001
+            graded = None
     if 'NO DRC VIOLATIONS FOUND' in out:
-        return ({'ran': True, 'count': 0, 'by_type': {}, 'graded_at': _graded_at(out)},
+        return ({'ran': True, 'count': 0, 'by_type': {},
+                 'graded_at': _graded_at(out), 'floors': graded},
                 {'ran': True, 'count': 0, 'by_type': {}},
                 {'ran': True, 'count': 0, 'by_type': {}})
     if not _DRC_TOTAL.search(out):
@@ -452,7 +471,7 @@ def score_drc(root: str, board: str, clearance=None, sizes=None) -> tuple:
     clear = {t: n for t, n in by_type.items()
              if t not in SIZE_TYPES and t not in RULE_PAIR_TYPES}
     return ({'ran': True, 'count': sum(clear.values()), 'by_type': clear,
-             'graded_at': _graded_at(out)},
+             'graded_at': _graded_at(out), 'floors': graded},
             {'ran': True, 'count': sum(size.values()), 'by_type': size},
             {'ran': True, 'count': sum(rule.values()), 'by_type': rule})
 
@@ -667,8 +686,12 @@ def _floors(board: str, sizes: dict) -> dict:
     `requested` is what the caller passed; `board` is what the project declares
     now. They differ exactly when a spec floor is tighter than the board's own.
     """
+    # Only the FLOORS. `sizes` also carries --fab-tier / --fab-overrides, which
+    # are forwarded to the child but are not floors, and a consumer reading this
+    # as {name: mm} got a string.
     out = {'requested': {k.lstrip('-').replace('-', '_'): v
-                         for k, v in (sizes or {}).items() if v is not None}}
+                         for k, v in (sizes or {}).items()
+                         if isinstance(v, (int, float)) and not isinstance(v, bool)}}
     try:
         import list_nets
         dr = list_nets.read_design_rules(board)
@@ -881,7 +904,8 @@ def main():
     # the user's project. `--json` is the copy you keep.
     with tempfile.TemporaryDirectory(prefix='board_score_') as tmp:
         conn = score_connectivity(root, args.board)
-        drc, undersized, rule_pairs = score_drc(root, args.board, args.clearance, sizes)
+        drc, undersized, rule_pairs = score_drc(root, args.board,
+                                                args.clearance, sizes, tmp)
         floorplan = score_floorplan(root, args.board, args.intent, tmp)
         assembly = score_assembly(root, args.board, args.intent, tmp,
                                   args.clearance)

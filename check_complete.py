@@ -123,8 +123,13 @@ MEASURED_KEY = {'min_via_annular_width': 'min_via_annular_width_measured'}
 #: grades it at the same baseline this check uses. Reporting it as "not measured"
 #: while the drc component in the same JSON carries the count is a worse answer
 #: than either instrument gives alone.
+#: key -> (instrument, violation types, the `graded_at` field carrying the floor
+#: that instrument actually used). The third element is not optional: a
+#: promotion that cannot CONFIRM the floor is a silent pass, and this check
+#: exists to prevent silent passes.
 FAB_FLOOR_KEYS_GRADED_BY_DRC = {
-    'min_hole_clearance': ('check_drc', ('track-hole', 'via-hole')),
+    'min_hole_clearance': ('check_drc', ('track-hole', 'via-hole'),
+                           'hole_clearance'),
 }
 
 
@@ -135,6 +140,15 @@ def _resolve_graded_elsewhere(floors, score):
     `by_type`, so the two can never disagree. Anything it cannot confirm stays
     `unmeasured` WITH a reason -- an unexplained promotion would be the same
     silent pass this check exists to prevent.
+
+    "Confirm" includes the FLOOR, not just that the instrument ran. The first
+    version of this asserted in a comment that board_score's child necessarily
+    grades at this baseline; it does not. `--authored-from` exists precisely for
+    the case where the original board's declaration differs from the routed
+    board's own `fab_floor_origin`, and there the child grades at the ratcheted
+    value. Measured on a staged run-20 r3: authored 0.254, child graded at 0.15,
+    ground truth 36 track-hole violations -- and this reported "graded by
+    check_drc, count 0", turning an honest `unmeasured` into a silent zero.
     """
     if not floors.get('ran') or not floors.get('unmeasured'):
         return
@@ -145,19 +159,29 @@ def _resolve_graded_elsewhere(floors, score):
         if not spec:
             keep.append(r)
             continue
-        who, types = spec
+        who, types, floor_field = spec
         if not drc.get('ran'):
-            r = dict(r, reason=f'{who} did not run, so nothing measured it')
-            keep.append(r)
+            keep.append(dict(r, reason=f'{who} did not run, so nothing '
+                                       f'measured it'))
+            continue
+        graded = (drc.get('floors') or {}).get(floor_field)
+        if not isinstance(graded, (int, float)):
+            keep.append(dict(r, reason=(
+                f'{who} ran but did not report the floor it graded '
+                f'`{floor_field}` at, so its count cannot be attributed to '
+                f'this declaration')))
+            continue
+        if graded < float(r['authored']) - 1e-9:
+            keep.append(dict(r, reason=(
+                f'{who} graded {floor_field} at {graded:g}, BELOW the declared '
+                f'{r["authored"]:g} -- its count answers a different question. '
+                f'Re-grade at the declaration: check_drc.py --hole-clearance '
+                f'{r["authored"]:g}'), graded_by_at=graded))
             continue
         by = drc.get('by_type') or {}
-        # NOT verified: that the child graded at THIS baseline. board_score
-        # invokes check_drc without --no-fab-floor-origin, so it does, and the
-        # score payload carries no hole-clearance floor to confirm it against.
-        # Stated rather than assumed silently.
         moved.append({**r, 'graded_by': who, 'types': list(types),
                       'count': sum(int(by.get(t) or 0) for t in types),
-                      'floor_confirmed': False})
+                      'graded_at': graded, 'floor_confirmed': True})
     floors['unmeasured'] = keep
     if moved:
         floors['graded_elsewhere'] = moved
@@ -418,6 +442,14 @@ def _grade(a, doc):
                f'grades against the NEW value, so a clean report here means '
                f'the rule moved, not the copper. Confirm the fab supports it '
                f'before calling it done.')
+        # UNSOUND is the more severe verdict, not a REPLACEMENT for what
+        # INCOMPLETE would have said. This branch discarded `reasons` entirely,
+        # which was harmless while UNSOUND needed --authored-from to reach --
+        # and became a real loss the moment the origin fallback made it the
+        # default verdict for chain outputs, silently hiding `blocking = 12`
+        # and a failing weird_copper behind the floor finding.
+        if reasons:
+            why += ' ALSO, and not superseded by the above: ' + '; '.join(reasons)
     elif reasons:
         verdict, code_out = 'INCOMPLETE', INCOMPLETE
         why = '; '.join(reasons)
