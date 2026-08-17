@@ -272,5 +272,120 @@ check('the healthy board is not newly condemned',
            if r['key'] == 'min_via_annular_width'],
       str(res2) + ' -- 0.075 is above the declared 0.05')
 
+print('--- the check itself: a relation, not two scalars ---')
+import check_drc as CD                                            # noqa: E402
+
+
+class _V:                                                  # a Via, minimally
+    def __init__(self, size, drill, net_id=1, x=0.0, y=0.0):
+        self.size, self.drill, self.net_id, self.x, self.y = size, drill, net_id, x, y
+
+
+# The whole point: this via passes BOTH scalar checks at the 4-layer floor and
+# is unmanufacturable. That is the hole check_via_size cannot see.
+_run20 = _V(0.3, 0.3)
+d_bad, dr_bad, _sa, _sb = CD.check_via_size(_run20, 0.25, 0.15)
+check('the run-20 via passes both scalar size checks',
+      not d_bad and not dr_bad,
+      'if this ever fails, the annular check is no longer the only thing '
+      'standing between this via and a fab')
+bad, ring, short = CD.check_via_annular(_run20, 0.0, strict=True)
+check('and fails the relation', bad and ring == 0.0 and short == 0.0,
+      f'{bad} {ring} {short}')
+
+check('a negative ring fails too',
+      CD.check_via_annular(_V(0.2, 0.3), 0.0, strict=True)[0], '')
+check('a healthy ring passes the structural rung',
+      not CD.check_via_annular(_V(0.6, 0.3), 0.0, strict=True)[0], '')
+# The boundary IS the defect, so it belongs to the violation on the structural
+# rung and to the PASS on a declared one -- KiCad's own semantic. Getting this
+# backwards silently un-does the whole check: the first version of this code
+# used `> margin` in both modes and reported the run-20 board clean.
+check('the structural rung owns the boundary (ring == 0 fails)',
+      CD.check_via_annular(_V(0.3, 0.3), 0.0, strict=True)[0], '')
+check('a DECLARED floor does not (ring exactly at the floor passes)',
+      not CD.check_via_annular(_V(0.5, 0.3), 0.1, strict=False)[0],
+      'ring 0.1 against a declared 0.1')
+check('but below a declared floor fails',
+      CD.check_via_annular(_V(0.45, 0.3), 0.1, strict=False)[0],
+      'ring 0.075 against a declared 0.1')
+# size_margin must keep LOOSENING in both modes, or a tolerance becomes a trap.
+check('size_margin loosens the strict rung too',
+      not CD.check_via_annular(_V(0.3, 0.3), 0.0, size_margin=0.01,
+                               strict=True)[0], '')
+
+print('--- and it is wired end to end ---')
+import subprocess                                                  # noqa: E402
+_drc = os.path.join(REPO, 'py_router', 'check_drc.py')
+
+
+def _drc_run(board, *extra):
+    r = subprocess.run([sys.executable, _drc, board, '--max-print', '0']
+                       + list(extra), capture_output=True, text=True, timeout=300)
+    return r.returncode, (r.stdout or '') + (r.stderr or '')
+
+
+rc, out = _drc_run(_b)
+check('the three-via fixture reports VIA-ANNULAR and exits 1',
+      rc == 1 and 'VIA-ANNULAR violations (1)' in out,
+      f'rc={rc}; ' + '; '.join(ln for ln in out.splitlines()
+                               if 'violation' in ln.lower())[:200])
+check('the message says what is wrong, not just that it is',
+      'no barrel land' in out, out[-400:])
+rc, out = _drc_run(_b, '--no-annular-check')
+check('--no-annular-check turns it off and says so',
+      rc == 0 and 'via annular UNCHECKED' in out, f'rc={rc}')
+
+# The NEGATIVE test that decides the default. A 0.25/0.15 via is the advanced
+# tier's OWN pair -- the rung the router legitimately escalates to -- and it has
+# a real 0.05 ring. It must grade CLEAN by default even beside a project
+# declaring 0.1, because a stock never-edited KiCad project declares exactly
+# that against a 0.5 via. Measured: 12 boards in this tree carry a real zero
+# ring and all 12 are run 20's own lineage; making the declaration a default
+# rung would instead flag legitimate fine vias on boards whose only sin is an
+# unedited default.
+_fine = '\n'.join(ln.replace('(size 0.6) (drill 0.3)', '(size 0.25) (drill 0.15)')
+                  for ln in _BOARD.splitlines()
+                  if '(size 0.3) (drill 0.3)' not in ln
+                  and '(size 0.45) (drill 0.3)' not in ln)
+_bf = os.path.join(_d, 'fine.kicad_pcb')
+with open(_bf, 'w', encoding='utf-8') as fh:
+    fh.write(_fine)
+with open(os.path.join(_d, 'fine.kicad_pro'), 'w', encoding='utf-8') as fh:
+    fh.write('{"board": {"design_settings": {"rules": '
+             '{"min_via_annular_width": 0.1}}}}')
+rc, out = _drc_run(_bf)
+check("the router's escalated fine via grades clean by default",
+      rc == 0, f'rc={rc}; ' + out[-300:])
+rc, out = _drc_run(_bf, '--annular-vs-board')
+check('--annular-vs-board is what opts into the declaration',
+      rc == 1 and 'VIA-ANNULAR' in out and 'board:' in out,
+      f'rc={rc}; ' + out[-300:])
+rc, out = _drc_run(_bf, '--min-via-annular-width', '0.2')
+check('and an explicit CLI floor wins over everything',
+      rc == 1 and 'annular >= 0.2mm (cli)' in out, f'rc={rc}; ' + out[-300:])
+
+print('--- the score puts it in the right list ---')
+_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'scripts',
+                   'board_score.py')
+_r = subprocess.run([sys.executable, _bs, _b, '--quiet'],
+                    capture_output=True, text=True, timeout=900)
+_line = [ln for ln in (_r.stdout or '').splitlines() if ln.startswith('SCORE_JSON=')]
+if _line:
+    import json as _j                                              # noqa: E402
+    sc = _j.loads(_line[0][len('SCORE_JSON='):])
+    check('a ringless via lands in `undersized`, not `drc`',
+          sc['components']['undersized']['by_type'].get('via-annular') == 1
+          and sc['components']['drc']['count'] == 0,
+          str(sc['blocking_by']) + ' -- different lever: a size finding is fixed '
+          'by re-routing that copper bigger, a clearance finding by moving it')
+    check('and it is INSIDE blocking, so removing one scores better',
+          sc['blocking_by']['undersized'] == 1,
+          str(sc['blocking_by']) + ' -- run 20 rejected a cycle that removed '
+          'three of these, because nothing counted the vias it removed')
+else:
+    check('board_score produced a score line', False,
+          (_r.stdout or _r.stderr)[-300:])
+
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

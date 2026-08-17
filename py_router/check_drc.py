@@ -1427,6 +1427,49 @@ def check_via_size(via: Via, min_via_diameter: float, min_via_drill: float,
     return dia_bad, drill_bad, dia_short, drill_short
 
 
+#: The size floors the LAST :func:`run_drc` call actually graded at, plus where
+#: each came from. Published because `graded_at` used to carry only the clearance
+#: family, so `board_score` re-derived the size floors by regex-scraping the
+#: "Size floors (...)" line -- two instruments computing the same number two ways,
+#: which is how one board reported three different verdicts in run 20. Reset at
+#: the top of every run_drc call so a stale answer can never be read as a fresh one.
+LAST_SIZE_FLOORS: Dict[str, object] = {}
+
+
+def check_via_annular(via: Via, min_annular: float, size_margin: float = 0.0,
+                      strict: bool = False) -> Tuple[bool, float, float]:
+    """Check the via's annular ring -- the copper land left around its hole.
+
+    This is a RELATION, `(diameter - drill) / 2`, and it is the one thing about a
+    via that testing diameter and drill separately can never reach. A via at
+    0.3mm diameter on a 0.3mm drill passes any diameter floor at or below 0.3 and
+    any drill floor at or below 0.3, while being a hole with no barrel land: no
+    fab can plate it, and KiCad's own DRC will not say so unless the project
+    declares `min_via_annular_width`, which the writeback happily lowers.
+
+    Run 20 shipped three. `check_drc` said NO DRC VIOLATIONS FOUND.
+
+    Args:
+        strict: the boundary belongs to the violation, i.e. `ring <= min` fails
+            rather than `ring < min`. The two rungs genuinely differ here and
+            getting it wrong silently un-does the whole check: the STRUCTURAL
+            rung is "a ring must EXIST", floor 0, and a ring of exactly 0.0 --
+            which is the run-20 defect, three of them -- is the case it is for.
+            A DECLARED floor follows KiCad's own semantic instead, where a ring
+            exactly at the declared minimum passes.
+
+    Returns:
+        (is_too_small, ring_mm, shortfall_mm)
+    """
+    ring = (via.size - via.drill) / 2.0
+    shortfall = min_annular - ring
+    # The ONLY difference is the boundary: `>=` vs `>`. `size_margin` keeps its
+    # meaning in both (a tolerance that LOOSENS), so a strict rung with a margin
+    # still passes a ring within the margin of the floor.
+    bad = shortfall >= size_margin if strict else shortfall > size_margin
+    return bad, ring, shortfall
+
+
 def write_debug_lines(pcb_file: str, violations: List[dict], clearance: float, layer: str = "User.7"):
     """Write debug lines to PCB file showing violation locations.
 
@@ -1653,6 +1696,9 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
             min_track_width: Optional[float] = None,
             min_via_diameter: Optional[float] = None,
             min_via_drill: Optional[float] = None,
+            min_via_annular: Optional[float] = None,
+            check_annular: bool = True, annular_vs_board: bool = False,
+            fab_tier: Optional[str] = None, fab_overrides: Optional[str] = None,
             check_sizes: bool = True, size_margin: float = 0.0,
             check_pad_edge: bool = False, print_summary: bool = True,
             net_clearances: Optional[Dict[str, float]] = None,
@@ -1673,6 +1719,24 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
             JLC fab floor from the board's copper-layer count (issue #176).
         min_via_diameter: Minimum via outer diameter in mm. None = fab floor.
         min_via_drill: Minimum via drill in mm. None = fab floor.
+        min_via_annular: Minimum via annular ring in mm, i.e. (dia - drill)/2.
+            None = the structural floor only (a ring must be greater than zero).
+            See `check_annular` for why the default is not the fab tier's value.
+        check_annular: If True (default), flag vias whose annular ring is at or
+            below ZERO -- a hole with no barrel land. This rung is STRUCTURAL and
+            deliberately not the fab tier's `annular` key: every built-in tier
+            declares an `annular` its own minimum via pair does not meet (4-layer
+            standard is (0.45-0.20)/2 = 0.125 against a declared 0.20), because
+            the pair is the absolute minimum and the key is the comfortable one.
+            Grading against it would flag the router's legitimately-escalated fine
+            via on boards whose only sin is an unedited KiCad default -- measured
+            at 22 such boards in this tree, against 12 with a real zero ring.
+        annular_vs_board: If True, additionally grade against the board's own
+            declared `min_via_annular_width`. Opt-in for the reason above; the
+            declaration is graded at `check_complete`'s verdict altitude instead.
+        fab_tier / fab_overrides: passed to `fab_floor_min` so the size floors
+            follow the tier the board was routed to. `--fab-overrides annular`,
+            when the file declares one, becomes the annular floor.
         check_sizes: If True, flag tracks/vias below the fab floor (track-width and
             via/hole size checks). These catch sub-fab copper that the clearance-only
             checks miss (a board's own min_track_width DRC rule can be lowered to match
@@ -1688,6 +1752,9 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
             'ignore' -- matching the KiCad oracle, which runs no board-edge check
             there (#427). Pass False to force the check regardless of the setting.
     """
+    # Cleared unconditionally, before anything can fail: an empty dict says
+    # "this run graded no size floors", a stale one would say something false.
+    LAST_SIZE_FLOORS.clear()
     # Board-edge clearance: the explicit/board value when set, else the fab
     # copper-to-edge floor (0.20, #439 -- the routers pin the edge up to it, so a
     # project-less final's copper is >=0.20 from the edge) or the copper clearance,
@@ -1856,13 +1923,97 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
         # for 'standard' that's the advanced rung it escalates to (0.25 dia / 0.15
         # drill on 4+ layers), so legitimately-escalated fine vias aren't flagged;
         # for 'advanced'/overrides it's the hard floor (issue #237).
-        fab = fab_floor_min(copper_count)
-        eff_min_track = min_track_width if min_track_width is not None else fab['track_width']
-        eff_min_via_dia = min_via_diameter if min_via_diameter is not None else fab['via_diameter']
-        eff_min_via_drill = min_via_drill if min_via_drill is not None else fab['via_drill']
+        # The tier/overrides in force. A CLI run has already called
+        # `set_default_fab_tier`, so the process default IS the answer there;
+        # reading it back (rather than re-parsing the file) is what makes the
+        # provenance below true for library callers and CLI callers alike.
+        from fab_tiers import get_default_fab_tier
+        _ov, _ov_src = None, None
+        if fab_overrides:
+            from fab_tiers import parse_fab_overrides
+            try:
+                _ov, _ov_src = parse_fab_overrides(fab_overrides), fab_overrides
+            except Exception as _e:                        # noqa: BLE001
+                print(f"WARNING: --fab-overrides unreadable ({_e}); "
+                      f"grading at the {fab_tier or 'default'} tier")
+        if _ov is None and fab_tier is None:
+            _dt, _do = get_default_fab_tier()
+            fab_tier, _ov, _ov_src = _dt, (_do or None), '--fab-overrides'
+        fab = fab_floor_min(copper_count, tier=fab_tier, overrides=_ov)
+        # Every size floor carries WHERE it came from. `board_score` used to
+        # re-scrape this line with a regex because `graded_at` published only the
+        # clearance family; two instruments deriving the same floor two ways is
+        # how one board reported three different verdicts in run 20.
+        size_floor_sources = {}
+
+        def _pick(key, cli, fab_key):
+            if cli is not None:
+                size_floor_sources[key] = 'cli'
+                return cli
+            if _ov and fab_key in _ov:
+                size_floor_sources[key] = f'fab-overrides:{_ov_src}'
+                return fab[fab_key]
+            size_floor_sources[key] = f"fab-tier:{fab_tier or 'default'}"
+            return fab[fab_key]
+
+        eff_min_track = _pick('min_track_width', min_track_width, 'track_width')
+        eff_min_via_dia = _pick('min_via_diameter', min_via_diameter, 'via_diameter')
+        eff_min_via_drill = _pick('min_via_drill', min_via_drill, 'via_drill')
+
+        # The annular rungs, in precedence order. NOTE the fab tier's own
+        # `annular` key is deliberately NOT a rung -- see run_drc's docstring.
+        eff_min_annular = None
+        if min_via_annular is not None:
+            eff_min_annular = min_via_annular
+            size_floor_sources['min_via_annular_width'] = 'cli'
+        elif _ov and 'annular' in _ov:
+            eff_min_annular = _ov['annular']
+            size_floor_sources['min_via_annular_width'] = \
+                f'fab-overrides:{_ov_src}'
+        elif annular_vs_board:
+            try:
+                from fix_kicad_drc_settings import find_project
+                import json as _json
+                _pro = find_project(pcb_file)
+                with open(_pro, encoding='utf-8') as _fh:
+                    _r = (((_json.load(_fh).get('board') or {})
+                           .get('design_settings') or {}).get('rules') or {})
+                if isinstance(_r.get('min_via_annular_width'), (int, float)):
+                    eff_min_annular = float(_r['min_via_annular_width'])
+                    size_floor_sources['min_via_annular_width'] = f'board:{_pro}'
+            except Exception:                              # noqa: BLE001
+                pass
+            if eff_min_annular is None:
+                print("WARNING: --annular-vs-board: the board declares no "
+                      "min_via_annular_width; grading the structural rung only")
+        if eff_min_annular is None and check_annular:
+            # Rung 0, structural: a ring must EXIST. Not a fab number -- an
+            # annular ring of zero or less is not a manufacturable via at any
+            # tier, and no tier's declaration has to be trusted to say so.
+            eff_min_annular = 0.0
+            size_floor_sources['min_via_annular_width'] = 'structural'
+        if not check_annular:
+            eff_min_annular = None
+        LAST_SIZE_FLOORS.clear()
+        LAST_SIZE_FLOORS.update({
+            'min_track_width': eff_min_track,
+            'min_via_diameter': eff_min_via_dia,
+            'min_via_drill': eff_min_via_drill,
+            'min_via_annular_width': eff_min_annular,
+            'sources': dict(size_floor_sources),
+            'fab_tier': fab_tier,
+            'copper_layers': copper_count,
+        })
         if not quiet:
-            print(f"Size floors ({copper_count}-layer fab): track >= {eff_min_track}mm, "
-                  f"via dia >= {eff_min_via_dia}mm, via drill >= {eff_min_via_drill}mm")
+            _tier = f", tier {fab_tier}" if fab_tier else ""
+            print(f"Size floors ({copper_count}-layer fab{_tier}): track >= {eff_min_track}mm, "
+                  f"via dia >= {eff_min_via_dia}mm, via drill >= {eff_min_via_drill}mm"
+                  + ((f", via annular > {eff_min_annular}mm"
+                      if size_floor_sources.get('min_via_annular_width')
+                      == 'structural' else
+                      f", via annular >= {eff_min_annular}mm")
+                     + f" ({size_floor_sources['min_via_annular_width']})"
+                     if eff_min_annular is not None else ", via annular UNCHECKED"))
 
     # Helper to check if a net_id matches the filter patterns
     def net_matches_filter(net_id: int) -> bool:
@@ -3027,6 +3178,25 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
                         'shortfall_mm': drill_short,
                         'via_loc': (via.x, via.y),
                     })
+            # The relation, checked independently of the two scalars above: a via
+            # can pass both and still have no copper land around its hole.
+            if eff_min_annular is not None and via.size and via.drill:
+                ann_bad, ring, ann_short = check_via_annular(
+                    via, eff_min_annular, size_margin,
+                    strict=(size_floor_sources.get('min_via_annular_width')
+                            == 'structural'))
+                if ann_bad:
+                    _n = pcb_data.nets.get(via.net_id, None)
+                    violations.append({
+                        'type': 'via-annular',
+                        'net1': _n.name if _n else f"net_{via.net_id}",
+                        'size': via.size,
+                        'drill': via.drill,
+                        'annular_mm': ring,
+                        'min_annular': eff_min_annular,
+                        'shortfall_mm': ann_short,
+                        'via_loc': (via.x, via.y),
+                    })
 
     # Same-net COPPER overlaps are not DRC failures: same-net copper is allowed
     # to overlap (KiCad's own DRC permits it -- it only enforces clearance between
@@ -3222,6 +3392,16 @@ def run_drc(pcb_file: str, clearance: float = 0.1, net_patterns: Optional[List[s
                         print(f"    Drill: {v['drill']:.4f}mm < min {v['min_drill']:.4f}mm "
                               f"(short {v['shortfall_mm']:.4f}mm)")
                         print(f"    Via: ({v['via_loc'][0]:.2f},{v['via_loc'][1]:.2f})")
+                    elif vtype == 'via-annular':
+                        _no_land = v['annular_mm'] <= 0
+                        print(f"  Via:{v['net1']} annular ring "
+                              + ("ABSENT -- a hole with no barrel land"
+                                 if _no_land else "too small for fab"))
+                        print(f"    Ring: {v['annular_mm']:.4f}mm "
+                              f"(dia {v['size']:.4f} - drill {v['drill']:.4f}) / 2"
+                              f" <= min {v['min_annular']:.4f}mm "
+                              f"(short {v['shortfall_mm']:.4f}mm)")
+                        print(f"    Via: ({v['via_loc'][0]:.2f},{v['via_loc'][1]:.2f})")
                     # #326: attribute above-global requirements (pad/footprint
                     # local clearance or netclass), mirroring KiCad's wording.
                     if v.get('required_mm'):
@@ -3294,6 +3474,23 @@ if __name__ == "__main__":
                         help='Minimum via outer diameter in mm (default: fab floor)')
     parser.add_argument('--min-via-drill', type=float, default=None,
                         help='Minimum via drill diameter in mm (default: fab floor)')
+    parser.add_argument('--min-via-annular-width', type=float, default=None,
+                        help='Minimum via annular ring (dia-drill)/2 in mm. '
+                             'Default: the STRUCTURAL rung only, i.e. the ring '
+                             'must be greater than zero. Wins over every other '
+                             'annular source.')
+    parser.add_argument('--no-annular-check', action='store_true',
+                        help='Skip the via annular-ring check entirely. The '
+                             'default rung flags only a ring at or below ZERO '
+                             '(a hole with no barrel land), so switching it off '
+                             'means accepting unplateable vias.')
+    parser.add_argument('--annular-vs-board', action='store_true',
+                        help="Also grade the annular ring against the board's own "
+                             "declared min_via_annular_width. Opt-in: a stock, "
+                             "never-edited KiCad default declares 0.1 against a "
+                             "0.5 via, which flags the router's legitimately "
+                             "escalated 0.25/0.15 fine via (22 such boards in this "
+                             "tree). check_complete grades the declaration.")
     parser.add_argument('--size-margin', type=float, default=0.0,
                         help='Absolute tolerance in mm for the size checks (default: 0)')
     parser.add_argument('--check-pad-edge', action='store_true',
@@ -3456,6 +3653,10 @@ if __name__ == "__main__":
                          min_track_width=args.min_track_width,
                          min_via_diameter=args.min_via_diameter,
                          min_via_drill=args.min_via_drill,
+                         min_via_annular=args.min_via_annular_width,
+                         check_annular=not args.no_annular_check,
+                         annular_vs_board=args.annular_vs_board,
+                         fab_tier=args.fab_tier, fab_overrides=args.fab_overrides,
                          check_sizes=not args.no_size_checks,
                          size_margin=args.size_margin,
                          check_pad_edge=args.check_pad_edge,
@@ -3494,6 +3695,15 @@ if __name__ == "__main__":
                 'board_edge_clearance': args.board_edge_clearance,
                 'per_net_clearances': bool(net_clearances),
                 'size_checks': not args.no_size_checks,
+                # The SIZE family, published rather than left to be scraped back
+                # out of the "Size floors (...)" line. `size_floor_sources` says
+                # which rung won for each -- cli / fab-overrides:<file> /
+                # fab-tier:<tier> / structural / board:<project>.
+                'size_floors': {k: v for k, v in LAST_SIZE_FLOORS.items()
+                                if k != 'sources'},
+                'size_floor_sources': LAST_SIZE_FLOORS.get('sources', {}),
+                'annular_check': (not args.no_annular_check),
+                'annular_vs_board': args.annular_vs_board,
                 # run-12 Tier 1.3: True when the BOARD declared no net class
                 # and no constraint, so every floor above is this tool's
                 # fallback rather than the board's own. A reader comparing

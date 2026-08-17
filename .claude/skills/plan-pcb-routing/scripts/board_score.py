@@ -64,7 +64,13 @@ import tempfile
 # the split matters because they take different levers -- a size violation is a
 # re-route at a different width/via, a clearance violation is a routing conflict.
 # Source: check_drc.py's `by_type` grouping (:2801) over the 'type' key.
-SIZE_TYPES = frozenset({'track-width', 'via-size', 'via-drill-size'})
+# `via-annular` belongs HERE, not in `drc`, because the two lists are different
+# levers: a size finding is fixed by re-routing that copper at a bigger number,
+# a clearance finding by moving copper apart. Run 20 also showed why it must be
+# INSIDE `blocking`: a cycle that removed three unmanufacturable vias was
+# rejected for scoring worse, because nothing counted the vias it removed.
+SIZE_TYPES = frozenset({'track-width', 'via-size', 'via-drill-size',
+                        'via-annular'})
 
 # #549: seg-seg pairs whose violation exists ONLY because a .kicad_dru track
 # rule raised the pair clearance (check_drc tags them with a distinct type and
@@ -810,8 +816,20 @@ def build_parser():
     g.add_argument('--min-track-width', type=float, metavar='MM')
     g.add_argument('--min-via-diameter', type=float, metavar='MM')
     g.add_argument('--min-via-drill', type=float, metavar='MM')
+    g.add_argument('--min-via-annular-width', type=float, metavar='MM',
+                   help="the annular ring (dia-drill)/2. check_drc's default is "
+                        'the STRUCTURAL rung only (the ring must exist); pass '
+                        "the board's spec when it declares one")
     g.add_argument('--size-margin', type=float, metavar='MM',
                    help='absolute tolerance on the size checks (default: exact floor)')
+    # Declared here rather than via fab_tiers.add_fab_tier_args: this script
+    # parses its arguments BEFORE it puts the engine dirs on sys.path, so the
+    # shared helper is not importable yet. Kept default=None (not 'standard')
+    # so an unpassed flag is not forwarded and check_drc keeps its own default.
+    g.add_argument('--fab-tier', choices=('standard', 'advanced'), default=None,
+                   help='forwarded verbatim to check_drc.py')
+    g.add_argument('--fab-overrides', metavar='FILE', default=None,
+                   help='forwarded verbatim to check_drc.py')
     p.add_argument('--impedance-nets', nargs='+', metavar='GLOB',
                    help='route.py --nets glob syntax, SPACE separated; commas '
                         'inside a token are split too (a comma-joined list used '
@@ -850,7 +868,14 @@ def main():
     sizes = {'--min-track-width': args.min_track_width,
              '--min-via-diameter': args.min_via_diameter,
              '--min-via-drill': args.min_via_drill,
-             '--size-margin': args.size_margin}
+             '--min-via-annular-width': args.min_via_annular_width,
+             '--size-margin': args.size_margin,
+             # Forwarded, not dropped. These select the floor check_drc grades
+             # against, so withholding them made an override floor unreachable
+             # from the score: the two tools graded one board at two different
+             # fab tiers and neither said so.
+             '--fab-tier': args.fab_tier,
+             '--fab-overrides': args.fab_overrides}
     # A real temp dir, NOT a dotfile beside the board: these are intermediate
     # JSONs nobody reads twice, and scoring a board must leave nothing behind in
     # the user's project. `--json` is the copy you keep.
