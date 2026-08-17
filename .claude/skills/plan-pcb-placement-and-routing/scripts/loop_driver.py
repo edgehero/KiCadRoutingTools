@@ -959,14 +959,58 @@ def l2(a):
     oob, _ooberr = _count('oob_pad_count')
     if _ooberr:
         return err(_ooberr)
+    # PREFER the per-pad channel when a render is on hand. `oob_pad_count` is
+    # the COARSE measure and check_assembly's own `oob_pad_basis` string says so
+    # verbatim: it is a part pad AABB -- pads PLUS NPTH drill circles -- against
+    # an outline inflated by the GRADING CLEARANCE, so it moves when
+    # `--clearance` moves and a hit is not necessarily copper off the outline.
+    # The precise, margin-0 measure is render_placement's
+    # `checklist.a_off_outline.pad_copper`, and this gate was already being
+    # handed it.
+    #
+    # Measured on run 20, on the same board: coarse said [R4 0.2328,
+    # SW2 2.0172], per-pad said [SW2 1.5672]. R4's copper was on the board the
+    # whole time, and that single false positive is why --accept-residue
+    # oob_pad_count had to be used in BOTH cycles -- a waiver that also covers
+    # the real SW2 finding it was not meant to cover.
+    _oob_basis, _oob_refs = 'oob_pad_count (coarse, from check_assembly)', None
+    _pc = None
+    if getattr(a, 'render_json', None):
+        _rj, _rjerr = _load(a.render_json, 'The render (--render-json)')
+        if _rjerr:
+            # Not a refusal -- L3 is where a render is a gate. But the basis
+            # line must not claim a precision this gate did not get.
+            _oob_basis += f' -- {_rjerr}'
+        else:
+            _pc = (((_rj or {}).get('checklist') or {})
+                   .get('a_off_outline') or {}).get('pad_copper')
+            if not isinstance(_pc, list):
+                _oob_basis += (' -- the render carries no '
+                               'checklist.a_off_outline.pad_copper')
+    if isinstance(_pc, list):
+        _oob_refs = [r[0] if isinstance(r, (list, tuple)) and r else r
+                     for r in _pc]
+        oob = len(_pc)
+        _oob_basis = ('checklist.a_off_outline.pad_copper (per-pad, margin 0, '
+                      'from the render)')
     if oob and oob > 0 and not _accept(a, 'oob_pad_count'):
+        _named = (f' Named: {", ".join(str(r) for r in _oob_refs)}.'
+                  if _oob_refs else '')
+        _corr = ''
+        if _oob_refs is not None:
+            _coarse, _ = _count('oob_pad_count')
+            if _coarse is not None and _coarse != oob:
+                _corr = (f'\n\ncheck_assembly\'s coarse `oob_pad_count` says '
+                         f'{_coarse}; they differ because the coarse measure '
+                         f'inflates the outline by the grading clearance. The '
+                         f'per-pad count is the one to fix.')
         return err(
-            f'The placement close-out reports blocking = 0, but '
-            f'oob_pad_count = {oob}: {oob} part(s) carry pad copper OFF the '
-            f'board. Those parts are assembly-clean precisely because nothing '
+            f'The placement close-out reports blocking = 0, but {oob} part(s) '
+            f'carry pad copper OFF the board, measured by {_oob_basis}.{_named} '
+            f'Those parts are assembly-clean precisely because nothing '
             f'is out there to collide with, and their nets cannot be routed at '
-            f'all.\n\nThis is placement-shaped damage, and it is cheaper to '
-            f'fix now than to discover it as a routing failure and re-enter. '
+            f'all.{_corr}\n\nThis is placement-shaped damage, and it is cheaper '
+            f'to fix now than to discover it as a routing failure and re-enter. '
             f'Go back to the placement half.\n\nIf the overhang is BY DESIGN '
             f'-- a card edge, a switch actuator, a castellated module -- '
             f'declare it in the floorplan intent (edge_connectors), which '
@@ -2381,8 +2425,10 @@ def _self_test():
         json.dump({**_asm, 'blocking': 0, 'oob_pad_count': 4},
                   open(oob, 'w', encoding='utf-8'))
         out = STAGES['L2'](_args(base + ['--placement-report', oob]))
-        want(out.startswith('<error>') and 'oob_pad_count = 4' in out,
-             'routing refuses a blocking-0 placement with pads off the board')
+        want(out.startswith('<error>') and '4 part(s) carry pad copper OFF'
+              in out and 'coarse' in out,
+             'routing refuses a blocking-0 placement with pads off the board, '
+             'and names the count and the measure it used')
         want('edge_connectors' in out,
              '...and names how a BY-DESIGN overhang is declared instead')
         out = STAGES['L2'](_args(base + ['--placement-report', oob,
@@ -2396,7 +2442,8 @@ def _self_test():
         # oob_pad_count gate went with it.
         out = STAGES['L2'](_args(base + ['--placement-report', oob,
                                          '--accept-residue', 'blocking']))
-        want(out.startswith('<error>') and 'oob_pad_count = 4' in out,
+        want(out.startswith('<error>') and '4 part(s) carry pad copper OFF'
+              in out,
              'accepting `blocking` does NOT waive the oob_pad_count gate')
         out = STAGES['L2'](_args(base + ['--placement-report', oob,
                                          '--accept-residue']))
