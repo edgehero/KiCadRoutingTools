@@ -4540,6 +4540,31 @@ if `blocking` is level, because 9.1a ranks connectivity above the rest. Say so i
 the ledger with both numbers. A dead net is worse than a wide trace, and the scalar
 does not know that.
 
+**When the two boards were graded over DIFFERENT COMPONENTS, the comparison is
+VOID — say so, do not pick the smaller number.** `blocking` is a scalar summed
+over things that are not the same kind of thing, so the set it was summed over is
+part of the number's meaning. `board_score` now prints that set on the identity
+line (`[over 9 components; ungraded: floorplan,impedance,length,net_widths]`) —
+read it before comparing two runs.
+
+The mechanism already exists:
+
+```bash
+python3 -X utf8 py_placer/converge.py record --ledger wk/ledger.jsonl \
+    --board <board> --kind completion --score-file wk/score.json \
+    --accept-incommensurable "cycle 2 removed 3 vias with NO annular ring \
+(unmanufacturable) and blocking rose 10 -> 13; the rise is undersized+3 on a \
+check that did not exist for the parent board's grade"
+```
+
+Run 20 is the worked example, and the honest version of it: a cycle that removed
+three vias with **zero annular ring** — holes with no barrel land, which no fab
+makes — was rejected because `blocking` went 10 → 13. Nothing counted the vias it
+had removed, so the improvement was invisible to the scalar while the cost was
+not. (That specific case is now fixed by construction — `via-annular` lands in
+`undersized`, *inside* `blocking`, so removing one scores better. The general
+shape is not, which is what this flag is for.)
+
 **A THIRD EXCEPTION, for a MANDATORY CHAIN STEP that manufactures `broken` by
 construction.** A fanout converts nets that had NO copper into nets whose copper
 is in fragments — that is what an escape stub *is* — so it moves work from

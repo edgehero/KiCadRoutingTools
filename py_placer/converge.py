@@ -777,6 +777,15 @@ def cmd_record(a):
              'lever_argv': list(a.argv) if a.argv else None,
              'score': json.loads(a.score) if a.score else None,
              'renders': list(a.render_json) if a.render_json else None,
+             # The MEASUREMENT the next lap is aimed at, not a paragraph about
+             # it. Run 20 recorded "throat 0.409mm vs 0.450 needed, blocked by
+             # U4.53/R7.2" as English inside `lever`, so the re-entry could be
+             # read by a person and by nothing else.
+             'defects': list(a.defect_json) if a.defect_json else None,
+             # L4 requires a --shape and the ledger has never kept it, so
+             # "which shape did we re-enter at, and did it work" was not a
+             # question the record could answer.
+             'shape': a.shape,
              'lenses': list(a.lens) if a.lens else None,
              # Split on whitespace and commas so `--scope-refs "$(cat locks.txt)"`
              # records 45 refs rather than one 45-ref string.
@@ -1346,6 +1355,17 @@ def build_parser():
                         '~32kB and the shell then exits 126 BEFORE record '
                         'runs, so the lap is lost with no error. Mutually '
                         'exclusive with --score.')
+    r.add_argument('--defect-json', action='append', default=None,
+                   metavar='PATH',
+                   help='defect-record document(s) this lap was aimed at; '
+                        'repeatable. Stored as entry["defects"]. A ledger that '
+                        'keeps the MEASUREMENT can tell a later reader what '
+                        'the lap was for; a ledger that keeps a paragraph '
+                        'about it cannot.')
+    r.add_argument('--shape', choices=('parameter', 'placement', 'floorplan'),
+                   default=None,
+                   help='the re-entry shape this lap acted on (the same word '
+                        'L4 demands). Stored as entry["shape"].')
     r.add_argument('--render-json', action='append', default=None,
                    metavar='PATH',
                    help='render_placement --json-out document(s) that were '

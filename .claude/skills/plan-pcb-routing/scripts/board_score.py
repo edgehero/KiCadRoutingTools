@@ -978,8 +978,21 @@ def main():
     bits = ' '.join(f'{k}={v}' for k, v in score['blocking_by'].items()
                     if v is not None)
     q = score['quality']
+    # THE COMPONENT SET, on the identity line and not only in the JSON. Run 20
+    # produced `blocking` 12, 13 and 18 for ONE board under three flag sets, and
+    # nothing on the printed line said so. Two scores over different components
+    # are not comparable, and a reader has to be able to see that at a glance --
+    # `blocking` is a scalar summed over things that are not the same kind of
+    # thing, so the set it was summed over is part of the number's meaning.
+    _scope = []
+    if score.get('ungraded'):
+        _scope.append('ungraded: ' + ','.join(score['ungraded']))
+    if score.get('unknown'):
+        _scope.append('UNKNOWN: ' + ','.join(score['unknown']))
     print(f"BLOCKING={blocking}  ({bits})  "
-          f"vias={q.get('vias')} copper_mm={q.get('copper_mm')}")
+          f"vias={q.get('vias')} copper_mm={q.get('copper_mm')}"
+          + (f"  [over {len(score['blocking_by'])} components; "
+             + '; '.join(_scope) + ']' if _scope else ''))
     _adv_bits = ' '.join(f'{k}={v}' for k, v in score['advisory'].items() if v)
     if _adv_bits:
         print(f"ADVISORY (floor-governed, not blocking): {_adv_bits}")

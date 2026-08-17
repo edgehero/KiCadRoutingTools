@@ -1447,11 +1447,197 @@ check_reachability answers about ONE pad per run -- give it a pad on a failing
 net (or --net <id> --at <x,y>). A single genuine CAGED (exit 1) on the
 copper-free board is enough to make the shape placement.
 
+{_propose_shape(a)}
 Then re-run this stage with the shape you measured:
   --stage L4 --shape <parameter|placement|floorplan> --board {a.board} \\
       --score {a.score} --ledger {a.ledger} \\
+      [--defect-json <the record(s) that classified it>] \\
       [--congestion-json wk/cong_now.json --congestion-baseline wk/cong_base.json]
 </stage_instructions>'''
+
+
+def _propose_shape(a):
+    """Derive a shape from the evidence already in hand, and PRINT the derivation.
+
+    L3 prints four measurement commands and asks the operator to run
+    check_channels, check_reachability and two renders, read the exit codes and
+    decide. Every one of those measurements is exactly what a defect record and
+    a route summary contain -- so the loop was asking for work it was already
+    holding.
+
+    It PROPOSES; it does not decide and it does not refuse. `--shape` on L4
+    stays the operator's assertion -- this driver's own text calls that "the
+    guard that matters most", and it must keep costing a deliberate act. What
+    changes is that the assertion is now made against a printed derivation
+    instead of from memory.
+
+    Absent both inputs, returns '' and L3 reads exactly as it did before.
+    """
+    defects, notes = [], []
+    # `read` counts documents that PARSED, so "a record was given and it found
+    # nothing" stays distinguishable from "no record was given". They are
+    # different evidence: the first is a measurement that came back clean.
+    read = 0
+    for path in (getattr(a, 'defect_json', None) or []):
+        try:
+            with open(path, encoding='utf-8') as fh:
+                doc = json.load(fh)
+            if doc.get('kind') != 'defect-record':
+                notes.append(f'{path}: not a defect-record')
+                continue
+            read += 1
+            defects += list(doc.get('defects') or [])
+        except Exception as exc:                            # noqa: BLE001
+            notes.append(f'{path}: unreadable ({exc})')
+    summary = None
+    if getattr(a, 'route_summary', None):
+        try:
+            with open(a.route_summary, encoding='utf-8') as fh:
+                summary = json.load(fh)
+        except Exception as exc:                            # noqa: BLE001
+            notes.append(f'{a.route_summary}: unreadable ({exc})')
+    if not read and summary is None and not notes:
+        return ''
+
+    rows, shapes = [], set()
+    caged = [d for d in defects if d.get('verdict') == 'CAGED']
+    if caged:
+        d = caged[0]
+        m = d.get('measure') or {}
+        rows.append(
+            f'  CAGED on {d.get("net")} -- throat {m.get("gap_mm")}mm vs '
+            f'{m.get("gap_need_mm")}mm needed, margin '
+            f'{-1000.0 * (m.get("short_mm") or 0):+.2f} um'
+            + (f', between {", ".join(d.get("pads") or [])}'
+               if d.get('pads') else '')
+            + f'   -> placement')
+        # THE PRECONDITION, stated with the proposal rather than assumed: a
+        # CAGED verdict measured on ROUTED copper is rip-up depth, not
+        # placement, because the field it measured includes the router's own
+        # tracks. Three genuine cages once became three PASSABLE once the
+        # copper was removed.
+        rows.append('     (only if that was measured on the COPPER-FREE '
+                    'board -- on a routed one, CAGED is rip-up depth)')
+        shapes.add('placement')
+    blockers = (summary or {}).get('blockers') or []
+    if blockers:
+        rows.append(f'  summary["blockers"] names {len(blockers)} net(s) with '
+                    f'rippable copper in the way   -> parameter (congestion)')
+        shapes.add('parameter')
+    boxed = (summary or {}).get('boxed_in') or []
+    if boxed:
+        g = (boxed[0].get('geometry') or {})
+        rows.append(
+            f'  summary["boxed_in"] names {len(boxed)} net(s) walled in by '
+            f'STATIC obstacles, at grid {g.get("grid_step")}, clearance '
+            f'{g.get("clearance")}, track {g.get("track_width")}')
+        rows.append('     -> parameter (geometry) IF that geometry still has '
+                    'travel above the board\'s declared floor;')
+        rows.append('     -> placement    IF it is already AT the floor -- the '
+                    'parameter family is spent, and a finer grid alone has no '
+                    'geometry to pair with. L4 refuses the grid lever there.')
+        shapes.add('boxed')
+    if not rows:
+        rows.append('  the documents given carry no CAGED defect, no blockers '
+                    'and no box-in verdict -- nothing to derive from')
+    if shapes == {'placement'}:
+        verdict = 'proposed shape: placement'
+    elif shapes == {'parameter'}:
+        verdict = 'proposed shape: parameter'
+    elif shapes == {'boxed'}:
+        verdict = ('proposed shape: parameter OR placement -- decided by '
+                   'whether the geometry above is at the board floor')
+    elif shapes:
+        verdict = ('proposed shape: NONE -- the evidence DISAGREES across '
+                   'nets. Both readings are printed above; classify per net or '
+                   'measure again, do not average them.')
+    else:
+        verdict = 'proposed shape: none derivable from what was given'
+    return ('\nDERIVED FROM THE EVIDENCE YOU ALREADY HAVE:\n'
+            + '\n'.join(rows)
+            + (('\n  NOTE ' + '\n  NOTE '.join(notes)) if notes else '')
+            + f'\n\n  {verdict}\n  This is a PROPOSAL. --shape on L4 is still '
+              f'your assertion, and a disagreement between the two is printed '
+              f'there.\n')
+
+
+def _shape_disagreement(a):
+    """A LOUD note when --shape contradicts what the evidence derives, or ''.
+
+    Reports, never refuses. The evidence can be partial (reachability answers
+    about one pad) and the operator may know something the documents do not --
+    but a contradiction should never pass silently, because the whole cost of
+    this stage is that the wrong shape is expensive in both directions.
+    """
+    txt = _propose_shape(a)
+    if not txt:
+        return ''
+    for want, line in (('placement', 'proposed shape: placement'),
+                       ('parameter', 'proposed shape: parameter')):
+        if line in txt and a.shape != want:
+            return (f'loop_driver NOTE: you asserted --shape {a.shape}, but '
+                    f'the evidence you passed derives {want}:\n' + txt
+                    + f'  Proceeding with {a.shape} -- the assertion is '
+                      f'yours. Say in the ledger why the derivation is wrong.')
+    return ''
+
+
+def _defect_brief(paths):
+    """The defect records, as a TARGET line -- or '' when there are none.
+
+    Run 20 measured a cage at U4.54 (throat 0.409 mm against 0.450 needed,
+    blocking pads U4.53 and R7.2, relief ~0.042 mm) and then had to hand-write
+    that into an English paragraph in a ledger `lever` string and again into a
+    subagent prompt. The measurement existed; nothing could carry it.
+
+    NEVER a gate. L3 already refuses without `--render-json`; a second mandatory
+    document on the stage the loop turns on doubles the ways a real run stalls,
+    and producers are inherently partial (reachability answers about one pad).
+    """
+    out = []
+    for path in (paths or []):
+        try:
+            with open(path, encoding='utf-8') as fh:
+                doc = json.load(fh)
+        except Exception as exc:                            # noqa: BLE001
+            out.append(f'  --defect-json {path}: unreadable ({exc})')
+            continue
+        if doc.get('kind') != 'defect-record':
+            out.append(f'  --defect-json {path}: not a defect-record '
+                       f'({doc.get("kind")!r})')
+            continue
+        for d in (doc.get('defects') or []):
+            m = d.get('measure') or {}
+            at = d.get('at') or {}
+            who = ', '.join(d.get('pads') or d.get('refs') or [])
+            out.append(
+                f"  {d.get('verdict', '?')} {d.get('kind', '?')} on "
+                f"{d.get('net', '?')}"
+                + (f" at ({at['x']}, {at['y']}) {at.get('layer', '')}"
+                   if at.get('x') is not None else '')
+                + (f", between {who}" if who else ''))
+            if m.get('gap_mm') is not None:
+                # BOTH SPACES, each labelled. `bottleneck_mm` is slack space
+                # (2*(dist - clearance)); the physical gap is that plus
+                # 2*clearance. Run 20's ledger put one of each in one sentence
+                # as though they were the same number.
+                out.append(
+                    f"      gap {m['gap_mm']:.4f} / {m['gap_need_mm']:.4f} mm "
+                    f"needed (gap space); track {m.get('have_mm')} / "
+                    f"{m.get('need_mm')} (track space); short "
+                    f"{1000.0 * (m.get('short_mm') or 0):.1f} um at "
+                    f"{m.get('resolution_mm')} mm resolution")
+            for rel in (d.get('relief') or [])[:2]:
+                out.append(
+                    f"      TARGET: move {rel.get('ref')} >= "
+                    f"{rel.get('min_mm')} mm {rel.get('dir')} "
+                    f"(away from {rel.get('against')}) -- "
+                    f"{rel.get('bound', 'lower')} bound: this clears THIS pair "
+                    f"and may create another")
+    if not out:
+        return ''
+    return ('\nWHAT THIS RE-ENTRY IS AIMED AT (from --defect-json):\n'
+            + '\n'.join(out) + '\n')
 
 
 def l4(a):
@@ -1464,6 +1650,13 @@ def l4(a):
             'parameters spends iterations on a board no parameter can fix; '
             'sending a parameter-shaped failure back to placement throws away '
             'a routed board for nothing. L3 tells you how to measure it.')
+    # The assertion is still the operator's, and still costs a deliberate act.
+    # What is new is that it is now made against a DERIVATION L3 printed, so a
+    # disagreement between the two is a thing that can be seen rather than a
+    # thing that has to be remembered.
+    _disagree = _shape_disagreement(a)
+    if _disagree:
+        print(_disagree, file=sys.stderr)
     if a.shape == 'parameter':
         # Refuses only when the congestion evidence is MISSING. The numbers
         # themselves report and never refuse -- see _guard_congestion.
@@ -1537,10 +1730,11 @@ Next: --stage L1 --board <the adopted arrangement> --ledger {a.ledger}
             f'{a.ledger} \\\n'
             '          --board <the routed board> --kind completion \\\n'
             '          --score-file <the score json> --argv <the command>')
+    _dbrief = _defect_brief(getattr(a, 'defect_json', None))
     return f'''<stage_instructions stage="L4" name="re-enter: placement" of="5">
 This is the expensive one, and the cost is the point: no router setting adds a
 lane, so every routed board produced from this placement is now stale.
-
+{_dbrief}
 Routed boards this ledger recorded, which must not be reused:
 {stale}
 
@@ -2218,6 +2412,18 @@ def _args(argv=None):
                          'speaks the L2 placement gate\'s vocabulary, and a '
                          'waiver that covers two gates at once waives the one '
                          'that was working.')
+    ap.add_argument('--route-summary', default=None, metavar='PATH',
+                    help="the route step's JSON_SUMMARY. L3 reads `blockers` "
+                         "and `boxed_in` from it to propose a shape, and L4 "
+                         "reads `boxed_in` to refuse a grid lever the router "
+                         "has already said will not help.")
+    ap.add_argument('--defect-json', action='append', default=None,
+                    metavar='PATH',
+                    help='defect-record document(s) -- check_reachability '
+                         '--defect-json. L3 derives a proposed shape from them '
+                         'and L4-placement prints the TARGET they name. Never '
+                         'a gate: a second mandatory document on the stage the '
+                         'loop turns on doubles the ways a real run stalls.')
     ap.add_argument('--render-json', default=None, metavar='PATH',
                     help='render_placement --json-out document. L3 requires '
                          'one when there is a failure to classify: "one pocket '
