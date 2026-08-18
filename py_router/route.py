@@ -3150,6 +3150,19 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
         # Terminal geometry escalation outcome per net: "recovered at WxS/D"
         # or "unrecovered" (key absent when nothing was attempted).
         summary['terminal_escalations'] = terminal_escalation_summary['nets']
+    try:
+        # standard->advanced fab-floor escalations. These used to reach a log
+        # line and nothing else -- no summary key, no .kicad_pro, no grader --
+        # so a run could quietly take 0.25/0.15 vias and report unrouted 0
+        # with every checker green. It is a COST disclosure (the board now
+        # needs a more expensive process than asked for), not a defect, so it
+        # is reported and never gated on. Key absent when nothing escalated.
+        from fab_tiers import fab_escalations as _fab_esc
+        _esc = _fab_esc()
+        if _esc:
+            summary['fab_escalations'] = _esc
+    except Exception:
+        pass
     if _pe_outcomes:
         # Main-pass pre-existing rips (0805): {victim net: outcome}. Key
         # absent when no pre-existing net was ripped.

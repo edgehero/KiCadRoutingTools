@@ -394,6 +394,26 @@ FAB_FLOOR_KEYS = (
     ("min_hole_clearance", "copper-to-hole clearance"),
 )
 
+#: Rules that describe how the board is GRADED rather than what the fab can
+#: make. They are deliberately NOT in FAB_FLOOR_KEYS: that tuple feeds
+#: check_complete's UNSOUND verdict, and clearance is the one floor with a
+#: measured reason to be treated as aspirational -- stock netclass clearances
+#: are routinely violated by the human-routed references themselves (zynq: 499
+#: violations at its own 0.2 class, routed ~0.1), so gating on a relaxed
+#: clearance would manufacture a phantom storm on correctly-routed copper.
+#:
+#: But "not a fab claim" is not "not worth saying". Run 22 relaxed FOUR floors
+#: and the banner named three: min_clearance 0.15 -> 0.125 was invisible,
+#: because this family had no disclosure of its own. Every checker grades at
+#: the new number either way, so it gets a second, separately-labelled block.
+#:
+#: DECLARATION-only: these are pairwise rules, and scan_board_minima measures
+#: object sizes, so there is no measured census to attach.
+GRADING_FLOOR_KEYS = (
+    ("min_clearance", "copper clearance"),
+    ("min_copper_edge_clearance", "copper-to-edge clearance"),
+)
+
 #: Subset of :data:`FAB_FLOOR_KEYS` that :func:`scan_board_minima` can actually
 #: measure off the copper. Anything outside this set can be compared between two
 #: DECLARATIONS but never against the board itself.
@@ -501,7 +521,41 @@ def _fab_floor_disclosure(output_pcb: str, rules_before: dict, proj: dict,
                  "Confirm your fab supports it; if the original number was a "
                  "real process limit, re-route at that floor rather than "
                  "shipping this project.")
+    lines.extend(_grading_floor_disclosure(rules_before, rules_after, origin))
     return lines
+
+
+def _grading_floor_disclosure(rules_before, rules_after, origin):
+    """The clearance-family half of the banner, said separately.
+
+    Split from the fab block on purpose. Relaxing a clearance is a GRADING
+    decision with a measured rationale behind it, and folding it into
+    FAB_FLOOR_KEYS would push it into check_complete's UNSOUND verdict and
+    re-manufacture the phantom storm the clamp exists to avoid. Relaxing a
+    track width is a different claim -- that the fab can make the new number.
+    Different claims, different blocks, same visibility.
+
+    Run 22 is why this exists: four floors were relaxed and the banner named
+    three, because this family had none.
+    """
+    out = []
+    origin = origin or {}
+    for key, label in GRADING_FLOOR_KEYS:
+        was, now = rules_before.get(key), rules_after.get(key)
+        base = origin.get(key, was)
+        if not isinstance(now, (int, float)) or not isinstance(
+                base, (int, float)):
+            continue
+        if now < base - _FLOOR_EPS:
+            out.append(f"    {label}: {float(base):g} -> {float(now):g} mm")
+    if not out:
+        return []
+    return (["  GRADING FLOOR RELAXED -- not a claim about what the fab can "
+             "make, but every checker now grades at the new number:"]
+            + out
+            + ["    No object census: these are PAIRWISE rules, so there is no "
+               "per-object count to give -- re-run check_drc at the ORIGINAL "
+               "value to see what the relaxation is hiding."])
 
 
 def scan_board_minima(pcb_path: str):
@@ -1021,8 +1075,14 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
                    .get("fab_floor_origin") or {})
     _origin_seeded = False
     if not _origin:
+        # Seed the GRADING keys alongside the fab ones. Without them the
+        # clearance half of the disclosure goes silent after step 1 of a
+        # chain, for exactly the reason the fab half did before the origin
+        # existed: by step 2 the relaxed value IS the input, so nothing has
+        # "moved" and a board keeps sliding with no banner.
         _origin = {k: float(v) for k, v in _rules_before.items()
-                   if k in {key for key, _ in FAB_FLOOR_KEYS}
+                   if k in ({key for key, _ in FAB_FLOOR_KEYS}
+                            | {key for key, _ in GRADING_FLOOR_KEYS})
                    and isinstance(v, (int, float))}
         _origin_seeded = bool(_origin)
     # `minima` lets a caller that ALREADY has the board in memory supply these

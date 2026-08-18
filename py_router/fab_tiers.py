@@ -84,6 +84,14 @@ TIERS = ('standard', 'advanced')
 _DEFAULT_TIER = 'standard'
 _DEFAULT_OVERRIDES = {}
 _escalation_warned = set()
+#: Every standard->advanced escalation this run performed, as
+#: ``{'context': str}`` records. `warn_fab_escalation` printed to a log and
+#: reached NOTHING else -- not a summary key, not the .kicad_pro, not a grader
+#: -- so an escalation was "disclosed but not instrumented" and no automated
+#: reader could see it. Run 22's board silently took 0.25/0.15 vias this way
+#: while every checker read clean. Cleared per run by set_default_fab_tier,
+#: alongside the dedupe set.
+_escalation_events = []
 
 
 def set_default_fab_tier(tier, overrides=None):
@@ -93,6 +101,7 @@ def set_default_fab_tier(tier, overrides=None):
     _DEFAULT_TIER = tier or 'standard'
     _DEFAULT_OVERRIDES = dict(overrides or {})
     _escalation_warned.clear()
+    del _escalation_events[:]
 
 
 def get_default_fab_tier():
@@ -335,6 +344,8 @@ def warn_fab_escalation(context):
     if not context or context in _escalation_warned:
         return
     _escalation_warned.add(context)
+    _escalation_events.append({'context': context,
+                               'from': 'standard', 'to': 'advanced'})
     print(f"  WARNING: {context}: escalated standard->advanced fab floor "
           f"(0.25/0.15 via etc., more costly to fab); pass --fab-tier advanced to "
           f"silence, or --fab-overrides to pin your own floor (forbids escalation)")
@@ -345,6 +356,18 @@ def warn_fab_escalation(context):
               "ladder, so RAISING --via-size makes the clamp fire more "
               "readily, never less. --fab-overrides collapses the ladder to a "
               "single rung and is the only flag that forbids the escalation.")
+
+
+def fab_escalations():
+    """Escalations performed since the last ``set_default_fab_tier``.
+
+    Exists so a SUMMARY can carry what only a log line used to: an escalation
+    means the board now needs a more costly fab process than the one it was
+    asked for, and a run that reports `unrouted 0` while having quietly taken
+    0.25/0.15 vias has not told you that. Report it; do not gate on it --
+    it is a cost disclosure, not a defect.
+    """
+    return [dict(e) for e in _escalation_events]
 
 
 # --- Override file + argparse helpers ----------------------------------------
