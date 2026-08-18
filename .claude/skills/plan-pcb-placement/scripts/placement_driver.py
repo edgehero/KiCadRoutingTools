@@ -27,6 +27,7 @@ Exit: 0 emitted, 2 usage, 4 a guard refused.
 import argparse
 import json
 import os
+import re as _re_wk
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1092,6 +1093,8 @@ def _args(argv=None):
     ap = argparse.ArgumentParser(add_help=True, description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--stage', choices=sorted(STAGES))
+    ap.add_argument('--workdir', default='wk',
+                    help="the work dir the emitted instructions should point at. Default 'wk' leaves them exactly as before. Set it and every wk/ path in the printed stage text is retargeted, so the artifacts land where run_watch/fence_audit/provenance_audit actually look -- they walk only the dir they are given, and a relative wk/ resolves against the process CWD instead")
     ap.add_argument('--board', default='board.kicad_pcb')
     ap.add_argument('--before', default=None,
                     help='the board this one was derived from (the delta gates '
@@ -1144,6 +1147,49 @@ def _args(argv=None):
     return ap.parse_args(argv)
 
 
+#: Paths in the emitted instructions are written against `wk/`. When the caller
+#: names a real work dir, retarget them -- otherwise the agent executing those
+#: instructions writes to a literal relative `wk/...`, which resolves against
+#: the process CWD and lands OUTSIDE the directory every audit walks.
+#:
+#: Measured, run 22: `run_watch --workdir`, `fence_audit --workdir` and
+#: `provenance_audit --workdir` all walk only the directory they are given, so
+#: a driver that tells the agent to write `wk/locks.json` puts that artifact
+#: where all three are blind. That is a hole in the EVIDENCE, not a cosmetic
+#: path issue: the watchers reported a clean run over a directory half the
+#: run's artifacts never entered.
+#:
+#: One substitution at the single emission point, rather than rewriting ~70
+#: string literals across two 3000-line files -- that diff would be large,
+#: risky, and would touch text an agent executes verbatim.
+_WK_RE = _re_wk.compile(r'(?<![\w./-])wk/')
+
+#: Real repo artifacts that live under `wk/` and must NOT be retargeted: they
+#: are prose references to things that exist, not work paths the caller owns.
+_WK_KEEP_RE = _re_wk.compile(r'wk/(?:calibration|run\d+)/')
+
+
+def _retarget(text, workdir):
+    """Point the emitted instructions at the caller's work dir.
+
+    The default `wk` short-circuits and returns the text unchanged, so every
+    existing caller -- and both embedded self-test suites, which construct
+    args without --workdir -- sees byte-identical output.
+    """
+    if not text or not workdir:
+        return text
+    wd = str(workdir).replace('\\', '/').rstrip('/')
+    if wd in ('', 'wk'):
+        return text
+    out, last = [], 0
+    for m in _WK_KEEP_RE.finditer(text):
+        out.append(_WK_RE.sub(wd + '/', text[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(_WK_RE.sub(wd + '/', text[last:]))
+    return ''.join(out)
+
+
 def main(argv=None):
     a = _args(argv)
     if a.list:
@@ -1158,7 +1204,7 @@ def main(argv=None):
         print('placement_driver: --stage is required (see --list)',
               file=sys.stderr)
         return 2
-    out = STAGES[a.stage](a)
+    out = _retarget(STAGES[a.stage](a), getattr(a, 'workdir', None))
     print(out)
     return 4 if out.startswith('<error>') else 0
 

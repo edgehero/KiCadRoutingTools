@@ -38,6 +38,7 @@ import hashlib
 import json
 import os
 import re
+import re as _re_wk
 import sys
 import time
 
@@ -2561,7 +2562,13 @@ def _args(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--stage', choices=sorted(STAGES))
     ap.add_argument('--board', default='board.kicad_pcb')
-    ap.add_argument('--ledger', default='wk/ledger.jsonl')
+    ap.add_argument('--workdir', default='wk',
+                    help="the work dir the emitted instructions should point at. Default 'wk' leaves them exactly as before. Set it and every wk/ path in the printed stage text is retargeted, so the artifacts land where run_watch/fence_audit/provenance_audit actually look -- they walk only the dir they are given, and a relative wk/ resolves against the process CWD instead")
+    # None, then filled from --workdir after parse: a hardcoded
+    # 'wk/ledger.jsonl' is the one path this driver resolves ITSELF,
+    # so leaving it fixed would put the ledger outside the work dir
+    # even when every emitted instruction pointed inside it.
+    ap.add_argument('--ledger', default=None)
     ap.add_argument('--placement-report', default=None)
     ap.add_argument('--score', default=None)
     ap.add_argument('--congestion-json', default=None, metavar='PATH',
@@ -2657,7 +2664,56 @@ def _args(argv=None):
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
     ap.add_argument('--self-test', action='store_true')
-    return ap.parse_args(argv)
+    ns = ap.parse_args(argv)
+    # Fill the ledger from the work dir, preserving the old default exactly
+    # when --workdir is not given.
+    if ns.ledger is None:
+        wd = (getattr(ns, 'workdir', None) or 'wk').replace(chr(92), '/')
+        ns.ledger = wd.rstrip('/') + '/ledger.jsonl'
+    return ns
+
+
+#: Paths in the emitted instructions are written against `wk/`. When the caller
+#: names a real work dir, retarget them -- otherwise the agent executing those
+#: instructions writes to a literal relative `wk/...`, which resolves against
+#: the process CWD and lands OUTSIDE the directory every audit walks.
+#:
+#: Measured, run 22: `run_watch --workdir`, `fence_audit --workdir` and
+#: `provenance_audit --workdir` all walk only the directory they are given, so
+#: a driver that tells the agent to write `wk/locks.json` puts that artifact
+#: where all three are blind. That is a hole in the EVIDENCE, not a cosmetic
+#: path issue: the watchers reported a clean run over a directory half the
+#: run's artifacts never entered.
+#:
+#: One substitution at the single emission point, rather than rewriting ~70
+#: string literals across two 3000-line files -- that diff would be large,
+#: risky, and would touch text an agent executes verbatim.
+_WK_RE = _re_wk.compile(r'(?<![\w./-])wk/')
+
+#: Real repo artifacts that live under `wk/` and must NOT be retargeted: they
+#: are prose references to things that exist, not work paths the caller owns.
+_WK_KEEP_RE = _re_wk.compile(r'wk/(?:calibration|run\d+)/')
+
+
+def _retarget(text, workdir):
+    """Point the emitted instructions at the caller's work dir.
+
+    The default `wk` short-circuits and returns the text unchanged, so every
+    existing caller -- and both embedded self-test suites, which construct
+    args without --workdir -- sees byte-identical output.
+    """
+    if not text or not workdir:
+        return text
+    wd = str(workdir).replace('\\', '/').rstrip('/')
+    if wd in ('', 'wk'):
+        return text
+    out, last = [], 0
+    for m in _WK_KEEP_RE.finditer(text):
+        out.append(_WK_RE.sub(wd + '/', text[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(_WK_RE.sub(wd + '/', text[last:]))
+    return ''.join(out)
 
 
 def main(argv=None):
@@ -2797,7 +2853,7 @@ def main(argv=None):
     if not a.stage:
         print('loop_driver: --stage is required (see --list)', file=sys.stderr)
         return 2
-    out = STAGES[a.stage](a)
+    out = _retarget(STAGES[a.stage](a), getattr(a, 'workdir', None))
     code = 4 if out.startswith('<error>') else 0
     # BEFORE the print, so a stage that dies printing still leaves its trace,
     # and on stdout NOTHING changes -- existing callers tee exactly what they
