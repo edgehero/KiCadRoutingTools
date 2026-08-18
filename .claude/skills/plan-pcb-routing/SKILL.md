@@ -1492,9 +1492,11 @@ only in `check_floorplan`'s `outline` block.
   print(Counter(round(s.width, 4) for s in pcb.segments))    # widths ACTUALLY emitted
   ```
 
-  Pass `--track-width-floor <mm>` to make the net fail instead of going under,
-  and score with `board_score.py --net-min-widths` so a per-net requirement is
-  graded rather than hoped for.
+  There is **no flag that makes the net fail instead of going under** --
+  `--track-width-floor` was REMOVED in 53a5a16e and nothing replaced it. So
+  score with `board_score.py --net-min-widths`, which is now the only way a
+  per-net width requirement is graded rather than hoped for, and pin the fab
+  floor with `--fab-overrides` so the tier cannot step down beneath it.
 - **Carry the `.kicad_dru` with the `.kicad_pro`.** Rule lookup is
   `splitext(board)[0] + ".kicad_dru"`, strictly per board stem, so every
   intermediate board needs its own. `copy_board.py` takes every sibling; a hand
@@ -2267,13 +2269,15 @@ IDs, and treat the printed flags as a *starting point to be overridden*. The
 document** and wrong with one — it is exactly how a previous run shipped 267
 segments at 0.127 mm against a 0.15 mm HARD floor.
 
-Two flags exist for holding a spec floor, and neither is discoverable from the
-suggestions:
+ONE flag now holds a spec floor, and it is not discoverable from the
+suggestions (a second, `--track-width-floor`, was removed -- see below):
 
-- **`--track-width-floor <mm>`** — the router may not go under it. `--track-width`
-  is a *request*: a wide route that will not fit is necked down, and the per-net
-  rescue re-routes a failed net at the **fab** floor, both reporting the net
-  routed. With the floor set the net fails honestly instead. (Not to be confused
+- **`--track-width` is a REQUEST, and nothing enforces it.** A wide route that
+  will not fit is necked down, and the per-net rescue re-routes a failed net at
+  the **fab** floor -- both reporting the net routed. `--track-width-floor`,
+  which used to make such a net fail honestly, was REMOVED in 53a5a16e and has
+  no replacement: measure the copper afterwards with
+  `board_score.py --net-min-widths`. (Not to be confused
   with `repair_planes --min-track-width`, its region-join width band,
   nor `check_drc --min-track-width`, which grades.)
 - **`--fab-overrides <file>`** — `key = value` lines over the `--fab-tier` floor
@@ -2324,8 +2328,8 @@ Use the printed flags as-is **only when the board has no spec of its own**:
   clears it). Step **toward, never below**, the fab floors, and keep `--impedance`
   so the ohms target is held as the geometry shrinks.
 
-  **`--track-width-floor` does NOT exist on `route_diff.py`.** It is a `route.py`
-  flag. So a pair whose width is a HARD requirement — a spec'd 0.8 mm USB
+  **No width FLOOR exists on any tool** (`--track-width-floor` was removed in
+  53a5a16e). So a pair whose width is a HARD requirement — a spec'd 0.8 mm USB
   geometry, say — has **no floor protection at all** in the diff-pair step: if
   the engine necks it down to fit, it does so silently and the summary still
   reports the pair routed. Measure the emitted copper after the call, and carry
@@ -2539,9 +2543,11 @@ from it with a via, at 0.16 mm, and every summary says routed. Measured on one
 board: `route_diff` returned `partial` with the two post-resistor halves carrying
 **zero** copper, and following this rule would have finished them illegally. Give
 the peel a Step-2c-shaped pass instead — same nets, `--layers F.Cu`, the pair's own
-width — and note the one thing that makes it work: **in a call scoped to only those
-nets, the global `--track-width-floor` scalar acts as a per-net floor.** That is
-the only place it can hold 0.8 mm without pinning every signal on the board to it.
+width. Note that the trick this used to rely on is GONE: a call scoped to only
+those nets once let the global `--track-width-floor` scalar act as a per-net
+floor, and that flag was removed in 53a5a16e. The scoped call is still worth
+doing -- it is the only way to route the pair at its own width -- but the width
+is now a request with nothing enforcing it, so MEASURE the result.
 
 Two traps in that pass, both measured on the same board:
 
@@ -2609,10 +2615,11 @@ Two things the rest of this skill does not tell you, and both matter here:
   rather than asking for a width. Reach for it when a width is a HARD
   requirement and you would rather the net FAIL than come back thin — which is
   the whole point of a floor.
-- **`--track-width-floor` is a single GLOBAL scalar** (`routing_config.py:167`),
-  not per-net. It cannot hold a pair at 0.8 while signals run at 0.15: set it to
-  0.15 for the signals and the pair may legally neck to 0.2. There is no per-net
-  floor flag. So the only honest gate on a per-net width is to **measure the
+- **There is no width floor flag at all any more.** `--track-width-floor` was a
+  single GLOBAL scalar and was removed in 53a5a16e; even while it existed it
+  could not hold a pair at 0.8 while signals ran at 0.15. There is no per-net
+  floor flag and no global one. So the only honest gate on a per-net width is
+  to **measure the
   emitted copper** and carry the requirement in `board_score --net-min-widths`.
 
 ### Check for DDR/High-Speed Memory Signals
@@ -3014,10 +3021,11 @@ Based on the analysis, generate a step-by-step plan. The general order is:
 
    1. **`repair_planes --rip-blocker-nets` reconnects what it rips,
       IN-STEP, at ITS OWN parameters.** It does not know your `--layers`. Pass
-      **`--net-layers <json>`** — `{"QSPI_SD0": ["F.Cu"], ...}` — and the ripped
-      net comes back on its own layer, where it cannot take a via at all. Add
-      `--track-width-floor` for a width clause. Without it a rip is a silent
-      constraint reset.
+      Both `--net-layers <json>` and `--track-width-floor` were REMOVED in
+      53a5a16e, so a layer pin and a width clause can no longer be restated on
+      the retry: a rip IS a silent constraint reset, and there is no flag that
+      prevents it. Re-measure the ripped nets afterwards
+      (`board_score.py --net-min-widths`, and check the layers landed).
    2. **The all-nets Step 3 route's `--nets "*"` re-routes them again (#562: its
       in-run finalize also reconnects rip casualties).** The template
       below excludes only the *plane* nets; on a board with per-net geometry that
@@ -3032,8 +3040,10 @@ Based on the analysis, generate a step-by-step plan. The general order is:
 
    **The rule, and its exact scope: a constraint with no persistence channel in
    the `.kicad_pro` must be re-stated at EVERY step that can touch the net.**
-   That is **layer and width pins specifically** — `--layers`,
-   `--power-nets-widths`, `--net-layers`, `--track-width-floor`. A step that
+   That is **layer and width pins specifically** — `--layers` and
+   `--power-nets-widths`. (The per-net pair, `--net-layers` and
+   `--track-width-floor`, was REMOVED in 53a5a16e; nothing replaced them.) A
+   step that
    re-routes without them resets the net to that step's defaults. Same failure as
    9.3c rule 2 (a ripped net returns at the *calling* command's parameters),
    reaching the plane repair and the reconnect as much as an explicit
@@ -3361,10 +3371,11 @@ around from the start, which is half of why pour-first wins.
 
 **If you DO invoke the standalone `repair_planes.py`** on an out-of-chain
 board, it re-routes what it rips at ITS OWN parameters, so pass the per-net
-pins in the same call: `--net-layers <json>` (a ripped single-layer net comes
-back where it cannot take a via), `--track-width-floor`, and
-`--power-nets`/`--power-nets-widths` covering every width-bearing net that
-could be ripped. There is no `--heuristic-weight` on that script, so keep
+pins in the same call: `--power-nets`/`--power-nets-widths` covering every
+width-bearing net that could be ripped. (`--net-layers` and
+`--track-width-floor` were REMOVED in 53a5a16e, so a single-layer net can come
+back where it can take a via, and a width clause cannot be restated at all --
+verify both afterwards rather than assuming the pin held.) There is no `--heuristic-weight` on that script, so keep
 max-length nets out of the rip set by name. It auto-reads the sibling
 `.kicad_dru` (#498/#549, no flag) and prices the FULL rules, so a net that
 only routed under a staged/lifted rule cannot be re-joined once ripped.
@@ -4485,8 +4496,9 @@ escalation is allowed, which is what puts sub-spec vias on a board that asked fo
 big ones. Both report the net routed.
 
 So every route call in the loop — not only the first one — carries
-`--fab-overrides <the spec file>` when the spec is tighter than the tier, plus
-`--track-width-floor` for a width clause. Measured, one such file took a board's
+`--fab-overrides <the spec file>` when the spec is tighter than the tier.
+(There is no longer a width-clause flag to add beside it: `--track-width-floor`
+was REMOVED in 53a5a16e.) Measured, one such file took a board's
 `undersized` from **169 to 0**. Check `min_clearance_used` in the `JSON_SUMMARY`
 afterwards: it is the only place a floor that was silently loosened shows up.
 

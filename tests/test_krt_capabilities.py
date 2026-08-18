@@ -136,7 +136,18 @@ def test_a_script_does_NOT_inherit_another_CLIs_flags():
     for token in ('route_planes.py:--net-clearances',
                   'route_planes.py:--track-width-floor',
                   'repair_planes.py:--net-clearances',
-                  'route_diff.py:--track-width-floor'):
+                  'route_diff.py:--track-width-floor',
+                  # run-22: these three assert the absence on the CLI the
+                  # flags were actually REMOVED from (53a5a16e). The list
+                  # above named only the two tools that never had
+                  # --track-width-floor, so the removal passed CI while nine
+                  # places in the routing skill still told the reader to pass
+                  # it -- and a run lost a lap to `error: unrecognized
+                  # arguments`. An absence assertion about the wrong tool is
+                  # not an absence assertion.
+                  'route.py:--track-width-floor',
+                  'route.py:--net-layers',
+                  'route.py:--protect-nets'):
         assert k.missing(caps, [token]), \
             f'{token} does not exist on that CLI and must be reported missing'
 

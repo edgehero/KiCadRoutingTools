@@ -165,13 +165,25 @@ class GridRouteConfig:
     # check_drc already read min_hole_clearance, so on a board declaring 0.25 the
     # router would happily route into a band its own checker then flagged.
     hole_clearance: float = 0.0
-    # HARD floor the neck-down may not cross (0 = no floor beyond the fab tier's).
-    # `track_width` is a REQUEST: when a wide route will not fit, the neck-down
-    # retries the whole net at the layer/default width and the run reports success
-    # -- so a board whose spec sets a minimum ABOVE the fab floor silently shipped
-    # copper under it (measured: 155 of 785 segments at 0.127mm against a 0.15mm
-    # HARD requirement, with --track-width 0.16 passed). With this set the ladder
-    # stops here and the net FAILS honestly instead of going under.
+    # NOTE: the seven lines that used to sit here described `track_width_floor`,
+    # a HARD floor the neck-down could not cross. That field and its
+    # `--track-width-floor` flag were REMOVED in 53a5a16e, but the comment was
+    # left behind -- directly above `max_turn_angle`, which it does not
+    # describe. A reader could reasonably conclude max_turn_angle was a width
+    # floor. The finding it recorded still stands and is why this note replaces
+    # it rather than deleting it silently:
+    #
+    #   `track_width` is a REQUEST, not a requirement. When a wide route will
+    #   not fit, the neck-down retries the whole net at the layer/default width
+    #   and the run reports SUCCESS -- so a board whose spec sets a minimum
+    #   above the fab floor can silently ship copper under it (measured: 155 of
+    #   785 segments at 0.127mm against a 0.15mm hard requirement, with
+    #   --track-width 0.16 passed).
+    #
+    # There is currently NO flag that makes such a net fail honestly instead of
+    # necking under. Grade it after the fact with
+    # `board_score.py --net-min-widths`, and pin the fab floor with
+    # `--fab-overrides` so at least the tier cannot step down beneath it.
     max_turn_angle: float = 180.0  # Max cumulative turn angle (degrees) before reset, to prevent U-turns
     # Power-tap neck-down (issue #72): when a wide power-net tap edge fails,
     # retry it at the layer's default track width. The narrow neck extends
