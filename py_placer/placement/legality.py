@@ -96,6 +96,46 @@ def rect_area(rect):
     return max(0.0, rect[2] - rect[0]) * max(0.0, rect[3] - rect[1])
 
 
+#: A body overlap at or above this fraction of the SMALLER body is a
+#: CONTAINMENT rather than a kiss. Corpus-calibrated on the 33 boards in
+#: kicad_files/, measured (not assumed), in the FAB currency:
+#:
+#:     FID2 / J5   (orangecrab_ext_pll)  frac 1.000  2.25 mm2  marker-exempt
+#:     FID1 / J4   (orangecrab_ext_pll)  frac 0.867  1.95 mm2  marker-exempt
+#:     GPDI1 / J5  (ulx3s)               frac 0.011  0.22 mm2  non-exempt
+#:     GPDI1 / SW1 (ulx3s)               frac 0.001  0.085 mm2 non-exempt
+#:
+#: Those 4 pairs are the entire fab census. NON-EXEMPT fab containment at
+#: frac >= 0.5 is ZERO on all 33 healthy boards, and the worst healthy
+#: non-exempt fab frac is 0.011 against a measured defect of 1.000 -- a ~90x
+#: separation, the same standard that licensed `stacks` to gate.
+CONTAINMENT_FRAC = 0.5
+
+
+def containment_frac(area, ra, rb):
+    """How much of the SMALLER of two bodies the overlap `area` consumes.
+
+    The number `area_mm2` alone cannot supply, and the reason run-22 shipped a
+    board every gate called buildable: a connector shell KISSING a neighbour
+    and a part sitting WHOLLY INSIDE another part produce the same
+    `area_mm2` on different-sized parts, so a reader could not tell an
+    intended overhang from an assembly impossibility without re-deriving the
+    geometry by hand (the run wrote a throwaway probe to do exactly that).
+
+    Measured on that board: RN3 inside U5 and RN7 inside U6 both reported
+    `fab 2.0 mm2` -- identical to a large shell's legitimate graze -- while
+    being 1.000 of the smaller body.
+
+    Smaller-body denominator, because containment is asymmetric: a 2 mm2
+    overlap is everything to a 0402 and nothing to a connector. Returns
+    0.0..1.0, or None when either body has no area (nothing to be inside of).
+    """
+    small = min(rect_area(ra), rect_area(rb))
+    if small <= EPS:
+        return None
+    return round(min(1.0, area / small), 4)
+
+
 def point_to_seg_dist(px, py, x1, y1, x2, y2):
     """Distance from a point to a line segment."""
     dx, dy = x2 - x1, y2 - y1
@@ -688,7 +728,7 @@ def placement_out_of_board(parts: Sequence[GradedPart], board_info,
 class BodyOverlapPair(NamedTuple):
     a: str
     b: str
-    kind: str            # 'pad_intersection' | 'courtyard'
+    kind: str            # 'pad_intersection' | 'courtyard' | 'fab'
     area_mm2: float      # intersection area on the worst shared side
     side: str            # the shared side it occurs on ('F'/'B'; worst side)
     waived: bool
@@ -714,6 +754,31 @@ class BodyOverlapPair(NamedTuple):
     # a decision somebody made; copper landing on it is never dispositionable
     # by a placement search (run-8 E6).
     locked_ref: str = ''
+    # How much of the SMALLER body this overlap consumes, 0..1 -- see
+    # `containment_frac`. THE field `area_mm2` alone cannot supply: run-22
+    # shipped RN3-in-U5 and RN7-in-U6 at `fab 2.0 mm2`, which is also what a
+    # large connector's by-design graze measures. Area cannot tell a KISS from
+    # a part WHOLLY INSIDE another; this can.
+    #
+    # None = NOT MEASURED, not "no containment". The pad_intersection channel
+    # has no body rect in scope, so it reports None rather than a 0.0 that
+    # would read as a measurement someone took.
+    contained_frac: Optional[float] = None
+    # `contained_frac >= CONTAINMENT_FRAC`, **on the fab channel only**.
+    #
+    # Why fab-only, measured on the same 33 boards: the COURTYARD currency
+    # ships frac-1.0 containment on four healthy boards -- esp_prog (a part
+    # inside USB1), orangecrab_ext_pll (R9, R12 inside J5),
+    # rp2350_fpga_eensy_prePlane (U3 inside J2), ulx3s (R24, R22, C18 inside
+    # GPDI1, OSHW inside U9). A courtyard is body PLUS margin PLUS shell
+    # overhang volume, so a small part living under a connector's courtyard is
+    # ordinary and correct. The .Fab outline is the real body, and there a
+    # non-exempt containment is unknown on the corpus.
+    #
+    # So `contained_frac` is measured on both body channels because it is free
+    # and true, while `contained` -- the flag anything downstream acts on --
+    # is asserted only where the corpus says it discriminates.
+    contained: bool = False
 
 
 def body_overlap_pairs(parts: Sequence[GradedPart]) -> List[BodyOverlapPair]:
@@ -731,6 +796,7 @@ def body_overlap_pairs(parts: Sequence[GradedPart]) -> List[BodyOverlapPair]:
         for b in items[i + 1:]:
             worst = 0.0
             worst_side = ''
+            worst_rects = None
             for s in (a.sides & b.sides):
                 ra = rect_on(s, a.side, a.rect, a.tht_rect)
                 rb = rect_on(s, b.side, b.rect, b.tht_rect)
@@ -740,11 +806,13 @@ def body_overlap_pairs(parts: Sequence[GradedPart]) -> List[BodyOverlapPair]:
                 if area > worst:
                     worst = area
                     worst_side = s
+                    worst_rects = (ra, rb)
             if worst > EPS:
                 out.append(BodyOverlapPair(
                     a=min(a.ref, b.ref), b=max(a.ref, b.ref),
                     kind='courtyard', area_mm2=round(worst, 4),
-                    side=worst_side, waived=False, waiver=''))
+                    side=worst_side, waived=False, waiver='',
+                    contained_frac=containment_frac(worst, *worst_rects)))
     out.sort(key=lambda p: (-p.area_mm2, p.a, p.b))
     return out
 
@@ -848,6 +916,10 @@ def grade_body_overlap(pcb_data, clearance: float,
         return ''
 
     pairs: List[BodyOverlapPair] = []
+    # Refs the fab channel could not judge (no .Fab geometry). A board with no
+    # readable source path leaves this empty AND judges nothing -- both are
+    # reported rather than silently conflated with "clean".
+    fab_unjudged: set = set()
 
     # -- courtyard channel (advisory) -----------------------------------------
     for p in body_overlap_pairs(graded_parts_from_file(pcb_data, pcb_file)):
@@ -866,6 +938,7 @@ def grade_body_overlap(pcb_data, clearance: float,
         for ref, fp in sorted(fps.items()):
             sides = fab.get(ref)
             if not sides:
+                fab_unjudged.add(ref)
                 continue
             own = footprint_side(fp)
             lb = sides.get(own) or next(iter(sides.values()))
@@ -880,10 +953,13 @@ def grade_body_overlap(pcb_data, clearance: float,
                 ov = rect_overlap_area(rca, rcb)
                 if ov > EPS:
                     waiver = _waiver_for(ra, rb)
+                    _cf = containment_frac(ov, rca, rcb)
                     pairs.append(BodyOverlapPair(
                         a=min(ra, rb), b=max(ra, rb), kind='fab',
                         area_mm2=round(ov, 4), side=sa,
-                        waived=bool(waiver), waiver=waiver))
+                        waived=bool(waiver), waiver=waiver,
+                        contained_frac=_cf, contained=_cf is not None
+                        and _cf >= CONTAINMENT_FRAC))
 
     # -- pad_intersection channel (never waivable) ----------------------------
     # AABB broad phase in the gate currency, then exact re-verification at
@@ -1000,12 +1076,37 @@ def grade_body_overlap(pcb_data, clearance: float,
     blocking = [p for p in pairs if p.kind == 'pad_intersection']
     advisory = [p for p in pairs
                 if p.kind != 'pad_intersection' and not p.waived]
+    contained = [p for p in pairs if p.contained]
     return {'blocking': len(blocking),
             'advisory': len(advisory),
             'waived': sum(1 for p in pairs if p.waived),
             'pairs': pairs,
             'blocking_pairs': blocking,
             'advisory_pairs': advisory,
+            # Body containment: one part's .Fab outline (near-)wholly inside
+            # another's. DISCLOSURE ONLY -- deliberately NOT folded into
+            # `blocking`, because the corpus ships legitimate frac-1.0
+            # containments (fiducials under connector bodies, measured on
+            # orangecrab_ext_pll: FID2/J5 at 1.000, FID1/J4 at 0.867).
+            #
+            # NOT filtered by `waived`, and that one omission is the whole
+            # point. `_waiver_for` is pure class membership and geometry-blind,
+            # so a part sitting WHOLLY inside an `edge_actuator` gets the same
+            # `edge_class` label as a 0.01 mm2 graze and then leaves
+            # `advisory`, `advisory_pairs` AND `new_advisory_pairs` in one
+            # step. Run-22 lost D4-inside-SW2 exactly that way, twice, and
+            # nothing in the chain could report it. This is the list a waiver
+            # cannot empty.
+            'contained': len(contained),
+            'containment_pairs': contained,
+            # Parts whose footprint draws no .Fab outline at all, so the fab
+            # channel CANNOT judge them (parser.extract_fab_sides skips them
+            # and the loop above continues past them). Measured 10-25 per
+            # corpus board, so this is a large limit, not a corner case: an
+            # unjudged part is not a clean part, and saying nothing claimed it
+            # was.
+            'fab_unjudged': len(fab_unjudged),
+            'fab_unjudged_refs': sorted(fab_unjudged),
             # E6: pairs where copper lands on a part KiCad marks (locked yes),
             # of ANY channel including waived ones. A locked pose is a decision
             # somebody made -- a mounting hole against an enclosure, a

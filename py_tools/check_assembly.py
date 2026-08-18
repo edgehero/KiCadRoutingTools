@@ -210,7 +210,7 @@ def main():
               f"compare the dropped ones. Legal, but rename them if they are "
               f"meant to be distinct parts.")
     print(f"  blocking {g['blocking']}  advisory {g['advisory']}"
-          f"  waived {g['waived']}"
+          f"  waived {g['waived']}  contained {g['contained']}"
           + (f"  new-vs-baseline {len(new_advisory)}"
              if new_advisory is not None else ""))
     for q in g['pairs']:
@@ -219,8 +219,11 @@ def main():
         star = ''
         if new_advisory is not None and q in new_advisory:
             star = '  <-- NEW vs baseline'
+        cont = ''
+        if q.contained:
+            cont = f"  CONTAINED {q.contained_frac:.0%}"
         print(f"    {q.a} <-> {q.b}  {q.kind}  {q.area_mm2}mm2 "
-              f"side {q.side}  {label}{star}")
+              f"side {q.side}  {label}{cont}{star}")
         # Different-net pads touching is a short on top of the overlap. Say so
         # here rather than making a reader re-derive it from the board.
         for sh in getattr(q, 'shorts', ()) or ():
@@ -256,6 +259,26 @@ def main():
     # `buildable`, exit code). Three re-derivations of `blocking or
     # locked_contact` is how the coincident-origin channel would have reached
     # two of them and silently missed the third.
+    if g['contained']:
+        print(f"  CONTAINMENT ({g['contained']}): a part's .Fab body lies "
+              f"wholly or mostly inside another part's.")
+        for q in g['containment_pairs']:
+            tag = f"  [waived:{q.waiver}]" if q.waived else ''
+            print(f"    {q.a} <-> {q.b}  {q.area_mm2}mm2  "
+                  f"{q.contained_frac:.0%} of the smaller body{tag}")
+        print(f"    DISCLOSURE, not a verdict term -- this does not appear in "
+              f"`blocking` and does not change `buildable`. The corpus ships "
+              f"legitimate full containments (fiducials under connector "
+              f"bodies: orangecrab FID2/J5 at 100%), so it cannot gate. Judge "
+              f"each one. A waived pair is listed here BECAUSE the waiver is "
+              f"a part-class lookup with no geometry in it.")
+    if g['fab_unjudged']:
+        _u = g['fab_unjudged_refs']
+        print(f"  BODY COVERAGE: {g['fab_unjudged']} of "
+              f"{len(pcb.footprints)} part(s) draw no .Fab outline, so the "
+              f"containment channel cannot judge them: "
+              + ', '.join(_u[:8]) + (' ...' if len(_u) > 8 else ''))
+
     not_buildable = bool(g['blocking'] or locked_contact or stack_groups)
     verdict = 'NOT BUILDABLE' if not_buildable else 'buildable (blocking 0)'
     print(f"  VERDICT: {verdict}")
@@ -286,6 +309,10 @@ def main():
             'advisory': g['advisory'],
             'waived': g['waived'],
             'pairs': [q._asdict() for q in g['pairs']],
+            'contained': g['contained'],
+            'containments': [q._asdict() for q in g['containment_pairs']],
+            'fab_unjudged': g['fab_unjudged'],
+            'fab_unjudged_refs': g['fab_unjudged_refs'],
             'blocking_pairs': [q._asdict() for q in g['blocking_pairs']],
             'advisory_pairs': [q._asdict() for q in g['advisory_pairs']],
             'pad_conflicts': leg['pad_conflicts'],
