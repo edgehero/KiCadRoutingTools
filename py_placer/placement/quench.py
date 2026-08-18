@@ -431,6 +431,13 @@ class QuenchState:
         self.edge_weight = edge_weight
         self.grid_step = grid_step
 
+        # Kept so the FAB body channel can be resolved lazily -- see
+        # `fab_rect`. Nothing is parsed unless something asks.
+        self.pcb_file = pcb_file
+        self.pcb_data = pcb_data
+        self._fab_local = None
+        self._fab_cache = {}
+
         courtyards = extract_courtyard_sides(pcb_file)
         locked_refs = set(extract_locked_refs(pcb_file))
         if extra_locked_refs:
@@ -1263,6 +1270,49 @@ class QuenchState:
         return cost, n_out + n_in
 
     # ----- full cost (for reporting) ---------------------------------------
+
+    def fab_rect(self, ref, x=None, y=None, rot=None):
+        """The part's .Fab BODY rect at a pose, or None when its footprint
+        draws no .Fab geometry.
+
+        The body currency for CONTAINMENT tests. It must never fall back to
+        the courtyard: a courtyard is body + margin + shell-overhang volume,
+        and the 33-board corpus ships frac-1.0 COURTYARD containment on four
+        healthy boards (esp_prog, orangecrab_ext_pll,
+        rp2350_fpga_eensy_prePlane, ulx3s) against ZERO non-exempt fab
+        containment. A courtyard-based containment test is a false-veto
+        machine; this one is not.
+
+        None means UNJUDGED, not clear -- a pose inside a bodyless part
+        cannot be refused, and callers disclose that rather than assuming
+        coverage they do not have.
+
+        Lazy: nothing is parsed until the first call, so every existing
+        quench/seeder path pays nothing.
+        """
+        if self._fab_local is None:
+            try:
+                from placement.parser import extract_fab_sides
+                self._fab_local = extract_fab_sides(self.pcb_file) or {}
+            except Exception:
+                self._fab_local = {}
+        p = self.parts.get(ref)
+        if p is None:
+            return None
+        sides = self._fab_local.get(ref)
+        if not sides:
+            return None
+        x = p.x if x is None else x
+        y = p.y if y is None else y
+        rot = p.rot if rot is None else rot
+        key = (ref, rot % 360)
+        local = self._fab_cache.get(key)
+        if local is None:
+            own = 'B' if str(getattr(p, 'side', 'F')).upper().startswith('B')                 else 'F'
+            lb = sides.get(own) or next(iter(sides.values()))
+            local = rotate_local_bounds(*lb, rot)
+            self._fab_cache[key] = local
+        return (x + local[0], y + local[1], x + local[2], y + local[3])
 
     def total_cost(self):
         all_aw = _aw_array([aw for lst in self.net_airwires.values() for aw in lst])
