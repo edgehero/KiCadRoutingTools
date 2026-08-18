@@ -72,6 +72,14 @@ def main(argv):
             sys.stdout.write(line)
             sys.stdout.flush()
         code = proc.wait()
+        # The anchor contract run_watch documents is "one CMD: and one EXIT=
+        # per log". We write the CMD: line above because the two skill drivers
+        # install no cli_banner and would otherwise be unanchored -- but we
+        # never wrote the EXIT= half, so a teed log of a banner-less tool
+        # satisfied only one side of it. `[tee_cmd] ... exit=N` below is for
+        # humans and does not carry the EXIT= prefix any parser looks for.
+        log.write('EXIT=%d' % code + chr(10))
+        log.flush()
     t1 = time.time()
 
     with open(ledger, 'a', encoding='utf-8') as f:

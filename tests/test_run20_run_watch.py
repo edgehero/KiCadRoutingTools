@@ -371,5 +371,47 @@ check('the contract in the docstring says so too',
       'a contract change that only lives in the code is one the next reader '
       'will undo')
 
+print('--- run-22: a teed cmd_timing.jsonl is a source of truth ---')
+
+# tee_cmd.py records argv for EVERY invocation a timed run makes. Run 22 wrote
+# 203 such rows carrying five --waive uses, one --fab-overrides and a --nets
+# narrowing, and this watcher reported ZERO of them: it only ever read
+# `lever_argv`. The two skill drivers install no cli_banner either, so a teed
+# row is the ONLY place their invocations are ever visible.
+d22 = tempfile.mkdtemp()
+with open(os.path.join(d22, 'cmd_timing.jsonl'), 'w', encoding='utf-8') as f:
+    f.write(json.dumps({
+        'label': 'place_driver_p3b',
+        'argv': ['python3', '-X', 'utf8',
+                 '.claude/skills/plan-pcb-placement/scripts/placement_driver.py',
+                 '--stage', 'P3', '--waive', 'H1:mechanically pinned'],
+        'cmdline': 'x', 'exit': 0}) + chr(10))
+    f.write(json.dumps({
+        'label': 'rt_route4_pinned',
+        'argv': ['python3', 'py_router/route.py', 'in.kicad_pcb',
+                 'out.kicad_pcb', '--fab-overrides', 'fab_floor.txt'],
+        'cmdline': 'x', 'exit': 0}) + chr(10))
+out22 = scan_cheats(d22)
+check('--waive on a driver in a teed row is reported',
+      any('--waive' in ln for ln in out22), str(out22))
+check('--fab-overrides on a router in a teed row is reported',
+      any('--fab-overrides' in ln for ln in out22), str(out22))
+
+_flags = {f for _lab, f, _why, _tools in RW.CHEAT_FLAGS}
+for _f in ('--waive', '--accept-boxin', '--fab-tier', '--fab-overrides',
+           '--no-fix-drc-settings'):
+    check(f'{_f} is a known cheat flag', _f in _flags)
+
+# `lever` PROSE must still never be matched -- reporting a run's own
+# disclosure is the mistake the scanner's docstring exists to prevent.
+d23 = tempfile.mkdtemp()
+with open(os.path.join(d23, 'ledger.jsonl'), 'w', encoding='utf-8') as f:
+    f.write(json.dumps({
+        'iteration': 1,
+        'lever': 'I passed --waive H1:mechanical and said so in the journal',
+    }) + chr(10))
+check('a flag named in ledger PROSE is still not a finding',
+      scan_cheats(d23) == [], str(scan_cheats(d23)))
+
 print(f'\n{passed} passed, {failed} failed')
 sys.exit(1 if failed else 0)

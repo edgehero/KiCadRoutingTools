@@ -314,6 +314,10 @@ NET_SCOPED = ('route.py',)
 #: Fourth field: the tools on which the flag lowers a bar. Measured on run 20 --
 #: 683 raw substring hits, 24 once anchored to a real command line, 6 once
 #: scoped to the tools where the flag means what the `why` says.
+#: The two skill drivers. They install no cli_banner, so their invocations are
+#: only ever seen through a teed `cmd_timing.jsonl` row -- see _scan_ledger_argv.
+DRIVERS = ('placement_driver.py', 'loop_driver.py')
+
 CHEAT_FLAGS = (
     ('WAIVER', '--accept-residue', 'accepts placement residue the close-out '
                                    'refused', ()),
@@ -343,8 +347,31 @@ CHEAT_FLAGS = (
     ('DELEGATION', '--no-delegate', 'runs an inner half inline; an inline '
                                     'loop can silently do the outer loop\'s '
                                     'job and never report it (run 14)', ()),
+    # --- run-22 additions ---------------------------------------------------
+    # Gaps in an already-covered family, not a category decision: the three
+    # sibling `--accept-*` flags were listed and these were not. Measured: run
+    # 22 used --waive FIVE times and this watcher emitted ZERO events.
+    ('WAIVER', '--waive', 'waives a lock advisory the P3 gate raised, per ref',
+     DRIVERS),
+    ('WAIVER', '--accept-boxin', 'accepts a boxed-in part the gate refused',
+     DRIVERS),
+    # The fab floor is a CEILING on what the router may emit. Lowering it lets
+    # copper reach 0.0889/0.25 AND grade clean there -- the run-22 ratchet: a
+    # board reported unrouted 0 / broken 0 while carrying 39 objects below its
+    # own declared floors.
+    ('FLOOR', '--fab-tier', 'routes and grades at a LOOSER fab tier '
+                            '(advanced reaches 0.0762 track, 0.25/0.15 via)',
+     GRADERS + ROUTERS),
+    ('FLOOR', '--fab-overrides', 'pins the fab floor to a file, which may sit '
+                                 'under the standard tier', GRADERS + ROUTERS),
+    # Without the writeback there is no `fab_floor_origin` in the output
+    # project, so check_complete.fab_floor_integrity reports ran: False and
+    # the ratchet check goes dark.
+    ('WAIVER', '--no-fix-drc-settings', 'leaves the output with no '
+                                        'fab_floor_origin, so the fab-floor '
+                                        'integrity check cannot run at all',
+     ROUTERS),
 )
-
 
 def _parse_cmd(line):
     """`CMD: python3 -X utf8 route.py b.kicad_pcb --nets '*'` -> ('route.py', [tokens]).
@@ -457,6 +484,15 @@ def _argv_key(toks):
     return hashlib.sha1(' '.join(norm).encode('utf-8', 'replace')).hexdigest()[:16]
 
 
+#: JSONL keys that carry a REAL argv, in priority order. `lever_argv` is a
+#: converge lever; `argv` / `cmdline` are what tests/stress/tee_cmd.py records
+#: for EVERY invocation a timed run makes. Run 22 wrote 203 such rows and this
+#: watcher extracted nothing from any of them, because it looked only for
+#: `lever_argv` -- so every driver invocation was invisible (the drivers
+#: install no cli_banner, so they print no CMD: line of their own either).
+_ARGV_KEYS = ('lever_argv', 'argv', 'cmdline')
+
+
 def _scan_ledger_argv(path, seen, rel):
     """Cheat flags in a ledger row's `lever_argv` -- the second source of truth.
 
@@ -475,7 +511,11 @@ def _scan_ledger_argv(path, seen, rel):
     for r in rows:
         if not isinstance(r, dict):
             continue
-        argv = r.get('lever_argv')
+        argv = src = None
+        for _k in _ARGV_KEYS:
+            if r.get(_k) is not None:
+                argv, src = r[_k], _k
+                break
         if isinstance(argv, str):
             try:
                 argv = shlex.split(argv, posix=False)
@@ -494,8 +534,10 @@ def _scan_ledger_argv(path, seen, rel):
             if key in seen:
                 continue
             seen.add(key)
-            out.append(f'{label} {flag} in {rel} lever_argv iteration '
-                       f'{r.get("iteration")} ({tool}) -- {why}')
+            where = (f'iteration {r.get("iteration")}'
+                     if src == 'lever_argv' else f'label {r.get("label")!r}')
+            out.append(f'{label} {flag} in {rel} {src} {where} '
+                       f'({tool}) -- {why}')
     return out
 
 
@@ -665,8 +707,11 @@ def watch_cheats(workdir, truthdir, done_path, poll):
             if path.endswith('.jsonl'):
                 for out in _scan_ledger_argv(path, seen, rel):
                     print(out, flush=True)
-        if unanchored and ('unanchored', unanchored) not in seen:
-            seen.add(('unanchored', unanchored))
+        # Key on the FACT, not the count. The running count was in the key,
+        # so every increment was a fresh event: the line promised "counted,
+        # not reported individually" and then reported every increment.
+        if unanchored and ('unanchored',) not in seen:
+            seen.add(('unanchored',))
             print(f'NOTE {unanchored} flag mention(s) outside a CMD: line '
                   f'(prose, help text, a tool disclosing "--clearance not '
                   f'given", a driver refusal naming the flag, a ledger lever) '
