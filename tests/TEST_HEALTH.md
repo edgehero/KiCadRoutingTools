@@ -181,3 +181,41 @@ Recorded because the method looked rigorous in both cases and was not.
    script had silently no-opped (its pattern did not match this file's
    `PYTHONHASHSEED=seed, PYTHONPATH=ROOT`) and reported success anyway. I took
    the claim from the script's output instead of a test run. Verified means run.
+
+---
+
+## A third of the corpus no-op baseline is untracked (2026-08-19)
+
+`tests/stress/corpus_noop_sweep.py` is the standing gate for placement-engine
+changes, and its own docstring says *"A baseline nobody can reproduce is not a
+baseline."* **11 of the 33 boards it pins are not tracked by git** — they are
+generated tool outputs (`fanout_output1/2`, `fanout_starting_point`,
+`flat_hierarchy_routed`, `interf_u_connected/fanout/plane/routed`,
+`qfn_fanned_out`, `sonde_u_routed`, `sonde_u_routed_routed`), matched by
+`.gitignore` patterns such as `/kicad_files/interf_u_*.kicad_pcb`.
+
+So a row's recorded value depends on which generation of the file the developer
+happens to have on disk. Measured while landing the containment census:
+
+```
+CHANGED interf_u_plane:reconstruct: refused:carries copper  ->  quiet
+CHANGED interf_u_plane:repair:      refused:board state     ->  quiet
+```
+
+Nothing moved on either arm — only the *reason* changed, because the copy on
+disk had been regenerated copper-free by an earlier sweep. **Reproduced with the
+engine change stashed out**, so it is fixture state, not a regression. Both rows
+were left as they were rather than re-recorded: pinning them to `quiet` would
+freeze a state that only exists on a machine that regenerated the file, and
+would hide this finding.
+
+A fresh clone does not see it. Those boards are absent, so they land in
+`skipped` ("outside this run's scope") rather than `gone` — a deliberate branch
+with its reasoning in the source. That is why the gate can be green on CI and
+red on a working tree, which is the confusing part.
+
+**Not fixed here**, because the fix changes what the gate covers and that is a
+decision, not a cleanup. The options are to drop the untracked boards from the
+baseline (22 boards, all reproducible), or to regenerate them deterministically
+as part of the sweep. Until then, read a changed row against `git
+check-ignore` before believing it.

@@ -1548,6 +1548,13 @@ def stamp_locked(board_file: str, refs: Sequence[str]) -> int:
     return count
 
 
+#: What a containment charges. Flat, not area-scaled: a 0402 wholly
+#: inside a TSSOP measures 0.5mm2 and an area charge would floor it to
+#: the 1.0mm budget, while a large part half-swallowed would outrank
+#: it. Containment is a yes/no fact about whether a part can be built.
+#: 2.0 buys the full cap ladder (budget = max(1.0, 8.0 * charge)).
+CONTAINMENT_CHARGE_MM = 2.0
+
 REPAIR_CAPS_MM = (0.5, 1.0, 2.0, 5.0)
 # A repair move must be PROPORTIONATE to the violation it clears. The cap
 # ladder escalates 0.5 -> 5.0mm hunting any legal seat, and on a board damaged
@@ -1723,6 +1730,50 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
         ordered = sorted(free, key=_mover_key)
         # mm2 -> a strong mm-equivalent charge: a stack is never cosmetic
         _charge(ordered[0], max(1.0, bp.area_mm2))
+        for partner in ordered[1:]:
+            partner_of.setdefault(ordered[0], []).append(partner)
+
+    # CONTAINMENT census (run-22). The body census above reads
+    # `blocking_pairs`, which is pad_intersection ONLY -- so a part sitting
+    # WHOLLY INSIDE another part's .Fab body produces no pad-intersection area,
+    # is never charged, and legalize leaves it there. Prevention shipped
+    # (reconstruct._pair_conflicts refuses such a pose, candidate_valid refuses
+    # such a seat); this is the repair half, which did not.
+    #
+    # EXEMPTION: the engine's set, not the pair's `waiver` field.
+    # `containment_pairs` is deliberately unfiltered by `waived` -- that is the
+    # point of that list -- so iterating it raw would try to move orangecrab's
+    # FID2 out from under J5 (frac 1.000, by design). And filtering by
+    # `p.waived` instead would exempt `edge_class`, silently re-admitting the
+    # very defect the channel exists to catch (run 22's D4 wholly inside SW2,
+    # a declared edge_actuator).
+    _cont_exempt = set()
+    try:
+        from placement import reconstruct as _recon
+        _cont_exempt = _recon._body_exempt_refs(state)
+    except Exception:
+        _cont_exempt = set(getattr(state, 'container_refs', ()) or ())
+    _cont = [q for q in body.get('containment_pairs', ())
+             if q.a not in _cont_exempt and q.b not in _cont_exempt]
+    if _cont:
+        print(f"  Containment census: {len(_cont)} part(s) inside another "
+              f"part's body, all listed")
+    for q in _cont:
+        free = [r for r in (q.a, q.b)
+                if r in state.parts and not state.parts[r].locked]
+        if not free:
+            notes.append(f"containment {q.a}<->{q.b} "
+                         f"({q.contained_frac:.0%} of the smaller body): "
+                         f"both file-locked -- not repairable here")
+            continue
+        ordered = sorted(free, key=_mover_key)
+        # CHARGE: the same mm-equivalent scale the body stack above uses, so a
+        # containment buys at least the full cap ladder. Deliberately NOT
+        # area_mm2 -- a 0402 wholly inside a TSSOP measures 0.5mm2 and would
+        # be floored to a 1.0mm budget, while a large part half-swallowed
+        # would outrank it. Containment is a yes/no fact about whether a part
+        # can be built, so it charges a flat strong value rather than a size.
+        _charge(ordered[0], CONTAINMENT_CHARGE_MM)
         for partner in ordered[1:]:
             partner_of.setdefault(ordered[0], []).append(partner)
 
@@ -1969,7 +2020,20 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
         ctx = state.legality_ctx
         for ref in zero_move:
             still = False
+            # CONTAINMENT is checked FIRST, and it has to be: PairShortfall
+            # carries pad/hole/stack and no body term, so a part charged for
+            # sitting inside another body, which then could not move, would
+            # pass this loop and be reported `repaired`. That is the exact
+            # metric mismatch this re-grade was written to stop, one channel
+            # later.
+            try:
+                if state._body_contained_at(ref, None, None, None):
+                    still = True
+            except Exception:
+                pass
             for other in sorted(state.parts):
+                if still:
+                    break
                 if other == ref:
                     continue
                 sf = ctx.pair_shortfall(ref, other)
