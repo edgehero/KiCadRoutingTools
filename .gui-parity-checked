@@ -1,3 +1,70 @@
+84264a02 2026-08-19 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
+
+2026-08-19 parity audit cfdfb83..84264a02 (the run-22 honesty branch, 43
+commits). Outcome: ONE REAL GAP FOUND AND FIXED, then re-verified.
+
+  THE GAP: --board-floors shipped CLI-ONLY. The flag landed on this branch
+  with its argparse layer, its manifest_to_plan mapping, and even its engine
+  config path -- `fab_tiers.set_fab_tier_from_config` already read
+  `config['board_floors']`. What was missing was everything in between: no
+  dialog control existed, and not one config dict passed the key. So the GUI
+  could not bind a board floor no matter what the user or an AI plan asked
+  for, while every artifact around it suggested the feature was wired.
+
+  This is the exact Class-2 drift CLAUDE.md describes, committed by the same
+  branch that added the flag -- worth recording because the engine-side work
+  (ef392a04, "reach the GUI config path") made it LOOK done. Reading the
+  engine function is not checking the call sites.
+
+  The subtle half was `board_path`. `set_fab_tier_from_config` binds NOTHING
+  when the mode is set but no path is present -- deliberately, since inventing
+  a path is worse -- so shipping `board_floors` alone would have produced a
+  control that silently did nothing. It must be `self.board_filename`, the
+  SAVED board: `board_path_for_analysis`'s temp snapshot has no sibling
+  .kicad_pro and therefore declares nothing.
+
+  Fixed in 84264a02: the control (named after the param so ai_plan resolves it
+  by name), the key + board_path in all three config dicts that carry
+  fab_tier, settings persistence (185 -> 186 keys), and reset_params_to_defaults.
+
+  Two new gates, both mutation-tested against the real thing rather than
+  assumed:
+  * `board_floors` added to test_manifest_plan_parity's _MUST_RESOLVE --
+    renaming the control now reports "no control, no alias, not special ->
+    would be ignored".
+  * check_fab_config_companions: every config dict carrying 'fab_tier' must
+    also carry 'board_floors' and 'board_path'. Source-level ON PURPOSE, since
+    it has to fail when someone ADDS a config dict, which no runtime path
+    exercises. Dropping either key names the file and line.
+
+  Rest of the audit surface, no gap:
+  * The placement work (containment channel: legality / reconstruct / quench /
+    seeder / check_assembly) is CLI-side; the GUI placement sub-tab calls the
+    same shared engines, and the containment predicate lives INSIDE
+    candidate_valid and repair_placement rather than in any CLI main().
+  * fab_tiers gained declared_fab_floors / declared_writeback_hold /
+    set_board_floors / board_floor_blocks -- all process-wide state reached
+    through set_fab_tier_from_config, which the GUI already calls from all
+    five entry points.
+  * The enforce_fab_floors message change is inside the shared function, so
+    both fronts get it.
+  * tests/run_utils.py, TEST_HEALTH.md and the stress harness are test-side.
+
+  Gates run, on KiCad 10.0.0 / wx 4.2.2 (probed, not assumed):
+  * test_settings_roundtrip.py -- CLEAN, 186 keys, save/restore/legacy/re-save.
+  * test_manifest_plan_parity.py -- 36 flag-checks 0 mismatches, 13 params 0
+    unresolved, config companions OK.
+  * test_cli_postpass_coverage.py -- 8 registered, 15 in active CLI use, 0
+    unreachable.
+  * test_gui_engine_parity.py -- VERDICT: PARITY, copper sets IDENTICAL
+    (segments CLI=1335 GUI=1335, vias CLI=140 GUI=140, zero cli-only or
+    gui-only). Run AFTER the fix, so it covers the changed dialog.
+
+  Caveat unchanged from the last entry: that gate's plan is a signal + plane
+  chain, so it does not exercise diff-pair or impedance/coplanar parameters.
+  --board-floors reaches the diff tab through the merged route config, which
+  the source-level companion gate covers but no live diff-pair run does.
+
 cfdfb83 2026-08-17 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
 check_release_version.check_gui_parity reads `marker.read_text().split()[0]`
 and diffs it against HEAD. Every entry until 2026-08-06 opened with the word
