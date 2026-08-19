@@ -430,6 +430,7 @@ def set_board_floors(floors=None, sources=None, mode='off'):
     _DEFAULT_BOARD_SOURCES = dict(sources or {})
     _DEFAULT_BOARD_MODE = mode or 'off'
     del _board_floor_blocks[:]
+    _board_floor_block_keys.clear()
     del _board_floor_costs[:]
 
 
@@ -445,6 +446,7 @@ def get_board_floors():
 #: because none happened. That is honest, but the information has to go
 #: somewhere, and this is where.
 _board_floor_blocks = []
+_board_floor_block_keys = set()
 
 
 #: Nets whose rescue/escalation ladder was EMPTY while a board floor was
@@ -507,12 +509,22 @@ def _clamp_rungs(rungs, copper_layer_count):
         still_escalation = (g.get('via_diameter', 0.0)
                             < clamped_rung0 - _RING_EPS)
         if was_escalation and not still_escalation:
-            _board_floor_blocks.append(
-                {'from': {k: f.get(k) for k in ('via_diameter', 'via_drill',
+            # DEDUPED. fab_floor_ladder is called on every rescue attempt and
+            # every tap, so an undeduped counter reported 5454 "prevented
+            # escalations" on one board -- a number that describes how often
+            # the ladder was asked, not what the floor did. Same reason
+            # _escalation_warned dedupes its warning: a disclosure nobody can
+            # read is not a disclosure.
+            rec = {'from': {k: f.get(k) for k in ('via_diameter', 'via_drill',
+                                                  'track_width')},
+                   'to': {k: g.get(k) for k in ('via_diameter', 'via_drill',
                                                 'track_width')},
-                 'to': {k: g.get(k) for k in ('via_diameter', 'via_drill',
-                                              'track_width')},
-                 'reason': 'raised out of escalation range by the board floor'})
+                   'reason': 'raised out of escalation range by the board floor'}
+            _key = (tuple(sorted(rec['from'].items())),
+                    tuple(sorted(rec['to'].items())))
+            if _key not in _board_floor_block_keys:
+                _board_floor_block_keys.add(_key)
+                _board_floor_blocks.append(rec)
         key = tuple(round(g.get(k, 0.0), 6) for k in FLOOR_KEYS)
         if key in seen:
             # Collapsed exactly onto an earlier rung: dropping it is required,
