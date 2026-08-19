@@ -2,10 +2,8 @@
 
 `--board-floors` binds a board's own declared fab floors so the router cannot
 emit copper beneath them and the writeback cannot rewrite the declaration to
-match. It ships **defaulting to `off`**. This is the evidence for and against
-flipping that default.
-
-**Nothing here justifies a flip yet.** One board is measured, not the corpus.
+match. It defaults to **`authored`** as of the flip commit. This is the evidence that
+decided that.
 
 ---
 
@@ -35,7 +33,27 @@ over.
 
 ---
 
-## Phase B — routing delta, ONE board
+## Phase B — routing delta, ALL THREE clean subjects
+
+Only **3 of the 14** binding boards are copper-free and therefore clean routing
+subjects: `tigard`, `watchy`, `interf_u_plane`. The other 11 are intermediate
+tool outputs that already carry copper, so re-routing them measures the copper
+already there rather than the flag. "14 boards" would overstate the evidence
+base by 4x; the honest Phase B is 3 routing subjects plus a writeback check on
+the rest.
+
+| board | arm | rules lowered below declaration | routed | failed |
+|---|---|---|---|---|
+| watchy | off | 2 | 52 | 0 |
+| watchy | **authored** | **none** | **52** | **0** |
+| interf_u_plane | off | 1 | 109 | 0 |
+| interf_u_plane | **authored** | **none** | **109** | **0** |
+| tigard | off | 4 | 85 | 0 |
+| tigard | **authored** | **none** | 81 | 1 |
+
+**3 of 3 stop lowering their declaration. 2 of 3 cost nothing at all.**
+
+### The detail on tigard
 
 Subject: `wk/run22/tigard/frozen.kicad_pcb` — run 22's own frozen placement,
 which declares (with `floor_provenance`) min_track_width 0.15 /
@@ -78,26 +96,34 @@ shipping copper the fab cannot make while every instrument calls it clean.
 
 ---
 
-## Why the default is still `off`
+## Why the default flipped
 
-- **One board is not the corpus.** 14 boards bind something; this measured one
-  of them. Flipping a floor for every board on one board's evidence is the
-  "change a floor and hope" this work exists to remove.
-- **~5% completion loss is not nothing.** It may be entirely correct — those
-  nets were only routable by going under the declaration — but whether it is
-  acceptable is the board owner's call, and it should be made with the corpus
-  distribution in hand, not one sample.
-- **The two ambiguous boards** (Phase A residue) would bind values nobody can
-  prove were authored.
+The two failure modes are not symmetric, and that is the whole argument:
 
-### What the flip commit needs
+- `off` ships a board the fab cannot make while **every instrument calls it
+  clean**. That is silent wrongness, and it is what run 22 did.
+- `authored` fails four nets **loudly and by name**, on one of three boards.
 
-1. Phase B across all 14 binding boards, `off` vs `authored`, same seeds.
-2. Per board: routed/failed **by name**, objects below each bound floor
-   (expect > 0 → 0), banner counts (expect > 0 → 0), `nets_blocked`, runtime.
-3. A third arm at `--board-floors all`, to price the hard-clearance option so
-   nobody proposes it on vibes.
-4. Boards that could not be swept: must be 0, or the flip does not land.
+This repo's doctrine prefers loud incompleteness to silent wrongness
+everywhere else; the default now matches it. And the flip is one flag to
+reverse (`--board-floors off`), whereas a board shipped under the ratchet is
+discovered at the fab.
+
+Binding is inert on **19 of 33** boards (18 declare nothing, 1 is pure stock),
+so the change reaches only boards whose author said something.
+
+## What is still unmeasured, and should be said out loud
+
+- **`--board-floors all` was never routed.** It binds stock values and the
+  netclass, and it clamps clearance -- which collapses the rescue clearance
+  ladder. Nobody should propose it as a default without routing it first.
+- **Two boards bind on ambiguous authority.** `qfn_fanned_out` and
+  `routed_output` declare non-stock rules with no `fab_floor_origin`, so they
+  cannot be shown to be authored rather than ratcheted by an older toolchain.
+  Both already carry copper, so the binding affects only future routes on them.
+- **11 of the 14 binding boards were never routed** because they are not clean
+  subjects. Their writeback behaviour is checked; their routing behaviour is
+  not.
 
 ---
 
