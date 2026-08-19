@@ -21,6 +21,9 @@ import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
+for _p in ('py_router', 'py_tools', 'py_placer'):   # #522: copy_board et al moved
+    sys.path.insert(0, os.path.join(REPO, _p))
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 BOARD = os.path.join(REPO, "kicad_files", "splitflap_driver.kicad_pcb")
 RULE = 0.45
@@ -56,7 +59,7 @@ def route(workdir, with_dru, out_name):
     out = os.path.join(workdir, out_name)
     js = out + ".json"
     r = subprocess.run(
-        [sys.executable, os.path.join(REPO, "route.py"), src, out,
+        [sys.executable, _tool("route.py"), src, out,
          "--nets", *NETS, "--layers", "F.Cu", "B.Cu",
          "--clearance", "0.2", "--track-width", "0.2", "--json-out", js],
         capture_output=True, text=True, timeout=1200)
@@ -101,7 +104,7 @@ with tempfile.TemporaryDirectory() as d:
           gap1 >= RULE * 0.95, f"min gap {gap1:.3f}")
 
     dr = subprocess.run(
-        [sys.executable, os.path.join(REPO, "check_drc.py"), out_dru,
+        [sys.executable, _tool("check_drc.py"), out_dru,
          "--no-size-checks"],
         capture_output=True, text=True, timeout=600)
     check("check_drc grades the ruled board clean", dr.returncode == 0,

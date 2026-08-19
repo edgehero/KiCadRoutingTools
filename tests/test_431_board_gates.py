@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_placer'))  # placement split
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_router'))  # placement split
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_tools'))  # placement split
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 from kicad_parser import parse_kicad_pcb  # noqa: E402
 from placement.lock_advisor import advise_locks, to_json  # noqa: E402
@@ -40,7 +41,7 @@ ROUTED = os.path.join(KF, 'routed_output.kicad_pcb')
 
 def _run(script, *args):
     return subprocess.run([sys.executable, '-X', 'utf8',
-                           os.path.join(ROOT, script)] + list(args),
+                           _tool(script)] + list(args),
                           capture_output=True, text=True, cwd=ROOT, timeout=1800)
 
 

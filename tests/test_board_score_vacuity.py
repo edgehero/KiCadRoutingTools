@@ -21,6 +21,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 SCORE = os.path.join(ROOT, '.claude', 'skills', 'plan-pcb-routing',
                      'scripts', 'board_score.py')
@@ -40,7 +41,7 @@ def _routed_board(td):
     """Route two nets of the fixture so the impedance component has copper."""
     out = os.path.join(td, 'routed.kicad_pcb')
     r = subprocess.run([sys.executable, '-X', 'utf8',
-                        os.path.join(ROOT, 'route.py'), BOARD, out,
+                        _tool('route.py'), BOARD, out,
                         '--nets', '/OUT_A_PHASE_A', '/OUT_A_PHASE_B'],
                        capture_output=True, text=True, encoding='utf-8',
                        errors='replace', cwd=ROOT)

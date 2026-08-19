@@ -14,9 +14,12 @@ import tempfile
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(_TESTS)
-for p in (ROOT, _TESTS, os.path.join(ROOT, 'rust_router')):
+for p in (ROOT, _TESTS, os.path.join(ROOT, 'rust_router'),
+          os.path.join(ROOT, 'py_router'), os.path.join(ROOT, 'py_tools'),
+          os.path.join(ROOT, 'py_placer')):   # #522: the CLIs moved into packages
     if p not in sys.path:
         sys.path.insert(0, p)
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 
@@ -69,7 +72,7 @@ def test_route_render_view_cli():
     with tempfile.TemporaryDirectory() as td:
         out = os.path.join(td, 'crop.png')
         r = subprocess.run([sys.executable, '-X', 'utf8',
-                            os.path.join(ROOT, 'route_render.py'), BOARD,
+                            _tool('route_render.py'), BOARD,
                             '-o', out, '--view', '60,30,80,45'],
                            capture_output=True, text=True, cwd=ROOT)
         assert r.returncode == 0, r.stderr[-500:]

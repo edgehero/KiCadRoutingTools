@@ -17,6 +17,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 
 
@@ -31,7 +32,7 @@ def test_rescue_reports_requested_vs_delivered():
         # A 5.0mm track cannot leave this board's pads: the primary fails and
         # the rescue delivers at a thinner rung.
         r = subprocess.run([sys.executable, '-X', 'utf8',
-                            os.path.join(ROOT, 'route.py'), staged,
+                            _tool('route.py'), staged,
                             os.path.join(td, 'out.kicad_pcb'),
                             '--nets', '/OUT_A_PHASE_A',
                             '--track-width', '5.0', '--json-out', js],

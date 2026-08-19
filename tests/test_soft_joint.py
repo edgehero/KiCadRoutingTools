@@ -22,6 +22,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, 'py_router'))  # #522
 sys.path.insert(0, os.path.join(REPO, 'py_tools'))  # #522
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 from kicad_writer import generate_segment_sexpr, generate_via_sexpr
 
@@ -40,7 +41,7 @@ def _run(body):
         f.write(text)
         path = f.name
     try:
-        r = subprocess.run([sys.executable, 'check_drc.py', path, '-c', '0.1'],
+        r = subprocess.run([sys.executable, _tool('check_drc.py'), path, '-c', '0.1'],
                            capture_output=True, text=True, cwd=REPO)
         out = r.stdout + r.stderr
         # #320 step 3: soft joints are COUNTED violations (per-type header),

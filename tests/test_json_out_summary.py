@@ -31,6 +31,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'py_tools'))  # placement split
 sys.path.insert(0, os.path.join(ROOT, 'py_router'))  # placement split
 sys.path.insert(0, os.path.join(ROOT, 'py_placer'))  # placement split
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 from route_summary import merge_summaries, merge_route_summaries  # noqa: E402
 
 
@@ -105,7 +106,7 @@ def test_end_to_end_file_equals_merged_stdout():
         js = os.path.join(td, 's.json')
         out = os.path.join(td, 's.kicad_pcb')
         r = subprocess.run([sys.executable, '-X', 'utf8',
-                            os.path.join(ROOT, 'route.py'), board, out,
+                            _tool('route.py'), board, out,
                             '--nets', 'GND', '--json-out', js],
                            capture_output=True, text=True, encoding='utf-8',
                            errors='replace', cwd=ROOT)

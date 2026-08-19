@@ -21,6 +21,9 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+for _p in ('py_router', 'py_tools', 'py_placer'):   # #522: the CLIs moved
+    sys.path.insert(0, os.path.join(ROOT, _p))
+from run_utils import tool as _tool, tool_env as _tool_env  # #522: resolve a moved CLI, loudly
 
 RUN3_BOARD = os.path.join(ROOT, 'wk', 'run3', 'final2.kicad_pcb')
 
@@ -50,9 +53,9 @@ def board_with_gap(gap_mm: float) -> str:
 
 
 def run_drc(board_path, *argv):
-    env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8')
+    env = dict(_tool_env(), PYTHONPATH=_tool_env()["PYTHONPATH"], PYTHONIOENCODING='utf-8')
     return subprocess.run(
-        [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'check_drc.py'),
+        [sys.executable, '-X', 'utf8', _tool('check_drc.py'),
          board_path, *argv],
         capture_output=True, text=True, env=env, cwd=ROOT)
 

@@ -51,9 +51,26 @@ sys.path.insert(0, os.path.join(ROOT, 'py_tools'))  # #522/py_placer layout
 
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 DIFF_BOARD = os.path.join(ROOT, 'kicad_files', 'lvds_converter_dualclk.kicad_pcb')
-# tigard is the measured case for finding 3: it ships NO .kicad_pro, so every
-# floor accessor answers None.
-NO_FLOOR_BOARD = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
+# The measured case for finding 3: a board that ships NO .kicad_pro, so every
+# floor accessor answers None and every grader must SAY it is using a fallback.
+#
+# This was tigard until 11f6d48f gave tigard a .kicad_pro. The docstring in
+# list_nets.board_floor_declaration was corrected then; these tests were not,
+# so eight checks here asserted "the accessor sees an undeclared board" against
+# a board that had started declaring 0.15. A stale fixture makes a live check
+# fail for a dead reason -- and the anti-rot guard below is what stops the same
+# drift happening silently again.
+#
+# splitflap_driver has no .kicad_pro TRACKED and none on disk (only four are
+# tracked at all: flat_hierarchy, routed_output, tigard, watchy), so this holds
+# on a fresh clone too.
+NO_FLOOR_BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
+# A real board with the refs the channel/stack cases name (JP1/JP2 on
+# B.Cu, J2, U3). SEPARATE from NO_FLOOR_BOARD on purpose: that constant
+# means "declares no floor" and nothing else. They used to be the same
+# board, so repointing the fixture for its floor role silently changed
+# the board under every geometry case too.
+GEOM_BOARD = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
 AUDIT = os.path.join(ROOT, 'tests', 'stress', 'fence_audit.py')
 
 DEADLINE_EXIT = 7
@@ -72,6 +89,33 @@ SPENT_DEADLINE_S = 0.001
 UNSPENT_DEADLINE_S = 600
 
 _failures = []
+
+
+def assert_still_undeclared(board, where):
+    """PRECONDITION, not a check: `board` must still declare no floor.
+
+    A fixture that stops being what a test needs makes every check downstream
+    fail for a DEAD reason, and the reader spends the debugging budget on the
+    product instead of the fixture. That happened here: tigard was this
+    fixture until 11f6d48f gave it a .kicad_pro, and eight checks then
+    asserted "the accessor sees an undeclared board" against a board that had
+    started declaring 0.15.
+
+    So this fails LOUDLY and says what to do, rather than letting the checks
+    below rot into noise.
+    """
+    import sys as _s, os as _o
+    _s.path.insert(0, _o.path.join(ROOT, 'py_router'))
+    from list_nets import board_floor_declaration
+    d = board_floor_declaration(board)
+    if not d.get('declares_nothing'):
+        raise SystemExit(
+            f'FIXTURE ROT in {where}: {_o.path.basename(board)} now DECLARES '
+            f'({d.get("classes")} class(es), {d.get("constraints")} '
+            f'constraint(s), source {d.get("source")!r}), so it can no longer '
+            f'stand for "a board that declares nothing". Pick another board '
+            f'with no sibling .kicad_pro -- and prefer one whose .kicad_pro is '
+            f'not TRACKED either, so a fresh clone agrees.')
 
 
 def check(name, cond, detail=''):
@@ -411,7 +455,7 @@ def test_deficit_faces(tmp):
     print('\n6: check_channels surfaces the absolute deficit -- and does not '
           'gate it')
     js = os.path.join(tmp, 'chan.json')
-    rc, log = run(['py_tools/check_channels.py', NO_FLOOR_BOARD, '--clearance', '0.09',
+    rc, log = run(['py_tools/check_channels.py', GEOM_BOARD, '--clearance', '0.09',
                    '--json', js])
     check('check_channels still exits 0 (report-only)', rc == 0, log[-400:])
     doc = json.load(open(js, encoding='utf-8'))
@@ -435,7 +479,7 @@ def test_deficit_faces(tmp):
           f'deficit={[(e["ref"], e["face"], e["demand_nets"], e["supply_finest_grid"]) for e in dfs]} '
           f'starved={sorted(starved)}')
     check('...and the gate itself is unchanged (still 0 without a baseline)',
-          run(['py_tools/check_channels.py', NO_FLOOR_BOARD, '--clearance', '0.09',
+          run(['py_tools/check_channels.py', GEOM_BOARD, '--clearance', '0.09',
                '--gate'])[0] == 0)
 
 
@@ -523,7 +567,7 @@ def test_stacked_suspect(tmp):
     # It needs a board with parts on BOTH sides -- splitflap has none on the
     # back, and a fixture that quietly skips is the failure mode this whole
     # function is about, so the precondition is asserted rather than guarded.
-    p = parse_kicad_pcb(NO_FLOOR_BOARD)          # tigard: JP1/JP2 on B.Cu
+    p = parse_kicad_pcb(GEOM_BOARD)          # tigard: JP1/JP2 on B.Cu
     front = pick(p, 'F.Cu', 3)
     back = [r for r, f in p.footprints.items()
             if (f.layer or '') == 'B.Cu' and f.pads][:1]
@@ -543,7 +587,7 @@ def test_stacked_suspect(tmp):
     # their copper colliding. `legality.footprint_has_through_pads` is
     # deliberately `drill > 0` -- physical obstruction, not layer-tying -- and
     # this check asks the physical question.
-    p = parse_kicad_pcb(NO_FLOOR_BOARD)
+    p = parse_kicad_pcb(GEOM_BOARD)
     stack(p, ['J2', 'JP1'], at=(40.0, 30.0))
     st = assess_placement(p, NO_FLOOR_BOARD)
     check('a DRILLED part co-located with a far-side part is suspect',
@@ -627,6 +671,7 @@ def test_stacked_suspect(tmp):
 
 
 def main():
+    assert_still_undeclared(NO_FLOOR_BOARD, 'test_run12_tools.NO_FLOOR_BOARD')
     with tempfile.TemporaryDirectory(prefix='run12_') as tmp:
         test_fence(os.path.join(tmp, 'fence'))
         test_deadline_and_banner(tmp)

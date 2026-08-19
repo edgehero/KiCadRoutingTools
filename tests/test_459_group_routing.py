@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_placer'))  # placement split
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_router'))  # placement split
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_tools'))  # placement split
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 from group_routing import (GroupRoutingError, block_net_names, block_refs,
                            unroute_nets)
@@ -42,7 +43,7 @@ FLAT = os.path.join(KF, 'tigard.kicad_pcb')                         # no sheets
 
 
 def _run(*args, timeout=1800):
-    return subprocess.run([sys.executable, os.path.join(ROOT, 'route.py')] + list(args),
+    return subprocess.run([sys.executable, _tool('route.py')] + list(args),
                           capture_output=True, text=True, cwd=ROOT, timeout=timeout)
 
 

@@ -91,7 +91,9 @@ def _d9_shared_resolver():
               str(board_floor(b2, 'hole_clearance', None, 0.2)))
 
     print('a board declaring nothing still falls back, and says so')
-    nodecl = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
+    # NOT tigard: 11f6d48f gave it a .kicad_pro, so it declares 0.15 and this
+    # check asserted a fallback against a board that stopped falling back.
+    nodecl = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
     check('fallback is labelled fixed default',
           board_floor(nodecl, 'clearance', None, 0.25) == (0.25, 'fixed default'))
     check('"could not read the project" is not "declares nothing"',

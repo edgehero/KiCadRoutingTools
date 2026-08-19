@@ -22,6 +22,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'py_placer'))  # placement split
 sys.path.insert(0, os.path.join(ROOT, 'py_router'))  # placement split
 sys.path.insert(0, os.path.join(ROOT, 'py_tools'))  # placement split
+from run_utils import tool as _tool, tool_env as _tool_env  # #522: resolve a moved CLI, loudly
 from placement.part_class import (classify_part, default_band,  # noqa: E402
                                   pose_plausible)
 
@@ -111,9 +112,9 @@ class TestPlausibility(unittest.TestCase):
 
 
 def _run(tool, *argv):
-    env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8')
+    env = dict(_tool_env(), PYTHONPATH=_tool_env()["PYTHONPATH"], PYTHONIOENCODING='utf-8')
     return subprocess.run(
-        [sys.executable, '-X', 'utf8', os.path.join(ROOT, tool)] + list(argv),
+        [sys.executable, '-X', 'utf8', _tool(tool)] + list(argv),
         capture_output=True, text=True, env=env, cwd=ROOT)
 
 

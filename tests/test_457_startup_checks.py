@@ -25,6 +25,8 @@ import textwrap
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_router'))  # #522
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'py_tools'))  # #522
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
+from run_utils import tool_env as _tool_env  # #522 PYTHONPATH
 
 import startup_checks
 from startup_checks import (MIN_PYTHON, StartupCheckError, check_python_dependencies,
@@ -148,7 +150,7 @@ _PROBE = textwrap.dedent('''
 
 
 def _run_probe(module_name):
-    env = dict(os.environ, PYTHONPATH=ROOT)
+    env = dict(_tool_env(), PYTHONPATH=_tool_env()["PYTHONPATH"])
     return subprocess.run([sys.executable, '-c', _PROBE, module_name],
                           capture_output=True, text=True, cwd=ROOT, env=env)
 
@@ -179,7 +181,7 @@ def test_routing_clis_use_the_guard_at_module_scope():
     grid_router fails with something cryptic."""
     for name in ('route.py', 'route_diff.py', 'route_planes.py',
                  'repair_planes.py'):
-        src = open(os.path.join(ROOT, name), encoding='utf-8').read()
+        src = open(_tool(name), encoding='utf-8').read()
         assert 'exit_on_error_if_main(__name__)' in src, \
             f"{name} does not use the import-safe guard"
         assert 'run_all_checks()' not in src, \

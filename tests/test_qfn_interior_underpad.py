@@ -40,6 +40,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'py_router'))  # #522
 sys.path.insert(0, os.path.join(ROOT, 'py_tools'))  # #522
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 from kicad_parser import parse_kicad_pcb
 from kicad_writer import add_tracks_and_vias_to_pcb
@@ -160,7 +161,7 @@ def main():
     # 7. CLI end-to-end (regression guard for the vias-only main() fixes).
     out7 = os.path.join(tempfile.mkdtemp(), 'interior_cli.kicad_pcb')
     r = subprocess.run(
-        [sys.executable, 'qfn_fanout.py', BOARD, '--component', 'U1',
+        [sys.executable, _tool('qfn_fanout.py'), BOARD, '--component', 'U1',
          '--nets', 'INT*', '--escape-method', 'underpad', '--allow-via-in-pad',
          '--via-size', str(VIA_SIZE), '--via-drill', str(VIA_DRILL),
          '--clearance', str(CLEARANCE), '--grid-step', str(GRID),

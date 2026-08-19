@@ -7,15 +7,16 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+from run_utils import tool as _tool, tool_env as _tool_env  # #522: resolve a moved CLI, loudly
 
 POUR = os.path.join(ROOT, 'wk', 'run5', 's1_pour.kicad_pcb')
 
 
 def _run(script, *argv):
-    env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8',
+    env = dict(_tool_env(), PYTHONPATH=_tool_env()["PYTHONPATH"], PYTHONIOENCODING='utf-8',
                KRT_NO_BANNER='1')
     return subprocess.run(
-        [sys.executable, '-X', 'utf8', os.path.join(ROOT, script), *argv],
+        [sys.executable, '-X', 'utf8', _tool(script), *argv],
         capture_output=True, text=True, env=env, cwd=ROOT)
 
 

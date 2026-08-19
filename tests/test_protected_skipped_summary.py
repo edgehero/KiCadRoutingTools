@@ -25,6 +25,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 
@@ -32,7 +33,7 @@ BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 def _run(board, out, extra, td):
     js = os.path.join(td, f'{os.path.basename(out)}.json')
     r = subprocess.run([sys.executable, '-X', 'utf8',
-                        os.path.join(ROOT, 'route.py'), board, out,
+                        _tool('route.py'), board, out,
                         '--json-out', js] + extra,
                        capture_output=True, text=True, encoding='utf-8',
                        errors='replace', cwd=ROOT)
