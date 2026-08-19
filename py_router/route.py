@@ -3163,6 +3163,26 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
             summary['fab_escalations'] = _esc
     except Exception:
         pass
+    try:
+        # What the board's own declared floors did to this run. Report-only,
+        # never a gate: a floor that removes a net's last recovery rung is a
+        # real completion COST, and a run that just says the net failed has
+        # not told anyone why. Key absent when nothing was bound, so an
+        # unbound run's JSON_SUMMARY is unchanged.
+        from fab_tiers import (get_board_floors, board_floor_blocks,
+                               board_floor_costs)
+        _bf, _bsrc, _bmode = get_board_floors()
+        if _bf:
+            summary['board_floor_binding'] = {
+                'mode': _bmode,
+                'floors': {k: {'value': v, 'source': _bsrc.get(k, '?')}
+                           for k, v in _bf.items()},
+                'escalations_prevented': len(board_floor_blocks()),
+                'blocked_ladders': board_floor_blocks(),
+                'nets_blocked': board_floor_costs(),
+            }
+    except Exception:
+        pass
     if _pe_outcomes:
         # Main-pass pre-existing rips (0805): {victim net: outcome}. Key
         # absent when no pre-existing net was ripped.

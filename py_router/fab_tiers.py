@@ -430,6 +430,7 @@ def set_board_floors(floors=None, sources=None, mode='off'):
     _DEFAULT_BOARD_SOURCES = dict(sources or {})
     _DEFAULT_BOARD_MODE = mode or 'off'
     del _board_floor_blocks[:]
+    del _board_floor_costs[:]
 
 
 def get_board_floors():
@@ -444,6 +445,24 @@ def get_board_floors():
 #: because none happened. That is honest, but the information has to go
 #: somewhere, and this is where.
 _board_floor_blocks = []
+
+
+#: Nets whose rescue/escalation ladder was EMPTY while a board floor was
+#: bound. The flip commit's headline number: a floor that removes a net's last
+#: recovery rung is a real completion cost, and a run that simply reports the
+#: net failed has not told anyone why.
+_board_floor_costs = []
+
+
+def note_board_floor_cost(net_id, stage, detail=None):
+    """Record that a ladder came back empty under an active board floor."""
+    _board_floor_costs.append({'net_id': net_id, 'stage': stage,
+                               'detail': dict(detail or {})})
+
+
+def board_floor_costs():
+    """Ladders the board floor emptied, as records."""
+    return [dict(c) for c in _board_floor_costs]
 
 
 def board_floor_blocks():
@@ -788,6 +807,23 @@ def set_fab_tier_from_config(config):
         except OSError as exc:
             print(f"WARNING: could not read fab overrides {path}: {exc}")
     set_default_fab_tier(tier, overrides)
+    # The board-declared clamp rides the same call, so extending THIS function
+    # reaches all five GUI entry points (swig_gui, fanout_gui x2,
+    # differential_gui, planes_gui) with no new call sites -- the same property
+    # that makes the tier itself GUI-safe.
+    #
+    # `board_floors` defaults to 'off', so a config that predates this key --
+    # every saved setting today -- behaves exactly as before. A GUI that wants
+    # to bind must pass BOTH the mode and the board path; without a path there
+    # is nothing to read a declaration from, and inventing one is the failure
+    # this whole change removes.
+    mode = (config.get('board_floors') or 'off')
+    pcb = (config.get('board_path') or config.get('input_file') or '')
+    if mode != 'off' and pcb:
+        floors, sources = declared_fab_floors(pcb, mode)
+        set_board_floors(floors, sources, mode)
+    else:
+        set_board_floors(None, None, 'off')
 
 
 def fab_tier_from_args(args):

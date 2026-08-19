@@ -748,6 +748,20 @@ def _escalation_ladder(config, pcb_data, net_id):
     via_rungs = [(f['via_diameter'], f['via_drill']) for f in ladder
                  if f['via_diameter'] < config.via_size - 1e-9]
     if not width_travel and not via_rungs:
+        # THE COMPLETION COST OF BINDING, made into a number. A raised floor
+        # empties this ladder more often, so a net that today recovers at a
+        # sub-declared width will instead fail -- honestly, but invisibly:
+        # nothing downstream distinguishes "no ladder existed" from "the
+        # board's own floor removed it". Record which it was.
+        try:
+            from fab_tiers import get_board_floors, note_board_floor_cost
+            if get_board_floors()[0]:
+                note_board_floor_cost(net_id, 'terminal_escalation',
+                                      {'track_width': w0,
+                                       'floor': w_floor,
+                                       'via_size': config.via_size})
+        except Exception:
+            pass
         return []  # already at the floor: nothing to march
 
     m = len(via_rungs)

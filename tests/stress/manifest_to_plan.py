@@ -99,6 +99,8 @@ FLAG_PARAMS = {
     # already does. Param names match the dialog controls
     # (settings_persistence.py:67-68), which is what ai_plan matches on.
     '--fab-tier': 'fab_tier',
+    '--board-floors': 'board_floors',
+
     '--fab-overrides': 'fab_overrides_path',
     '--track-width': 'track_width',
     '--clearance': 'clearance',
