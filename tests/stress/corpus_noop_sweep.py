@@ -38,6 +38,26 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _tool(name):
+    """Absolute path to a shipped CLI, wherever the #522 reorg put it.
+
+    This sweep spawned `ROOT/place_reconstruct.py` and `ROOT/check_floorplan.py`
+    long after ee860796 moved them into py_placer/ and py_tools/, so EVERY row
+    came back `ERROR ... [Errno 2]` and the gate has been reporting nothing for
+    as long as that. A baseline nobody can reproduce is not a baseline.
+    """
+    sys.path.insert(0, ROOT)
+    try:
+        from krt_capabilities import _tool_path
+        p = _tool_path(ROOT, name)
+    except Exception:
+        p = os.path.join(ROOT, name)
+    if not os.path.isfile(p):
+        raise SystemExit(f'{name!r} is not in this checkout (looked in ROOT, '
+                         f'py_router, py_tools, py_placer). Fix the caller.')
+    return p
 CORPUS = os.path.join(ROOT, 'kicad_files')
 TIMEOUT_S = 900
 DEFAULT_BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -82,7 +102,7 @@ def sweep_reconstruct(board, workdir):
     """place_reconstruct --dry-run: proposals and would-move must both be empty."""
     out = os.path.join(workdir, 'out.kicad_pcb')
     argv = [sys.executable, '-X', 'utf8',
-            os.path.join(ROOT, 'place_reconstruct.py'), board, out, '--dry-run']
+            _tool('place_reconstruct.py'), board, out, '--dry-run']
     proc = subprocess.run(argv, capture_output=True, text=True, encoding='utf-8',
                           errors='replace', cwd=ROOT, timeout=TIMEOUT_S)
     rep = _summary(proc.stdout or '')
@@ -133,7 +153,7 @@ def sweep_repair(board, workdir):
     """
     intent = os.path.join(workdir, 'intent.json')
     emit = subprocess.run(
-        [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'check_floorplan.py'),
+        [sys.executable, '-X', 'utf8', _tool('check_floorplan.py'),
          board, '--emit-intent', intent],
         capture_output=True, text=True, encoding='utf-8', errors='replace',
         cwd=ROOT, timeout=TIMEOUT_S)
@@ -143,7 +163,7 @@ def sweep_repair(board, workdir):
             None, f'emit-intent rc={emit.returncode} '
                   + (emit.stderr or '')[-140:])
     out = os.path.join(workdir, 'rep.kicad_pcb')
-    argv = [sys.executable, '-X', 'utf8', os.path.join(ROOT, 'place_seed.py'),
+    argv = [sys.executable, '-X', 'utf8', _tool('place_seed.py'),
             board, out, '--intent', intent, '--repair', '--dry-run']
     proc = subprocess.run(argv, capture_output=True, text=True, encoding='utf-8',
                           errors='replace', cwd=ROOT, timeout=TIMEOUT_S)

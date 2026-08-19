@@ -34,6 +34,7 @@ untouched, since max(1, 1) = 1.
 """
 from __future__ import annotations
 
+import os
 import math
 from typing import Dict, List, NamedTuple, Sequence, Tuple, Set, Optional
 
@@ -45,12 +46,20 @@ from placement.parser import (courtyard_for_side, extract_courtyard_sides,
                               extract_locked_refs, warn_missing_courtyards)
 from placement.utility import compute_footprint_bbox_local, snap_to_grid
 from placement import legality
-from placement.legality import (CONTAINER_RATIO, BoardOutlineGate,
+from placement.legality import (CONTAINER_RATIO, CONTAINMENT_FRAC,
+                                BoardOutlineGate, containment_frac,
                                 footprint_has_through_pads,
                                 footprint_side, pair_min_gap, rect_gap,
+                                rect_overlap_area,
                                 rotate_local_bounds, sides_occupied)
 
 ROTATIONS = [0.0, 90.0, 180.0, 270.0]
+
+#: Kill switch for the body-containment conjunct in `candidate_valid`. It is a
+#: HARD gate on real boards, so a way to isolate it without a git stash is
+#: worth the one line -- `KRT_NO_CONTAINMENT_GATE=1` restores the pre-2026-08
+#: behaviour exactly. Not a supported flag; a debugging lever.
+_CONTAINMENT_GATE = os.environ.get('KRT_NO_CONTAINMENT_GATE', '') != '1'
 EPS_IMPROVE = 1e-6
 
 # Both helpers now live in placement/legality.py, the single home shared with
@@ -1090,6 +1099,27 @@ class QuenchState:
                 if rect_gap(rect, r) < clr:
                     legal = False
                     break
+        if legal:
+            # BODY layer. A pose that buries this part inside another part's
+            # .Fab body is not a trade-off to be priced -- it is illegal, the
+            # same verdict reconstruct._pair_conflicts already returns for the
+            # assign/exchange ILP. Without it here, `legalize` and every
+            # quench pass could re-seat a charged part straight back inside
+            # the body it was charged for, and _try_place's clearance ladder
+            # (full, full/2, 0.02) makes such a seat MORE reachable, not less.
+            #
+            # FAB currency, and only fab. The courtyard would be a false-veto
+            # machine: four healthy corpus boards ship frac-1.0 COURTYARD
+            # containment (esp_prog, orangecrab, rp2350, ulx3s). The docstring
+            # above warns that on watchy 81 of 82 parts start in violation of
+            # the courtyard clearance -- that warning is about the courtyard
+            # currency and about RELAXING the gate, and it does not transfer:
+            # on the fab currency the whole 33-board corpus carries 4 pairs
+            # with a maximum non-exempt frac of 0.011.
+            #
+            # Same marker/container exemption as the prevention gate, or a
+            # displaced fiducial could never come home under a connector.
+            legal = not self._body_contained_at(ref, x, y, rot, exclude)
         if legal and self.legality_ctx is not None:
             # Pad+drill layer: courtyard-clear does not imply pad-clear (pads
             # overhanging courtyards, exchanged nets, NPTH holes). Baseline-
@@ -1313,6 +1343,70 @@ class QuenchState:
             local = rotate_local_bounds(*lb, rot)
             self._fab_cache[key] = local
         return (x + local[0], y + local[1], x + local[2], y + local[3])
+
+    def body_exempt_refs(self):
+        """Refs whose body may legitimately swallow or be swallowed.
+
+        MARKER (mount_hole/fiducial/testpoint) and CONTAINER only -- the same
+        set reconstruct._body_exempt_refs builds, and deliberately NOT the
+        edge classes. Measured: orangecrab ships FID2 wholly inside J5 at frac
+        1.000 and FID1 inside J4 at 0.867, so without the marker exemption a
+        displaced fiducial could never come home under a connector.
+        """
+        cached = getattr(self, '_body_exempt', None)
+        if cached is not None:
+            return cached
+        exempt = set(getattr(self, 'container_refs', ()) or ())
+        try:
+            from placement.part_class import classify_part
+            fps = getattr(getattr(self, 'pcb_data', None), 'footprints', {})
+            for ref in self.parts:
+                fp = (fps or {}).get(ref)
+                if fp is None:
+                    continue
+                try:
+                    if classify_part(fp, ref).name in ('mount_hole', 'fiducial',
+                                                       'testpoint'):
+                        exempt.add(ref)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        self._body_exempt = exempt
+        return exempt
+
+    def _body_contained_at(self, ref, x, y, rot, exclude=None):
+        """Would this pose put `ref`'s body inside a neighbour's, or vice
+        versa? Fab currency; `None` from fab_rect means UNJUDGED, never clear.
+        """
+        if not _CONTAINMENT_GATE:
+            return False
+        exempt = self.body_exempt_refs()
+        if ref in exempt:
+            return False
+        ra = self.fab_rect(ref, x, y, rot)
+        if ra is None:
+            return False
+        part = self.parts[ref]
+        if self._neighbors is not None and ref in self._neighbors:
+            others = [(o, self.parts[o]) for o in self._neighbors[ref]]
+        else:
+            others = list(self.parts.items())
+        for other_ref, other in others:
+            if other_ref == ref or (exclude and other_ref in exclude):
+                continue
+            if other_ref in exempt or other.side != part.side:
+                continue
+            rb = self.fab_rect(other_ref)
+            if rb is None:
+                continue
+            area = rect_overlap_area(ra, rb)
+            if area <= 1e-9:
+                continue
+            frac = containment_frac(area, ra, rb)
+            if frac is not None and frac >= CONTAINMENT_FRAC:
+                return True
+        return False
 
     def total_cost(self):
         all_aw = _aw_array([aw for lst in self.net_airwires.values() for aw in lst])
