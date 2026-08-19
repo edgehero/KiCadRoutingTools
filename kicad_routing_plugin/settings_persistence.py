@@ -65,6 +65,7 @@ def get_dialog_settings(dialog):
         'direction_preference_cost': dialog.direction_preference_cost.GetValue(),
         'ordering_strategy': dialog.ordering_strategy.GetSelection(),
         'fab_tier': dialog.fab_tier.GetSelection(),
+        'board_floors': dialog.board_floors.GetSelection(),
         'fab_overrides_path': dialog.fab_overrides_path.GetValue(),
         'fab_overrides_recent': list(dialog.fab_overrides_path.GetStrings()),
         'bga_proximity_radius': dialog.bga_proximity_radius.GetValue(),
@@ -362,6 +363,8 @@ def restore_dialog_settings(dialog, settings):
         dialog.fab_overrides_path.SetValue(settings['fab_overrides_path'])
     if 'fab_tier' in settings:
         dialog.fab_tier.SetSelection(settings['fab_tier'])
+    if 'board_floors' in settings:
+        dialog.board_floors.SetSelection(settings['board_floors'])
     if 'bga_proximity_radius' in settings:
         dialog.bga_proximity_radius.SetValue(settings['bga_proximity_radius'])
     if 'bga_proximity_cost' in settings:

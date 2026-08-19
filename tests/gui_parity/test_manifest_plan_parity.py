@@ -271,6 +271,11 @@ _MUST_RESOLVE = {
     'impedance', 'ordering', 'direction', 'time_matching',
     'keepout', 'guide_corridor', 'length_match_groups', 'swappable_nets',
     'polarity_swap_nets', 'qfn_track_width', 'qfn_clearance',
+    # run 22: --board-floors binds the board's OWN declared fab floors. It
+    # resolves by NAME (self.board_floors), needing no alias -- which is
+    # exactly why it belongs here: a rename of the control would otherwise
+    # make the plan param silently ignored, with no gate anywhere to notice.
+    'board_floors',
 }
 
 
@@ -312,6 +317,42 @@ def _gui_control_attrs():
                         and t.value.id == 'self'):
                     attrs.add(t.attr)
     return attrs
+
+
+def check_fab_config_companions():
+    """Every GUI config dict that carries 'fab_tier' must also carry
+    'board_floors' AND 'board_path'.
+
+    These three travel together: `fab_tiers.set_fab_tier_from_config` reads all
+    three from ONE dict, and a mode with no path binds NOTHING -- silently, by
+    design, because inventing a path is worse. So a config dict carrying the
+    tier but not the other two is a route/diff/fanout/planes front that cannot
+    bind a board floor no matter what the user picks, with nothing to show for
+    it. That is exactly how --board-floors shipped CLI-only: the flag, the
+    converter mapping and the engine config path all existed, and no config
+    dict passed the key.
+
+    Source-level on purpose -- it must fail when someone ADDS a new config
+    dict, which no runtime path would exercise.
+    """
+    src = (REPO / "kicad_routing_plugin" / "swig_gui.py").read_text(
+        encoding="utf-8")
+    tree = ast.parse(src)
+    bad = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        keys = {k.value for k in node.keys
+                if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+        if 'fab_tier' not in keys:
+            continue
+        missing = {'board_floors', 'board_path'} - keys
+        if missing:
+            bad.append((f"swig_gui.py:{node.lineno}",
+                        f"config dict has 'fab_tier' but not "
+                        f"{sorted(missing)} -- this front cannot bind the "
+                        f"board's declared floors"))
+    return bad
 
 
 def check_param_resolution():
@@ -466,13 +507,20 @@ def main():
     for f, why in grp_bad:
         print(f"    {f}: {why}")
 
+    fab_bad = check_fab_config_companions()
+    print(f"\nfab_tier/board_floors/board_path travel together: "
+          f"{'OK' if not fab_bad else 'FAILED'}")
+    for where, why in fab_bad:
+        print(f"    {where}: {why}")
+
     ref_bad = check_refused_tools()
     print(f"Placement tools: {'OK' if not ref_bad else 'FAILED'} "
           f"(refused loudly, chain intact).")
     for f, why in ref_bad:
         print(f"    {f}: {why}")
 
-    return 1 if (total_bad or res_bad or grp_bad or ref_bad) else 0
+    return 1 if (total_bad or res_bad or grp_bad or ref_bad
+                 or fab_bad) else 0
 
 
 if __name__ == "__main__":

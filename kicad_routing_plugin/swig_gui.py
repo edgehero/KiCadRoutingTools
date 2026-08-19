@@ -598,6 +598,31 @@ class RoutingDialog(wx.Dialog):
         self.fab_tier.Bind(wx.EVT_CHOICE, self._revalidate_fab_floors)
         grid.Add(self.fab_tier, 0, wx.EXPAND)
 
+        # Board-declared floors (run 22). The fab tier above is what the FAB
+        # can make; this is what THIS BOARD says it was designed for, read
+        # from the sibling .kicad_pro. Off by default and deliberately so --
+        # binding is measured to cost 4 of 85 nets on tigard, and it makes an
+        # underpad escape infeasible on a board whose declared via is coarser
+        # than the part's pad pitch allows (docs/board-floor-binding-
+        # measurement.md). The control is named after the engine param so the
+        # AI plan executor can set it.
+        grid.Add(wx.StaticText(parent, label="Board Floors:"), 0,
+                 wx.ALIGN_CENTER_VERTICAL)
+        self.board_floors = wx.Choice(parent, choices=["off", "authored", "all"])
+        self.board_floors.SetSelection(0)
+        self.board_floors.SetToolTip(
+            "Bind the BOARD'S OWN declared fab floors (min_track_width / "
+            "min_via_diameter / min_via_drill) so the router may not emit "
+            "copper under them, and the .kicad_pro writeback may not relax "
+            "them to match what was emitted. off = the declaration is only a "
+            "writeback baseline (default); authored = bind a declaration "
+            "backed by provenance, by fab_floor_origin, or differing from "
+            "KiCad's stock defaults; all = also bind stock values and the "
+            "Default netclass. Fan-out escape vias are NOT exempt, so binding "
+            "can make an underpad escape infeasible on a board declaring a "
+            "coarse via.")
+        grid.Add(self.board_floors, 0, wx.EXPAND)
+
         # Override file: a recent-files dropdown (favourites) + Browse... file picker.
         grid.Add(wx.StaticText(parent, label="Fab Overrides File:"), 0, wx.ALIGN_CENTER_VERTICAL)
         ovr_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -1695,6 +1720,12 @@ class RoutingDialog(wx.Dialog):
                 # on-grid terminals (issue #149); use the Basic tab's grid step.
                 'grid_step': self.grid_step.GetValue(),
                 'fab_tier': self.fab_tier.GetString(self.fab_tier.GetSelection()),
+                'board_floors': self.board_floors.GetString(
+                    self.board_floors.GetSelection()),
+                # The declaration lives in the sibling .kicad_pro, so this is
+                # the SAVED board -- never a temp snapshot, which has no
+                # sibling project and would silently bind nothing.
+                'board_path': self.board_filename,
                 'fab_overrides_path': self.fab_overrides_path.GetValue().strip(),
                 # Edge.Cuts keep-out for QFN escape stubs/vias (issue #288);
                 # 0 = fall back to the copper clearance inside generate_qfn_fanout.
@@ -1758,6 +1789,12 @@ class RoutingDialog(wx.Dialog):
                 'keep_thermal': self.keep_thermal_check.GetValue(),
                 'clamp_netclasses': self.clearance_check.GetValue(),
                 'fab_tier': self.fab_tier.GetString(self.fab_tier.GetSelection()),
+                'board_floors': self.board_floors.GetString(
+                    self.board_floors.GetSelection()),
+                # The declaration lives in the sibling .kicad_pro, so this is
+                # the SAVED board -- never a temp snapshot, which has no
+                # sibling project and would silently bind nothing.
+                'board_path': self.board_filename,
                 'fab_overrides_path': self.fab_overrides_path.GetValue().strip(),
                 # #489 section 9: planes_gui already READ config['add_teardrops']
                 # for the create path, but nothing ever supplied it, so the
@@ -2449,6 +2486,12 @@ class RoutingDialog(wx.Dialog):
         self.max_ripup.SetValue(defaults.MAX_RIPUP)
         self.ripup_abandon_metric.SetStringSelection(defaults.RIPUP_ABANDON_METRIC)
         self.ripup_blocker_select.SetStringSelection(defaults.RIPUP_BLOCKER_SELECT)
+        # Board-declared floor binding is PER-RUN policy, so it resets to the
+        # CLI default like any other param -- otherwise a plan step that binds
+        # leaves every later step bound, which is the add_gnd_vias leak in a
+        # new costume. (fab_tier deliberately does NOT reset here: it is a
+        # session-level statement about the SHOP, not about this board.)
+        self.board_floors.SetStringSelection('off')
 
         # Reset layer selections (select all copper layers by default)
         for layer, cb in self.layer_checks.items():
@@ -2785,6 +2828,13 @@ class RoutingDialog(wx.Dialog):
                 self.ripup_blocker_select.GetSelection()),
             'ordering_strategy': self.ordering_strategy.GetString(self.ordering_strategy.GetSelection()),
             'fab_tier': self.fab_tier.GetString(self.fab_tier.GetSelection()),
+            # The board's OWN declared floors ride the same config key the
+            # engine already reads (set_fab_tier_from_config). This dict also
+            # backs the DIFF tab, which merges it -- so both fronts bind from
+            # one place, as fab_tier does.
+            'board_floors': self.board_floors.GetString(
+                self.board_floors.GetSelection()),
+            'board_path': self.board_filename,
             'fab_overrides_path': self.fab_overrides_path.GetValue().strip(),
             'stub_proximity_radius': self.stub_proximity_radius.GetValue(),
             'stub_proximity_cost': self.stub_proximity_cost.GetValue(),
