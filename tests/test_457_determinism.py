@@ -71,7 +71,9 @@ sys.stdout.write("RESULT" + json.dumps({
 
 
 def _run(board, seed):
-    env = dict(os.environ, PYTHONHASHSEED=seed, PYTHONPATH=ROOT)
+    # PYTHONPATH must reach py_router/ py_tools/ py_placer/ -- the probe
+    # imports kicad_parser, which #522 moved out of the repo root.
+    env = dict(_tool_env(), PYTHONHASHSEED=seed)
     r = subprocess.run([sys.executable, '-c', _PROBE,
                         os.path.join(ROOT, 'kicad_files', board)],
                        capture_output=True, text=True, cwd=ROOT, env=env)
