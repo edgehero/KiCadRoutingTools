@@ -3347,6 +3347,8 @@ def main():
     from fab_tiers import (add_fab_tier_args, fab_tier_from_args, set_default_fab_tier,
                            enforce_fab_floors, count_copper_layers_in_file)
     add_fab_tier_args(parser)
+    from fab_tiers import add_board_floor_args as _add_bf
+    _add_bf(parser)
     # #381 D8: the post-engine DRC-floor writeback below already reads
     # getattr(args, 'no_fix_drc_settings', False), but the flag was never
     # defined -- so --no-fix-drc-settings silently did nothing. Define it (and
@@ -3359,6 +3361,13 @@ def main():
     from fix_kicad_drc_settings import warn_if_missing_project_floor
     warn_if_missing_project_floor(args.pcb)  # #441: a dropped sibling .kicad_pro strands the DRC floor
     set_default_fab_tier(*fab_tier_from_args(args))
+    # The board's OWN declared fab floors, when --board-floors asks for
+    # them. Route-time ONLY: the grading tools (check_drc, list_nets)
+    # deliberately do not bind, because raising THEIR floor would flag the
+    # author's own pre-existing copper and re-manufacture the phantom
+    # violation storm this repo has measured twice.
+    from fab_tiers import bind_board_fab_floors as _bind_board_floors
+    _bind_board_floors(args, args.pcb)
     _pinned_floors = enforce_fab_floors(
         count_copper_layers_in_file(args.pcb),
         track_width=getattr(args, 'track_width', None),

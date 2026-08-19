@@ -1119,6 +1119,8 @@ def main():
     from fab_tiers import (add_fab_tier_args, fab_tier_from_args, set_default_fab_tier,
                            enforce_fab_floors, count_copper_layers_in_file)
     add_fab_tier_args(parser)
+    from fab_tiers import add_board_floor_args as _add_bf
+    _add_bf(parser)
     # #381 D8: define --no-fix-drc-settings (and the shared DRC-fix flags) that
     # the writeback below already reads via getattr but that was never declared.
     # store_true default keeps no_fix_drc_settings=False => writeback ON =>
@@ -1144,6 +1146,13 @@ def main():
             print(f"--board-edge-clearance not given; using the board "
                   f"min_copper_edge_clearance {_edge}mm.")
     set_default_fab_tier(*fab_tier_from_args(args))
+    # The board's OWN declared fab floors, when --board-floors asks for
+    # them. Route-time ONLY: the grading tools (check_drc, list_nets)
+    # deliberately do not bind, because raising THEIR floor would flag the
+    # author's own pre-existing copper and re-manufacture the phantom
+    # violation storm this repo has measured twice.
+    from fab_tiers import bind_board_fab_floors as _bind_board_floors
+    _bind_board_floors(args, args.pcb)
     _pinned_floors = enforce_fab_floors(
         count_copper_layers_in_file(args.pcb),
         track_width=getattr(args, 'track_width', None),

@@ -191,6 +191,268 @@ def _pin_via_ring(floor, where='', _warned=set()):
     return True
 
 
+# --- The board's OWN declared fab floors (run 22) -----------------------------
+#
+# Run 22 routed a board declaring min_clearance 0.15 / min_track_width 0.15 /
+# min_via_diameter 0.5 / min_via_drill 0.25. The router stepped BELOW those
+# floors and the .kicad_pro writeback then relaxed the declaration to match, so
+# the board reported `unrouted 0, broken 0` while carrying 39 objects under its
+# own declared floors and every checker read clean. The declaration
+# participated at exactly ONE point in the pipeline: as the baseline the
+# writeback overwrote.
+#
+# THE AUTHORITY PROBLEM, and why the obvious rule is wrong. "A declaration that
+# differs from KiCad's stock defaults was authored, so bind it" is disproved on
+# this repo's own corpus (measured over kicad_files/, 2026-08-19):
+#
+#     33 boards; 18 have NO .kicad_pro at all -> binding is inert for them.
+#     15 have one; 14 declare rules differing from stock.
+#     BUT 10 of those 15 carry kicad_routing_tools.fab_floor_origin -- they are
+#     tool OUTPUTS whose current rules block IS the relaxed writeback.
+#     fanout_output1.kicad_pro declares via 0.3 / drill 0.2 / annular 0.05
+#     while its own origin records 0.45 / 0.25 / 0.15.
+#
+# Binding that board's declaration would bind a number the router itself wrote
+# -- a floor with no author, cementing the very ratchet this exists to stop. So
+# the ORIGIN outranks the current rules: it is the pre-toolchain declaration.
+#
+# Only tigard and watchy are human-authored with no origin key, and only tigard
+# carries `floor_provenance`, whose per-field map names the upstream
+# s-expression each value came from -- the single piece of positive evidence in
+# the tree that a number was authored rather than inherited. Its
+# `deliberately_absent` map is the mirror: a field the author never declared,
+# which must never be inferred from anywhere.
+
+#: KiCad's stock design-rule defaults. A declaration equal to one of these is
+#: evidence of nothing. Witness in-repo: kicad_files/flat_hierarchy.kicad_pro
+#: carries exactly this table, so it is a value with a corpus witness rather
+#: than a remembered constant.
+_KICAD_STOCK_RULES = {
+    'min_clearance': 0.2, 'min_track_width': 0.2, 'min_via_diameter': 0.5,
+    'min_via_drill': 0.3, 'min_through_hole_diameter': 0.3,
+    'min_via_annular_width': 0.1, 'min_hole_clearance': 0.25,
+    'min_hole_to_hole': 0.25, 'min_copper_edge_clearance': 0.5,
+}
+
+#: rules key -> the FLOOR_KEYS name the ladder uses.
+_RULE_TO_FLOOR_KEY = {
+    'min_track_width': 'track_width',
+    'min_via_diameter': 'via_diameter',
+    'min_via_drill': 'via_drill',
+}
+
+#: Keys the ROUTE-TIME clamp may raise. `clearance` is NOT one, and that is the
+#: most consequential judgement here:
+#:
+#:   plane_pad_tap._clearance_ladder computes floor = min(nominal, fab_floor)
+#:   and collapses to a single rung when nominal <= floor. route.py sets
+#:   args.clearance from the board's own Default netclass, and on tigard that
+#:   netclass clearance (0.15) EQUALS rules.min_clearance (0.15) -- so binding
+#:   clearance makes nominal == fab_floor, the ladder collapses, and the rescue
+#:   loses its entire clearance neck-down. A large, predictable completion loss
+#:   for the one floor this repo has twice documented as NOT a fab claim
+#:   (GRADING_FLOOR_KEYS in fix_kicad_drc_settings; _FLOOR_SOURCES in list_nets,
+#:   "an unreliable edit-floor -- 0.0 on the measured board").
+#:
+#: The WRITEBACK still holds min_clearance, which closes run 22's fourth
+#: relaxation completely: the declaration is not rewritten, so every checker
+#: keeps grading at 0.15 and sub-floor copper stays visible. "Do not rewrite my
+#: declaration" and "never route below it" are different claims.
+BOARD_FLOOR_KEYS = ('track_width', 'via_diameter', 'via_drill')
+
+#: `annular` is deliberately NOT bindable. _pin_via_ring's own docstring
+#: records that honouring a declared annular moved 32 of 56 override
+#: combinations (advanced via 0.25 -> 0.45, 4L standard 0.45 -> 0.60) from a
+#: file asking for something TIGHTER. It is a RELATION, graded by check_drc,
+#: and binding it from a project is that same trap through another door.
+
+BOARD_FLOOR_MODES = ('off', 'authored', 'all')
+
+_DEFAULT_BOARD_FLOORS = {}      # {floor_key: value}, already authority-filtered
+_DEFAULT_BOARD_SOURCES = {}     # {floor_key: 'board provenance' | ...}
+_DEFAULT_BOARD_MODE = 'off'
+
+
+def _read_project(pcb_path):
+    """The sibling .kicad_pro as raw JSON, or {}.
+
+    Read directly rather than through list_nets.read_design_rules: that helper
+    flattens the netclass and the rules block into one shape, and the
+    distinction between them is exactly what the authority rule turns on. It
+    also keeps this module stdlib-only, a property it states at the top.
+    """
+    import json as _json
+    base = os.path.splitext(pcb_path or '')[0]
+    try:
+        with open(base + '.kicad_pro', encoding='utf-8') as fh:
+            return _json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def declared_fab_floors(pcb_path, mode='authored'):
+    """The board's own fab floors, with the authority each one rests on.
+
+    Returns ``(floors, sources)`` -- ``{floor_key: mm}`` and
+    ``{floor_key: why}``. Empty when the board declares nothing bindable, which
+    is the common case: 18 of 33 corpus boards have no project file at all.
+
+    Precedence per key, highest authority first:
+
+      1. `floor_provenance.deliberately_absent` names it -> NEVER bind, in any
+         mode. A field the author explicitly did not declare must not be
+         inferred from a netclass, a tier, or a seeded origin.
+      2. `floor_provenance.fields` names it -> bind the value at that path.
+         The only positive evidence that a number was authored.
+      3. `fab_floor_origin[rule]` -> bind the ORIGIN, not the current rule. The
+         current rule may be this toolchain's own ratchet (10 of 15 corpus
+         projects), and the origin is the pre-toolchain declaration.
+      4. `design_settings.rules[rule]`, positive and NOT stock-equal.
+      5. mode 'all' only: the Default netclass, then a stock-equal rule.
+      6. otherwise unset.
+    """
+    if mode == 'off':
+        return {}, {}
+    proj = _read_project(pcb_path)
+    if not proj:
+        return {}, {}
+    krt = proj.get('kicad_routing_tools') or {}
+    prov = krt.get('floor_provenance') or {}
+    fields = prov.get('fields') or {}
+    absent = prov.get('deliberately_absent') or {}
+    origin = krt.get('fab_floor_origin') or {}
+    rules = (((proj.get('board') or {}).get('design_settings') or {})
+             .get('rules') or {})
+    default_class = {}
+    for c in ((proj.get('net_settings') or {}).get('classes') or []):
+        if isinstance(c, dict) and c.get('name') == 'Default':
+            default_class = c
+            break
+
+    def _num(v):
+        return float(v) if isinstance(v, (int, float)) and v > 0 else None
+
+    floors, sources = {}, {}
+    for rule, key in _RULE_TO_FLOOR_KEY.items():
+        rule_path = 'board.design_settings.rules.' + rule
+        class_path = 'net_settings.classes[Default].' + key
+        if rule_path in absent or class_path in absent:
+            sources[key] = 'deliberately absent'
+            continue
+        v = why = None
+        if rule_path in fields:
+            v, why = _num(rules.get(rule)), 'board provenance'
+        if v is None and class_path in fields:
+            v, why = _num(default_class.get(key)), 'board provenance'
+        if v is None and rule in origin:
+            v, why = _num(origin.get(rule)), 'fab_floor_origin'
+        if v is None:
+            rv = _num(rules.get(rule))
+            if rv is not None and rv != _KICAD_STOCK_RULES.get(rule):
+                v, why = rv, 'board rules'
+        if v is None and mode == 'all':
+            cv = _num(default_class.get(key))
+            if cv is not None:
+                v, why = cv, 'board netclass'
+            else:
+                rv = _num(rules.get(rule))
+                if rv is not None:
+                    v, why = rv, 'board rules (stock, mode=all)'
+        if v is not None:
+            floors[key] = v
+            sources[key] = why
+    return floors, sources
+
+
+def set_board_floors(floors=None, sources=None, mode='off'):
+    """Set the process-wide board-declared floor clamp.
+
+    Rides the same mechanism as the tier (see the doctrine above
+    ``set_default_fab_tier``): set once per run at the CLI/GUI entry point,
+    never derived inside an engine. Deriving it from `pcb_data` down in the
+    engines would reach every synthetic test fixture and would give the GUI and
+    the CLI two different answers for the same board.
+    """
+    global _DEFAULT_BOARD_FLOORS, _DEFAULT_BOARD_SOURCES, _DEFAULT_BOARD_MODE
+    _DEFAULT_BOARD_FLOORS = dict(floors or {})
+    _DEFAULT_BOARD_SOURCES = dict(sources or {})
+    _DEFAULT_BOARD_MODE = mode or 'off'
+    del _board_floor_blocks[:]
+
+
+def get_board_floors():
+    """``(floors, sources, mode)`` -- the active clamp."""
+    return (dict(_DEFAULT_BOARD_FLOORS), dict(_DEFAULT_BOARD_SOURCES),
+            _DEFAULT_BOARD_MODE)
+
+
+#: Ladder rungs the clamp removed that WOULD have been an escalation. Keeps
+#: fab_escalations() accountable across the change: on a board whose floor sits
+#: at or above rung 0, every rung collapses and no escalation is recorded --
+#: because none happened. That is honest, but the information has to go
+#: somewhere, and this is where.
+_board_floor_blocks = []
+
+
+def board_floor_blocks():
+    """Rungs the board-floor clamp removed, as records."""
+    return [dict(b) for b in _board_floor_blocks]
+
+
+def _clamp_rungs(rungs, copper_layer_count):
+    """Raise every rung to the board's declared floors; keep the ladder sane.
+
+    Identity when nothing is bound -- the same list object -- which is the
+    `off`-mode guarantee and what keeps every existing ladder byte-identical.
+    """
+    if not _DEFAULT_BOARD_FLOORS:
+        return rungs
+    src = ','.join(sorted(set(_DEFAULT_BOARD_SOURCES.values()))) or 'board'
+    # What rung 0 becomes after clamping -- the yardstick warn_fab_escalation
+    # will actually use.
+    clamped_rung0 = max(rungs[0].get('via_diameter', 0.0),
+                        _DEFAULT_BOARD_FLOORS.get('via_diameter', 0.0))
+    out, seen = [], set()
+    for f in rungs:
+        g = dict(f)
+        for k, v in _DEFAULT_BOARD_FLOORS.items():
+            if k in g and v > g[k]:
+                g[k] = v
+        # MANDATORY per rung. _pin_via_ring fires only on a structurally
+        # impossible ring and is called at just two sites today, NEITHER on the
+        # escalation-rung path -- so a board declaring only min_via_drill 0.25,
+        # clamped onto the advanced rung (via_diameter 0.25), lands a ZERO
+        # annular ring: a hole with no land. That is the run-20 defect arrived
+        # at through a new door.
+        _pin_via_ring(g, where='board-declared floor (' + src + '): ')
+        # ACCOUNTABILITY. A rung that WAS an escalation (a via smaller than
+        # rung 0's) and no longer is, because the clamp raised it, is an
+        # escalation that will not happen. warn_fab_escalation compares against
+        # ladder[0] and so will correctly stay silent -- which is honest, but
+        # the information has to go somewhere or the run looks like it simply
+        # never needed the cheaper tier.
+        was_escalation = (f.get('via_diameter', 0.0)
+                          < rungs[0].get('via_diameter', 0.0) - _RING_EPS)
+        still_escalation = (g.get('via_diameter', 0.0)
+                            < clamped_rung0 - _RING_EPS)
+        if was_escalation and not still_escalation:
+            _board_floor_blocks.append(
+                {'from': {k: f.get(k) for k in ('via_diameter', 'via_drill',
+                                                'track_width')},
+                 'to': {k: g.get(k) for k in ('via_diameter', 'via_drill',
+                                              'track_width')},
+                 'reason': 'raised out of escalation range by the board floor'})
+        key = tuple(round(g.get(k, 0.0), 6) for k in FLOOR_KEYS)
+        if key in seen:
+            # Collapsed exactly onto an earlier rung: dropping it is required,
+            # not cosmetic. Identical numbers would make warn_fab_escalation
+            # report an escalation that did not happen.
+            continue
+        seen.add(key)
+        out.append(g)
+    return out or [dict(rungs[0])]
+
+
 def fab_floor_ladder(copper_layer_count, tier=None, overrides=None):
     """Ordered list of floor dicts for the tier: the nominal (preferred) floor
     first, then any escalation rungs (smaller). Routing tries them in order.
@@ -219,7 +481,11 @@ def fab_floor_ladder(copper_layer_count, tier=None, overrides=None):
         # override path -- not only when both keys came from the file.
         _pin_via_ring(floor, where='--fab-overrides (merged with the '
                                    f'{tier} tier): ')
-        return [floor]
+        # An explicit override key WINS over the board declaration for that
+        # key: a file is a typed statement about the fab, a declaration is an
+        # inference about the design. _clamp_rungs only raises keys the board
+        # bound, so a file that states them keeps its own numbers.
+        return _clamp_rungs([floor], copper_layer_count)
     if tier == 'standard':
         std = dict(base['standard'])
         adv = dict(base['advanced'])
@@ -238,8 +504,8 @@ def fab_floor_ladder(copper_layer_count, tier=None, overrides=None):
                          'annular': round((0.30 - 0.15) / 2.0, 4)})
             rungs.append(fine)
         rungs.append(adv)
-        return rungs
-    return [dict(base['advanced'])]
+        return _clamp_rungs(rungs, copper_layer_count)
+    return _clamp_rungs([dict(base['advanced'])], copper_layer_count)
 
 
 def fab_floors(copper_layer_count, tier=None, overrides=None):
@@ -433,6 +699,30 @@ def add_fab_tier_args(parser):
     return parser
 
 
+def add_board_floor_args(parser):
+    """Add ``--board-floors`` -- ROUTE-TIME CLIs only.
+
+    Deliberately NOT part of add_fab_tier_args, which check_drc.py and
+    list_nets.py also call. Those two GRADE, and raising a grading floor makes
+    them flag the author's own pre-existing copper -- the phantom-violation
+    storm this repo has measured twice. They must not bind, so they must not
+    advertise the flag either: an accepted-but-ignored flag is the same class
+    of lie this whole change is removing.
+    """
+    parser.add_argument(
+        '--board-floors', choices=list(BOARD_FLOOR_MODES), default='off',
+        help="Bind the BOARD'S OWN declared fab floors (min_track_width / "
+             "min_via_diameter / min_via_drill) so the router may not emit "
+             "copper under them. 'off' (default) = today's behaviour, the "
+             "declaration is only a writeback baseline; 'authored' = bind a "
+             "declaration backed by floor_provenance, by fab_floor_origin, or "
+             "differing from KiCad's stock defaults; 'all' = also bind stock "
+             "values and the Default netclass. min_clearance is never bound at "
+             "route time (it collapses the rescue clearance ladder) -- the "
+             "writeback holds it instead.")
+    return parser
+
+
 def set_fab_tier_from_config(config):
     """GUI helper: set the process-wide fab tier from a config / shared-params dict
     carrying 'fab_tier' and (optionally) 'fab_overrides_path'. Tolerates a missing
@@ -457,3 +747,30 @@ def fab_tier_from_args(args):
         raise SystemExit(f"error: --fab-overrides file not found: {path}")
     overrides = parse_fab_overrides(path) if path else {}
     return tier, overrides
+
+
+def bind_board_fab_floors(args, pcb_path, announce=True):
+    """Resolve and install the board's own declared floors. Returns the mode.
+
+    Call ONCE per run at a route-time CLI entry point, right after
+    ``set_default_fab_tier`` -- never from inside an engine. GRADING tools
+    (check_drc, list_nets) deliberately do NOT call this: raising their floor
+    would flag the AUTHOR'S OWN pre-existing copper and re-manufacture the
+    phantom-violation storm this repo has measured twice.
+    """
+    mode = getattr(args, 'board_floors', 'off') or 'off'
+    if mode == 'off' or not pcb_path:
+        set_board_floors(None, None, 'off')
+        return 'off'
+    floors, sources = declared_fab_floors(pcb_path, mode)
+    set_board_floors(floors, sources, mode)
+    if announce:
+        if floors:
+            print('  board floors BOUND (--board-floors %s): %s' % (
+                mode, ', '.join(
+                    '%s %g [%s]' % (k, v, sources.get(k, '?'))
+                    for k, v in sorted(floors.items()))))
+        else:
+            print('  --board-floors %s: this board declares no bindable '
+                  'floor; nothing bound.' % mode)
+    return mode
