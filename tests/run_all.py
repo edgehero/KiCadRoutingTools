@@ -153,7 +153,7 @@ def main():
                                encoding='utf-8', errors='replace',
                                timeout=budget)
         except subprocess.TimeoutExpired:
-            return name, None, (f'TIME  {name}  (timeout after '
+            return name, ('timeout', budget), (f'TIME  {name}  (timeout after '
                                 f'{budget:.0f}s -- NOT a failed '
                                 f'assertion; re-run it alone before treating '
                                 f'it as one)')
@@ -182,8 +182,14 @@ def main():
             # NOT a pass and NOT a timeout: the test declined to run. Kept in
             # its own bucket so the summary cannot read as green.
             self_skipped.append(name)
-        elif ok is None:
-            timed_out.append(name)
+        elif isinstance(ok, tuple) and ok and ok[0] == 'timeout':
+            # Carry the budget this test ACTUALLY got. The summary used to
+            # print the global --timeout for every row, so a test killed at
+            # its own declared 1800s was reported as "Timed out at 600s" --
+            # which sends the reader to raise a cap the test had already been
+            # given 3x of. The per-test TIME line was right all along; only
+            # the line people read was wrong.
+            timed_out.append((name, ok[1]))
         elif ok:
             passed.append(name)
         else:
@@ -217,7 +223,9 @@ def main():
     if failed:
         print('Failed: ' + ', '.join(failed))
     if timed_out:
-        print(f'Timed out at {args.timeout:.0f}s: ' + ', '.join(timed_out))
+        print('Timed out: ' + ', '.join(
+            f'{n} (at its own {b:.0f}s budget)' if b > args.timeout
+            else f'{n} (at {b:.0f}s)' for n, b in timed_out))
         print('  A timeout is not evidence of a broken test. Re-run each one '
               'alone (or raise --timeout) before recording it as a failure.')
     return 1 if (failed or timed_out) else 0

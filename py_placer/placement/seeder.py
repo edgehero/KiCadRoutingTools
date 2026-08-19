@@ -2026,11 +2026,22 @@ def repair_placement(pcb_data, pcb_file: str, intent, *,
             # pass this loop and be reported `repaired`. That is the exact
             # metric mismatch this re-grade was written to stop, one channel
             # later.
+            #
+            # It FAILS LOUD. `state` is always a QuenchState (it comes from
+            # pose_score.make_state), so the method always exists, and
+            # fab_rect already swallows its own parse failure and returns None
+            # = UNJUDGED. Anything still raising here is a real bug -- and
+            # swallowing it would convert that bug into exactly the false
+            # `repaired` this check exists to prevent. So an error means NOT
+            # repaired, said out loud, rather than a silent pass.
             try:
                 if state._body_contained_at(ref, None, None, None):
                     still = True
-            except Exception:
-                pass
+            except Exception as exc:
+                still = True
+                notes.append(f'{ref}: could not verify containment after the '
+                             f'repair ({exc.__class__.__name__}: {exc}) -- '
+                             f'NOT reported repaired')
             for other in sorted(state.parts):
                 if still:
                     break
