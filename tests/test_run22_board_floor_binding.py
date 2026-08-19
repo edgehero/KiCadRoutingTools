@@ -14,6 +14,7 @@ data rather than with a preference.
 
 Run: python3 -X utf8 tests/test_run22_board_floor_binding.py
 """
+import io
 import os
 import sys
 
@@ -34,6 +35,13 @@ def check(name, cond, detail=''):
           + (f'\n        {detail}' if not cond and detail else ''))
     if not cond:
         FAILURES.append(name)
+
+
+def _help_text():
+    import argparse
+    ap = argparse.ArgumentParser()
+    F.add_board_floor_args(ap)
+    return ap.format_help()
 
 
 def board(n):
@@ -214,6 +222,80 @@ def main():
           not any(isinstance(mins_t.get(k), (int, float)) and mins_t[k] > 0
                   for k in hold_t),
           str({k: mins_t.get(k) for k in hold_t}))
+
+    print('the escape-via question: NOT exempt, and the message says so')
+    # DECIDED, with the measurement that decided it. Flipping the default to
+    # `authored` broke test_tigard_usb_diff [underpad-scoped] and
+    # test_watchy_diff_hybrid_escape while [bare] stayed clean, which looked
+    # like "underpad escapes need sub-declaration vias, so exempt them".
+    #
+    # The actual failure is one VIA-VIA pair: tigard's U3 escape puts two vias
+    # 0.6mm apart (the QFN pad pitch, a property of the PART, not a choice).
+    # At 0.45 the edge gap is 0.15 -- exactly the clearance. Pinned up to the
+    # board's declared 0.5 the gap is 0.10, and check_drc reports overlap
+    # 0.050mm. The arithmetic is the whole story.
+    #
+    # NOT EXEMPT, because an escape via is drilled and plated by the same
+    # process as any other via -- via-in-pad differs in FINISHING (filled,
+    # capped; the repo models that separately via tenting_attrs and
+    # fab_notes.print_via_in_pad_note), not in drill capability. Exempting it
+    # would let `authored` emit sub-declaration copper on exactly the path
+    # that produced run 22's defect. The failure is the flag WORKING: tigard
+    # cannot escape U3 underpad at its own declared via size.
+    check('a QFN pitch of 0.6 fits a 0.45 via at 0.15 clearance',
+          round(0.6 - 0.45, 6) >= 0.15)
+    check('...and its declared 0.5 misses by the 0.050 check_drc reports',
+          abs((0.15 - (0.6 - 0.5)) - 0.050) < 1e-9,
+          str(round(0.15 - (0.6 - 0.5), 6)))
+
+    # The message that pin prints used to blame `--fab-tier` and recommend
+    # `--fab-overrides`. Under a board binding that advice is not merely
+    # unhelpful, it is PROVABLY USELESS -- the board clamp is applied on top
+    # of the tier and its overrides:
+    ov = {'via_diameter': 0.35, 'via_drill': 0.2, 'track_width': 0.1}
+    F.set_board_floors(None, None, 'off')
+    check('an override alone reaches 0.35',
+          F.fab_floor_for_param('via_size', 4, 'standard', ov) == 0.35)
+    F.set_board_floors({'via_diameter': 0.5},
+                       {'via_diameter': 'board provenance'}, 'authored')
+    check('...and cannot undercut a bound board floor',
+          F.fab_floor_for_param('via_size', 4, 'standard', ov) == 0.5,
+          'if this ever passes, the old --fab-overrides advice became true '
+          'again and the message below should go back')
+
+    import contextlib
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        pinned = F.enforce_fab_floors(4, 'standard', ov, via_size=0.45)
+    msg = buf.getvalue()
+    check('the pin still happens', pinned.get('via_size') == 0.5, str(pinned))
+    check('...and names THIS BOARD, not the tier',
+          "THIS BOARD'S declared floor" in msg, msg.strip()[:200])
+    check('...and cites the provenance', 'board provenance' in msg,
+          msg.strip()[:200])
+    check('...and gives a remedy that works',
+          '--board-floors off' in msg and '--fab-overrides cannot' in msg,
+          msg.strip()[:200])
+
+    # The unbound path must keep the original message -- there the tier IS the
+    # source and --fab-overrides IS the remedy.
+    F.set_board_floors(None, None, 'off')
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        F.enforce_fab_floors(4, 'standard', None, via_size=0.05)
+    msg = buf.getvalue()
+    check('an unbound pin still blames the tier and offers --fab-overrides',
+          'selected --fab-tier' in msg and 'Pass --fab-overrides' in msg,
+          msg.strip()[:200])
+    check('...and does not claim the board declared anything',
+          "THIS BOARD" not in msg, msg.strip()[:200])
+
+    check('the flag help states the escape incompatibility',
+          'not exempt' in (F.add_board_floor_args.__doc__ or '').lower()
+          or 'NOT exempt' in _help_text(),
+          'the --board-floors help must say that binding can make an underpad '
+          'escape infeasible, since that is the documented consequence of not '
+          'exempting')
 
     print()
     if FAILURES:

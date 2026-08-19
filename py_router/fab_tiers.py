@@ -662,11 +662,31 @@ def enforce_fab_floors(copper_layer_count, tier=None, overrides=None, **params):
     range) so the caller can write the pinned values back onto its parsed args."""
     viols = check_param_floors(copper_layer_count, tier, overrides, **params)
     pinned = {}
+    board_floors, board_sources, _mode = get_board_floors()
     for name, val, floor in viols:
-        print(f"  WARNING: --{name.replace('_', '-')} {val} is below the fab floor {floor} "
-              f"for the selected --fab-tier; pinning up to {floor} (the fab can't "
-              f"make it smaller). Pass --fab-overrides to declare a smaller fab "
-              f"capability, or raise the value to silence this.")
+        flag = f"--{name.replace('_', '-')}"
+        # ATTRIBUTE THE FLOOR TO ITS ACTUAL SOURCE. When --board-floors bound
+        # the board's own declaration, the clamp is applied ON TOP of the tier
+        # and its overrides, so the stock advice ("pass --fab-overrides") is
+        # not merely unhelpful, it is PROVABLY USELESS: with a 0.5 board floor
+        # bound, an override declaring 0.35 still resolves to 0.5. Sending the
+        # user to a flag that cannot work is the same class of lie as an
+        # accepted-but-ignored flag.
+        key = _PARAM_FLOOR_KEY.get(name)
+        bfloor = board_floors.get(key) if key else None
+        if bfloor is not None and abs(bfloor - floor) < 1e-9:
+            src = board_sources.get(key, 'the board')
+            print(f"  WARNING: {flag} {val} is below THIS BOARD'S declared "
+                  f"floor {floor} [{src}]; pinning up to {floor}. The "
+                  f"declaration is bound by --board-floors, which clamps on "
+                  f"top of the fab tier -- so --fab-overrides cannot reach "
+                  f"below it. To route at {val}, either correct the board's "
+                  f"declaration or pass --board-floors off.")
+        else:
+            print(f"  WARNING: {flag} {val} is below the fab floor {floor} "
+                  f"for the selected --fab-tier; pinning up to {floor} (the fab can't "
+                  f"make it smaller). Pass --fab-overrides to declare a smaller fab "
+                  f"capability, or raise the value to silence this.")
         pinned[name] = floor
     return pinned
 
@@ -802,7 +822,16 @@ def add_board_floor_args(parser):
              "differing from KiCad's stock defaults; 'all' = also bind stock "
              "values and the Default netclass. min_clearance is never bound at "
              "route time (it collapses the rescue clearance ladder) -- the "
-             "writeback holds it instead.")
+             "writeback holds it instead. NOTE: fan-out escape vias are NOT "
+             "exempt. An escape via is drilled by the same process as any "
+             "other via (via-in-pad differs in FINISHING -- filled/capped -- "
+             "not in drill capability), so binding can make an underpad "
+             "escape infeasible on a board whose declared via is coarser than "
+             "the part's pad pitch allows: measured on tigard, whose 0.6mm "
+             "QFN pitch fits a 0.45 via at 0.15 clearance but not its "
+             "declared 0.5. That is a real fab constraint being reported, not "
+             "a tool defect -- route such an escape with --board-floors off, "
+             "or correct the declaration.")
     return parser
 
 

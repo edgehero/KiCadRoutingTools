@@ -126,18 +126,72 @@ never exercised the fanout paths.
 
 Default reverted to `off`. Both tests pass again.
 
-### What a correct flip would need first
+### The escape-via question -- DECIDED: not exempt
 
-An exemption, measured: fanout escape vias are arguably a different process
-question from ordinary routing (via-in-pad IS a finer capability, and a board
-declaring 0.5 for its signal vias has not necessarily declared it for an
-underpad escape). Either exempt the fanout/underpad escape path from the board
-clamp, or accept that binding is incompatible with underpad escapes on a board
-that declares a coarse via -- and say which in the flag's help.
+The open question was whether fanout escape vias are a different process
+question from ordinary routing, so that the clamp should skip them. **They are
+not, and it should not.** Measured rather than argued:
 
-Until that is measured, `off` is the honest default: the protection is
-available to any run that asks for it, and the disclosure banners fire either
-way.
+The `[underpad-scoped]` failure is **one VIA-VIA pair**, and the arithmetic is
+the whole story. tigard's U3 escape puts two vias 0.6 mm apart -- the QFN's pad
+pitch, a property of the PART, not a routing choice:
+
+| via size | edge-to-edge gap | vs the 0.15 clearance |
+|---|---|---|
+| 0.45 (requested) | 0.15 | exactly meets it |
+| 0.5 (declared, pinned up to) | 0.10 | short by **0.050** |
+
+`check_drc` reports `Overlap: 0.050mm` at `(43.80,59.60)` / `(43.80,60.20)`.
+Nothing else on the board fails; `[bare]` and `[stub-nonscoped]` stay clean.
+
+**Not exempt**, for three reasons:
+
+1. An escape via is drilled and plated by the same process as any other via.
+   Via-in-pad differs in **finishing** -- filled and capped, IPC-4761 Type VII
+   -- which this repo already models separately (`via.tenting_attrs`,
+   `fab_notes.print_via_in_pad_note`). Finishing is not drill capability, and
+   the "via-in-pad IS a finer capability" line above was an assumption, never a
+   measurement.
+2. Exempting would let `authored` emit sub-declaration copper on exactly the
+   path that produced run 22's defect, which is the thing the flag exists to
+   prevent.
+3. The failure is the flag WORKING. tigard cannot escape U3 underpad at its own
+   declared 0.5 via. That is a real fab constraint being discovered, and
+   discovering it is the point.
+
+So binding is incompatible with an underpad escape on a board whose declared
+via is coarser than the part's pitch allows, and **the flag's help now says
+so**. Route such an escape with `--board-floors off`, or correct the
+declaration.
+
+### The instrumentation defect this uncovered
+
+The pin-up warning said the floor came from *"the selected `--fab-tier`"* and
+advised *"Pass `--fab-overrides` to declare a smaller fab capability"*. Under a
+board binding both halves are wrong, and the advice is **provably useless** --
+the board clamp is applied on top of the tier and its overrides:
+
+```
+no board floor, override 0.35 : 0.35
+board floor 0.5, SAME override: 0.5
+```
+
+Sending the user to a flag that cannot work is the same class of lie as an
+accepted-but-ignored flag. The message now names the board and its provenance
+and offers `--board-floors off`; the unbound path keeps the original wording,
+because there the tier really is the source. Pinned by
+`tests/test_run22_board_floor_binding.py`.
+
+### Where the flip stands
+
+Still `off`, and this decision does not by itself change that. What it removes
+is the *unknown*: the escape interaction is now measured and documented rather
+than blocking. A future flip must still re-run `test_tigard_usb_diff`,
+`test_watchy_diff_hybrid_escape` and `test_obstacle_map_balance` under
+`authored` and accept -- explicitly -- that the underpad arm reports a real
+constraint rather than passing. `off` remains the honest default: the
+protection is available to any run that asks for it, and the disclosure banners
+fire either way.
 
 ## What is still unmeasured, and should be said out loud
 
