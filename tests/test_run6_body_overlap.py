@@ -320,6 +320,36 @@ class TestContainment(unittest.TestCase):
                          f'that was deliberate, re-measure the 4-pair census '
                          f'below and this number together')
 
+    def test_no_unjudged_part_has_fab_geometry_to_read(self):
+        """The INVARIANT behind the count above, and the stronger claim.
+
+        `fab_unjudged == 144` is a census of THIS corpus, and 11 of the 33
+        boards it sweeps are untracked generated fixtures, so the number moves
+        when someone regenerates one. This assertion does not depend on corpus
+        membership: whatever the set is, every unjudged part must draw NO .Fab
+        geometry at all.
+
+        That is what licenses "a parser tolerance or polygon-closure fix moves
+        zero footprints" -- not the 144. If this ever fails, the parser really
+        is failing to read a body it was handed, and the disclosure-not-a-fix
+        conclusion has to be revisited.
+        """
+        from placement.parser import extract_fab_sides
+        boards = sorted(glob.glob(os.path.join(ROOT, 'kicad_files',
+                                               '*.kicad_pcb')))
+        self.assertGreaterEqual(len(boards), 30)
+        readable, checked = [], 0
+        for b in boards:
+            sides = extract_fab_sides(b)
+            for ref in _grade(b)['fab_unjudged_refs']:
+                checked += 1
+                if sides.get(ref):
+                    readable.append((os.path.basename(b), ref))
+        self.assertGreater(checked, 0, 'nothing was checked')
+        self.assertEqual(readable, [], f'{len(readable)} part(s) are reported '
+                                       f'unjudged while their .Fab geometry '
+                                       f'parses fine: {readable[:5]}')
+
     def test_corpus_carries_no_nonexempt_body_containment(self):
         """THE calibration gate for the threshold, sibling of
         test_all_healthy_boards_grade_zero_blocking.

@@ -219,3 +219,35 @@ decision, not a cleanup. The options are to drop the untracked boards from the
 baseline (22 boards, all reproducible), or to regenerate them deterministically
 as part of the sweep. Until then, read a changed row against `git
 check-ignore` before believing it.
+
+---
+
+## The bodyless-footprint hole is DISCLOSED, not fixed (2026-08-19)
+
+The body-containment channel cannot judge a part that draws no `.Fab` outline,
+and `grade_body_overlap` reports that as `fab_unjudged`. It looks like a gap to
+close. It is not, and the measurement is recorded here so nobody spends a day
+rediscovering it:
+
+- **144 of 1583 footprints across 33 boards are unjudged, and 144 of 144 draw
+  ZERO `.Fab` geometric primitives.** The classes "primitive type not handled"
+  and "degenerate bbox" are both empty; every kind used on that layer
+  (`fp_line`, `fp_arc`, `fp_circle`, `fp_poly`, `fp_rect`) is already read.
+- **313 footprints DO have non-closing `.Fab` chains** — tigard's `Q1` stops
+  0.02 mm short on its left edge — and every one is judged correctly, because a
+  bbox is a min/max over points and the gap is interior to it. A closure or
+  tolerance fix therefore moves **0 footprints and 0 pairs**.
+- The unjudged parts are mounting holes, testpoints, logos, fiducials and panel
+  tabs — parts that genuinely draw no body.
+- **The one change that would close the hole is measured dangerous.** Giving a
+  bodyless part a fallback body (courtyard, else pad bbox) adds **77 new fab
+  pairs, 65 above the containment threshold**, dominated by rp2350's `Teensy40`
+  — a bodyless module whose courtyard swallows 56 neighbours at frac 1.0. It
+  also breaks the 4-pair calibration gate outright.
+
+Two tests hold this. `test_the_bodyless_hole_is_exactly_what_was_measured` pins
+the count at 144 so a "helpful" parser change has to argue with the number, and
+`test_no_unjudged_part_has_fab_geometry_to_read` pins the **invariant** — no
+unjudged part has readable `.Fab` geometry — which is the claim that actually
+licenses "no parser fix helps", and which survives the corpus-membership drift
+described in the section above.
