@@ -4627,7 +4627,7 @@ accepted.
 
 **Re-grade it with today's tools before quoting it.** The numbers moved, and
 this is the "re-derive with today's graders" rule applied to the skill's own
-example. As RECORDED in `wk/run20/score.json` the lap read `blocking` 10 → 13,
+example. As RECORDED in that run's `score.json` the lap read `blocking` 10 → 13,
 and the rise was invisible-improvement-plus-visible-cost: nothing counted the
 vias it had removed, because no grader could see a ring-0 via. Re-graded at
 HEAD, where `via-annular` lands in `undersized` *inside* `blocking`:
