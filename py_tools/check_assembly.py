@@ -266,12 +266,20 @@ def main():
             tag = f"  [waived:{q.waiver}]" if q.waived else ''
             print(f"    {q.a} <-> {q.b}  {q.area_mm2}mm2  "
                   f"{q.contained_frac:.0%} of the smaller body{tag}")
-        print(f"    DISCLOSURE, not a verdict term -- this does not appear in "
-              f"`blocking` and does not change `buildable`. The corpus ships "
-              f"legitimate full containments (fiducials under connector "
-              f"bodies: orangecrab FID2/J5 at 100%), so it cannot gate. Judge "
-              f"each one. A waived pair is listed here BECAUSE the waiver is "
-              f"a part-class lookup with no geometry in it.")
+        if g['containment_blocking']:
+            print(f"    {g['containment_blocking']} of these BLOCK: a "
+                  f"containment gates unless a mount-hole/fiducial/testpoint "
+                  f"or a board-sized container is involved, or the pair is "
+                  f"named in the intent's `overlap_waivers`. An `edge_class` "
+                  f"waiver does NOT exempt -- it is a part-class lookup with "
+                  f"no geometry in it, and it is what hid a part wholly "
+                  f"inside a switch body in run 22.")
+            print(f"    To accept one deliberately, name the pair in the "
+                  f"intent rather than relying on its class.")
+        else:
+            print(f"    None of these BLOCK: each is a by-design containment "
+                  f"(a marker or a board-sized container), which the corpus "
+                  f"ships legitimately -- orangecrab FID2/J5 at 100%.")
     if g['fab_unjudged']:
         _u = g['fab_unjudged_refs']
         print(f"  BODY COVERAGE: {g['fab_unjudged']} of "
@@ -279,7 +287,14 @@ def main():
               f"containment channel cannot judge them: "
               + ', '.join(_u[:8]) + (' ...' if len(_u) > 8 else ''))
 
-    not_buildable = bool(g['blocking'] or locked_contact or stack_groups)
+    # A FOURTH conjunct, and `g['blocking']` is deliberately NOT touched.
+    # `blocking` means "pad intersections" to board_score, to the seeder's
+    # repair census, and -- with INVERTED polarity -- to placement_driver's
+    # _guard_damage, which refuses to run the repair stages when `not
+    # blocking`. Folding containment into that count would change all three.
+    # This is the same shape the coincident-origin channel used.
+    not_buildable = bool(g['blocking'] or locked_contact or stack_groups
+                         or g['containment_blocking'])
     verdict = 'NOT BUILDABLE' if not_buildable else 'buildable (blocking 0)'
     print(f"  VERDICT: {verdict}")
 

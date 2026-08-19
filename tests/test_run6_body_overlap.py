@@ -256,6 +256,37 @@ class TestContainment(unittest.TestCase):
         self.assertEqual(g['blocking'], 0)
         self.assertEqual(g['blocking_pairs'], [])
 
+    def test_a_nonexempt_containment_GATES(self):
+        """The verdict change: a part wholly inside another part's body makes
+        the board NOT BUILDABLE, unless something says it is by design."""
+        g = _grade(self._board(sx=10.0))
+        self.assertEqual(g['containment_blocking'], 1, g['containment_pairs'])
+        # ...and `blocking` is UNTOUCHED. Three consumers read that count --
+        # board_score, the seeder's repair census, and placement_driver's
+        # _guard_damage with INVERTED polarity ("run repair only if blocking").
+        # Folding containment in would change all three.
+        self.assertEqual(g['blocking'], 0)
+
+    def test_an_AUTHORED_waiver_lifts_the_gate(self):
+        """The escape hatch, and the only one: name the pair in the intent.
+        That is written down by a person; a class waiver is inherited."""
+        g = _grade(self._board(sx=10.0), intent_waivers=[('U1', 'RN1')])
+        self.assertEqual(g['contained'], 1)          # still DISCLOSED
+        self.assertEqual(g['containment_blocking'], 0)   # but not blocking
+
+    def test_the_corpus_still_grades_buildable(self):
+        """0 boards may gate. The only corpus containments are orangecrab's
+        FID2/J5 (frac 1.000) and FID1/J4 (0.867), both marker_class and both
+        correct -- fiducials under a connector body."""
+        boards = sorted(glob.glob(os.path.join(ROOT, 'kicad_files',
+                                               '*.kicad_pcb')))
+        self.assertGreaterEqual(len(boards), 30)
+        gating = {os.path.basename(b): [(q.a, q.b, q.waiver)
+                                        for q in _grade(b)['containment_blocking_pairs']]
+                  for b in boards}
+        offenders = {k: v for k, v in gating.items() if v}
+        self.assertEqual(offenders, {}, offenders)
+
     def test_bodyless_footprints_are_disclosed(self):
         """A part drawing no .Fab outline cannot be judged by this channel.
         Measured 10-25 per corpus board, so it is a large limit rather than a
@@ -263,6 +294,31 @@ class TestContainment(unittest.TestCase):
         g = _grade(os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb'))
         self.assertGreater(g['fab_unjudged'], 0)
         self.assertEqual(len(g['fab_unjudged_refs']), g['fab_unjudged'])
+
+    def test_the_bodyless_hole_is_exactly_what_was_measured(self):
+        """144 of 1583 footprints draw no .Fab body, and that is the FINAL
+        answer, not a TODO.
+
+        Measured over all 33 boards: every one of those 144 draws ZERO .Fab
+        geometric primitives -- there is no footprint whose .Fab geometry the
+        parser fails to read. So a tolerance or polygon-closure fix moves
+        nothing (313 footprints DO have non-closing .Fab chains, tigard Q1
+        among them, and all 313 are judged correctly because a bbox is a
+        min/max over points).
+
+        This test exists so a future "helpful" parser change that alters the
+        count has to come and argue with the number. The dangerous direction
+        is a FALLBACK body for bodyless parts: measured, that adds 77 fab
+        pairs, 65 above the threshold, and breaks the calibration gate below.
+        """
+        boards = sorted(glob.glob(os.path.join(ROOT, 'kicad_files',
+                                               '*.kicad_pcb')))
+        self.assertGreaterEqual(len(boards), 30)
+        total_unjudged = sum(_grade(b)['fab_unjudged'] for b in boards)
+        self.assertEqual(total_unjudged, 144,
+                         f'corpus fab_unjudged moved to {total_unjudged}; if '
+                         f'that was deliberate, re-measure the 4-pair census '
+                         f'below and this number together')
 
     def test_corpus_carries_no_nonexempt_body_containment(self):
         """THE calibration gate for the threshold, sibling of

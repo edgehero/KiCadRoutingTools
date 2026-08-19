@@ -1077,6 +1077,25 @@ def grade_body_overlap(pcb_data, clearance: float,
     advisory = [p for p in pairs
                 if p.kind != 'pad_intersection' and not p.waived]
     contained = [p for p in pairs if p.contained]
+    # The subset that GATES. A containment is by-design when a MARKER
+    # (mount_hole/fiducial/testpoint) or a CONTAINER (courtyard >= half the
+    # board) is involved -- orangecrab ships FID2 wholly inside J5 at frac
+    # 1.000 and FID1 inside J4 at 0.867, and both are correct -- or when an
+    # operator has named the pair in the intent's `overlap_waivers`, which is
+    # AUTHORED and recorded.
+    #
+    # `edge_class` is deliberately NOT an exemption, and that is the whole
+    # point. It is a pure part-class lookup with no geometry in it, and it is
+    # the waiver that hid run-22's D4-wholly-inside-SW2 (SW2 is a declared
+    # edge_actuator) and C26/FB3/R1 inside J1's 65mm2 USB-C body on the board
+    # that run shipped as `buildable`. An operator may still accept those --
+    # by writing the pair into the intent, where the acceptance is visible --
+    # but never by inheriting a class waiver nobody authored.
+    #
+    # Corpus effect, measured: ZERO boards gate on this.
+    _GATE_EXEMPT = ('marker_class', 'container_class', 'intent_declared')
+    containment_blocking = [p for p in contained
+                            if p.waiver not in _GATE_EXEMPT]
     return {'blocking': len(blocking),
             'advisory': len(advisory),
             'waived': sum(1 for p in pairs if p.waived),
@@ -1099,12 +1118,37 @@ def grade_body_overlap(pcb_data, clearance: float,
             # cannot empty.
             'contained': len(contained),
             'containment_pairs': contained,
+            'containment_blocking': len(containment_blocking),
+            'containment_blocking_pairs': containment_blocking,
             # Parts whose footprint draws no .Fab outline at all, so the fab
             # channel CANNOT judge them (parser.extract_fab_sides skips them
-            # and the loop above continues past them). Measured 10-25 per
-            # corpus board, so this is a large limit, not a corner case: an
-            # unjudged part is not a clean part, and saying nothing claimed it
-            # was.
+            # and the loop above continues past them). An unjudged part is not
+            # a clean part, and saying nothing would claim it was.
+            #
+            # MEASURED across all 33 corpus boards, so nobody has to re-derive
+            # it: 144 of 1583 footprints are unjudged, and 144 of 144 draw ZERO
+            # .Fab geometric primitives. They are mounting holes, testpoints,
+            # logos, fiducials and panel tabs. There is NO footprint anywhere
+            # in the corpus whose .Fab geometry the parser fails to read --
+            # every primitive kind used on that layer (fp_line, fp_arc,
+            # fp_circle, fp_poly, fp_rect) is already handled, and there are no
+            # degenerate bboxes.
+            #
+            # So a parser tolerance or polygon-closure fix moves ZERO
+            # footprints out of this set. (313 footprints do have non-closing
+            # .Fab line chains -- tigard Q1's left edge stops 0.02mm short --
+            # and every one of them is judged correctly, because a bbox is a
+            # min/max over points and the gap is interior to it.)
+            #
+            # And the one change that WOULD close the hole is measured
+            # dangerous: giving a bodyless part a fallback body (its courtyard,
+            # else its pad bbox) adds 77 new fab pairs corpus-wide, 65 of them
+            # above CONTAINMENT_FRAC -- dominated by rp2350's Teensy40, a
+            # bodyless module whose courtyard swallows 56 neighbours at frac
+            # 1.0. It would also break the 4-pair calibration gate outright.
+            #
+            # DISCLOSURE IS THE ANSWER HERE, not a fix. Report the count and
+            # let a reader judge.
             'fab_unjudged': len(fab_unjudged),
             'fab_unjudged_refs': sorted(fab_unjudged),
             # E6: pairs where copper lands on a part KiCad marks (locked yes),
