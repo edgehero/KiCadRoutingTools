@@ -16,9 +16,14 @@ Measured, same-side non-exempt containment poses accepted by `candidate_valid`:
     board                gate ON   gate OFF   blocked by this term
     tigard                     0          0     0   (already rejected)
     watchy                     0          0     0   (already rejected)
-    esp_prog                   0          0     0   (no such pose exists)
+    esp_prog                   0          0     0   (already rejected)
     orangecrab_ext_pll         0        696   696
     ulx3s                    114      27132   27018
+
+(The zero rows are NOT "no such pose exists" -- tigard sweeps 139183 such
+poses, esp_prog 1776. Every one is already refused by the courtyard or pad
+conjunct, which is the whole reason this term looks inert until you find a
+board where it is not.)
 
 So the subject is **ulx3s**, where the term is load-bearing, and the pose is one
 found by sweeping for `gate ON rejects AND gate OFF accepts` -- the only
