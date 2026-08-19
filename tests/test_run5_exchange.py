@@ -18,6 +18,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'py_placer'))  # placement split
 sys.path.insert(0, os.path.join(ROOT, 'py_router'))  # placement split
 sys.path.insert(0, os.path.join(ROOT, 'py_tools'))  # placement split
+from run_utils import tool as _tool, tool_env as _tool_env  # #522
 SWAP = os.path.join(ROOT, 'wk', 'b2', 'tigard__swap', 'd0',
                     'perturbed.kicad_pcb')
 HEALTHY = os.path.join(ROOT, 'kicad_files', 'tigard.kicad_pcb')
@@ -30,10 +31,9 @@ def _state(board):
 
 
 def _run(script, *argv):
-    env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8',
-               KRT_NO_BANNER='1')
+    env = dict(_tool_env(), PYTHONIOENCODING='utf-8', KRT_NO_BANNER='1')
     return subprocess.run(
-        [sys.executable, '-X', 'utf8', os.path.join(ROOT, script), *argv],
+        [sys.executable, '-X', 'utf8', _tool(script), *argv],
         capture_output=True, text=True, env=env, cwd=ROOT)
 
 
