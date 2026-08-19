@@ -629,15 +629,36 @@ def scan_board_minima(pcb_path: str):
 
 def compute_targets(clearance=None, hole_clearance=None, hole_to_hole=None,
                     edge_clearance=None, track_width=None, via_diameter=None,
-                    via_drill=None, minima=None, fab_edge=None):
+                    via_drill=None, minima=None, fab_edge=None, hold=None):
     """Map KiCad rule keys -> target floor (mm) from the routing parameters.
     Each value, when given, becomes a floor; sizes fall back to the board's
     smallest such object (``minima`` from :func:`scan_board_minima`) when the
-    param is None. Keys absent from the result => leave that rule alone."""
+    param is None. Keys absent from the result => leave that rule alone.
+
+    ``hold`` (``{rule_key: mm}``, from
+    ``fab_tiers.declared_writeback_hold``) is a floor the writeback may NOT
+    go under. It closes the run-22 ratchet: without it, `_floor` takes the
+    min of the routing param and the smallest object ON THE OUTPUT BOARD --
+    including copper this very run emitted below the request -- so a run that
+    necked to 0.0889 rewrote the board's declared 0.15 to match and every
+    checker then graded the sub-floor copper clean.
+
+    Both baselines behind `hold` are read from the project BEFORE this
+    function writes it, which is why it needs no same-path guard and works
+    unchanged on the in-place GUI path.
+    """
     minima = minima or {}
+    hold = hold or {}
     targets = {}
     if clearance is not None:
-        targets["min_clearance"] = clearance
+        # HELD, though clearance is never bound at ROUTE time (binding it
+        # collapses the rescue clearance ladder -- see fab_tiers
+        # BOARD_FLOOR_KEYS). Refusing to rewrite the declaration costs no
+        # route and is what makes run 22's 0.15 -> 0.125 visible instead of
+        # graded-away.
+        _hc = hold.get("min_clearance")
+        targets["min_clearance"] = (max(clearance, _hc) if _hc is not None
+                                    else clearance)
     # Hole/copper clearance: explicit value, else the copper-clearance floor.
     hole_clr = hole_clearance if hole_clearance is not None else clearance
     if hole_clr is not None:
@@ -664,10 +685,19 @@ def compute_targets(clearance=None, hole_clearance=None, hole_to_hole=None,
     # VREF-repair pass over a board that already has 0.127 USB tracks), so a floor
     # set to just this step's param flags that earlier copper. The DRC floor must
     # sit at or below the smallest object physically present.
-    def _floor(param, scanned):
+    def _floor(param, scanned, key=None):
         vals = [v for v in (param, scanned) if v is not None]
-        return min(vals) if vals else None
-    tw = _floor(track_width, minima.get("min_track_width"))
+        if not vals:
+            return None
+        v = min(vals)
+        floor = hold.get(key) if key else None
+        # The declaration wins over the emitted minimum. An INHERITED
+        # violation still passes: the hold comes from what the board declared,
+        # so a board that already carried sub-declaration copper keeps its
+        # number and does not storm. What cannot happen any more is a run
+        # LOWERING the declaration to match copper it just emitted.
+        return max(v, floor) if floor is not None else v
+    tw = _floor(track_width, minima.get("min_track_width"), "min_track_width")
     if tw is not None:
         targets["min_track_width"] = tw
         # Min copper WEB (#505). KiCad's connection_width rule grades the
@@ -686,7 +716,8 @@ def compute_targets(clearance=None, hole_clearance=None, hole_to_hole=None,
         # a constraint the author never asked for. See the guard in
         # apply_targets_to_project.
         targets["min_connection"] = tw
-    vd = _floor(via_diameter, minima.get("min_via_diameter"))
+    vd = _floor(via_diameter, minima.get("min_via_diameter"),
+                "min_via_diameter")
     if vd is not None:
         targets["min_via_diameter"] = vd
     dr = _floor(via_drill, minima.get("min_through_hole_diameter"))
@@ -700,7 +731,7 @@ def compute_targets(clearance=None, hole_clearance=None, hole_to_hole=None,
     # minimum let one 0.25mm pad drill rewrite every class's via_drill from 0.3 to
     # 0.25, i.e. BELOW the board's own HARD via spec, on a board whose smallest
     # placed via drill was 0.3 (test-board, HW-TB-PCB08).
-    vdr = _floor(via_drill, minima.get("min_via_drill"))
+    vdr = _floor(via_drill, minima.get("min_via_drill"), "min_via_drill")
     if vdr is not None:
         targets["min_via_drill"] = vdr
     # The annular target is the ONE line that can disable KiCad's own annular
@@ -1095,11 +1126,25 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
     if minima is None:
         minima = scan_board_minima(output_pcb)
     clr = clearance if clearance is not None else project_copper_clearance(proj)
+    # The declaration the writeback may not go under. Resolved through the
+    # SAME authority ladder the route-time binder uses, so the two can never
+    # disagree about what a board declared -- and from the project as it was
+    # read BEFORE this function rewrites it, which is why the in-place GUI
+    # path (input_pcb == output) needs no special case.
+    _hold = {}
+    try:
+        from fab_tiers import declared_writeback_hold, get_board_floors
+        _mode = get_board_floors()[2]
+        if _mode != 'off':
+            _hold = declared_writeback_hold(input_pcb or output_pcb, _mode)
+    except Exception:
+        _hold = {}
     targets = compute_targets(clearance=clr, hole_clearance=hole_clearance,
                               hole_to_hole=hole_to_hole, edge_clearance=edge_clearance,
                               track_width=track_width, via_diameter=via_diameter,
                               via_drill=via_drill, minima=minima,
-                              fab_edge=fab_edge_floor(output_pcb))
+                              fab_edge=fab_edge_floor(output_pcb),
+                              hold=_hold)
     # #498: a .kicad_dru rule may legally RELAX clearance on its layer, and
     # KiCad's rules.min_clearance is an ABSOLUTE floor that outranks custom
     # rules -- cap the recorded floor at the smallest rule value, or the ruled
@@ -1466,6 +1511,14 @@ def main():
     except (OSError, ImportError):
         _ncu = 2
     _fab = fab_floor_min(_ncu)
+    _hold = {}
+    try:
+        from fab_tiers import declared_writeback_hold, get_board_floors
+        _mode = get_board_floors()[2]
+        if _mode != 'off':
+            _hold = declared_writeback_hold(pcb_path, _mode)
+    except Exception:
+        _hold = {}
     targets = compute_targets(
         clearance=clearance, hole_clearance=args.hole_clearance,
         hole_to_hole=args.hole_to_hole if args.hole_to_hole is not None else _fab['hole_to_hole'],
@@ -1473,7 +1526,7 @@ def main():
         track_width=args.track_width if args.track_width is not None else _fab['track_width'],
         via_diameter=args.via_size if args.via_size is not None else _fab['via_diameter'],
         via_drill=args.via_drill if args.via_drill is not None else _fab['via_drill'],
-        minima=minima, fab_edge=fab_edge_floor(pcb_path))
+        minima=minima, fab_edge=fab_edge_floor(pcb_path), hold=_hold)
     plan = severity_plan(keep_courtyards=args.keep_courtyards, keep_mask=args.keep_mask,
                          keep_footprint=args.keep_footprint, keep_thermal=args.keep_thermal,
                          extra_ignore=args.ignore)

@@ -138,6 +138,46 @@ def main():
     check('...for 2 layers too', len(rungs(2)) == len(F.fab_floor_ladder(2)))
     check('and nothing is recorded', F.board_floor_blocks() == [])
 
+    print('the writeback HOLD -- run 22 relaxed four floors; hold all four')
+    from fix_kicad_drc_settings import compute_targets
+    hold = F.declared_writeback_hold(board('tigard'))
+    check('tigard holds all four declared rules',
+          hold == {'min_track_width': 0.15, 'min_via_diameter': 0.5,
+                   'min_via_drill': 0.25, 'min_clearance': 0.15}, str(hold))
+    # The exact relaxation run 22 shipped: 0.15 -> 0.125, 0.15 -> 0.0889,
+    # 0.5 -> 0.25, 0.25 -> 0.15, with every checker then grading against the
+    # rewritten project.
+    emitted = {'min_track_width': 0.0889, 'min_via_diameter': 0.25,
+               'min_via_drill': 0.15, 'min_through_hole_diameter': 0.15}
+    t = compute_targets(clearance=0.125, track_width=0.0889, via_diameter=0.25,
+                        via_drill=0.15, minima=emitted, hold=hold)
+    check('the declaration is NOT lowered to match emitted copper',
+          (t['min_clearance'], t['min_track_width'], t['min_via_diameter'],
+           t['min_via_drill']) == (0.15, 0.15, 0.5, 0.25),
+          str({k: t.get(k) for k in hold}))
+    check('min_connection follows the held track floor',
+          t['min_connection'] == 0.15, str(t.get('min_connection')))
+    # PADS are not vias. A 0.25 pad drill legitimately sits below a declared
+    # via floor, so this key is deliberately outside the hold.
+    check('min_through_hole_diameter is NOT held (it spans pads)',
+          t['min_through_hole_diameter'] == 0.15,
+          str(t.get('min_through_hole_diameter')))
+
+    t0 = compute_targets(clearance=0.125, track_width=0.0889, via_diameter=0.25,
+                         via_drill=0.15, minima=emitted)
+    check('...and with no hold the old ratchet is unchanged',
+          (t0['min_clearance'], t0['min_track_width']) == (0.125, 0.0889),
+          str(t0))
+
+    # An INHERITED violation must still pass: the hold is the DECLARATION, so
+    # a board that already carried sub-declaration copper keeps its number and
+    # does not storm.
+    t1 = compute_targets(clearance=0.15, track_width=0.1,
+                         minima={'min_track_width': 0.1},
+                         hold={'min_track_width': 0.1})
+    check('an inherited sub-declaration floor is not raised into a storm',
+          t1['min_track_width'] == 0.1, str(t1.get('min_track_width')))
+
     print()
     if FAILURES:
         print(f'FAIL: {len(FAILURES)} check(s): {", ".join(FAILURES)}')

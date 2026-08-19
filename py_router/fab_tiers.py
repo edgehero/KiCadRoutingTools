@@ -290,6 +290,13 @@ def _read_project(pcb_path):
         return {}
 
 
+def _resolve_declared(pcb_path, mode, rule_map):
+    """The authority ladder, shared by the route-time binder and the
+    writeback hold so the two can never disagree about what a board declared.
+    """
+    return _declared_impl(pcb_path, mode, rule_map)
+
+
 def declared_fab_floors(pcb_path, mode='authored'):
     """The board's own fab floors, with the authority each one rests on.
 
@@ -311,6 +318,10 @@ def declared_fab_floors(pcb_path, mode='authored'):
       5. mode 'all' only: the Default netclass, then a stock-equal rule.
       6. otherwise unset.
     """
+    return _declared_impl(pcb_path, mode, _RULE_TO_FLOOR_KEY)
+
+
+def _declared_impl(pcb_path, mode, rule_map):
     if mode == 'off':
         return {}, {}
     proj = _read_project(pcb_path)
@@ -333,7 +344,7 @@ def declared_fab_floors(pcb_path, mode='authored'):
         return float(v) if isinstance(v, (int, float)) and v > 0 else None
 
     floors, sources = {}, {}
-    for rule, key in _RULE_TO_FLOOR_KEY.items():
+    for rule, key in rule_map.items():
         rule_path = 'board.design_settings.rules.' + rule
         class_path = 'net_settings.classes[Default].' + key
         if rule_path in absent or class_path in absent:
@@ -363,6 +374,47 @@ def declared_fab_floors(pcb_path, mode='authored'):
             sources[key] = why
     return floors, sources
 
+
+#: Rules the WRITEBACK may be held at, keyed by rule name. Wider than
+#: BOARD_FLOOR_KEYS by exactly one: `min_clearance`.
+#:
+#: The asymmetry is the point. Binding clearance at ROUTE time collapses the
+#: rescue's clearance ladder (see BOARD_FLOOR_KEYS), so it is not bound there.
+#: But refusing to REWRITE the declaration costs nothing and closes run 22's
+#: fourth relaxation completely: the project keeps saying 0.15, so check_drc,
+#: board_score and KiCad all keep grading at 0.15 and any 0.125 copper stays
+#: visible instead of being graded against a rewritten rule.
+#:
+#: "Do not rewrite my declaration" and "never route below it" are different
+#: claims, and this repo already splits them along this exact line.
+_HOLD_RULE_KEYS = {
+    'min_track_width': 'track_width',
+    'min_via_diameter': 'via_diameter',
+    'min_via_drill': 'via_drill',
+    'min_clearance': 'clearance',
+}
+
+
+def declared_writeback_hold(pcb_path, mode='authored'):
+    """Rule floors the writeback may not lower, as ``{rule_key: mm}``.
+
+    Same authority precedence as :func:`declared_fab_floors` -- provenance,
+    then the pre-toolchain origin, then a non-stock rules value -- so a project
+    whose current rules block is this toolchain's own ratchet is held at what
+    it declared BEFORE the ratchet, not at the ratchet.
+
+    Deliberately NOT held: `min_through_hole_diameter` (it spans PADS, and a
+    0.25 pad drill legitimately sits below a via floor) and
+    `min_via_annular_width` (a relation, graded by check_drc).
+    """
+    if mode == 'off':
+        return {}
+    floors, _ = _resolve_declared(pcb_path, mode, _HOLD_RULE_KEYS)
+    out = {}
+    for rule, key in _HOLD_RULE_KEYS.items():
+        if key in floors:
+            out[rule] = floors[key]
+    return out
 
 def set_board_floors(floors=None, sources=None, mode='off'):
     """Set the process-wide board-declared floor clamp.
