@@ -40,6 +40,10 @@ import tempfile
 
 from run_utils import run, ROOT_DIR
 
+#: Routes kit-dev-coldfire-xilinx_5213, the largest tracked board, end to
+#: end (route -> planes -> repair -> drc -> connectivity).
+RUN_ALL_TIMEOUT = 1800
+
 
 def main():
     parser = argparse.ArgumentParser(description='Test routing on kit-dev-coldfire-xilinx board')

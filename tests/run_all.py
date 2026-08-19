@@ -22,6 +22,7 @@ maintained list; a new pytest-style test can instead use @pytest.mark.integratio
 import argparse
 import glob
 import os
+import re
 import subprocess
 import sys
 import time
@@ -40,6 +41,32 @@ _INTEGRATION_MARKERS = ('import run_utils', 'from run_utils', 'subprocess')
 # which is how a headline acceptance test reported PASS on every clone while
 # asserting nothing. A self-skip gets its own bucket and never counts as a pass.
 SKIP_EXIT = 77
+
+#: A test may declare its own budget with a module-level
+#: `RUN_ALL_TIMEOUT = <seconds>`. Read from the SOURCE, not by importing --
+#: importing a test runs it.
+#:
+#: Why this exists: three tests carried internal budgets ABOVE this runner's
+#: cap (test_compare_seeds sets timeout=3600 on its own subprocess,
+#: test_obstacle_map_balance 1200) and were killed at 600 s before their own
+#: deadline could fire -- so they produced no partial result and no
+#: diagnosis, and a machine-speed fact was reported as a code fact. Measured:
+#: test_obstacle_map_balance passes ALONE in 681 s with all 18 checks green.
+#:
+#: A declared budget is a claim the test makes about itself, in the test,
+#: where the next reader will look. Raising the GLOBAL --timeout instead
+#: would hide a genuinely hung test behind the slow ones.
+_BUDGET_RE = re.compile(r'^RUN_ALL_TIMEOUT\s*=\s*([0-9.]+)', re.M)
+
+
+def _declared_budget(path, default):
+    try:
+        m = _BUDGET_RE.search(open(path, encoding='utf-8',
+                                   errors='replace').read())
+    except OSError:
+        return default
+    return max(float(m.group(1)), default) if m else default
+
 
 
 def is_integration(path: str) -> bool:
@@ -112,6 +139,7 @@ def main():
 
     def run_one(f):
         name = os.path.basename(f)
+        budget = _declared_budget(f, args.timeout)
         try:
             # `text=True` alone decodes with the LOCALE default (cp1252 on
             # Windows) and raises UnicodeDecodeError in the reader thread the
@@ -123,10 +151,10 @@ def main():
             r = subprocess.run([sys.executable, '-X', 'utf8', f], cwd=ROOT,
                                capture_output=True, text=True,
                                encoding='utf-8', errors='replace',
-                               timeout=args.timeout)
+                               timeout=budget)
         except subprocess.TimeoutExpired:
             return name, None, (f'TIME  {name}  (timeout after '
-                                f'{args.timeout:.0f}s -- NOT a failed '
+                                f'{budget:.0f}s -- NOT a failed '
                                 f'assertion; re-run it alone before treating '
                                 f'it as one)')
         if r.returncode == SKIP_EXIT:

@@ -44,6 +44,13 @@ import subprocess
 import sys
 import tempfile
 
+#: Measured 681 s ALONE with all 18 checks green (2026-08-19), which is
+#: over run_all's 600 s default before any -j contention. It runs four
+#: full routing chains under KICAD_OBSTACLE_AUDIT/TAP_MAP_VERIFY, and it
+#: is the only guard on obstacle-map ref-count balance across all four
+#: front-ends -- a leak there is silent over-blocking or shipped DRC.
+RUN_ALL_TIMEOUT = 1200
+
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(TESTS_DIR)
 KF = os.path.join(ROOT_DIR, "kicad_files")
