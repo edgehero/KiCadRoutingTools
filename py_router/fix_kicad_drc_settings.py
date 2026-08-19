@@ -1137,6 +1137,33 @@ def fix_project_for_output(output_pcb: str, input_pcb=None, *, clearance=None,
         _mode = get_board_floors()[2]
         if _mode != 'off':
             _hold = declared_writeback_hold(input_pcb or output_pcb, _mode)
+            # CAP THE HOLD AT THE INPUT BOARD'S OWN COPPER. Measured on
+            # kicad_files/fanout_output1: its declaration resolves from
+            # fab_floor_origin to via 0.45 / drill 0.25, while the copper
+            # actually on the board is 0.3 / 0.2 -- so a pure declaration hold
+            # keeps the project claiming 0.45 and KiCad then flags the board's
+            # OWN INHERITED vias. That is the phantom-violation storm this repo
+            # has measured twice, arrived at from the other direction.
+            #
+            # So: the declaration may fall only as far as the INPUT board's
+            # copper already went. An inherited violation passes untouched; a
+            # violation this run INTRODUCES leaves the declaration standing.
+            #
+            # Only when the input is a DISTINCT board. ai_plan routes in place
+            # (input_pcb == output), where scanning "input" would return the
+            # post-route copper and silently void the hold -- there the
+            # declaration hold stands alone, which is the safe direction.
+            if (_hold and input_pcb and output_pcb
+                    and os.path.abspath(input_pcb)
+                    != os.path.abspath(output_pcb)):
+                try:
+                    _in_min = scan_board_minima(input_pcb)
+                except Exception:
+                    _in_min = {}
+                for _k in list(_hold):
+                    _iv = _in_min.get(_k)
+                    if isinstance(_iv, (int, float)) and _iv > 0:
+                        _hold[_k] = min(_hold[_k], _iv)
     except Exception:
         _hold = {}
     targets = compute_targets(clearance=clr, hole_clearance=hole_clearance,

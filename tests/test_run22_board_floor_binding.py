@@ -178,6 +178,43 @@ def main():
     check('an inherited sub-declaration floor is not raised into a storm',
           t1['min_track_width'] == 0.1, str(t1.get('min_track_width')))
 
+    print('the hold must not raise a declaration ABOVE inherited copper')
+    # Found by running the corpus sweep, not by reasoning. kicad_files/
+    # fanout_output1 resolves (via fab_floor_origin) to via 0.45 / drill 0.25,
+    # while the copper actually on that board is 0.3 / 0.2. A pure declaration
+    # hold keeps the project claiming 0.45 and KiCad then flags the board's own
+    # INHERITED vias -- the phantom-violation storm, reached from the other
+    # direction. The declaration may fall only as far as the input board's
+    # copper already went.
+    from fix_kicad_drc_settings import scan_board_minima
+    hold = F.declared_writeback_hold(board('fanout_output1'))
+    mins = scan_board_minima(board('fanout_output1'))
+    check('the fixture still has the shape this guards',
+          hold.get('min_via_diameter') == 0.45
+          and mins.get('min_via_diameter') == 0.3,
+          f'hold={hold.get("min_via_diameter")} copper='
+          f'{mins.get("min_via_diameter")} -- if this drifted, the case below '
+          f'proves nothing')
+    capped = dict(hold)
+    for k in list(capped):
+        v = mins.get(k)
+        if isinstance(v, (int, float)) and v > 0:
+            capped[k] = min(capped[k], v)
+    check('capping keeps the declaration at the inherited copper',
+          capped.get('min_via_diameter') == 0.3, str(capped))
+    t = compute_targets(via_diameter=0.3, minima={'min_via_diameter': 0.3},
+                        hold=capped)
+    check('...so the writeback does not flag the board its own vias',
+          t['min_via_diameter'] == 0.3, str(t.get('min_via_diameter')))
+    # And the capping must not weaken the copper-free case, which is the one
+    # run 22 actually shipped.
+    hold_t = F.declared_writeback_hold(board('tigard'))
+    mins_t = scan_board_minima(board('tigard'))
+    check('a copper-free board caps to nothing and holds its full declaration',
+          not any(isinstance(mins_t.get(k), (int, float)) and mins_t[k] > 0
+                  for k in hold_t),
+          str({k: mins_t.get(k) for k in hold_t}))
+
     print()
     if FAILURES:
         print(f'FAIL: {len(FAILURES)} check(s): {", ".join(FAILURES)}')
