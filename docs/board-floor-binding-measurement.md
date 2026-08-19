@@ -2,8 +2,8 @@
 
 `--board-floors` binds a board's own declared fab floors so the router cannot
 emit copper beneath them and the writeback cannot rewrite the declaration to
-match. It defaults to **`authored`** as of the flip commit. This is the evidence that
-decided that.
+match. It ships **defaulting to `off`**. This document is the evidence for and
+against that -- including a flip that was made, measured, and REVERTED.
 
 ---
 
@@ -96,24 +96,54 @@ shipping copper the fab cannot make while every instrument calls it clean.
 
 ---
 
-## Why the default flipped
+## The flip, and why it was reverted
 
-The two failure modes are not symmetric, and that is the whole argument:
+On the evidence above the default WAS flipped to `authored`. The argument was
+asymmetry of failure modes: `off` ships a board the fab cannot make while every
+instrument calls it clean, while `authored` fails a few nets loudly and by
+name -- and this repo prefers loud incompleteness to silent wrongness.
 
-- `off` ships a board the fab cannot make while **every instrument calls it
-  clean**. That is silent wrongness, and it is what run 22 did.
-- `authored` fails four nets **loudly and by name**, on one of three boards.
+**The full suite refuted it.** Three tests went red, and two of them are the
+very boards that bind:
 
-This repo's doctrine prefers loud incompleteness to silent wrongness
-everywhere else; the default now matches it. And the flip is one flag to
-reverse (`--board-floors off`), whereas a board shipped under the ratchet is
-discovered at the fab.
+```
+test_tigard_usb_diff            [underpad-scoped] coupled route is DRC-clean   FAIL
+                                [underpad-scoped] final board is DRC-clean     FAIL
+test_watchy_diff_hybrid_escape  hybrid-escaped USB_D has DRC violations        FAIL
+test_obstacle_map_balance       (also red under the flip)
+```
 
-Binding is inert on **19 of 33** boards (18 declare nothing, 1 is pure stock),
-so the change reaches only boards whose author said something.
+Note what the tigard failure says: the `[bare]` arm still passes, and only the
+`[underpad-scoped]` arm fails. **Underpad and hybrid escapes legitimately need
+sub-declaration vias.** Forcing tigard's declared 0.5 via into an underpad
+region does not make the net fail honestly -- it puts a bigger barrel where a
+smaller one fitted and produces DRC VIOLATIONS.
+
+That is not loud incompleteness. It is shipping violations, which is the thing
+the asymmetry argument was supposed to avoid. The argument was not wrong about
+asymmetry; it was wrong because it rested on PLAIN ROUTING measurements and
+never exercised the fanout paths.
+
+Default reverted to `off`. Both tests pass again.
+
+### What a correct flip would need first
+
+An exemption, measured: fanout escape vias are arguably a different process
+question from ordinary routing (via-in-pad IS a finer capability, and a board
+declaring 0.5 for its signal vias has not necessarily declared it for an
+underpad escape). Either exempt the fanout/underpad escape path from the board
+clamp, or accept that binding is incompatible with underpad escapes on a board
+that declares a coarse via -- and say which in the flag's help.
+
+Until that is measured, `off` is the honest default: the protection is
+available to any run that asks for it, and the disclosure banners fire either
+way.
 
 ## What is still unmeasured, and should be said out loud
 
+- **The fanout/underpad interaction, above.** This is now the blocker for any
+  future flip, and it was invisible to three boards' worth of plain-routing
+  measurement.
 - **`--board-floors all` was never routed.** It binds stock values and the
   netclass, and it clamps clearance -- which collapses the rescue clearance
   ladder. Nobody should propose it as a default without routing it first.

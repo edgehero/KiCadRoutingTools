@@ -793,8 +793,7 @@ def add_board_floor_args(parser):
     of lie this whole change is removing.
     """
     parser.add_argument(
-        '--board-floors', choices=list(BOARD_FLOOR_MODES),
-        default='authored',
+        '--board-floors', choices=list(BOARD_FLOOR_MODES), default='off',
         help="Bind the BOARD'S OWN declared fab floors (min_track_width / "
              "min_via_diameter / min_via_drill) so the router may not emit "
              "copper under them. 'off' (default) = today's behaviour, the "
