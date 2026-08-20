@@ -168,7 +168,15 @@ class TestDeclareClasses(unittest.TestCase):
             by_ref = {c['ref']: c for c in doc['edge_connectors']}
             self.assertIn('J1', by_ref)
             self.assertIn('SW1', by_ref)
-            self.assertNotIn('J7', by_ref)
+            # The original pin here was `J7 not declared at all` -- written
+            # when generic connectors produced NO entry. The invariant it
+            # protected was narrower: J7 (a JST wire-to-board part,
+            # legitimately interior) must never be given an EDGE. run-23's
+            # connector_affinity class declares it -- weakly, no edge, no
+            # implausibility claim -- so mid-board connectors stop being
+            # invisible to every rule. The protected invariant stands:
+            self.assertEqual(by_ref['J7'].get('class'), 'connector_affinity')
+            self.assertNotIn('edge', by_ref['J7'])
             # J1's pose is implausible: class-default band, NO edge invented
             self.assertEqual(by_ref['J1'].get('class'), 'edge_receptacle')
             self.assertNotIn('edge', by_ref['J1'])

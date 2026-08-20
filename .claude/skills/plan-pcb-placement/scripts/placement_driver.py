@@ -479,9 +479,15 @@ def p6(a):
     return f'''<stage_instructions stage="P6" name="declare the intent" of="7">
 An intent turns "it looks right" into something gradable.
 
-  python3 -X utf8 py_tools/check_floorplan.py {a.board} --emit-intent wk/intent.json
+  python3 -X utf8 py_tools/check_floorplan.py {a.board} --emit-intent wk/intent.json \\
+      --declare-classes
   # then EDIT it down: the emit describes the board as it is, including its
   # damage. Keep what the SPEC requires; delete what is merely observed.
+  # --declare-classes is what puts CONNECTORS in the intent (run-23): without
+  # it only parts already overhanging get an entry, so a header seated
+  # mid-board is invisible to every rule -- run 23 shipped J2/J5/J6/J7 that
+  # way. Receptacles get an edge; generic connectors get the weak
+  # connector_affinity class (INTERIOR flagged at advisory, never an error).
 
   python3 -X utf8 py_tools/check_floorplan.py {a.board} --intent wk/intent.json --health
 
@@ -527,7 +533,7 @@ def p_close(a):
             '`rules_run: 0`, which constrained two laps with nothing, then a '
             'second covering 0 of 266 parts. Nothing objected either time.\n\n'
             '  python3 -X utf8 py_tools/check_floorplan.py <board> '
-            '--emit-intent wk/intent.json\n'
+            '--emit-intent wk/intent.json --declare-classes\n'
             '  # then EDIT IT DOWN -- the emit describes the board AS IT IS, '
             'damage included\n'
             '  python3 -X utf8 py_tools/check_floorplan.py <board> '

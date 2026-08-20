@@ -878,19 +878,32 @@ def rule_edge_connector(ctx) -> Iterator[Violation]:
         # a violation -- which is also what makes a misplaced edge part
         # CHARGEABLE by place_seed --repair.
         setback = c.get('max_setback_mm')
+        _sev = ctx.sev('edge_connector')
         if setback is None and c.get('class') == 'edge_receptacle':
             from .part_class import SEAT_TOL_MM
             setback = SEAT_TOL_MM
+        if setback is None and c.get('class') == 'connector_affinity':
+            # run-23: the weak class. An INTERIOR generic connector is a flag
+            # for the boundary review, never an error -- legitimately-interior
+            # connectors exist (tigard J7), so this fires at WARN whatever the
+            # rule's configured severity. An author upgrades by writing
+            # max_setback_mm (then the configured severity applies) or edge.
+            from .part_class import INTERIOR_AFFINITY_MM
+            setback = INTERIOR_AFFINITY_MM
+            _sev = WARN
         if setback is not None and amount <= legality.EPS:
             clr = ctx.gate.edge_clearance(part.rect)
             if clr > float(setback) + legality.EPS:
                 yield Violation(
-                    rule='edge_connector', severity=ctx.sev('edge_connector'),
+                    rule='edge_connector', severity=_sev,
                     ref=ref,
                     message=(f"{ref} is an edge part seated {clr:.2f}mm from "
                              f"the nearest edge with no overhang (seat "
-                             f"tolerance {float(setback):.2f}mm) -- the "
-                             f"mating face cannot reach the edge"),
+                             f"tolerance {float(setback):.2f}mm) -- "
+                             + ("a plug may not reach it; disposition in the "
+                                "boundary review or declare max_setback_mm"
+                                if _sev == WARN else
+                                "the mating face cannot reach the edge")),
                     measured={'edge_clearance_mm': round(clr, 4)},
                     expected={'max_setback_mm': float(setback)})
 
@@ -1428,6 +1441,21 @@ def emit_intent(pcb_data, pcb_file: str, *,
             if fp is None:
                 continue
             pc = classify_part(fp, ref)
+            if pc.name == 'connector_affinity':
+                # run-23: generic connectors (headers, JST, terminal blocks)
+                # had NO class, so J2/J5/J6/J7 seated mid-board and no
+                # instrument could say so. Declared WITHOUT an edge (the
+                # run-4 rule stands: naming one would be an invention) and
+                # with no band ceiling; the grade flags an INTERIOR pose at
+                # ADVISORY severity only. A human upgrades by adding `edge`
+                # or `max_setback_mm` to the entry.
+                clr = state.edge_gate.edge_clearance(parts[ref].rect)
+                conns.append({
+                    'ref': ref, 'class': pc.name, 'source': 'auto-class',
+                    'overhang_mm': {'min': 0.0},
+                    'note': (f'connector-family part, no edge claim; '
+                             f'measured {clr:.2f}mm from the nearest edge')})
+                continue
             if pc.name != 'edge_receptacle':
                 # actuators make no claim unless they actually overhang
                 # (handled above); nothing else is an edge class.

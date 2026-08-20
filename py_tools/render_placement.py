@@ -921,7 +921,7 @@ def connector_edge_facts(model) -> List[list]:
     Nothing gates on this list; it exists so a reviewer sees the distances
     without deriving them.
     """
-    from placement.part_class import classify_part
+    from placement.part_class import INTERIOR_AFFINITY_MM, classify_part
     pcb = getattr(model, 'pcb', None)
     bounds = getattr(getattr(pcb, 'board_info', None), 'board_bounds', None)
     if pcb is None or not bounds:
@@ -945,7 +945,9 @@ def connector_edge_facts(model) -> List[list]:
         dists = {'W': rect[0] - bounds[0], 'N': rect[1] - bounds[1],
                  'E': bounds[2] - rect[2], 'S': bounds[3] - rect[3]}
         edge, dist = min(dists.items(), key=lambda kv: kv[1])
-        out.append([ref, cls or 'connector', edge, round(max(0.0, dist), 2)])
+        d = round(max(0.0, dist), 2)
+        out.append([ref, cls or 'connector', edge, d,
+                    bool(d > INTERIOR_AFFINITY_MM)])
     return out
 
 
@@ -979,8 +981,8 @@ def write_review_sheet(path, panel_paths, fnd, conn_facts) -> None:
            if cb else "  |  blocking: none"))
     if conn_facts:
         chunk = []
-        for ref, _cls, edge, dist in conn_facts:
-            tag = 'INTERIOR ' if dist > 3.0 else ''
+        for ref, _cls, edge, dist, interior in conn_facts:
+            tag = 'INTERIOR ' if interior else ''
             chunk.append(f"{ref} {tag}{dist}mm {edge}")
         lines.append("connectors, dist to nearest edge: " + '  |  '.join(chunk))
     else:

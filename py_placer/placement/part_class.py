@@ -86,6 +86,14 @@ _PREFIX_RE = re.compile(r'^([A-Za-z]+)')
 
 SEAT_TOL_MM = 0.5      # default; callers pass max(0.5, 2*grid_step)
 
+#: run-23: past this distance from every edge, a `connector_affinity` part is
+#: flagged INTERIOR -- by the intent grade (advisory) and the review sheet,
+#: the SAME constant so the two never disagree. 3.0mm is a cable-clearance
+#: scale, not a board-derived number: within it a plug can usually still
+#: reach over the edge parts; run 23's J4 sat 6.03mm interior (flagged),
+#: J2/J5/J6/J7 sat 0.7-2.9mm from their edges (declared, not flagged).
+INTERIOR_AFFINITY_MM = 3.0
+
 
 @dataclass(frozen=True)
 class PartClass:
@@ -146,6 +154,18 @@ def classify_part(fp, ref: str) -> PartClass:
               else f"reference prefix {pref!r} (convention only)"]
         return PartClass('edge_actuator', 'medium' if fp_act else 'low',
                          tuple(ev))
+    # run-23: the WEAK connector class. Generic connectors (headers, JST,
+    # molex, terminal blocks) deliberately make NO edge claim -- a JST
+    # wire-to-board part is legitimately interior (the guard above stands) --
+    # but they are still where a human plugs something in, and run 23 seated
+    # J2/J5/J6/J7 mid-board with NO instrument able to say so, because a part
+    # with no class is invisible to every intent rule. `connector_affinity`
+    # exists to be DECLARED and graded at ADVISORY severity: a mid-board pose
+    # is a flag for the boundary review, never an error, and pose_plausible
+    # makes no claim for it.
+    if any(k in name for k in CONNECTOR_FP) and not is_ic_pkg:
+        return PartClass('connector_affinity', 'low',
+                         ('connector-family footprint name; no edge claim',))
     return PartClass(None, None)
 
 
