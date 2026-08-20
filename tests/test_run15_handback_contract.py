@@ -299,7 +299,7 @@ class HandbackContractTest(unittest.TestCase):
         # problem seen from the two ends, and separating them is how one gets
         # applied without the other.
         self.assertLess(abs(txt.index('CANNOT BLOCK ON A DETACHED PROCESS')
-                            - txt.index('Pass `--deadline` on any step')),
+                            - txt.index('Pass `--deadline` on any budget-capable step')),
                         6000,
                         'the hand-back pattern belongs beside the --deadline '
                         'guidance -- a hand-back without a deadline is two '
