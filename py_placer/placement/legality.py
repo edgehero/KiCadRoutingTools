@@ -1191,9 +1191,33 @@ def grade_body_overlap(pcb_data, clearance: float,
         _edge_live_cache[ref] = live
         return live
 
+    # Marker classes whose courtyard is NON-PHYSICAL and may keep the blanket
+    # blocking exemption. A mount_hole is deliberately absent (run-23, user
+    # finding #3): its courtyard is the SCREW-HEAD/standoff keepout -- J3's
+    # header sat 1.47mm inside locked H2's courtyard behind the same
+    # 'marker_class' label a fiducial gets, and a screw in H2 lands on J3's
+    # pin row. Fiducials and testpoints have nothing above board level;
+    # mounting holes do.
+    _MARKER_NONPHYSICAL = ('fiducial', 'testpoint')
+
     def _blocking_waived(p) -> bool:
         if not p.waived:
             return False
+        # An AUTHORED waiver outranks everything below: it is a recorded
+        # human decision about this exact pair.
+        if p.waiver == 'intent_declared':
+            return True
+        # No CLASS waiver blesses contact with a KiCad-LOCKED part (the
+        # run-8 E6 principle, extended to the courtyard channel): a locked
+        # pose is a decision somebody made, and a class label chosen for
+        # unlocked parts does not apply to copper or courtyards landing on
+        # it. The pair still faces the floors + the moved gate like any
+        # unwaived pair.
+        if p.a in locked_refs or p.b in locked_refs:
+            return False
+        if p.waiver == 'marker_class':
+            return (_class_of(p.a) in _MARKER_NONPHYSICAL
+                    or _class_of(p.b) in _MARKER_NONPHYSICAL)
         if p.waiver != 'edge_class':
             return True
         if not (_edge_waiver_live(p.a) or _edge_waiver_live(p.b)):

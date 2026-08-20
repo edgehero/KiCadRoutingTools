@@ -63,14 +63,15 @@ class TestRun23Board(unittest.TestCase):
         self.assertEqual(r.returncode, 4, r.stdout[-600:])
         self.assertFalse(doc['buildable'])
         self.assertIn('NOT BUILDABLE', r.stdout)
-        self.assertEqual(doc['courtyard_blocking_gating'], 8)
+        self.assertEqual(doc['courtyard_blocking_gating'], 9)
         self.assertEqual(doc['courtyard_gating_basis'], 'moved-vs-baseline')
         gating = {(q['a'], q['b'])
                   for q in doc['courtyard_blocking_gating_pairs']}
         self.assertEqual(gating, {('J4', 'U6'), ('J3', 'R13'),
                                   ('RN3', 'U5'), ('SW1', 'U1'),
                                   ('J1', 'SW1'), ('J1', 'SW2'),
-                                  ('J1', 'R5'), ('J4', 'R21')})
+                                  ('J1', 'R5'), ('J4', 'R21'),
+                                  ('H2', 'J3')})
         # `blocking` (pad intersections) must NOT have moved -- it has three
         # consumers and this board has none.
         self.assertEqual(doc['blocking'], 0)
@@ -88,7 +89,7 @@ class TestRun23Board(unittest.TestCase):
         r, doc = _grade(PLACED)
         self.assertEqual(r.returncode, 0, r.stdout[-600:])
         self.assertTrue(doc['buildable'])
-        self.assertEqual(doc['courtyard_blocking'], 9)
+        self.assertEqual(doc['courtyard_blocking'], 10)
         self.assertIsNone(doc['courtyard_blocking_gating'])
         self.assertEqual(doc['courtyard_gating_basis'],
                          'no-baseline: report-only')
@@ -144,6 +145,33 @@ class TestRun23Board(unittest.TestCase):
                   for q in doc['courtyard_blocking_gating_pairs']}
         self.assertNotIn(('FB1', 'SW2'), gating)
 
+    def test_locked_and_mount_hole_pairs_face_the_floors(self):
+        """User finding #3, two rules in one pair: H2<->J3 (4.63mm2, depth
+        1.47) hid behind the blanket marker_class waiver. A mounting hole's
+        courtyard is the SCREW-HEAD keepout -- physical, unlike a fiducial's
+        -- and H2 is KiCad-LOCKED, and no class waiver blesses contact with
+        a locked part (the run-8 E6 principle, extended here). Both rules
+        route the pair to the ordinary floors; J3 moved 3.07mm, so it
+        gates. Fiducial/testpoint markers keep the blanket exemption
+        (G***<->TP1 stays out of blocking)."""
+        _r, doc = _grade(PLACED, '--baseline', DAMAGED)
+        blocked = {(q['a'], q['b']) for q in doc['courtyard_blocking_pairs']}
+        self.assertIn(('H2', 'J3'), blocked)
+        self.assertNotIn(('G***', 'TP1'), blocked)
+        gating = {(q['a'], q['b'])
+                  for q in doc['courtyard_blocking_gating_pairs']}
+        self.assertIn(('H2', 'J3'), gating)
+
+    def test_opposite_side_xy_overlap_is_not_a_pair(self):
+        """User question, answered by measurement and pinned: JP2 (a
+        B-side SMD jumper) sits exactly over F-side R16/C25 in XY -- pad
+        gap 0.000mm -- and that is NOT a conflict: opposite faces. The
+        side-aware census must never pair them."""
+        _r, doc = _grade(PLACED)
+        census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
+        self.assertNotIn(('JP2', 'R16'), census)
+        self.assertNotIn(('C25', 'JP2'), census)
+
     def test_full_census_is_carried(self):
         """The 15-pair census the user SAW must be in the JSON, waivers and
         all -- J1<->SW1 (7.0mm2, edge-waived) is the one a reader asks about
@@ -194,7 +222,7 @@ class TestRenderCourtyardTruth(unittest.TestCase):
                                    ('RN3', 'U5'), ('SW1', 'U1'),
                                    ('FB1', 'SW2'), ('J1', 'SW1'),
                                    ('J1', 'SW2'), ('J1', 'R5'),
-                                   ('J4', 'R21')})
+                                   ('J4', 'R21'), ('H2', 'J3')})
         census = {(a, b) for a, b, _m, _d in cl['b_courtyard_overlap_pairs']}
         # J4<->R21 blocks via the RELATIVE floor (25.5% of R21's courtyard);
         # the true slivers stay out of the blocking list.
