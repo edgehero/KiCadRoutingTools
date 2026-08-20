@@ -235,6 +235,9 @@ def legality_findings(model) -> Dict[str, object]:
     out = {'oob_refs_pad_copper': [], 'oob_refs_courtyard': [],
            'pad_conflict_pairs_refs': [], 'hole_conflict_pairs_refs': [],
            'body_overlap_pairs_refs': [],
+           'courtyard_overlap_pairs_refs': [],
+           'courtyard_blocking_pairs_refs': [],
+           'courtyard_overlap_mm2': 0.0,
            'locked_refs': sorted(r for r, p in model.parts().items()
                                  if getattr(p, 'locked', False))}
     state = getattr(model, 'state', None)
@@ -332,6 +335,29 @@ def legality_findings(model) -> Dict[str, object]:
                     continue
                 if amt > 1e-6:
                     out['oob_refs_courtyard'].append([ref, round(amt, 4)])
+    # run-23: the COURTYARD census, from the one definition in legality
+    # (grade_body_overlap), never a re-derivation. `body_overlap_pairs_refs`
+    # above is PAD intersections -- the name predates this channel -- and the
+    # gap between the two is exactly how a board with J4 0.90mm inside U6
+    # rendered "clean": the checklist had no key for what the picture showed,
+    # so a reader pairing the render with its keys read past it.
+    pcb = getattr(model, 'pcb', None)
+    if pcb is not None:
+        try:
+            from placement.legality import grade_body_overlap
+            _clr = getattr(state, 'clearance', None) or 0.15
+            _g = grade_body_overlap(pcb, _clr,
+                                    pcb_file=getattr(model, 'pcb_file', None))
+            out['courtyard_overlap_pairs_refs'] = [
+                [q.a, q.b, q.area_mm2, q.depth_mm]
+                for q in _g['advisory_pairs'] if q.kind == 'courtyard']
+            out['courtyard_blocking_pairs_refs'] = [
+                [q.a, q.b, q.area_mm2, q.depth_mm]
+                for q in _g['courtyard_blocking_pairs']]
+            out['courtyard_overlap_mm2'] = round(sum(
+                q.area_mm2 for q in _g['pairs'] if q.kind == 'courtyard'), 4)
+        except Exception:
+            pass
     model._legality_findings = out
     return out
 
@@ -606,6 +632,7 @@ def draw_courtyards(d, r, model, refs, *, side=None, color=None, dim=False,
 
 C_CONFLICT = (255, 64, 64)      # pad/hole legality conflicts
 C_HOLE = (255, 160, 64)         # NPTH keepout circles
+C_COURT_OVL = (255, 120, 40)    # run-23: courtyard-blocking interpenetration
 
 
 def draw_legality(d, r, model, *, side=None):
@@ -682,6 +709,29 @@ def draw_legality(d, r, model, *, side=None):
                   min(ea[2], eb[2]), min(ea[3], eb[3]))
             if ix[2] > ix[0] and ix[3] > ix[1]:
                 d.rectangle(_rect_pts(r, ix), fill=C_CONFLICT)
+    # run-23: courtyard-BLOCKING pairs (unwaived interpenetration past the
+    # area+depth floors). Courtyards render as thin gray outlines, which
+    # makes real overlap visually indistinguishable from legal tight packing
+    # -- run-23's board WAS viewed (at L3, with the census in the banner) and
+    # still read clean. Filled intersection + the pair named ON the image, so
+    # the defect lives in pixels, not only in a key.
+    for a, bb, _mm2, _dep in fnd.get('courtyard_blocking_pairs_refs', ()):
+        ra = model.rect(a)
+        rb = model.rect(bb)
+        if ra is None or rb is None:
+            continue
+        for rect in (ra, rb):
+            d.rectangle(_rect_pts(r, rect), outline=C_COURT_OVL,
+                        width=_w(r, 0.16))
+        ix = (max(ra[0], rb[0]), max(ra[1], rb[1]),
+              min(ra[2], rb[2]), min(ra[3], rb[3]))
+        if ix[2] > ix[0] and ix[3] > ix[1]:
+            box = _rect_pts(r, ix)
+            d.rectangle(box, fill=C_COURT_OVL)
+            _size = max(10, _w(r, 1.0, floor=10))
+            d.text((min(box[0], box[2]), max(0, min(box[1], box[3]) - _size - 2)),
+                   f"{a}<->{bb} {_mm2}mm2", fill=C_COURT_OVL,
+                   font=load_font(_size))
 
 
 def draw_ghosts(d, r, model, moves, *, width_mm=0.1):
@@ -861,6 +911,112 @@ def overlay_for(spec: PanelSpec):
     return _draw
 
 
+def connector_edge_facts(model) -> List[list]:
+    """[ref, class, nearest_edge, dist_mm] for every connector-family part.
+
+    Presentation-only (the review sheet's facts strip) -- a heuristic by
+    footprint name plus the part_class edge classes, deliberately broader
+    than part_class's gating classes: run 23 seated J2/J5/J6/J7 mid-board
+    and NO instrument said so, because generic connectors carry no class.
+    Nothing gates on this list; it exists so a reviewer sees the distances
+    without deriving them.
+    """
+    from placement.part_class import classify_part
+    pcb = getattr(model, 'pcb', None)
+    bounds = getattr(getattr(pcb, 'board_info', None), 'board_bounds', None)
+    if pcb is None or not bounds:
+        return []
+    _NAME_TOKENS = ('conn', 'pinheader', 'header', 'socket', 'jst', 'molex',
+                    'terminal', 'usb', 'jack', 'receptacle')
+    out = []
+    for ref, fp in sorted((pcb.footprints or {}).items()):
+        name = (getattr(fp, 'footprint_name', '') or '').lower()
+        cls = None
+        try:
+            cls = classify_part(fp, ref).name
+        except Exception:
+            cls = None
+        if not (cls in ('edge_receptacle', 'edge_actuator')
+                or any(t in name for t in _NAME_TOKENS)):
+            continue
+        rect = model.rect(ref)
+        if rect is None:
+            continue
+        dists = {'W': rect[0] - bounds[0], 'N': rect[1] - bounds[1],
+                 'E': bounds[2] - rect[2], 'S': bounds[3] - rect[3]}
+        edge, dist = min(dists.items(), key=lambda kv: kv[1])
+        out.append([ref, cls or 'connector', edge, round(max(0.0, dist), 2)])
+    return out
+
+
+def write_review_sheet(path, panel_paths, fnd, conn_facts) -> None:
+    """ONE image for the boundary review: F+B panels over a facts strip.
+
+    The panels already carry the courtyard-interpenetration overlay; the
+    strip adds what no panel can show spatially -- the census with numbers,
+    and each connector's distance to its nearest edge (INTERIOR flagged at
+    > 3mm). Run 23's reviewer had these facts spread over two panels and a
+    JSON, and the looking stopped at the spread.
+    """
+    from PIL import Image
+    imgs = [Image.open(p).convert('RGB') for p in panel_paths if p]
+    if not imgs:
+        raise ValueError('no panels to compose')
+    h = max(i.height for i in imgs)
+    imgs = [i if i.height == h
+            else i.resize((max(1, int(i.width * h / i.height)), h))
+            for i in imgs]
+    W = sum(i.width for i in imgs)
+
+    lines = []
+    cb = fnd.get('courtyard_blocking_pairs_refs') or []
+    cs = fnd.get('courtyard_overlap_pairs_refs') or []
+    lines.append(
+        f"courtyard: {len(cs)} unwaived pair(s), census "
+        f"{fnd.get('courtyard_overlap_mm2', 0)}mm2 total"
+        + ("  |  BLOCKING: " + ', '.join(
+            f"{a}<->{b} {m}mm2/depth {dp}mm" for a, b, m, dp in cb)
+           if cb else "  |  blocking: none"))
+    if conn_facts:
+        chunk = []
+        for ref, _cls, edge, dist in conn_facts:
+            tag = 'INTERIOR ' if dist > 3.0 else ''
+            chunk.append(f"{ref} {tag}{dist}mm {edge}")
+        lines.append("connectors, dist to nearest edge: " + '  |  '.join(chunk))
+    else:
+        lines.append("connectors: none recognised (name heuristic)")
+
+    font = load_font(max(14, h // 60))
+    lh = int(font.size * 1.5)
+    # crude width wrap: split any line the strip cannot hold
+    probe = ImageDraw.Draw(imgs[0])
+    wrapped = []
+    for ln in lines:
+        while probe.textlength(ln, font=font) > W - 20 and '  |  ' in ln:
+            # cut at the separator nearest the width limit
+            parts = ln.split('  |  ')
+            keep, rest = [parts[0]], parts[1:]
+            while rest and probe.textlength(
+                    '  |  '.join(keep + rest[:1]), font=font) <= W - 20:
+                keep.append(rest.pop(0))
+            wrapped.append('  |  '.join(keep))
+            ln = '  |  '.join(rest)
+            if not rest:
+                ln = ''
+        if ln:
+            wrapped.append(ln)
+    strip_h = lh * len(wrapped) + 16
+    sheet = Image.new('RGB', (W, h + strip_h), (10, 10, 10))
+    x = 0
+    for i in imgs:
+        sheet.paste(i, (x, 0))
+        x += i.width
+    d = ImageDraw.Draw(sheet)
+    for i, ln in enumerate(wrapped):
+        d.text((10, h + 8 + i * lh), ln, fill=(235, 235, 235), font=font)
+    sheet.save(path)
+
+
 def draw_legend(d, r, spec) -> None:
     """A colour key, bottom-left.
 
@@ -885,6 +1041,7 @@ def draw_legend(d, r, spec) -> None:
         rows = [(C_CONFLICT, 'dashed', 'pad copper off-board'),
                 (C_CONFLICT, 'ring', 'pad/hole clearance short'),
                 (C_CONFLICT, 'solid', 'BODY STACK - parts overlap'),
+                (C_COURT_OVL, 'solid', 'courtyard interpenetration'),
                 (C_HOLE, 'ring', 'NPTH keepout'),
                 (C_LOCKED, 'hatch', 'KiCad-locked (never moved)')]
         if spec.moves:
@@ -1406,6 +1563,16 @@ Examples:
                         "match} -- mandate 8's question (d), quotable instead "
                         'of recalled (run-4 G5)')
     p.add_argument('--quiet', action='store_true')
+    p.add_argument('--review-sheet', metavar='PATH', default=None,
+                   help='run-23: ALSO write ONE composite image built for the '
+                        'boundary review -- F and B side by side (with the '
+                        'courtyard-interpenetration overlay both panels '
+                        'already carry) over a facts strip: the courtyard '
+                        'census with mm2/depth, and every connector-family '
+                        'part with its distance-to-nearest-edge (INTERIOR '
+                        'flagged). Exists because the facts a reviewer needs '
+                        'were spread over two panels and a JSON, and run 23 '
+                        'proved that spread is where the looking stops.')
     return p
 
 
@@ -1897,6 +2064,18 @@ def main(argv=None):
                 # reports what the old name promised.
                 'b_pad_clearance_pairs': fnd['pad_conflict_pairs_refs'],
                 'b_body_overlap_pairs': fnd['body_overlap_pairs_refs'],
+                # run-23 key honesty, same lesson again: b_body_overlap_pairs
+                # is PAD intersections (see the run-6 note above), so a reader
+                # auditing "overlap" against it concluded there was none while
+                # J4 stood 0.90mm inside U6's courtyard. The courtyard channel
+                # now has its own keys: [a, b, area_mm2, depth_mm] rows, the
+                # census unwaived (advisory) and the blocking subset (past the
+                # legality.COURTYARD_BLOCKING_* floors, synthetic excluded).
+                'b_courtyard_overlap_pairs':
+                    fnd['courtyard_overlap_pairs_refs'],
+                'b_courtyard_blocking_pairs':
+                    fnd['courtyard_blocking_pairs_refs'],
+                'b_courtyard_overlap_mm2': fnd['courtyard_overlap_mm2'],
                 'c_hole_conflicts': fnd['hole_conflict_pairs_refs'],
                 'c_locked_refs': fnd['locked_refs'],
                 'd_moved': {'moved': len(moves),
@@ -1906,6 +2085,19 @@ def main(argv=None):
             },
             'unplaced': state.unplaced, 'no_outline': model.no_outline,
         }
+        if args.review_sheet:
+            _full = [pp['path'] for pp in doc['panels']
+                     if pp.get('view') is None][:2]
+            try:
+                write_review_sheet(args.review_sheet, _full, fnd,
+                                   connector_edge_facts(model))
+                doc['review_sheet'] = args.review_sheet
+                print(f"  review sheet -> {args.review_sheet}")
+            except Exception as exc:                            # noqa: BLE001
+                # The sheet is an aid, never the render's own gate -- but a
+                # silent miss would read as "no sheet requested".
+                doc['review_sheet'] = None
+                print(f"  review sheet FAILED: {exc}", file=sys.stderr)
         if not args.no_describe:
             _txt, _dj = describe(model, legality_findings(model), moves, args,
                                  [p['path'] for p in doc['panels']])
@@ -1939,6 +2131,17 @@ def main(argv=None):
                 'c_hole_conflicts':
                     len(doc['checklist']['c_hole_conflicts']),
             }
+            # run-23: courtyard blocking gates MOVED-relative, mirroring
+            # check_assembly's currency -- healthy boards ship by-design
+            # interpenetrations (measured: 5 of 34 corpus boards), so the
+            # census gates only where --before shows a member moved. Without
+            # --before the census stays report-only in the checklist.
+            if before_model is not None:
+                _mv = {m['reference'] for m in moves}
+                _cb = [row for row in
+                       doc['checklist']['b_courtyard_blocking_pairs']
+                       if row[0] in _mv or row[1] in _mv]
+                _fail['b_courtyard_blocking_pairs(moved)'] = len(_cb)
             _hit = {k: v for k, v in _fail.items() if v}
             _moved = doc['checklist']['d_moved']
             if _moved.get('match') is False:

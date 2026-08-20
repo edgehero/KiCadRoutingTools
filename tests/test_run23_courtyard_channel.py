@@ -120,6 +120,70 @@ class TestRun23Board(unittest.TestCase):
         self.assertGreaterEqual(len(census), 15)
 
 
+class TestRenderCourtyardTruth(unittest.TestCase):
+    """render_placement must SHOW the courtyard channel, not only key it.
+
+    Run 23's board was viewed at L3 with 'overlap 26.30mm2' in the banner and
+    still read clean: courtyards drew as thin gray outlines (overlap looks
+    like tight packing) and the checklist had no key for the courtyard
+    census -- b_body_overlap_pairs is PAD intersections.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.td = tempfile.TemporaryDirectory()
+        jp = os.path.join(cls.td.name, 'r.json')
+        png = os.path.join(cls.td.name, 'r.png')
+        sheet = os.path.join(cls.td.name, 'sheet.png')
+        env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8',
+                   KRT_NO_BANNER='1')
+        r = subprocess.run(
+            [sys.executable, '-X', 'utf8',
+             os.path.join(ROOT, 'py_tools', 'render_placement.py'),
+             PLACED, '--clearance', '0.15', '--json-out', jp, '-o', png,
+             '--review-sheet', sheet],
+            capture_output=True, text=True, env=env, cwd=ROOT)
+        assert r.returncode == 0, r.stdout[-600:] + r.stderr[-600:]
+        cls.doc = json.load(open(jp, encoding='utf-8'))
+        cls.png_f = png.replace('.png', '_F.png')
+        cls.sheet = sheet
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.td.cleanup()
+
+    def test_checklist_carries_the_courtyard_keys(self):
+        cl = self.doc['checklist']
+        blocked = {(a, b) for a, b, _m, _d in
+                   cl['b_courtyard_blocking_pairs']}
+        self.assertEqual(blocked, {('J4', 'U6'), ('J3', 'R13'),
+                                   ('RN3', 'U5')})
+        census = {(a, b) for a, b, _m, _d in cl['b_courtyard_overlap_pairs']}
+        self.assertIn(('J4', 'R21'), census)   # sub-floor sliver: listed,
+        self.assertNotIn(('J4', 'R21'), blocked)  # never blocking
+        self.assertGreater(cl['b_courtyard_overlap_mm2'], 20.0)
+
+    def test_the_defect_is_in_the_pixels(self):
+        """The C_COURT_OVL fill must be present INSIDE the J4<->U6
+        intersection region -- the picture, not only the key."""
+        from PIL import Image
+        img = Image.open(self.png_f).convert('RGB')
+        w, h = img.size
+        hits = sum(1 for _x in range(0, w, 7) for _y in range(0, h, 7)
+                   if img.getpixel((_x, _y)) == (255, 120, 40))
+        self.assertGreater(
+            hits, 20, 'no courtyard-interpenetration fill in the render')
+
+    def test_review_sheet_exists_and_is_wide(self):
+        from PIL import Image
+        self.assertTrue(os.path.exists(self.sheet))
+        img = Image.open(self.sheet)
+        # F+B side by side over a facts strip: wider than tall, and taller
+        # than either bare panel (the strip).
+        self.assertGreater(img.width, img.height)
+        self.assertEqual(self.doc.get('review_sheet'), self.sheet)
+
+
 class TestPristineBoards(unittest.TestCase):
     """The corpus lesson: healthy boards carry big by-design censuses."""
 
