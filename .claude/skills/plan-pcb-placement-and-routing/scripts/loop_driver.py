@@ -972,7 +972,9 @@ message.
   close-out    : {_asm}
                  python3 -X utf8 py_tools/check_assembly.py {_placed} \\
                      --clearance <the board's own floor> \\
-                     --json {_asm}
+                     --baseline {a.board} --json {_asm}
+                 (--baseline ARMS the run-23 courtyard gate; without it a
+                 pair your moves placed stays report-only)
   render       : {_rend}
                  the render_placement.py --json-out you actually READ
   freeze refs  : {_refs}
@@ -1053,7 +1055,8 @@ def l2(a):
                 'gate alone and use ITS output:\n'
                 '  python3 -X utf8 py_router/check_drc.py <board> --clearance <floor> '
                 '--json wk/drc0.json\n'
-                '  python3 -X utf8 py_tools/check_assembly.py <board> --json '
+                '  python3 -X utf8 py_tools/check_assembly.py <board> '
+                '--baseline <the board the run started from> --json '
                 'wk/assembly0.json')
     # Bind the close-out to the board it is unlocking. check_assembly writes the
     # graded board's path into the payload and this gate never compared it, so
@@ -1070,7 +1073,8 @@ def l2(a):
                 f'  handing to route: {os.path.abspath(a.board)}\n\n'
                 f'A stale close-out is not evidence about this board. Re-grade '
                 f'the board you are actually routing:\n'
-                f'  python3 -X utf8 py_tools/check_assembly.py {a.board} --json '
+                f'  python3 -X utf8 py_tools/check_assembly.py {a.board} '
+                f'--baseline <the board the run started from> --json '
                 f'wk/assembly_close.json')
 
     # SHAPE, BEFORE CONTENT. `blocking` exists in BOTH check_assembly's report
@@ -1177,7 +1181,8 @@ def l2(a):
             'not say whether the placement is assembly-clean -- and a missing '
             'measurement is not a passing one. Produce the close-out from the '
             'instrument that measures it:\n'
-            '  python3 -X utf8 py_tools/check_assembly.py <board> --json '
+            '  python3 -X utf8 py_tools/check_assembly.py <board> '
+            '--baseline <the board the run started from> --json '
             'wk/assembly_close.json\n\nAn EMPTY or unrelated JSON satisfies a '
             'file-exists check and tells you nothing; that is the failure this '
             'refusal exists to stop.')
@@ -1508,7 +1513,19 @@ reason. Launch it detached WITH --deadline, then return three things and stop:
 This loop arms the wait and resumes you. That is a correct hand-back, not a
 failure -- report it as one and it will be read as one. The marker must be
 written by the STEP, never by you: a "done" file you write before returning says
-the work finished when it has not started.
+the work finished when it has not started. Run steps through
+tests/stress/tee_cmd.py and the marker is free: it writes
+logs/<label>.done containing the exit code at child exit -- wait on THAT
+file, never on a log line (run 23 lost 25 minutes to a completion line that
+goes to stdout while the waiter grepped the log).
+
+READ ROUTE RESULTS FROM THE `JSON_SUMMARY_MIN:` LINE -- one per run,
+authoritative-last, the MERGED tally in <1KB (run-23). The big JSON_SUMMARY
+lines are 6-20KB each, several per log, with scope semantics the log itself
+warns about; they are forensics, not your read. The MIN line cannot carry
+the fab-floor writeback verdict (it prints before the writeback runs): also
+grep the log for `FAB_FLOORS_RELAXED:` -- an absent line means the writeback
+did not run, never that floors held.
 </subagent_prompt>
 
 When it returns, continue here with the paths it named. Do not retype its
@@ -3047,7 +3064,10 @@ def _self_test():
         # 74, not 70: run-19 A2 grew FENCE_CLAUSE by four lines (the
         # hand-script disclosure duty). L1 sits exactly AT the cap, as it
         # did at 70 -- any further growth is a deliberate decision, here.
-        want(len(out.splitlines()) <= 74, f'{key} stays under 74 lines')
+        # 76, not 74: run-23 grew L1's close-out command by --baseline plus a
+        # two-line note (it ARMS the courtyard gate; omitting it is how J4
+        # shipped 0.90mm inside U6). Deliberate, decided here.
+        want(len(out.splitlines()) <= 76, f'{key} stays under 76 lines')
 
     want(STAGES['L2'](_args(base)).startswith('<error>'),
          'routing refuses to start without a placement close-out')

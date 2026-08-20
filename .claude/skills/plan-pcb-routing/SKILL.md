@@ -1555,7 +1555,12 @@ only in `check_floorplan`'s `outline` block.
 
 For anything beyond a single obvious call, **fan out verifiers in ONE response**
 and hand each only its slice of the round's evidence — never the raw
-`.kicad_pcb`. The prompts are in
+`.kicad_pcb`. **Every verifier WRITES its verdict to
+`wk/turn<N>/verdict_<lens>.txt` before returning, and you read the FILES,
+never the replies** (run-23: two lens verdicts delivered as completion
+notifications were lost outright; the parent waited on them, was nudged, and
+re-derived both inline. A verdict file that never appears is itself the
+finding — the verifier died — not a reason to assume PASS). The prompts are in
 [`references/verifier-prompts.md`](references/verifier-prompts.md). Nine lenses —
 six grade the **placement** (`intent`, `legality`, `delta`, `blocks`,
 `routing-feedback`, `coverage`) and three grade the **routed board**
