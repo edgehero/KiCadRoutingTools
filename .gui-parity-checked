@@ -1,3 +1,30 @@
+48c4e976 2026-08-20 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
+
+2026-08-20 parity audit 42cba0e2..48c4e976 (the run-23 improvements branch, 9
+commits). Outcome: NO GAP -- verified, not assumed.
+
+  What the branch adds engine-side: batch_route gains `tail_cancel_check`
+  (an engine KWARG, not a CLI flag: the CLI main derives it from --deadline;
+  the GUI passes nothing and the default falls back to `cancel_check`, so
+  both fronts keep one behavior), and one `JSON_SUMMARY_MIN:` print at the
+  outermost batch_route exit -- engine-level, so both fronts emit it.
+  route_summary/krt_deadline/fix_kicad_drc_settings changes are shared
+  modules. No new CLI flag (manifest_to_plan untouched, gate PASS), no new
+  dialog control (settings_roundtrip not triggered -- asserted, not skipped),
+  no new CLI post-pass (coverage gate PASS: 8 registered, 0 unreachable).
+
+  test_gui_engine_parity.py RUN on the real headless dialog (KiCad 10
+  python, wx 4.2.2 probed per the CLAUDE.md rule): VERDICT PARITY, copper
+  sets IDENTICAL (segments 1335/1335, vias 140/140, cli-only 0, gui-only 0).
+  A/B vs 42cba0e2 on splitflap: identical verdicts (DRC 0, ALL NETS FULLY
+  CONNECTED) old and new.
+
+  Placement-side additions (courtyard blocking channel, checked place_fixed,
+  review gates, check_pockets, connector_affinity) live in shared
+  py_placer/py_tools modules and skill drivers -- no GUI call site consumes
+  them yet; the GUI placement sub-tab reads check_assembly's JSON, which is
+  additive-only here (new keys, `blocking` untouched).
+
 84264a02 2026-08-19 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
 
 2026-08-19 parity audit cfdfb83..84264a02 (the run-22 honesty branch, 43
