@@ -1137,20 +1137,54 @@ def grade_body_overlap(pcb_data, clearance: float,
     _GATE_EXEMPT = ('marker_class', 'container_class', 'intent_declared')
     containment_blocking = [p for p in contained
                             if p.waiver not in _GATE_EXEMPT]
-    # Courtyard BLOCKING (run-23): the subset of unwaived courtyard pairs that
-    # gates. Both floors must trip -- area >= COURTYARD_BLOCKING_MIN_MM2 and
-    # depth >= COURTYARD_BLOCKING_MIN_DEPTH_MM -- so by-design slivers a
-    # healthy board carries stay advisory, and a synthetic (+/-0.5mm fiction)
-    # courtyard never gates anything. Run-23's board: J4<->U6 5.56/0.90,
-    # J3<->R13 0.865/0.92 and RN3<->U5 0.833/0.49 gate; D3<->SW1 0.059/0.02
-    # and the G*** phantoms do not. The full waiver ladder applies (unlike
-    # containment's, where edge_class deliberately does not exempt): a
-    # courtyard is body PLUS margin PLUS shell overhang, so an edge shell
-    # overlapping a neighbour's courtyard is the by-design case the corpus
-    # ships -- interpenetration of the BODIES is containment's job.
+    # Courtyard BLOCKING (run-23): the subset of courtyard pairs that gates.
+    # Both floors must trip -- area >= COURTYARD_BLOCKING_MIN_MM2 and depth
+    # >= COURTYARD_BLOCKING_MIN_DEPTH_MM -- so by-design slivers a healthy
+    # board carries stay advisory, and a synthetic (+/-0.5mm fiction)
+    # courtyard never gates anything.
+    #
+    # The waiver ladder applies WITH ONE GEOMETRY CONDITION on edge_class
+    # (the run-22 containment lesson, in its courtyard form): an edge-class
+    # waiver is a claim that the part's shell/actuator legitimately overhangs
+    # -- which is only TRUE of a part that is actually AT an edge. Run-23's
+    # board waived every SW1/SW2 collision this way (SW1<->U1 1.74mm2,
+    # FB1<->SW2 0.70mm2 with real body contact) while SW2 sat 8.33mm
+    # INTERIOR, where the overhang story is geometrically dead. The waiver
+    # now stands only for a member whose pose is edge-LIVE: overhanging the
+    # outline, or within SEAT_TOL_MM of an edge. J1<->SW1 stays waived (J1
+    # is a receptacle overhanging at the edge; its courtyard includes the
+    # mating volume); marker/container/intent waivers are untouched --
+    # geometry cannot invalidate "this is a fiducial" or an authored intent.
+    _EDGE_W = ('edge_receptacle', 'edge_actuator')
+    _edge_live_cache: Dict[str, bool] = {}
+
+    def _edge_waiver_live(ref: str) -> bool:
+        if ref in _edge_live_cache:
+            return _edge_live_cache[ref]
+        live = False
+        if _class_of(ref) in _EDGE_W and bb:
+            g = next((x for x in _graded if x.ref == ref), None)
+            if g is not None:
+                try:
+                    from .part_class import SEAT_TOL_MM
+                    _og = BoardOutlineGate(pcb_data.board_info, 0.0)
+                    live = (_og.rect_outside_amount(g.rect) > EPS
+                            or _og.edge_clearance(g.rect) <= SEAT_TOL_MM)
+                except Exception:                            # noqa: BLE001
+                    live = True     # unmeasurable geometry never UN-waives
+        _edge_live_cache[ref] = live
+        return live
+
+    def _blocking_waived(p) -> bool:
+        if not p.waived:
+            return False
+        if p.waiver != 'edge_class':
+            return True
+        return _edge_waiver_live(p.a) or _edge_waiver_live(p.b)
+
     courtyard_blocking = [
         p for p in pairs
-        if p.kind == 'courtyard' and not p.waived
+        if p.kind == 'courtyard' and not _blocking_waived(p)
         and p.area_mm2 >= COURTYARD_BLOCKING_MIN_MM2
         and p.depth_mm >= COURTYARD_BLOCKING_MIN_DEPTH_MM
         and p.a not in _synthetic_refs and p.b not in _synthetic_refs]

@@ -63,12 +63,12 @@ class TestRun23Board(unittest.TestCase):
         self.assertEqual(r.returncode, 4, r.stdout[-600:])
         self.assertFalse(doc['buildable'])
         self.assertIn('NOT BUILDABLE', r.stdout)
-        self.assertEqual(doc['courtyard_blocking_gating'], 3)
+        self.assertEqual(doc['courtyard_blocking_gating'], 4)
         self.assertEqual(doc['courtyard_gating_basis'], 'moved-vs-baseline')
         gating = {(q['a'], q['b'])
                   for q in doc['courtyard_blocking_gating_pairs']}
         self.assertEqual(gating, {('J4', 'U6'), ('J3', 'R13'),
-                                  ('RN3', 'U5')})
+                                  ('RN3', 'U5'), ('SW1', 'U1')})
         # `blocking` (pad intersections) must NOT have moved -- it has three
         # consumers and this board has none.
         self.assertEqual(doc['blocking'], 0)
@@ -86,7 +86,7 @@ class TestRun23Board(unittest.TestCase):
         r, doc = _grade(PLACED)
         self.assertEqual(r.returncode, 0, r.stdout[-600:])
         self.assertTrue(doc['buildable'])
-        self.assertEqual(doc['courtyard_blocking'], 3)
+        self.assertEqual(doc['courtyard_blocking'], 5)
         self.assertIsNone(doc['courtyard_blocking_gating'])
         self.assertEqual(doc['courtyard_gating_basis'],
                          'no-baseline: report-only')
@@ -109,6 +109,28 @@ class TestRun23Board(unittest.TestCase):
         self.assertNotIn(('J4', 'R21'), blocked)
         census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
         self.assertIn(('J4', 'R21'), census)
+
+    def test_dead_edge_waiver_does_not_hide_the_switches(self):
+        """The user's own finding, pinned: SW1/SW2 collided with parts and
+        NOTHING said so, because edge_class -- a class lookup with no
+        geometry -- waived every pair. The waiver now stands only for a
+        member whose pose is edge-LIVE (overhanging, or within seat
+        tolerance): SW1 sat 2.0mm interior, SW2 8.33mm, so SW1<->U1 and
+        FB1<->SW2 join the blocking census; J1<->SW1 stays waived because
+        J1 IS at the edge overhanging (its courtyard includes the mating
+        volume)."""
+        _r, doc = _grade(PLACED, '--baseline', DAMAGED)
+        blocked = {(q['a'], q['b']) for q in doc['courtyard_blocking_pairs']}
+        self.assertIn(('SW1', 'U1'), blocked)
+        self.assertIn(('FB1', 'SW2'), blocked)
+        self.assertNotIn(('J1', 'SW1'), blocked)
+        # FB1<->SW2 is the moved-currency's NAMED blind spot: the damage
+        # placed both and the repair never touched either, so no movement
+        # test can charge it without flipping pristine boards. It must stay
+        # visible in the census while NOT gating.
+        gating = {(q['a'], q['b'])
+                  for q in doc['courtyard_blocking_gating_pairs']}
+        self.assertNotIn(('FB1', 'SW2'), gating)
 
     def test_full_census_is_carried(self):
         """The 15-pair census the user SAW must be in the JSON, waivers and
@@ -157,7 +179,8 @@ class TestRenderCourtyardTruth(unittest.TestCase):
         blocked = {(a, b) for a, b, _m, _d in
                    cl['b_courtyard_blocking_pairs']}
         self.assertEqual(blocked, {('J4', 'U6'), ('J3', 'R13'),
-                                   ('RN3', 'U5')})
+                                   ('RN3', 'U5'), ('SW1', 'U1'),
+                                   ('FB1', 'SW2')})
         census = {(a, b) for a, b, _m, _d in cl['b_courtyard_overlap_pairs']}
         self.assertIn(('J4', 'R21'), census)   # sub-floor sliver: listed,
         self.assertNotIn(('J4', 'R21'), blocked)  # never blocking

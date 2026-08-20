@@ -96,6 +96,10 @@ def plant_at(src, dst, ref, x, y, td):
     """
     plan = {'schema': 1, 'steps': [
         {'action': 'place_fixed', 'ref': ref, 'at': [x, y],
+         # run-23: place_fixed now REFUSES a part-overlap assert without an
+         # explicit acknowledgement -- which is exactly what this fixture
+         # does on purpose. The acknowledge key is the recorded decision.
+         'acknowledge': True,
          'note': f'plant {ref} to make a containment'}]}
     pp = os.path.join(td, f'plant_{ref}.json')
     with open(pp, 'w', encoding='utf-8') as fh:

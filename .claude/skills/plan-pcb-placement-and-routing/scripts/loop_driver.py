@@ -1317,6 +1317,42 @@ def l2(a):
     # a board placed by someone else, handed straight to routing, has no
     # placement lap to record and never will. "I could not check" must not
     # become "you failed", or the legitimate path stops working.
+    # run-23: the BLIND-FIRST VISUAL REVIEW gate. Every numeric gate below
+    # passed run 23's board while it carried 15 courtyard interpenetrations
+    # and four mid-board connectors -- things a human saw in the render in
+    # seconds. The orchestrator viewed ONE image in 4.7 hours, after the
+    # failure, because no stage ever asked for eyes. This one does: the
+    # handoff is the last copper-free moment, so it is the cheapest one.
+    _rv = os.path.join(work, 'review_handoff.md')
+    if not (os.path.isfile(_rv) and os.path.getsize(_rv) >= 200):
+        return err(
+            f'No boundary review at {_rv} (missing or trivially small).\n\n'
+            f'Before the handoff, VIEW the board and write down what you saw '
+            f'-- BLIND-FIRST: open the renders and write your observations '
+            f'BEFORE reading any checklist key or banner metric. Run 23 '
+            f'measured why that ordering matters: the reviewer had "overlap '
+            f'26.30mm2" printed in the image banner and read past it, because '
+            f'the keys had already said clean and a closed question stays '
+            f'closed.\n\n'
+            f'  python3 -X utf8 py_tools/render_placement.py {a.board} \\\n'
+            f'      --clearance <the board\'s own floor> '
+            f'--review-sheet {work}/review_sheet.png \\\n'
+            f'      --json-out {work}/review_render.json -o {work}/review.png\n\n'
+            f'Open {work}/review_sheet.png and write {_rv} with:\n'
+            f'  1. OBSERVATIONS (written before reading any JSON): connectors '
+            f'vs edges with distances; density pockets vs empty regions; '
+            f'orientation coherence; decap proximity; anything wrong that no '
+            f'key names.\n'
+            f'  2. RECONCILIATION (written after): every observation either '
+            f'dispositioned against a named key/number, or converted into a '
+            f'refusal of this handoff.\n'
+            f'  3. The check_pockets windows, each dispositioned:\n'
+            f'     python3 -X utf8 py_tools/check_pockets.py {a.board} '
+            f'--json {work}/pockets.json\n\n'
+            f'Observations must carry distances/mm2 the keys alone cannot '
+            f'produce -- that is what makes the review real rather than '
+            f'theater. ~2 images; run 23 spent 1.5M tokens NOT looking.')
+
     delegate, why = _delegation(a, half='routing')
     cyc, P = _paths(a)
     _frozen, _routed = P['frozen.kicad_pcb'], P['routed.kicad_pcb']
@@ -2621,7 +2657,33 @@ def _close_out(a, name):
     # STUCK/BUDGET alongside INCOMPLETE is a CONSISTENT pair and passes. It
     # lives in _cross_check now because it also has to run on the CONTINUE
     # branch -- see there for the run where it never ran at all.
-    return _cross_check(a, name, doc)
+    _disagree = _cross_check(a, name, doc)
+    if _disagree:
+        return _disagree
+    # run-23: the LAST guard, deliberately -- every evidence check above
+    # has passed, and the remaining question is whether anyone LOOKED.
+    # Same blind-first protocol as L2's handoff review, on the board
+    # being SHIPPED; not waivable by --accept-unclosed (that flag accepts
+    # a named CHECK's residue; this is not a check, it is eyes).
+    _work_dir = _work(a)
+    _rvc = os.path.join(_work_dir, 'review_close.md')
+    if not (os.path.isfile(_rvc) and os.path.getsize(_rvc) >= 200):
+        return err(
+            f'Every close-out number passed -- and nobody has LOOKED at '
+            f'the board being shipped ({_rvc} is missing or trivially '
+            f'small).\n\nRun 23 shipped a board a human rejected at a '
+            f'glance -- 15 courtyard interpenetrations, connectors '
+            f'mid-board -- while every terminal number read clean. '
+            f'Produce the sheet, view it BLIND-FIRST (observations '
+            f'written before reading any key), then reconcile each '
+            f'observation against a named number or refuse this close:\n'
+            f'  python3 -X utf8 py_tools/render_placement.py {a.board} \\\n'
+            f'      --clearance <the board\'s own floor> '
+            f'--review-sheet {_work_dir}/review_close_sheet.png \\\n'
+            f'      --json-out {_work_dir}/review_close_render.json '
+            f'-o {_work_dir}/review_close.png\n'
+            f'Write the review to {_rvc}, then re-run this stage.')
+    return None
 
 
 STAGES = {'L1': l1, 'L2': l2, 'L3': l3, 'L4': l4, 'L5': l5}
@@ -2826,6 +2888,9 @@ def main(argv=None):
             # opposite of what a dump is for.
             _bd = os.path.join(tmp, 'b.kicad_pcb')
             open(_bd, 'w', encoding='utf-8').close()
+            # run-23: the review gates read files beside the ledger.
+            _stage_review(tmp, 'review_handoff.md')
+            _stage_review(tmp, 'review_close.md')
             # ...and a LEDGER carrying that board's sha. L5 now refuses without
             # one, because its verdict is computed from the ledger and an empty
             # history reads as "still improving".
@@ -2945,6 +3010,24 @@ def main(argv=None):
     return code
 
 
+def _stage_review(d, name):
+    """A non-trivial review fixture, for tests exercising the OTHER guards.
+
+    run-23 added the blind-first review gates (L2 handoff, close-out); every
+    self-test case that expects a stage to EMIT must carry one, exactly as
+    the close-out fixtures carry every key their gates read.
+    """
+    p = os.path.join(d, name)
+    with open(p, 'w', encoding='utf-8') as fh:
+        fh.write('# boundary review (self-test fixture)\n\n'
+                 'OBSERVATIONS (blind-first): fixture board, no panels to '
+                 'view in a unit test; nothing off-outline, no pockets, no '
+                 'interior connectors observed.\n\n'
+                 'RECONCILIATION: nothing observed, nothing to disposition; '
+                 'the numeric gates carry this fixture.\n')
+    return p
+
+
 def _self_test():
     import tempfile
     bad = []
@@ -2980,6 +3063,11 @@ def _self_test():
         # detector: run 10 fed this gate `board_score`'s JSON, which shares the
         # field name `blocking` and means a six-component total by it, and
         # three of the four checks silently did not run.
+        # run-23: pass-through cases also need the review gate satisfied, in
+        # THIS tmp (never the repo's wk/), so the ledger is scoped here too.
+        base = ['--board', 'b.kicad_pcb',
+                '--ledger', os.path.join(tmp, 'ledger.jsonl')]
+        _stage_review(tmp, 'review_handoff.md')
         _asm = {'buildable': True, 'verdict': 'buildable (blocking 0)',
                 'locked_contacts': 0, 'oob_pad_count': 0}
         p = os.path.join(tmp, 'p.json')
@@ -3061,6 +3149,7 @@ def _self_test():
         want('nothing to classify' in out,
              'a clean score has no failure to classify')
 
+    base = ['--board', 'b.kicad_pcb']
     with tempfile.TemporaryDirectory() as _ct:
         def _cong(name, hpwl, crossings=500.0):
             p = os.path.join(_ct, name)
@@ -3176,7 +3265,9 @@ def _self_test():
             n = _part_count(small)
             want(isinstance(n, int) and n > 0,
                  'the board can be sized at all')
-            auto = ['--board', small, '--placement-report', rep]
+            _stage_review(_t, 'review_handoff.md')     # run-23 gate fixture
+            auto = ['--board', small, '--placement-report', rep,
+                    '--ledger', os.path.join(_t, 'ledger.jsonl')]
             for k in ('L1', 'L2'):
                 out = STAGES[k](_args(auto))
                 want('DELEGATING:' in out and '<subagent_prompt' in out,
@@ -3210,7 +3301,8 @@ def _self_test():
         # An unreadable board no longer changes the decision -- it only changes
         # what can be SAID about it.
         out = STAGES['L1'](_args(['--board', os.path.join(_t, 'nope.kicad_pcb'),
-                                  '--placement-report', rep]))
+                                  '--placement-report', rep,
+                                  '--ledger', os.path.join(_t, 'l2.jsonl')]))
         want('could not be read' in out and '<subagent_prompt' in out,
              'an unreadable board still delegates, and says it could not size it')
 
@@ -3222,6 +3314,8 @@ def _self_test():
         # close-out commands, and the close-out is the run's terminal artifact.
         _bf = os.path.join(tmp, 'b.kicad_pcb')
         open(_bf, 'w', encoding='utf-8').close()
+        _stage_review(tmp, 'review_handoff.md')      # run-23 gate fixtures
+        _stage_review(tmp, 'review_close.md')
         ok_rep = os.path.join(tmp, 'p.json')
         # The close-out must also carry the keys the L2 gate now reads --
         # `buildable`, `locked_contacts` and the board it graded -- because a
@@ -3307,6 +3401,8 @@ def _self_test():
         # fixtures were relying on that.
         _b5 = os.path.join(tmp, 'b.kicad_pcb')
         open(_b5, 'w', encoding='utf-8').close()
+        _stage_review(tmp, 'review_handoff.md')      # run-23 gate fixtures
+        _stage_review(tmp, 'review_close.md')
         base = ['--board', _b5]
 
         want(STAGES['L5'](_args(base)).startswith('<error>'),
@@ -3615,6 +3711,8 @@ def _self_test():
     with tempfile.TemporaryDirectory() as tmp:
         _b = os.path.join(tmp, 'b.kicad_pcb')
         open(_b, 'w', encoding='utf-8').write('(kicad_pcb)')
+        _stage_review(tmp, 'review_handoff.md')      # run-23 gate fixtures
+        _stage_review(tmp, 'review_close.md')
         sys.path.insert(0, ROOT)
         from board_store import sha256_file as _shaf2
         _rep = os.path.join(tmp, 'p.json')
@@ -3918,6 +4016,7 @@ def _self_test():
         # the freeze itself writes the _cN name.
         _c2 = os.path.join(tmp, 'c2')
         os.makedirs(_c2)
+        _stage_review(_c2, 'review_handoff.md')      # run-23 gate fixture
         open(os.path.join(_c2, 'frozen_c2.kicad_pcb'), 'w',
              encoding='utf-8').close()
         _c2fwd = _c2.replace('\\', '/')

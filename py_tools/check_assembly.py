@@ -329,6 +329,13 @@ def main():
     # itself can never flip, while a repair run owns every pair its moves
     # created or failed to clear (run-23: J4/J3/RN3 all moved; all three
     # defects gate).
+    #
+    # The currency's ONE blind spot, named rather than papered over: a pair
+    # the DAMAGE created and the repair never touched (neither member moved)
+    # reads as the baseline's own -- run-23's FB1<->SW2 (0.70mm2, real body
+    # contact) is exactly that. It stays in the census and the review-sheet
+    # facts, and the boundary review must disposition it; no movement test
+    # can charge it without also flipping pristine boards.
     courtyard_gating = []
     if g['courtyard_blocking'] and moved_refs is not None:
         courtyard_gating = [q for q in g['courtyard_blocking_pairs']

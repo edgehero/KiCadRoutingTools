@@ -1021,6 +1021,23 @@ the stackup is never edited directly.
 either confirms or contradicts it, and the number wins. A render that looks
 tidier while `crossings` went up is a worse placement that photographs well.
 
+**And at a BOUNDARY, never read the numbers on their own either** (run-23).
+The key-pairing discipline has a measured failure mode: keys become the ONLY
+channel, and a reviewer with "overlap 26.30mm2" printed in the image banner
+read past it because the keys had already said clean — the board shipped with
+15 courtyard interpenetrations and four mid-board connectors a human rejected
+at a glance. At each boundary (post-placement close, the L2 handoff, after
+the FIRST route lap, close-out): produce `render_placement --review-sheet`,
+VIEW it **blind-first** — write your observations (connectors vs edges with
+distances, density pockets vs empty regions, orientation coherence, anything
+wrong that no key names) BEFORE reading any checklist key — then write a
+reconciliation paragraph dispositioning each observation against a named
+number, or refuse the boundary. The L2 and close-out gates refuse without the
+written review (`review_handoff.md` / `review_close.md`); the post-first-route
+review is yours to keep honest, and it is the cheapest of the four — the
+first route lap is where a placement-shaped failure is still one cheap
+re-entry away.
+
 Full key-by-key map in
 [`references/evidence-map.md`](references/evidence-map.md) — read it before
 quoting any number. The headline pairings:
@@ -4523,9 +4540,24 @@ learn:
    does not extend to dru rules — a net routed under a staged/lifted dru
    cannot be re-made by any call that reads the full sibling dru (see Step 5's
    dru-has-no-pin bullet).
-3. **One net per call.** Routing two nets together let the second rip the first —
-   reported as `1/2 routed` twice running, a different net each time. Sequential
-   single-net calls connected both.
+3. **One net per call — with ONE scoped exception, the JOINT CO-ROUTE.** Routing
+   two unrelated nets together let the second rip the first — reported as `1/2
+   routed` twice running, a different net each time; sequential single-net calls
+   connected both. The exception (run-23): when forensics NAME the committed
+   copper caging a net (`converge.py where --oracle`, `net_forensics --json`,
+   a check_join refutation naming the wall), route the caged net **and exactly
+   its named blockers in one call**, blockers also in the rip set:
+
+       route.py ... --nets <net> <blocker...> --rip-existing-nets <blocker...>
+
+   Sequential calls CANNOT solve this shape — each re-commits a blocker the
+   next call must rip (run 23 measured it: 12 single-net laps, 6 of them
+   zero-delta, blocking flat for 18 consecutive laps, while the one joint
+   co-route lap negotiated the pocket). The scope is the discipline: the
+   co-route set is the FORENSICS' list, never "the nets that keep failing".
+   Rule 2 still applies to every member (width-bearing blockers keep their
+   widths), and take this rung EARLY — right after the first failed
+   single-net retry with a named wall — not as a last resort.
 4. **A glob does not override a lock.** `--rip-existing-nets 'QSPI_*'` silently
    skips a locked or protected net (#521) while the router keeps asking for that
    exact rip. Name it EXACTLY (the exact-name override now reaches the in-run
@@ -4705,6 +4737,18 @@ victim keeps rotating across MORE than two nets as you permute the order, stop
 permuting: score each order as its own full-chain lineage and let the ledger
 pick (9.3d's rip-return row) — and if the same victim SET survives every order,
 it is capacity (the lane ledger has the number), not ordering.
+
+**And CAP the single-net laps (run-23).** After **2 laps with no
+oracle-verified blocking delta on the WRITTEN board**, single-net laps are
+forbidden: escalate to the joint co-route (9.3c rule 3's exception) with
+forensics-named blockers, or to analysis — never a third single-net lap. Two
+clauses that make the cap honest, both measured: (a) the delta is the
+ORACLE'S, on the written file — run 23's R15 closed ZERO of its 4 targets
+while the in-run buckets said only one failed, because terminal restores
+reverted after the tally printed; (b) a lap that produced **zero board
+delta does not count as an attempt but DOES count against the cap** — run 23
+recorded six measured no-op laps (~330s of router time) that its loop
+counted as tries.
 
 **The tooling-vs-placement discriminator (#118), for a converged board with
 few failures left:** ask whether a competent human could hand-route the
@@ -4941,8 +4985,12 @@ pulling at you, write the next ledger entry instead:
 - **"I have written up the findings."** The report is not the deliverable while
   nets are unrouted. Finish the board, then write.
 - **"The last lever failed."** Revert and take the next one. The ladder has more
-  rungs than you have tried: rip set → grid → layer → via cost → width → order →
-  placement → hand-authored micro-copper.
+  rungs than you have tried: rip set → **joint co-route (forensics-named
+  blockers, 9.3c rule 3's exception)** → grid → layer → via cost → width →
+  order → placement → hand-authored micro-copper. The joint co-route sits
+  SECOND deliberately (run-23): it was tried last, after 12 single-net laps
+  and 18 flat laps of blocking, and it was the lever that finally negotiated
+  the pocket.
 
 **Rung 8, hand-authored micro-copper, exists — with FIVE hard conditions.**
 
