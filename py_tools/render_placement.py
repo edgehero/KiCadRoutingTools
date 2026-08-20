@@ -997,13 +997,17 @@ def write_review_sheet(path, panel_paths, fnd, conn_facts) -> None:
     lines = []
     cb = fnd.get('courtyard_blocking_pairs_refs') or []
     cs = fnd.get('courtyard_overlap_pairs_refs') or []
+    # Count the BLOCKING list, not "unwaived": waiver-voided pairs (dead
+    # edge waivers, locked members) gate while staying labeled waived, so
+    # the two counts legitimately differ and the blocking one is the
+    # headline.
     lines.append(
-        f"courtyard: {len(cs)} unwaived pair(s), census "
-        f"{fnd.get('courtyard_overlap_mm2', 0)}mm2 total"
+        f"courtyard census {fnd.get('courtyard_overlap_mm2', 0)}mm2 "
+        f"({len(cs)} unwaived advisory)"
         # '  |  '-separated, not comma: the strip wrapper breaks lines at
         # that separator, and a comma-joined blocking list ran off the sheet
         # unwrappable (found on the 10-pair run-23 board).
-        + ("  |  BLOCKING: " + '  |  '.join(
+        + (f"  |  BLOCKING ({len(cb)}): " + '  |  '.join(
             f"{a}<->{b} {m}mm2/depth {dp}mm" for a, b, m, dp in cb)
            if cb else "  |  blocking: none"))
     if conn_facts:
@@ -1516,6 +1520,12 @@ Examples:
                    help='force an F and a B panel (run-6: boards with '
                         'back-side parts get per-side panels by DEFAULT; '
                         'this flag only matters with --flat semantics)')
+    p.add_argument('--side', choices=('F', 'B'), default=None,
+                   help='render ONLY this side\'s panel (run-23: there was '
+                        'no way to ask for one face -- the choices were both '
+                        'panels or --flat, which mixes the faces into one '
+                        'image). Overrides --per-side/--flat; the review '
+                        'sheet then carries the one panel.')
     p.add_argument('--flat', action='store_true',
                    help='one flattened panel even when the board has '
                         'back-side parts (the pre-run-6 default; a B part '
@@ -1847,6 +1857,9 @@ def main(argv=None):
         sides = (None,)
         if not args.quiet:
             print("  (no back-side footprints and no B.Cu: skipping the B panel)")
+    if args.side:
+        # ONE face, explicitly asked for: overrides the split heuristics.
+        sides = (args.side,)
 
     panels = []
     if before_model is not None:
