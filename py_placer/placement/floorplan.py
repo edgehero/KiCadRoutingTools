@@ -1453,15 +1453,37 @@ def emit_intent(pcb_data, pcb_file: str, *,
     # (the emitted 6.112 budget graded the C14-on-R14 board clean). The
     # repaired board re-emits the honest number; meanwhile board_score's
     # `assembly` component grades independently of any budget.
+    # Run-23 extends the same withholding to unwaived COURTYARD interpene-
+    # trations past the blocking floors: run 23's intent was emitted from a
+    # mid-repair board carrying J4 0.90mm inside U6, baked overlap_area
+    # 30.1085, and the final board's 26.302 then graded PASS -- the budget
+    # blessed the board it was emitted from. A board with such pairs gets no
+    # auto overlap budget; declare one by hand (visibly) if the overlap is
+    # by design. Cost, measured: 5 of 34 corpus boards carry by-design
+    # censuses and lose the auto-budget too -- the legality rule then
+    # ABSTAINS (not-derivable) on them, which is honest degradation; their
+    # independent coverage is check_assembly's moved-vs-baseline gate.
     try:
         from placement.legality import grade_body_overlap
-        _body_blocking = grade_body_overlap(
-            pcb_data, state.clearance, pcb_file=pcb_file)['blocking']
+        _g_overlap = grade_body_overlap(
+            pcb_data, state.clearance, pcb_file=pcb_file)
+        _body_blocking = _g_overlap['blocking']
+        _courtyard_blocking = _g_overlap.get('courtyard_blocking', 0)
     except Exception:
         _body_blocking = 0
+        _courtyard_blocking = 0
     _suspects = any('SUSPECT' in (c.get('note') or '') for c in conns)
     _budget = {}
-    if not _body_blocking:
+    _withheld = {}
+    if _body_blocking:
+        _withheld['overlap_area'] = (f'{_body_blocking} blocking body '
+                                     f'pair(s) on the emitting board (run-6)')
+    elif _courtyard_blocking:
+        _withheld['overlap_area'] = (
+            f'{_courtyard_blocking} unwaived courtyard interpenetration(s) '
+            f'past the blocking floors on the emitting board (run-23): an '
+            f'auto-budget would bless them')
+    else:
         _budget['overlap_area'] = _ceil4(float(leg['overlap_area']))
     if not _suspects:
         _budget['oob_count'] = int(leg['oob_count'])
@@ -1499,6 +1521,10 @@ def emit_intent(pcb_data, pcb_file: str, *,
             'note': ('read-only, describing the board as it is. The outline is '
                      'not editable by this toolchain: size, cutouts and slots '
                      'are mechanical decisions the user owns'),
+            # Budget keys deliberately NOT baked, and why -- so a reader of
+            # the intent can tell "withheld" from "forgot" (empty when
+            # nothing was withheld).
+            'budget_withheld': _withheld,
             'cutouts': [[[round(x, 3), round(y, 3)] for x, y in ring]
                         for ring in (pcb_data.board_info.board_cutouts or [])],
             'edge_contours': len(

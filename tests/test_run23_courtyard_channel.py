@@ -1,0 +1,143 @@
+"""The run-23 courtyard channel: census absolute, gate moved-vs-baseline.
+
+Run 23 shipped a board every gate called buildable while J4 stood 0.90mm
+inside U6's courtyard (5.56mm2), J3 interpenetrated R13 and RN3 still sat
+0.83mm2 into U5 -- residue of the staged damage the repair moved but never
+cleared. The courtyard channel existed and was advisory everywhere.
+
+Why the gate is moved-vs-baseline and NOT absolute, measured on this repo's
+own corpus before this landed: 5 of 34 healthy human boards (glasgow_revC,
+orangecrab_ext_pll, rp2350_fpga_eensy_prePlane, ulx3s, watchy) ship unwaived
+courtyard interpenetrations past any sane area/depth floor -- ulx3s GPDI1<->
+U11 at 38.5mm2 / depth 5.1, rp2350 U3 frac-1.0 inside J2 -- all by design
+(parts under connector shells). An absolute conjunct flips them all NOT
+BUILDABLE. A pair therefore gates only when a MEMBER MOVED relative to
+--baseline: a pristine board graded against itself can never flip, while a
+repair run owns every pair its moves created or failed to clear.
+
+And why moved-MEMBER rather than new-PAIR: RN3<->U5 exists in the damaged
+baseline too (the staged containment). A membership test calls it
+pre-existing and misses it; the repair moved RN3 3.28mm, so the moved test
+charges it. That distinction is pinned here because it is exactly the kind
+of clause a cleanup would simplify away.
+"""
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+
+PLACED = os.path.join(ROOT, 'tests', 'fixtures', 'run23',
+                      'tigard_placed.kicad_pcb')
+DAMAGED = os.path.join(ROOT, 'tests', 'fixtures', 'run23',
+                       'tigard_damaged.kicad_pcb')
+ULX3S = os.path.join(ROOT, 'kicad_files', 'ulx3s.kicad_pcb')
+
+
+def _run(*argv):
+    env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8',
+               KRT_NO_BANNER='1')
+    return subprocess.run(
+        [sys.executable, '-X', 'utf8',
+         os.path.join(ROOT, 'py_tools', 'check_assembly.py'), *argv],
+        capture_output=True, text=True, env=env, cwd=ROOT)
+
+
+def _grade(board, *extra):
+    with tempfile.TemporaryDirectory() as td:
+        jp = os.path.join(td, 'a.json')
+        r = _run(board, '--json', jp, *extra)
+        return r, json.load(open(jp, encoding='utf-8'))
+
+
+class TestRun23Board(unittest.TestCase):
+    """The board run 23 actually shipped, graded the way the run should."""
+
+    def test_gates_against_the_damaged_baseline(self):
+        r, doc = _grade(PLACED, '--baseline', DAMAGED)
+        self.assertEqual(r.returncode, 4, r.stdout[-600:])
+        self.assertFalse(doc['buildable'])
+        self.assertIn('NOT BUILDABLE', r.stdout)
+        self.assertEqual(doc['courtyard_blocking_gating'], 3)
+        self.assertEqual(doc['courtyard_gating_basis'], 'moved-vs-baseline')
+        gating = {(q['a'], q['b'])
+                  for q in doc['courtyard_blocking_gating_pairs']}
+        self.assertEqual(gating, {('J4', 'U6'), ('J3', 'R13'),
+                                  ('RN3', 'U5')})
+        # `blocking` (pad intersections) must NOT have moved -- it has three
+        # consumers and this board has none.
+        self.assertEqual(doc['blocking'], 0)
+
+    def test_moved_member_charges_a_baseline_resident_pair(self):
+        """RN3<->U5 is IN the damaged baseline; a new-pair test misses it."""
+        r, doc = _grade(PLACED, '--baseline', DAMAGED)
+        gating = {(q['a'], q['b'])
+                  for q in doc['courtyard_blocking_gating_pairs']}
+        self.assertIn(('RN3', 'U5'), gating)
+        # And the stdout names WHO moved (RN3; U5 stood still).
+        self.assertIn('GATES (moved: RN3)', r.stdout)
+
+    def test_without_baseline_census_reports_but_never_gates(self):
+        r, doc = _grade(PLACED)
+        self.assertEqual(r.returncode, 0, r.stdout[-600:])
+        self.assertTrue(doc['buildable'])
+        self.assertEqual(doc['courtyard_blocking'], 3)
+        self.assertIsNone(doc['courtyard_blocking_gating'])
+        self.assertEqual(doc['courtyard_gating_basis'],
+                         'no-baseline: report-only')
+        self.assertIn('REPORT-ONLY', r.stdout)
+
+    def test_synthetic_courtyards_never_block(self):
+        """G***'s +/-0.5mm fictional box manufactured a 0.537mm2 'pair'."""
+        _r, doc = _grade(PLACED, '--baseline', DAMAGED)
+        self.assertIn('G***', doc['courtyard_synthetic_refs'])
+        blocked = {(q['a'], q['b']) for q in doc['courtyard_blocking_pairs']}
+        self.assertNotIn(('G***', 'J5'), blocked)
+        # ...but the pair stays VISIBLE in the census (disclosure, not gate).
+        census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
+        self.assertIn(('G***', 'J5'), census)
+
+    def test_floors_hold_the_sliver_out(self):
+        """J4<->R21 (0.445mm2) sits under the area floor: advisory only."""
+        _r, doc = _grade(PLACED, '--baseline', DAMAGED)
+        blocked = {(q['a'], q['b']) for q in doc['courtyard_blocking_pairs']}
+        self.assertNotIn(('J4', 'R21'), blocked)
+        census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
+        self.assertIn(('J4', 'R21'), census)
+
+    def test_full_census_is_carried(self):
+        """The 15-pair census the user SAW must be in the JSON, waivers and
+        all -- J1<->SW1 (7.0mm2, edge-waived) is the one a reader asks about
+        first."""
+        _r, doc = _grade(PLACED)
+        census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
+        self.assertIn(('J1', 'SW1'), census)
+        self.assertGreaterEqual(len(census), 15)
+
+
+class TestPristineBoards(unittest.TestCase):
+    """The corpus lesson: healthy boards carry big by-design censuses."""
+
+    def test_pristine_board_vs_itself_never_flips(self):
+        r, doc = _grade(ULX3S, '--baseline', ULX3S)
+        self.assertEqual(r.returncode, 0, r.stdout[-600:])
+        self.assertTrue(doc['buildable'])
+        # The census is large and REAL (GPDI1's shell over its passives) --
+        # pin that it exists, so a future "fix" that empties the census to
+        # make the gate quiet is caught here.
+        self.assertGreaterEqual(doc['courtyard_blocking'], 10)
+        self.assertEqual(doc['courtyard_blocking_gating'], 0)
+
+    def test_pristine_board_without_baseline_stays_buildable(self):
+        r, doc = _grade(ULX3S)
+        self.assertEqual(r.returncode, 0, r.stdout[-600:])
+        self.assertTrue(doc['buildable'])
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=1)

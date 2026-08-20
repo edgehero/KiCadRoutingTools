@@ -111,6 +111,19 @@ def rect_area(rect):
 #: separation, the same standard that licensed `stacks` to gate.
 CONTAINMENT_FRAC = 0.5
 
+#: Courtyard BLOCKING policy (run-23). The courtyard channel stayed advisory
+#: because area alone cannot tell a by-design kiss from an interpenetration:
+#: run-23's final board shipped D3<->SW1 at 0.059 mm2 / depth 0.02 (a sliver a
+#: healthy board carries) NEXT TO J4<->U6 at 5.56 mm2 / depth 0.90 (two parts
+#: in the same space) and every gate passed both. A pair gates only when BOTH
+#: exceed these floors -- area says the overlap is substantial, depth says it
+#: is an interpenetration rather than an edge graze -- and the pair is
+#: unwaived (marker/edge/container/intent ladders still apply) and both
+#: courtyards are REAL geometry (see GradedPart.synthetic: a zero-pad
+#: footprint's fictional +/-0.5mm box manufactures phantom pairs).
+COURTYARD_BLOCKING_MIN_MM2 = 0.5
+COURTYARD_BLOCKING_MIN_DEPTH_MM = 0.3
+
 
 def containment_frac(area, ra, rb):
     """How much of the SMALLER of two bodies the overlap `area` consumes.
@@ -649,6 +662,13 @@ class GradedPart(NamedTuple):
     rect: Tuple[float, float, float, float]      # courtyard, own side
     tht_rect: Optional[Tuple[float, float, float, float]] = None
     has_tht: bool = False
+    # True when `rect` is the +/-0.5mm FICTION compute_footprint_bbox_local
+    # returns for a footprint with no courtyard AND no pads (logos, graphics).
+    # Such a rect is not geometry anyone drew, so overlap against it must
+    # never gate -- run-23's G***<->J5 "0.537 mm2" pair was exactly this
+    # artifact. A pad-bbox fallback (pads exist, courtyard missing) stays
+    # False: those bounds are real copper.
+    synthetic: bool = False
 
     @property
     def sides(self) -> frozenset:
@@ -764,6 +784,12 @@ class BodyOverlapPair(NamedTuple):
     # has no body rect in scope, so it reports None rather than a 0.0 that
     # would read as a measurement someone took.
     contained_frac: Optional[float] = None
+    # Penetration depth: the SHORTER axis extent of the intersection rect, mm
+    # (0.0 = not measured; the pad_intersection channel has no body rects).
+    # Area cannot tell a long thin kiss from a real interpenetration --
+    # run-23: D3<->SW1 0.059mm2 at depth 0.02 vs J4<->U6 5.56mm2 at depth
+    # 0.90 -- and the courtyard blocking policy keys on this axis.
+    depth_mm: float = 0.0
     # `contained_frac >= CONTAINMENT_FRAC`, **on the fab channel only**.
     #
     # Why fab-only, measured on the same 33 boards: the COURTYARD currency
@@ -808,11 +834,15 @@ def body_overlap_pairs(parts: Sequence[GradedPart]) -> List[BodyOverlapPair]:
                     worst_side = s
                     worst_rects = (ra, rb)
             if worst > EPS:
+                ra, rb = worst_rects
+                _dx = min(ra[2], rb[2]) - max(ra[0], rb[0])
+                _dy = min(ra[3], rb[3]) - max(ra[1], rb[1])
                 out.append(BodyOverlapPair(
                     a=min(a.ref, b.ref), b=max(a.ref, b.ref),
                     kind='courtyard', area_mm2=round(worst, 4),
                     side=worst_side, waived=False, waiver='',
-                    contained_frac=containment_frac(worst, *worst_rects)))
+                    contained_frac=containment_frac(worst, *worst_rects),
+                    depth_mm=round(max(0.0, min(_dx, _dy)), 4)))
     out.sort(key=lambda p: (-p.area_mm2, p.a, p.b))
     return out
 
@@ -842,11 +872,14 @@ def graded_parts_from_file(pcb_data, pcb_file: Optional[str] = None
     for ref, fp in sorted((pcb_data.footprints or {}).items()):
         own = footprint_side(fp)
         local = None
+        synthetic = False
         if sides.get(ref):
             local = courtyard_for_side(sides[ref], own)
         if local is None:
             try:
                 local = compute_footprint_bbox_local(fp)
+                # No courtyard AND no pads: the +/-0.5mm fiction, not geometry.
+                synthetic = not (fp.pads or ())
             except Exception:
                 local = None
         if local is None:
@@ -862,7 +895,8 @@ def graded_parts_from_file(pcb_data, pcb_file: Optional[str] = None
                 tx0, ty0, tx1, ty1 = rotate_local_bounds(*tlb, rot)
                 tht = (fp.x + tx0, fp.y + ty0, fp.x + tx1, fp.y + ty1)
         out.append(GradedPart(ref=ref, side=own, rect=rect,
-                              tht_rect=tht, has_tht=has_tht))
+                              tht_rect=tht, has_tht=has_tht,
+                              synthetic=synthetic))
     return out
 
 
@@ -895,11 +929,15 @@ def grade_body_overlap(pcb_data, clearance: float,
         except Exception:
             return None
 
+    _graded = graded_parts_from_file(pcb_data, pcb_file)
+    # Refs whose courtyard rect is the zero-pad +/-0.5mm fiction: their pairs
+    # may inform but must never gate (run-23's phantom G***<->J5).
+    _synthetic_refs = {g.ref for g in _graded if g.synthetic}
     _containers: set = set()
     bb = getattr(getattr(pcb_data, 'board_info', None), 'board_bounds', None)
     if bb:
         _barea = max(1e-9, (bb[2] - bb[0]) * (bb[3] - bb[1]))
-        for g in graded_parts_from_file(pcb_data, pcb_file):
+        for g in _graded:
             if rect_area(g.rect) >= CONTAINER_RATIO * _barea:
                 _containers.add(g.ref)
 
@@ -921,8 +959,8 @@ def grade_body_overlap(pcb_data, clearance: float,
     # reported rather than silently conflated with "clean".
     fab_unjudged: set = set()
 
-    # -- courtyard channel (advisory) -----------------------------------------
-    for p in body_overlap_pairs(graded_parts_from_file(pcb_data, pcb_file)):
+    # -- courtyard channel (advisory + the run-23 blocking policy below) ------
+    for p in body_overlap_pairs(_graded):
         waiver = _waiver_for(p.a, p.b)
         pairs.append(p._replace(waived=bool(waiver), waiver=waiver))
 
@@ -954,12 +992,15 @@ def grade_body_overlap(pcb_data, clearance: float,
                 if ov > EPS:
                     waiver = _waiver_for(ra, rb)
                     _cf = containment_frac(ov, rca, rcb)
+                    _dx = min(rca[2], rcb[2]) - max(rca[0], rcb[0])
+                    _dy = min(rca[3], rcb[3]) - max(rca[1], rcb[1])
                     pairs.append(BodyOverlapPair(
                         a=min(ra, rb), b=max(ra, rb), kind='fab',
                         area_mm2=round(ov, 4), side=sa,
                         waived=bool(waiver), waiver=waiver,
                         contained_frac=_cf, contained=_cf is not None
-                        and _cf >= CONTAINMENT_FRAC))
+                        and _cf >= CONTAINMENT_FRAC,
+                        depth_mm=round(max(0.0, min(_dx, _dy)), 4)))
 
     # -- pad_intersection channel (never waivable) ----------------------------
     # AABB broad phase in the gate currency, then exact re-verification at
@@ -1096,6 +1137,23 @@ def grade_body_overlap(pcb_data, clearance: float,
     _GATE_EXEMPT = ('marker_class', 'container_class', 'intent_declared')
     containment_blocking = [p for p in contained
                             if p.waiver not in _GATE_EXEMPT]
+    # Courtyard BLOCKING (run-23): the subset of unwaived courtyard pairs that
+    # gates. Both floors must trip -- area >= COURTYARD_BLOCKING_MIN_MM2 and
+    # depth >= COURTYARD_BLOCKING_MIN_DEPTH_MM -- so by-design slivers a
+    # healthy board carries stay advisory, and a synthetic (+/-0.5mm fiction)
+    # courtyard never gates anything. Run-23's board: J4<->U6 5.56/0.90,
+    # J3<->R13 0.865/0.92 and RN3<->U5 0.833/0.49 gate; D3<->SW1 0.059/0.02
+    # and the G*** phantoms do not. The full waiver ladder applies (unlike
+    # containment's, where edge_class deliberately does not exempt): a
+    # courtyard is body PLUS margin PLUS shell overhang, so an edge shell
+    # overlapping a neighbour's courtyard is the by-design case the corpus
+    # ships -- interpenetration of the BODIES is containment's job.
+    courtyard_blocking = [
+        p for p in pairs
+        if p.kind == 'courtyard' and not p.waived
+        and p.area_mm2 >= COURTYARD_BLOCKING_MIN_MM2
+        and p.depth_mm >= COURTYARD_BLOCKING_MIN_DEPTH_MM
+        and p.a not in _synthetic_refs and p.b not in _synthetic_refs]
     return {'blocking': len(blocking),
             'advisory': len(advisory),
             'waived': sum(1 for p in pairs if p.waived),
@@ -1151,6 +1209,15 @@ def grade_body_overlap(pcb_data, clearance: float,
             # let a reader judge.
             'fab_unjudged': len(fab_unjudged),
             'fab_unjudged_refs': sorted(fab_unjudged),
+            # Run-23 courtyard blocking channel -- see the selection above.
+            # NOTE these pairs also remain in `advisory`/`advisory_pairs`
+            # (that count's meaning is unchanged for its existing consumers);
+            # a pair can be both advisory-listed and courtyard-blocking.
+            'courtyard_blocking': len(courtyard_blocking),
+            'courtyard_blocking_pairs': courtyard_blocking,
+            # Refs graded on the zero-pad +/-0.5mm fictional box: their pairs
+            # are disclosure, never gates (run-23's phantom G***<->J5).
+            'courtyard_synthetic_refs': sorted(_synthetic_refs),
             # E6: pairs where copper lands on a part KiCad marks (locked yes),
             # of ANY channel including waived ones. A locked pose is a decision
             # somebody made -- a mounting hole against an enclosure, a
