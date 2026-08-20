@@ -238,6 +238,7 @@ def legality_findings(model) -> Dict[str, object]:
            'courtyard_overlap_pairs_refs': [],
            'courtyard_blocking_pairs_refs': [],
            'courtyard_overlap_mm2': 0.0,
+           'cross_side_stacks': [],
            'locked_refs': sorted(r for r, p in model.parts().items()
                                  if getattr(p, 'locked', False))}
     state = getattr(model, 'state', None)
@@ -356,6 +357,29 @@ def legality_findings(model) -> Dict[str, object]:
                 for q in _g['courtyard_blocking_pairs']]
             out['courtyard_overlap_mm2'] = round(sum(
                 q.area_mm2 for q in _g['pairs'] if q.kind == 'courtyard'), 4)
+            # run-23 (ulx3s review): FRONT<->BACK stacks. Panels draw both
+            # faces' outlines with only a ghost tint, so a battery holder
+            # behind the buttons (BAT1/B4: 68.7mm2 of XY overlap, ZERO
+            # shared-side overlap) is visually indistinguishable from a
+            # collision, and a reviewer's honest eye reports a defect the
+            # census correctly refused to pair. Named here so the sheet can
+            # PRE-ANSWER the question instead of looking blind.
+            from placement.legality import (graded_parts_from_file,
+                                            rect_overlap_area)
+            _gp = [g for g in graded_parts_from_file(
+                       pcb, getattr(model, 'pcb_file', None))
+                   if not g.synthetic]
+            stacks = []
+            for i, ga in enumerate(_gp):
+                for gb in _gp[i + 1:]:
+                    if ga.sides & gb.sides:
+                        continue          # shared face: the census owns it
+                    raw = rect_overlap_area(ga.rect, gb.rect)
+                    if raw >= 1.0:
+                        stacks.append([min(ga.ref, gb.ref),
+                                       max(ga.ref, gb.ref), round(raw, 2)])
+            stacks.sort(key=lambda r: -r[2])
+            out['cross_side_stacks'] = stacks
         except Exception:
             pass
     model._legality_findings = out
@@ -990,6 +1014,14 @@ def write_review_sheet(path, panel_paths, fnd, conn_facts) -> None:
         lines.append("connectors, dist to nearest edge: " + '  |  '.join(chunk))
     else:
         lines.append("connectors: none recognised (name heuristic)")
+    xs = fnd.get('cross_side_stacks') or []
+    if xs:
+        # Pre-answer the reviewer's eye: these LOOK like collisions in the
+        # panels (both faces' outlines share the picture) and are not.
+        lines.append(
+            "front<->back stacks (opposite faces, NOT a conflict): "
+            + '  |  '.join(f"{a} over {b} {m}mm2" for a, b, m in xs[:14])
+            + (f"  |  +{len(xs) - 14} more" if len(xs) > 14 else ""))
 
     font = load_font(max(14, h // 60))
     lh = int(font.size * 1.5)
@@ -2081,6 +2113,11 @@ def main(argv=None):
                 'b_courtyard_blocking_pairs':
                     fnd['courtyard_blocking_pairs_refs'],
                 'b_courtyard_overlap_mm2': fnd['courtyard_overlap_mm2'],
+                # FRONT<->BACK stacks: XY overlap with NO shared face --
+                # deliberate on real boards (ulx3s: the battery holder
+                # behind the buttons), never a conflict, listed so a reader
+                # of the render does not mistake them for one.
+                'b_cross_side_stacks': fnd['cross_side_stacks'],
                 'c_hole_conflicts': fnd['hole_conflict_pairs_refs'],
                 'c_locked_refs': fnd['locked_refs'],
                 'd_moved': {'moved': len(moves),

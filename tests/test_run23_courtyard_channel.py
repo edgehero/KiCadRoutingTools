@@ -269,6 +269,34 @@ class TestPristineBoards(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout[-600:])
         self.assertTrue(doc['buildable'])
 
+    def test_cross_side_stacks_are_named_not_paired(self):
+        """User finding on the ulx3s review: BAT1 sits BEHIND the buttons
+        (B4: 68.7mm2 of XY overlap, opposite faces) and the panels make that
+        visually indistinguishable from a collision. The census correctly
+        refuses to pair opposite faces; the render's checklist now NAMES the
+        stacks so the sheet pre-answers the eye instead of looking blind."""
+        import subprocess as _sp
+        env = dict(os.environ, PYTHONPATH=ROOT, PYTHONIOENCODING='utf-8',
+                   KRT_NO_BANNER='1')
+        with tempfile.TemporaryDirectory() as td:
+            jp = os.path.join(td, 'r.json')
+            r = _sp.run([sys.executable, '-X', 'utf8',
+                         os.path.join(ROOT, 'py_tools',
+                                      'render_placement.py'),
+                         ULX3S, '--json-out', jp,
+                         '-o', os.path.join(td, 'r.png')],
+                        capture_output=True, text=True, env=env, cwd=ROOT)
+            self.assertEqual(r.returncode, 0, r.stdout[-400:])
+            doc = json.load(open(jp, encoding='utf-8'))
+            stacks = {(a, b) for a, b, _m in
+                      doc['checklist']['b_cross_side_stacks']}
+            self.assertIn(('B4', 'BAT1'), stacks)
+            # ...and the same pair is NOT in the courtyard census: opposite
+            # faces never pair.
+            census = {(a, b) for a, b, *_ in
+                      doc['checklist']['b_courtyard_overlap_pairs']}
+            self.assertNotIn(('B4', 'BAT1'), census)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=1)
