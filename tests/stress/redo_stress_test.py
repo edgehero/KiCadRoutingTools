@@ -50,8 +50,27 @@ REPO = Path(__file__).resolve().parent.parent.parent  # tests/stress/ -> repo ro
 
 
 def _tree_rss_kb(pid):
-    """Resident set size (KB) of a process plus its direct children, via ps --
+    """Resident set size (KB) of a process plus its direct children.
+
+    Linux: read /proc directly -- no subprocess spawns (the ps path forks
+    twice per 0.5s sample), and it works in slim containers that carry no
+    procps at all (the Modal image's silent 0-MB rows). Elsewhere: ps, the
     same tree-RSS method run_limited.sh uses for its memory watchdog."""
+    if os.path.isdir(f"/proc/{pid}"):
+        total = 0
+        try:
+            pids = [str(pid)]
+            with open(f"/proc/{pid}/task/{pid}/children") as f:
+                pids += f.read().split()
+            for p_ in pids:
+                with open(f"/proc/{p_}/status") as f:
+                    for line in f:
+                        if line.startswith("VmRSS:"):
+                            total += int(line.split()[1])
+                            break
+        except Exception:
+            pass
+        return total
     total = 0
     try:
         out = subprocess.run(["ps", "-o", "rss=", "-p", str(pid)],
@@ -178,23 +197,48 @@ def parse_manifest(path):
     follow-up command has none of its own. Resetting to None there made the
     follow-up run in the launcher's cwd, breaking the relative-path chain
     (FileNotFoundError on the just-cp'd board) and falsely marking the board
-    chain-broken under --remap."""
+    chain-broken under --remap.
+
+    A command may span SEVERAL lines when one of its arguments contains
+    newlines -- `--net-clearances '{ ...pretty-printed JSON... }'` is the real
+    case (uncutgem_nv). Splitting per line raises "No closing quotation" and, in
+    the shared parser, that killed the whole board: not just manifest_to_plan,
+    but every replay path (redo_stress_test, ab_replay_grade, the Modal sweep).
+    So lines are ACCUMULATED until shlex can split them, which is exactly the
+    shell's own continuation rule. Newlines inside the quotes survive into the
+    token, reproducing the recorded argument byte-for-byte.
+    """
     cmds = []
     current_cwd = None
+    buf = ""
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.rstrip("\n")
-            if line.startswith("# cwd="):
-                # The cwd was recorded with %q quoting on the value after 'cwd='.
-                current_cwd = " ".join(shlex.split(line[len("# cwd="):]))
-                continue
-            if not line or line.startswith("#") or line in ("set -e",):
-                continue
-            if line.startswith("#!"):
-                continue
-            argv = shlex.split(line)
+            if not buf:
+                # Directives/comments only apply BETWEEN commands -- mid-continuation
+                # a '#' is data inside a quoted argument, not a comment.
+                if line.startswith("# cwd="):
+                    # The cwd was recorded with %q quoting on the value after 'cwd='.
+                    current_cwd = " ".join(shlex.split(line[len("# cwd="):]))
+                    continue
+                if not line or line.startswith("#") or line in ("set -e",):
+                    continue
+                if line.startswith("#!"):
+                    continue
+                buf = line
+            else:
+                buf += "\n" + line
+            try:
+                argv = shlex.split(buf)
+            except ValueError:
+                continue  # unbalanced quote so far -> this command continues
+            buf = ""
             if argv:
                 cmds.append((current_cwd, argv))
+    if buf.strip():
+        # Genuinely unterminated at EOF: raise rather than silently drop the tail,
+        # which would replay a TRUNCATED chain and look like a routing failure.
+        raise ValueError(f"{path}: unterminated quote at end of manifest: {buf[:120]!r}")
     return cmds
 
 
@@ -753,14 +797,24 @@ def main():
         if cwd and not os.path.isdir(cwd):
             os.makedirs(cwd, exist_ok=True)
         cmd_t0 = time.time()
+        # Per-command USER+SYS CPU via getrusage(RUSAGE_CHILDREN) deltas:
+        # commands run serially and each child's whole reaped tree folds into
+        # the counter at wait(), so the delta is that command's tree CPU.
+        # Wall time is load-confounded (parallel pools, shared cloud hosts);
+        # CPU-seconds are the honest cross-run cost metric.
+        import resource as _res
+        _ru0 = _res.getrusage(_res.RUSAGE_CHILDREN)
         timeout = args.timeout if args.timeout and args.timeout > 0 else None
         rc, peak_kb, timed_out, peak_fp_mb = run_with_peak_rss(argv, cwd, timeout=timeout)
+        _ru1 = _res.getrusage(_res.RUSAGE_CHILDREN)
+        cpu_s = (_ru1.ru_utime - _ru0.ru_utime) + (_ru1.ru_stime - _ru0.ru_stime)
         if rc == 0 and not timed_out:
             # A `cp`/`mv` of a board must carry its .kicad_pro (the recorded DRC
             # floor) or the renamed board grades at the looser design default.
             mirror_project_sibling(argv, cwd)
         dt = time.time() - cmd_t0
-        rec = {"index": i, "seconds": round(dt, 3), "returncode": rc,
+        rec = {"index": i, "seconds": round(dt, 3),
+               "cpu_seconds": round(cpu_s, 3), "returncode": rc,
                "peak_rss_mb": round(peak_kb / 1024, 1),
                "timed_out": timed_out, "argv": argv}
         # peak_footprint_mb (darwin only): the authoritative memory number that

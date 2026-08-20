@@ -47,7 +47,9 @@ from kicad_parser import parse_kicad_pcb, PCBData, Segment, Via, KICAD_10_MIN_VE
 from kicad_writer import generate_segment_sexpr, generate_gr_line_sexpr, generate_via_sexpr
 from routing_config import GridRouteConfig
 from plane_io import extract_zones
-from plane_region_connector import route_disconnected_regions, build_base_obstacles
+from plane_region_connector import (route_disconnected_regions,
+                                    find_disconnected_zone_regions,
+                                    build_base_obstacles)
 import plane_pad_tap
 from plane_pad_tap import (find_unconnected_plane_pads, tap_pad_with_escalation,
                            SharedViaMaps)
@@ -396,6 +398,12 @@ def _tap_pad_with_ripup(pad, pad_layer, net_id, pcb_data, tap_config, blocker_co
     non-colliding copper is still given back, so #329's zero-copper nets do
     not come back either.
     Returns a successful TapResult, or None."""
+    # #658 power discipline: taps for power nets honor the per-net layer
+    # economics (KICAD_POWER_LAYER_COSTS); no-op when the knob is off or
+    # the net is not a power net.
+    from global_plan import power_layer_config
+    tap_config = power_layer_config(tap_config, tap_config, net_id)
+
     failure = first_failure
     ripped_local = []  # (net_id, segments, vias) in rip order
     ripped_ids_local = set()
@@ -742,6 +750,7 @@ def repair_planes(
     reroute_ripped_nets: bool = False,
     power_nets: Optional[List[str]] = None,
     power_nets_widths: Optional[List[float]] = None,
+    layer_costs: Optional[List[float]] = None,
     no_bga_zone: bool = False,
     progress_callback=None,
     cancel_check=None,
@@ -750,9 +759,10 @@ def repair_planes(
     clamp_netclasses: bool = True,
     clearance_ceiling: Optional[float] = None,
     add_teardrops: bool = False,
-    # #549 B: glob patterns naming nets whose committed-copper corridors via
-    # placement should prefer to keep clear. None -> AUTO (the board's
-    # protected/impedance records); ['none'] -> off.
+    # #581: > 0 keeps every repair via off same-net pads at this edge-to-edge
+    # clearance. None (default) auto-reads the persisted .kicad_pro record;
+    # explicit values win (the #562 finalize forwards its resolved value).
+    same_net_pad_clearance: Optional[float] = None,
 ) -> Tuple[int, int]:
     """
     Route between disconnected regions in power plane zones.
@@ -899,6 +909,35 @@ def repair_planes(
         board_edge_clearance=board_edge_clearance,
         ripup_blocker_select=ripup_blocker_select
     )
+    # #658: the finalize/repair legs previously routed with UNIFORM layer
+    # costs -- the chain's --layer-costs never reached this engine, so
+    # welds/taps freely traveled layers the whole run priced up (measured:
+    # 100+mm of rail copper on the GND plane layer at an effective 36x
+    # main-pass price). Forward the chain's costs; power nets additionally
+    # get the KICAD_POWER_LAYER_COSTS per-net override at the tap sites.
+    if layer_costs:
+        config.layer_costs = list(layer_costs)
+    if power_nets and power_nets_widths:
+        _name2id = {n.name: n.net_id for n in pcb_data.nets.values()} \
+            if pcb_data is not None else {}
+        config.power_net_widths = {
+            _name2id[nm]: w for nm, w in zip(power_nets, power_nets_widths)
+            if nm in _name2id}
+    # #581: keep repair vias (pad taps, region joins, reconnects) off same-net
+    # pads when the constraint is active. Explicit kwarg wins (route.py's #562
+    # finalize forwards its resolved value -- the output's .kicad_pro sibling
+    # does not exist yet mid-run, same reasoning as layer_clearances below);
+    # None -> auto-read the persisted project record. > 0 activates.
+    if same_net_pad_clearance is not None and same_net_pad_clearance > 0:
+        config.same_net_pad_clearance = same_net_pad_clearance
+    elif same_net_pad_clearance is None:
+        from protected_nets import read_snpc_for_pcb_data as _read_snpc581
+        _snpc581 = _read_snpc581(pcb_data, input_file)
+        if _snpc581 > 0:
+            config.same_net_pad_clearance = _snpc581
+    if config.same_net_pad_clearance > 0:
+        print(f"  Same-net pad via clearance {config.same_net_pad_clearance:g}mm "
+              f"(#581): repair vias stay off same-net pads")
     # #498: repair copper (region joins, pad taps, reconnects) must obey the
     # board's per-layer .kicad_dru clearance rules like every routed copper.
     # An explicit `layer_clearances` wins and stops the auto-read: route.py's
@@ -1225,6 +1264,7 @@ def repair_planes(
                 board_edge_clearance=_edge,
                 disable_bga_zones=([] if no_bga_zone else None),
                 net_clearances=net_clearances,
+                layer_costs=(list(layer_costs) if layer_costs else None),  # #658 finalize sub-runs honor chain layer economics
                 hole_to_hole_clearance=hole_to_hole_clearance,
                 return_results=True, pcb_data=pcb_data,
                 # #540 item 2: price the OTHER pending casualties' corridors
@@ -1266,6 +1306,7 @@ def repair_planes(
                      'net_id': _s.net_id})
                 _prov_seg(_s.net_id, _s.layer, _s.start_x, _s.start_y,
                           _s.end_x, _s.end_y, 'reconnect')
+            _consume_inner_strips(_rdata, "immediate-reconnect")
             # A net is done only if it is CONNECTED now (batch_route's own
             # success flag is not the arbiter -- #479's lesson).
             from check_connected import check_net_connectivity as _cnc517
@@ -1319,6 +1360,24 @@ def repair_planes(
 
         # Pick first zone layer as "primary" (for plane_layer_idx in routing)
         primary_layer = sorted(net_zone_layers)[0]
+        # #612 gap 7: fill-model discovery is gated on the PRIMARY layer's
+        # model, so an unmodelable first layer dropped the whole net to the
+        # raster fallback even when the other poured layers modeled fine.
+        # Prefer a layer whose model built (get_fill_models is cached, so
+        # this costs no extra model builds).
+        try:
+            from plane_fill_model import get_fill_models as _gfm612
+            _mbl612 = _gfm612(pcb_data, net_id)
+            if _mbl612 and not _mbl612.get(primary_layer):
+                _modeled = [l for l in sorted(net_zone_layers)
+                            if _mbl612.get(l)]
+                if _modeled:
+                    print(f"  (#612: {primary_layer} has no usable fill "
+                          f"model; using {_modeled[0]} as the primary "
+                          f"analysis layer)")
+                    primary_layer = _modeled[0]
+        except Exception:
+            pass
 
         layers_str = ", ".join(sorted(net_zone_layers))
         clearances_str = ", ".join(f"{l}={zone_clearances.get(l, zone_clearance)}mm" for l in sorted(net_zone_layers))
@@ -1558,7 +1617,13 @@ def repair_planes(
             cancel_check=cancel_check
         )
 
-        if routes_added > 0:
+        def _absorb_join(region_segments, region_vias, routes_added,
+                         route_paths):
+            """Book a route_disconnected_regions result: write-lists, totals,
+            debug lines, and pcb_data (so subsequent nets/joins see the new
+            copper as obstacles). Shared by the primary join call and the
+            #611 per-layer follow-ups."""
+            nonlocal total_routes, total_regions, total_vias
             all_new_segments.extend(region_segments)
             all_new_vias.extend(region_vias)
             total_routes += routes_added
@@ -1572,7 +1637,6 @@ def repair_planes(
                         p1, p2 = route_path[i], route_path[i + 1]
                         all_debug_lines.append(generate_gr_line_sexpr(p1, p2, 0.1, "User.4"))
 
-            # Add segments to pcb_data so subsequent nets see them as obstacles
             for s in region_segments:
                 start = s['start']
                 end = s['end']
@@ -1584,7 +1648,6 @@ def repair_planes(
                 _prov_seg(s['net_id'], s['layer'], start[0], start[1],
                           end[0], end[1], 'region-join')
 
-            # Add vias to pcb_data so subsequent nets see them as obstacles
             for v in region_vias:
                 pcb_data.vias.append(Via(
                     x=v['x'], y=v['y'],
@@ -1595,6 +1658,49 @@ def repair_planes(
                 _prov_via(v['net_id'], v['x'], v['y'], 'region-join')
             from route_trace import plane_capture as _plane_capture
             _plane_capture(pcb_data, 'plane-join', net_id, net_name)  # individual region-join frame
+
+        if routes_added > 0:
+            _absorb_join(region_segments, region_vias, routes_added,
+                         route_paths)
+
+        # #611: kept islands on NON-primary poured layers cannot be joined
+        # from the primary call -- its join seeds and fill-material checks
+        # are plane_layer-scoped -- so re-run discovery+join once per
+        # flagged layer with THAT layer primary. This is the cheap, exact
+        # fix; the post-write kicad-cli oracle stays the last resort. The
+        # kept island becomes an ordinary primary-layer orphan region in the
+        # follow-up (join-eligible at any size >= the 1 mm^2 kept floor).
+        _kept611 = getattr(find_disconnected_zone_regions,
+                           '_last_kept_unjoined', (0, 0.0, (), ()))
+        for _flayer in [l for l in _kept611[2] if l != primary_layer]:
+            if cancel_check and cancel_check():
+                break
+            print(f"  #611 follow-up join with {_flayer} primary "
+                  f"(kept island(s) reported there):")
+            _fsegs, _fvias, _fadd, _fpaths, _ = route_disconnected_regions(
+                net_id=net_id,
+                net_name=net_name,
+                plane_layer=_flayer,
+                zone_bounds=zone_bounds,
+                pcb_data=pcb_data,
+                config=config,
+                base_obstacles=base_obstacles,
+                layer_map=layer_map,
+                zone_clearance=max_zone_clearance,
+                max_track_width=max_track_width,
+                min_track_width=min_track_width,
+                track_via_clearance=track_via_clearance,
+                hole_to_hole_clearance=hole_to_hole_clearance,
+                analysis_grid_step=analysis_grid_step,
+                max_iterations=max_iterations,
+                verbose=verbose,
+                zone_layers=net_zone_layers,
+                zone_clearances=zone_clearances,
+                progress_callback=progress_callback,
+                cancel_check=cancel_check,
+                split_report=False)
+            if _fadd > 0:
+                _absorb_join(_fsegs, _fvias, _fadd, _fpaths)
 
     # Partial restores: emit kept pieces as new copper and strip the nets'
     # input copper (replacement semantics -- same as route_planes b2557cd).
@@ -1767,6 +1873,7 @@ def repair_planes(
                     # project (batch_route's own auto-read would find no
                     # netclasses next to a not-yet-written output).
                     net_clearances=net_clearances,
+                    layer_costs=(list(layer_costs) if layer_costs else None),  # #658 finalize sub-runs honor chain layer economics
                     hole_to_hole_clearance=hole_to_hole_clearance,
                     # #527: forward progress/cancel -- a multi-net reconnect
                     # used to run minutes behind one static message.
@@ -2367,6 +2474,7 @@ def repair_planes(
                     power_nets=power_nets, power_nets_widths=power_nets_widths,
                     disable_bga_zones=([] if no_bga_zone else None),
                     net_clearances=net_clearances,
+                    layer_costs=(list(layer_costs) if layer_costs else None),  # #658 finalize sub-runs honor chain layer economics
                     # #539: without this the gate's plane-net vias were placed
                     # at batch_route's 0.2 default on a 0.25-h2h board (muzy_
                     # zynq2's residual drill grazes -- same forwarding-gap
@@ -2735,7 +2843,9 @@ def repair_planes(
             pcb_data, all_new_segments, _scope, clearance=clearance,
             max_shift=config.grid_step / 2, all_new_vias=all_new_vias,
             hole_to_hole=config.hole_to_hole_clearance,
-            protected_pads=_tapped_pads)
+            protected_pads=_tapped_pads,
+            same_net_pad_clearance=getattr(config, 'same_net_pad_clearance',
+                                           -1.0))  # #581
         if _gz_rm:
             print(f"  Graze prune: removed {_gz_rm} grazing repair segment(s)")
         if _gz_nudge:
@@ -2912,7 +3022,10 @@ def repair_planes(
                 _res_wrap, pcb_data, _scope,
                 SimpleNamespace(clearance=clearance, grid_step=grid_step),
                 label='Plane ', phantom=False, via_nudge=False, neck=False,
-                microshift_max_shift=grid_step)
+                microshift_max_shift=grid_step,
+                # 13 passes that reported nothing: the status bar sat on the
+                # previous phase's label for the whole cleanup.
+                progress_callback=progress_callback)
             for _r in _res_wrap:
                 for _s in (_r.get('new_segments') or []):
                     all_new_segments.append(
@@ -3195,6 +3308,11 @@ Examples:
                         help=f"Clearance from board edge in mm (default: the board min_copper_edge_clearance, else {defaults.PLANE_EDGE_CLEARANCE})")
     parser.add_argument("--hole-to-hole-clearance", type=float, default=None,
                         help=f"Minimum clearance between drill holes in mm (default: the board min_hole_to_hole, else {defaults.HOLE_TO_HOLE_CLEARANCE})")
+    parser.add_argument("--same-net-pad-clearance", type=float, default=None,
+                        help="Edge-to-edge clearance (mm) between repair vias (taps, joins, "
+                             "reconnects) and same-net pads (#581). > 0 keeps vias off "
+                             "same-net pads; -1 explicitly allows via-in-pad. Default: the "
+                             "project's recorded value, else -1.")
 
     # Via options (for config)
     parser.add_argument("--via-size", type=float, default=None,
@@ -3269,32 +3387,12 @@ Examples:
     from fix_kicad_drc_settings import add_drc_fix_args
     add_drc_fix_args(parser)
 
-    parser.add_argument("--deadline", type=float, default=None,
-                        metavar="SECONDS",
-                        help="Wall-clock budget for the REPAIR LOOPS. Not a "
-                             "hard cap on total runtime: the cancel is "
-                             "cooperative, and the bounded tail (fills, write, "
-                             "cleanup) still runs, so expect to overshoot -- "
-                             "measured 109s on a 45s budget. What it "
-                             "guarantees is TERMINATION on the tool's own "
-                             "terms: without it this tool ran 40 min "
-                             "(--rip-blocker-nets) and 25 min (plain) on a "
-                             "217-part board and never wrote a board at all "
-                             "(run 9). With it: cancels at the loop heads, "
-                             "writes the partial board, exits 7, and marks the "
-                             "summary complete:false. Set it well BELOW any "
-                             "external timeout. A reserve band is held back so "
-                             "the ripped-net reconnect still runs -- without "
-                             "it, ripped nets ship stripped and the board is "
-                             "WORSE than its input. Default: no budget. "
-                             "Env: KRT_DEADLINE_S")
-
     from fab_tiers import (add_fab_tier_args, fab_tier_from_args, set_default_fab_tier,
                            enforce_fab_floors, count_copper_layers_in_file)
     add_fab_tier_args(parser)
     from fab_tiers import add_board_floor_args as _add_bf
     _add_bf(parser)
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
     # #439: identical net-class/clearance model to route.py. --clearance is the
     # clamp switch: GIVEN -> ceiling, every class capped at min(class, ceiling),
     # writeback clamps (_clamp_netclasses True). OMITTED -> each net routes at its
@@ -3406,31 +3504,11 @@ Examples:
         for net, layer in zone_pairs:
             print(f"  {net} on {layer}")
 
-    # The deadline is ONE CLOSURE handed to plumbing this engine already has:
-    # `cancel_check` is a first-class parameter honoured at every loop head and
-    # forwarded into each inner batch_route, and on cancel the write branch
-    # still runs -- so a cancelled run yields a real, gated, strictly-better
-    # board. It was None on the CLI path only because this call never passed
-    # one. `progress_callback` is the same story: ~9 call sites, all dark on the
-    # CLI because it was built for the GUI.
-    #
-    # RESERVE BAND, and this one is a correctness hazard rather than a nicety:
-    # the end-of-run rip-casualty reconnect issues its OWN batch_route with the
-    # same cancel_check. If the budget were already spent, that reconnect would
-    # do nothing and every net ripped earlier would ship stripped -- a partial
-    # board WORSE than its input. So the repair loops trip early, at
-    # deadline - reserve, leaving clock for the reconnect.
-    import krt_deadline
-    _rdp_report = {'tool': 'repair_planes'}
-    _dl = krt_deadline.arm(args.deadline, tool='repair_planes',
-                           on_partial=lambda: _rdp_report)
-    _reserve = max(30.0, (args.deadline or 0) * 0.2) if _dl else 0.0
-
+    # The engine's cooperative `cancel_check` / `progress_callback` are the
+    # GUI's (the planes tab's Cancel button); the CLI passes neither. There is
+    # deliberately no wall-clock budget -- no result this tool produces may
+    # depend on timing.
     _rdp_result = repair_planes(
-        cancel_check=(_dl.cancel_check('plane repair', reserve=_reserve)
-                      if _dl else None),
-        progress_callback=(krt_deadline.stdout_progress(deadline=_dl)
-                           if _dl else None),
         input_file=args.input_file,
         output_file=args.output_file,
 
@@ -3464,7 +3542,8 @@ Examples:
         no_bga_zone=args.no_bga_zone,
         clamp_netclasses=args._clamp_netclasses,
         clearance_ceiling=args._clearance_ceiling,
-        add_teardrops=args.add_teardrops
+        add_teardrops=args.add_teardrops,
+        same_net_pad_clearance=args.same_net_pad_clearance
     )
 
     # Dead-end sweep + gap-snap on the repaired plane copper (issue #84), gated
@@ -3491,21 +3570,7 @@ Examples:
     # KiCad's REAL fill produces can survive every model-based pass (castor
     # +3.3VA bare island, lumenpnp U5 pocket). Ask kicad-cli for the exact
     # missing links on the processed nets and route precisely those.
-    # A deadline hit skips it. The recheck shells out to kicad-cli, which
-    # carries its own 240s ORACLE_DRC_TIMEOUT and can itself refill the board
-    # (300s EXACT_FILL_TIMEOUT) -- so running it after the budget is already
-    # spent hands the race straight back to the external timeout we just won.
-    # Measured: a cancelled repair reached "Plane repair cancelled" in ~45s and
-    # then sat for minutes inside a KiCad exact_fill child. The partial board is
-    # already written and already gated; the recheck is an improvement pass, not
-    # a correctness one, and its absence is disclosed in the summary.
-    _deadline_hit = bool(_dl and _dl.expired())
-    if _deadline_hit:
-        _rdp_report['oracle_recheck'] = 'skipped: deadline'
-        print("  KiCad-oracle recheck: SKIPPED (deadline reached; the pass "
-              "shells out to kicad-cli and would overrun the budget)")
-    if (not args.dry_run and not args.no_kicad_recheck and args.output_file
-            and not _deadline_hit):
+    if (not args.dry_run and not args.no_kicad_recheck and args.output_file):
         from kicad_oracle import oracle_reconnect
         from routing_config import GridRouteConfig
         # #338: the oracle pass runs on OUTPUT_FILE, whose sibling .kicad_pro
@@ -3593,40 +3658,18 @@ Examples:
     # A10: nets this step ripped and could neither reconnect nor restore. They
     # ship OPEN, so they belong in the summary by name and in the exit code.
     _summary["ripped_still_open"] = list(LAST_RIPPED_STILL_OPEN)
-    # A cancelled run must not exit 0. It wrote a real, gated board -- unlike
-    # place_reconstruct, this tool's cancel path writes, because a partial plane
-    # repair is strictly-better copper rather than a half-legalized placement --
-    # but it did not finish, and a caller reading exit 0 would treat a partial
-    # as complete. `complete` is the machine gate; `status` says why.
-    if _dl is not None and _dl.expired():
-        _summary["complete"] = False
-        _summary["status"] = "deadline"
-        _summary["deadline_s"] = _dl.seconds
-        _summary["elapsed_s"] = round(_dl.elapsed(), 1)
-        _summary["stopped_in"] = _dl.stopped_in
-        _rdp_report.update(_summary)
-        krt_deadline.emit(_summary, complete=False, status='deadline',
-                          deadline=_dl)
-        print(f"{RED}DEADLINE: this run stopped on its own budget after "
-              f"{_dl.elapsed():.0f}s of {_dl.seconds:g}s. The board at "
-              f"{args.output_file} is a PARTIAL repair -- real copper, fully "
-              f"gated, but the sweep did not finish. Do not read it as "
-              f"clean.{RESET}")
-        if LAST_RIPPED_STILL_OPEN:
-            print(f"{RED}  ...and {len(LAST_RIPPED_STILL_OPEN)} ripped net(s) "
-                  f"ship OPEN: {', '.join(LAST_RIPPED_STILL_OPEN)}{RESET}")
-        return krt_deadline.DEADLINE_EXIT
-    # Emit through krt_deadline, NOT a raw print. `_emitted` is set only inside
-    # krt_deadline.emit(), so a bare print left it False and the atexit flush
-    # then published the contentless partial report armed at --deadline time --
-    # every successful run printed a SECOND, contradicting
-    # `{"complete": false, "status": "incomplete"}` line after the real one
-    # (run 11, v6_r7: total_regions 7, complete true, then incomplete). Any
-    # consumer keying on the LAST JSON_SUMMARY read a good repair as a failed
-    # one. The deadline branch above already does this; this is the other half.
-    _rdp_report.update(_summary)
-    krt_deadline.emit(_summary, complete=_summary.get("complete", True),
-                      status=_summary.get("status", "ok"))
+    # `complete`/`status` are kept because consumers read them -- see
+    # route_summary's sticky-incompleteness merge. The CLI has no cancel
+    # source, so the run either finished or raised.
+    _summary.setdefault("complete", True)
+    _summary.setdefault("status", "ok")
+    try:                       # #653: env knobs into the machine-readable
+        import env_knobs as _ek653   # summary, so a harness can detect a
+        _summary['env_knobs'] = _ek653.active_env_knobs()   # dirty baseline
+    except Exception:          # without re-reading logs
+        pass
+    print('JSON_SUMMARY: ' + json.dumps(_summary, sort_keys=True, default=str),
+          flush=True)
 
     if LAST_RIPPED_STILL_OPEN:
         print(f"{RED}RIP CASUALTIES SHIP OPEN ({len(LAST_RIPPED_STILL_OPEN)}): "
@@ -3651,12 +3694,12 @@ route_planes = repair_planes
 if __name__ == "__main__":
     from console_encoding import enable_utf8_console
     enable_utf8_console()  # cp1252-safe non-ASCII prints (issue #152)
-    # CMD/EXIT self-echo (run-3 B1). This file was a deliberate non-adopter
-    # while it had no way to stop itself: its long silent phases ended in an
-    # external kill, and `atexit` does not run on one, so the banner would have
-    # promised an EXIT= line that never arrived. With --deadline the tool exits
-    # on its own terms, so the line is now truthful -- and this is the script
-    # whose exit code was hardest to tell from the shell's.
+    # CMD/EXIT self-echo (run-3 B1). Caveat, same as route.py's: an EXTERNAL
+    # kill skips `atexit`, so the promised EXIT= line never arrives. This tool
+    # has no self-budget to fall back on -- deliberately, since no result it
+    # produces may depend on a wall clock -- so a harness that kills it owns
+    # that gap. It is also the script whose exit code was hardest to tell from
+    # the shell's, which is why the banner is here at all.
     import cli_banner
     cli_banner.install()
     # run-8: propagate main()'s verdict -- it returns 4 when plane repair

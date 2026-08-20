@@ -78,6 +78,36 @@ def fragility_cost_mm() -> float:
         return 2.0
 
 
+_LAYER_SCALE_CACHE = None
+
+
+def fragility_layer_scale(layer: str, net_name: str = None) -> float:
+    """Per-zone-per-layer fragility multiplier (#658 pour-from-birth):
+    KICAD_PLANE_FRAGILITY_LAYERS='GND@F.Cu=0,B.Cu=0.3' -- entries are
+    either 'NET@LAYER=v' (that net's pours on that layer) or 'LAYER=v'
+    (every pour on the layer); most specific wins, unlisted = 1.0.
+    Scale 0 = a pour signals may carve FREELY (fill reflows around
+    routes, crossing costs nothing); sacred planes keep full price.
+    Parsed once per process."""
+    global _LAYER_SCALE_CACHE
+    if _LAYER_SCALE_CACHE is None:
+        m = {}
+        raw = os.environ.get('KICAD_PLANE_FRAGILITY_LAYERS', '')
+        for part in raw.split(','):
+            if '=' in part:
+                k, _, v = part.partition('=')
+                try:
+                    m[k.strip()] = max(0.0, float(v))
+                except ValueError:
+                    pass
+        _LAYER_SCALE_CACHE = m
+    if net_name is not None:
+        hit = _LAYER_SCALE_CACHE.get(f"{net_name}@{layer}")
+        if hit is not None:
+            return hit
+    return _LAYER_SCALE_CACHE.get(layer, 1.0)
+
+
 def _rasterize_polygon(poly, coord, gx0, gy0, W, H) -> np.ndarray:
     """Boolean (H, W) fill mask of a polygon via even-odd crossing test,
     vectorized one scanline row at a time (grid rows are few thousand)."""
@@ -131,11 +161,13 @@ def _erode_depth(mask: np.ndarray, depth: int) -> np.ndarray:
 
 class _PourState:
     """Live raster of one filled pour island (dynamic mode)."""
-    __slots__ = ('li', 'layer', 'net_id', 'gx0', 'gy0', 'W', 'H',
+    __slots__ = ('li', 'layer', 'net_id', 'net_name', 'gx0', 'gy0', 'W', 'H',
                  'orig', 'mask', 'dist', 'rows')
 
-    def __init__(self, li, layer, net_id, gx0, gy0, mask, dist, rows):
+    def __init__(self, li, layer, net_id, gx0, gy0, mask, dist, rows,
+                 net_name=None):
         self.li, self.layer, self.net_id = li, layer, net_id
+        self.net_name = net_name
         self.gx0, self.gy0 = gx0, gy0
         self.H, self.W = mask.shape
         self.orig = mask            # fill as of batch start (never mutated)
@@ -224,7 +256,9 @@ class FragilityField:
             return
         jj, ii = np.nonzero(emitted)
         frag = 1.0 - (st.dist[jj, ii].astype(np.float64) - 1) / self.depth
-        costs = np.maximum(1, (frag * self.cell_cost).astype(np.int32))
+        costs = np.maximum(1, (frag * self.cell_cost
+                                * fragility_layer_scale(
+                                    st.layer, st.net_name)).astype(np.int32))
         st.rows = np.column_stack([
             np.full(len(jj), st.li, dtype=np.int32),
             (ii + st.gx0).astype(np.int32),
@@ -299,12 +333,28 @@ class FragilityField:
             # a refresh that just vstacks re-introduces the duplicates, so a
             # cost consumer that sums rows double-charges overlap cells
             # relative to the static field.
-            order = np.lexsort((out[:, 3], out[:, 2], out[:, 1], out[:, 0]))
-            out = out[order]
+            # Sort order is (layer, gx, gy, cost, original index). Packing the
+            # four columns into one offset int64 key lets a single stable
+            # (radix) argsort produce the identical permutation the 4-key
+            # lexsort did, at a fraction of the cost; the lexsort fallback
+            # covers a grid so large the packing would overflow.
+            o64 = out.astype(np.int64)
+            mins = o64.min(axis=0)
+            spans = o64.max(axis=0) - mins + 1
+            if int(spans[0]) * int(spans[1]) * int(spans[2]) * int(spans[3]) < (1 << 62):
+                cell_key = ((o64[:, 0] - mins[0]) * spans[1]
+                            + (o64[:, 1] - mins[1])) * spans[2] + (o64[:, 2] - mins[2])
+                order = np.argsort(cell_key * spans[3] + (o64[:, 3] - mins[3]),
+                                   kind='stable')
+                out = out[order]
+                same = np.diff(cell_key[order]) == 0
+            else:
+                order = np.lexsort((out[:, 3], out[:, 2], out[:, 1], out[:, 0]))
+                out = out[order]
+                same = ((np.diff(out[:, 0]) == 0) & (np.diff(out[:, 1]) == 0)
+                        & (np.diff(out[:, 2]) == 0))
             keep = np.ones(len(out), dtype=bool)
-            same = ((np.diff(out[:, 0]) == 0) & (np.diff(out[:, 1]) == 0)
-                    & (np.diff(out[:, 2]) == 0))
-            keep[:-1][same] = False   # lexsort put max cost last per cell
+            keep[:-1][same] = False   # sort put max cost last per cell
             self.cache[PLANE_FRAGILITY_CACHE_KEY] = out[keep]
         else:
             self.cache.pop(PLANE_FRAGILITY_CACHE_KEY, None)
@@ -371,39 +421,22 @@ def _compute_cells_and_states(pcb_data: PCBData, config: GridRouteConfig,
     src = getattr(pcb_data, 'source_path', None)
     if not polys and src and os.path.isfile(src):
         try:
-            from kicad_exact_fill import refill_islands, EXACT_FILL_TIMEOUT
-            # BOUND THE FILL BY THE RUN'S REMAINING BUDGET. This call is reached
-            # from route.py:batch_route, so it runs on EVERY batch_route -- and
-            # on a board KiCad's ZONE_FILLER cannot fill (measured: a 217-part
-            # 4-layer board) each one pays the full 300s EXACT_FILL_TIMEOUT.
-            # The plane repair issues many batch_route calls, which is the root
-            # cause of both non-terminations measured in run 9. No signature
-            # between the CLI and here carries a budget, hence the global.
-            _t = EXACT_FILL_TIMEOUT
-            try:
-                import krt_deadline
-                _dl = krt_deadline.current()
-            except Exception:                                  # noqa: BLE001
-                _dl = None
-            if _dl is not None:
-                _left = _dl.remaining()
-                if _dl.expired() or (_left is not None and _left < 5.0):
-                    raise TimeoutError(
-                        'run budget spent; not starting a KiCad refill')
-                # Never let one fill eat the whole remaining budget.
-                _t = max(5, int(min(_t, (_left or _t) * 0.5)))
-            fills = refill_islands(src, timeout=_t, verbose=True)
+            from kicad_exact_fill import find_kicad_python, refill_islands
+            fills = refill_islands(src)
             if fills is None:
-                # refill_islands documents a None return, and this was the ONE
-                # call site in the repo that dereferenced it anyway. The
-                # resulting `'NoneType' object has no attribute 'items'` was
-                # printed as if it were the diagnosis, while the real reason --
-                # a 300s timeout, or pcbnew missing -- was computed inside
-                # refill_islands and discarded. verbose=True above makes it say
-                # so; this branch stops the AttributeError masquerading as one.
-                raise RuntimeError(
-                    f'KiCad refill returned nothing within {_t}s '
-                    f'(fill timed out, or pcbnew unavailable)')
+                # None is refill_islands' DOCUMENTED "unavailable" return, not
+                # an error. Calling .items() on it raised an AttributeError
+                # that this except reported as a mystery "'NoneType' object
+                # has no attribute 'items'" (#647) -- which read like a quirk
+                # of one board while it was really a whole-platform capability
+                # gap (no Windows install was ever found), on every invocation.
+                why = ("no python with pcbnew found; set KICAD_PYTHON to "
+                       "KiCad's bundled interpreter"
+                       if find_kicad_python() is None
+                       else "the KiCad refill failed")
+                print(f"Plane fragility: exact fill unavailable ({why}); "
+                      f"using zone outlines")
+                fills = {}
             polys = [(name_to_id.get(_net, -1), layer, poly)
                      for (_net, layer), pp in fills.items() for poly in pp]
             if polys:
@@ -462,7 +495,11 @@ def _compute_cells_and_states(pcb_data: PCBData, config: GridRouteConfig,
             continue
         jj, ii = np.nonzero(emitted)
         frag = 1.0 - (dist[jj, ii].astype(np.float64) - 1) / depth  # 1 at edge -> ~0 deep
-        cell_cost = config.cell_cost(cost_mm)
+        _zname = getattr(pcb_data.nets.get(znet), 'name', None)
+        _lscale = fragility_layer_scale(zlayer, _zname)
+        if _lscale <= 0:
+            continue  # freely-carvable pour: no fragility rows, no state
+        cell_cost = config.cell_cost(cost_mm) * _lscale
         costs = np.maximum(1, (frag * cell_cost).astype(np.int32))
         zone_rows = np.column_stack([
             np.full(len(jj), li, dtype=np.int32),
@@ -473,7 +510,8 @@ def _compute_cells_and_states(pcb_data: PCBData, config: GridRouteConfig,
         rows.append(zone_rows)
         if want_states:
             states.append(_PourState(li, zlayer, znet, gx0, gy0,
-                                     mask, dist, zone_rows))
+                                     mask, dist, zone_rows,
+                                     net_name=_zname))
 
     if not rows:
         return np.empty((0, 4), dtype=np.int32), []

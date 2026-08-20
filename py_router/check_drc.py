@@ -617,11 +617,90 @@ def _point_to_polys_distance(x: float, y: float, polys) -> float:
     return best
 
 
+# Sweep item 6 (#625 follow-up): per-poly edge arrays, memoized like the
+# ring arrays above (a pad's polygons list lives as long as the pad).
+_POLYS_EDGE_CACHE: Dict[int, tuple] = {}
+
+
+def _polys_edge_arrays(polys):
+    key = id(polys)
+    fp = (len(polys), tuple(len(p) for p in polys))
+    hit = _POLYS_EDGE_CACHE.get(key)
+    if hit is not None and hit[0] == fp:
+        return hit[1]
+    vx, vy, ex, ey = [], [], [], []
+    for poly in polys:
+        P = np.asarray(poly, dtype=np.float64)
+        if len(P) < 2:
+            continue
+        Q = np.roll(P, -1, axis=0)
+        vx.append(P[:, 0]); vy.append(P[:, 1])
+        ex.append(Q[:, 0]); ey.append(Q[:, 1])
+    if not vx:
+        arrays = None
+    else:
+        x1 = np.concatenate(vx); y1 = np.concatenate(vy)
+        x2 = np.concatenate(ex); y2 = np.concatenate(ey)
+        dx, dy = x2 - x1, y2 - y1
+        arrays = (x1, y1, dx, dy, dx * dx + dy * dy)
+    if len(_POLYS_EDGE_CACHE) > 64:
+        _POLYS_EDGE_CACHE.clear()
+    _POLYS_EDGE_CACHE[key] = (fp, arrays)
+    return arrays
+
+
 def _segment_to_polys_distance(x1: float, y1: float, x2: float, y2: float, polys):
     """Min distance from a segment to custom-pad polygon copper (0 if it enters),
-    sampled along the segment like segment_to_rect_distance. Returns (dist, pt)."""
+    sampled along the segment like segment_to_rect_distance. Returns (dist, pt).
+
+    Sweep item 6 (#625 follow-up): the 0.05mm samples x poly edges used to run
+    the scalar _point_to_polys_distance per sample (millions of calls per DRC
+    on custom-pad boards). The broadcast below NOMINATES the minimal samples
+    (multiply-squared kernel; **2 = libm pow rounds 1 ULP apart on rare
+    values), then the winners are recomputed with the scalar in sample order,
+    preserving the strict first-minimum tie-break -- returns byte-identical."""
     length = math.hypot(x2 - x1, y2 - y1)
     n = max(10, int(length / 0.05))
+    arrays = _polys_edge_arrays(polys)
+    if arrays is not None and (n + 1) * len(arrays[0]) >= 4096:
+        px1, py1, pdx, pdy, plen_sq = arrays
+        t = np.arange(n + 1, dtype=np.float64) / n
+        sx = x1 + t * (x2 - x1)
+        sy = y1 + t * (y2 - y1)
+        # inside-any test + min edge distance per sample, chunked.
+        best_d2 = np.empty(n + 1)
+        inside = np.zeros(n + 1, dtype=bool)
+        _B = max(1, 2_000_000 // max(1, len(px1)))
+        for s in range(0, n + 1, _B):
+            bx = sx[s:s + _B, None]
+            by = sy[s:s + _B, None]
+            for poly in polys:
+                P = np.asarray(poly, dtype=np.float64)
+                if len(P) < 2:
+                    continue
+                yi = P[:, 1][None, :]
+                yj = np.roll(P[:, 1], 1)[None, :]
+                xi = P[:, 0][None, :]
+                xj = np.roll(P[:, 0], 1)[None, :]
+                cond = (yi > by) != (yj > by)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    xint = (xj - xi) * (by - yi) / (yj - yi) + xi
+                    crossing = cond & (bx < xint)
+                inside[s:s + _B] |= (np.count_nonzero(crossing, axis=1) & 1).astype(bool)
+            best_d2[s:s + _B] = _pt_edges_d2(bx, by, px1[None, :], py1[None, :],
+                                             pdx[None, :], pdy[None, :],
+                                             plen_sq[None, :]).min(axis=1)
+        best_d2 = np.where(inside, 0.0, best_d2)
+        m = best_d2.min()
+        cand = np.nonzero(best_d2 <= m + 8 * np.spacing(m))[0]
+        best = float('inf')
+        best_pt = (x1, y1)
+        for i in cand:
+            d = _point_to_polys_distance(float(sx[i]), float(sy[i]), polys)
+            if d < best:
+                best = d
+                best_pt = (float(sx[i]), float(sy[i]))
+        return best, best_pt
     best = float('inf')
     best_pt = (x1, y1)
     for i in range(n + 1):
@@ -845,6 +924,89 @@ def _pad_has_no_copper(pad: Pad) -> bool:
     return not any(l == '*.Cu' or l.endswith('.Cu') for l in pad.layers)
 
 
+# Sweep item 5 (#625 follow-up): the pad-pad and pad-touch passes ran 64
+# scalar point_to_pad_distance calls per candidate pair (~2.5M per grade).
+# Perimeter samples are memoized per pad (built by the SAME scalar sampler,
+# so the values are identical), and each pair runs one broadcast of the
+# multiply-squared kernel that NOMINATES minimal/borderline samples; the
+# verdict/returned distance is recomputed on those with the scalar itself
+# (**2 = libm pow rounds 1 ULP apart on rare values).
+_PAD_PERIMETER_CACHE: Dict[int, tuple] = {}
+
+
+def _pad_perimeter_array(pad):
+    key = id(pad)
+    fp = (pad.pad_number, round(pad.global_x, 9), round(pad.global_y, 9),
+          round(pad.size_x, 9), round(pad.size_y, 9))
+    hit = _PAD_PERIMETER_CACHE.get(key)
+    if hit is not None and hit[0] == fp:
+        return hit[1]
+    pts = _pad_perimeter_points(pad)
+    arr = (np.array([p[0] for p in pts], dtype=np.float64),
+           np.array([p[1] for p in pts], dtype=np.float64), pts)
+    if len(_PAD_PERIMETER_CACHE) > 4096:
+        _PAD_PERIMETER_CACHE.clear()
+    _PAD_PERIMETER_CACHE[key] = (fp, arr)
+    return arr
+
+
+def _pad_dist_d2_proxy(xs, ys, pad):
+    """Squared-distance PROXY from points to a pad's copper via multiply
+    kernels -- monotone with the scalar point_to_pad_distance to within 1 ULP
+    (used only to nominate candidates; verdicts recompute the scalar)."""
+    polys = getattr(pad, 'polygons', None)
+    if polys:
+        arrays = _polys_edge_arrays(polys)
+        if arrays is None:
+            return np.full(xs.shape, np.inf)
+        px1, py1, pdx, pdy, plen_sq = arrays
+        d2 = _pt_edges_d2(xs[:, None], ys[:, None], px1[None, :], py1[None, :],
+                          pdx[None, :], pdy[None, :], plen_sq[None, :]).min(axis=1)
+        inside = np.zeros(xs.shape, dtype=bool)
+        for poly in polys:
+            P = np.asarray(poly, dtype=np.float64)
+            if len(P) < 2:
+                continue
+            yi = P[:, 1][None, :]; yj = np.roll(P[:, 1], 1)[None, :]
+            xi = P[:, 0][None, :]; xj = np.roll(P[:, 0], 1)[None, :]
+            cond = (yi > ys[:, None]) != (yj > ys[:, None])
+            with np.errstate(divide='ignore', invalid='ignore'):
+                xint = (xj - xi) * (ys[:, None] - yi) / (yj - yi) + xi
+                crossing = cond & (xs[:, None] < xint)
+            inside |= (np.count_nonzero(crossing, axis=1) & 1).astype(bool)
+        return np.where(inside, 0.0, d2)
+    if pad.shape in ('circle', 'oval'):
+        corner_radius = min(pad.size_x, pad.size_y) / 2
+    elif pad.shape == 'roundrect':
+        corner_radius = pad.roundrect_rratio * min(pad.size_x, pad.size_y)
+    else:
+        corner_radius = 0.0
+    x, y = xs, ys
+    if pad.rect_rotation:
+        rad = math.radians(pad.rect_rotation)
+        cos_r, sin_r = math.cos(rad), math.sin(rad)
+        dx0 = xs - pad.global_x
+        dy0 = ys - pad.global_y
+        x = pad.global_x + dx0 * cos_r + dy0 * sin_r
+        y = pad.global_y - dx0 * sin_r + dy0 * cos_r
+    rel_x = np.abs(x - pad.global_x)
+    rel_y = np.abs(y - pad.global_y)
+    half_x, half_y = pad.size_x / 2, pad.size_y / 2
+    dxe = np.maximum(0.0, rel_x - half_x)
+    dye = np.maximum(0.0, rel_y - half_y)
+    d = np.sqrt(dxe * dxe + dye * dye)
+    if corner_radius > 0:
+        inner_x = half_x - corner_radius
+        inner_y = half_y - corner_radius
+        corner = (rel_x > inner_x) & (rel_y > inner_y)
+        cdx = rel_x - inner_x
+        cdy = rel_y - inner_y
+        d = np.where(corner,
+                     np.maximum(0.0, np.sqrt(cdx * cdx + cdy * cdy) - corner_radius),
+                     d)
+    return d * d
+
+
 def check_pad_pad_overlap(pad1: Pad, pad2: Pad, clearance: float,
                           routing_layers: List[str],
                           clearance_margin: float = 0.05
@@ -866,18 +1028,27 @@ def check_pad_pad_overlap(pad1: Pad, pad2: Pad, clearance: float,
     if not shared:
         return False, 0.0, None
 
+    # Nominate minimal samples with the broadcast proxy, then recompute the
+    # winners with the scalar in the scalar's own order (pad1 samples then
+    # pad2's, strict first-minimum) -- byte-identical returns.
+    x1a, y1a, pts1 = _pad_perimeter_array(pad1)
+    x2a, y2a, pts2 = _pad_perimeter_array(pad2)
+    d2a = _pad_dist_d2_proxy(x1a, y1a, pad2) if len(x1a) else np.empty(0)
+    d2b = _pad_dist_d2_proxy(x2a, y2a, pad1) if len(x2a) else np.empty(0)
+    m = min(d2a.min() if len(d2a) else np.inf, d2b.min() if len(d2b) else np.inf)
     best = float('inf')
     best_pt = None
-    for px, py in _pad_perimeter_points(pad1):
-        d = point_to_pad_distance(px, py, pad2)
-        if d < best:
-            best = d
-            best_pt = (px, py)
-    for px, py in _pad_perimeter_points(pad2):
-        d = point_to_pad_distance(px, py, pad1)
-        if d < best:
-            best = d
-            best_pt = (px, py)
+    if np.isfinite(m):
+        thr = m + 8 * np.spacing(m)
+        for d2, pts, other in ((d2a, pts1, pad2), (d2b, pts2, pad1)):
+            if not len(d2):
+                continue
+            for i in np.nonzero(d2 <= thr)[0]:
+                px, py = pts[i]
+                d = point_to_pad_distance(px, py, other)
+                if d < best:
+                    best = d
+                    best_pt = (px, py)
 
     overlap = clearance - best
     if overlap > _grade_tol(clearance, clearance_margin):
@@ -1233,9 +1404,73 @@ def board_edge_geometry(board_info) -> Tuple[List[List[Tuple[float, float]]],
     return rings, outer, cutouts
 
 
+# Sweep item 1 (#625 follow-up): the board-edge pass calls the two ring
+# distances for EVERY segment, via, and pad perimeter sample with no
+# prefilter, and a curved Edge.Cuts outline tessellates to 1-2k edges --
+# 20-40M scalar seg-seg calls per full-board DRC. The rings are fixed for a
+# whole check run, so their edge arrays are memoized (id + fingerprint --
+# the fingerprint revalidates against id reuse) and each query is one
+# broadcast of the exact scalar formulas. Rings with fewer than 32 edges
+# (plain rectangular outlines) keep the scalar loop: numpy call overhead
+# would make them slower, and both paths return identical values.
+_RINGS_EDGE_CACHE: Dict[int, tuple] = {}
+_RINGS_VECTOR_MIN_EDGES = 32
+
+
+def _rings_edge_arrays(rings):
+    """(ex1, ey1, dx, dy, len_sq) float64 arrays over every ring edge."""
+    key = id(rings)
+    fp = (len(rings), tuple(len(r) for r in rings),
+          tuple(rings[0][0]) if rings and len(rings[0]) else None)
+    hit = _RINGS_EDGE_CACHE.get(key)
+    if hit is not None and hit[0] == fp:
+        return hit[1]
+    ex1, ey1, ex2, ey2 = [], [], [], []
+    for ring in rings:
+        P = np.asarray(ring, dtype=np.float64)
+        Q = np.roll(P, -1, axis=0)
+        ex1.append(P[:, 0]); ey1.append(P[:, 1])
+        ex2.append(Q[:, 0]); ey2.append(Q[:, 1])
+    x1 = np.concatenate(ex1); y1 = np.concatenate(ey1)
+    x2 = np.concatenate(ex2); y2 = np.concatenate(ey2)
+    dx, dy = x2 - x1, y2 - y1
+    arrays = (x1, y1, x2, y2, dx, dy, dx * dx + dy * dy)
+    if len(_RINGS_EDGE_CACHE) > 8:
+        _RINGS_EDGE_CACHE.clear()
+    _RINGS_EDGE_CACHE[key] = (fp, arrays)
+    return arrays
+
+
+def _pt_edges_d2(px, py, x1, y1, dx, dy, len_sq):
+    """Squared point-to-segment distance against every ring edge -- the
+    point_to_segment_distance formula, term for term (proj = x1 + t*dx, then
+    px - proj: the association matters, (px-x1) - t*dx rounds 1-2 ULP apart)."""
+    with np.errstate(divide='ignore', invalid='ignore'):
+        t = np.clip(((px - x1) * dx + (py - y1) * dy) / len_sq, 0.0, 1.0)
+    t = np.where(len_sq < 1e-10, 0.0, t)
+    ddx = px - (x1 + t * dx)
+    ddy = py - (y1 + t * dy)
+    return ddx * ddx + ddy * ddy
+
+
 def _point_to_rings_distance(x: float, y: float,
                              rings: List[List[Tuple[float, float]]]) -> float:
     """Min distance from a point to any edge ring's boundary."""
+    if sum(len(r) for r in rings) >= _RINGS_VECTOR_MIN_EDGES:
+        x1, y1, x2, y2, dx, dy, len_sq = _rings_edge_arrays(rings)
+        if not len(x1):
+            return float('inf')
+        # The vector kernel squares with a multiply; the scalar squares with
+        # `**2` = libm pow, which rounds 1 ULP differently on ~0.1% of values
+        # (macOS arm64) and no numpy op reproduces it. So the broadcast only
+        # NOMINATES the minimal edges (a few-ULP window); the returned value
+        # is recomputed on those with the scalar itself -- byte-identical by
+        # construction, and the candidate set is 1-2 edges.
+        d2 = _pt_edges_d2(x, y, x1, y1, dx, dy, len_sq)
+        m = d2.min()
+        cand = np.nonzero(d2 <= m + 8 * np.spacing(m))[0]
+        return min(point_to_segment_distance(x, y, x1[i], y1[i], x2[i], y2[i])
+                   for i in cand)
     best = float('inf')
     for ring in rings:
         n = len(ring)
@@ -1252,6 +1487,40 @@ def _segment_to_rings_distance(x1: float, y1: float, x2: float, y2: float,
                                rings: List[List[Tuple[float, float]]]) -> float:
     """Min distance from a track segment to any edge ring's boundary (0 if it
     crosses an edge)."""
+    if sum(len(r) for r in rings) >= _RINGS_VECTOR_MIN_EDGES:
+        ex1, ey1, ex2, ey2, dx, dy, len_sq = _rings_edge_arrays(rings)
+        if not len(ex1):
+            return float('inf')
+        # segments_intersect, vectorized: the same four ccw() comparisons.
+        def _ccw(ax, ay, bx, by, cx, cy):
+            return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax)
+        inter = ((_ccw(x1, y1, ex1, ey1, ex2, ey2)
+                  != _ccw(x2, y2, ex1, ey1, ex2, ey2))
+                 & (_ccw(x1, y1, x2, y2, ex1, ey1)
+                    != _ccw(x1, y1, x2, y2, ex2, ey2)))
+        if inter.any():
+            # An intersected edge contributes exactly 0.0 to the scalar min.
+            return 0.0
+        # Endpoint-to-other-segment distances, both directions (the scalar
+        # min(d1..d4)), on squared values. As in _point_to_rings_distance,
+        # the multiply-squared kernel only NOMINATES minimal edges; the
+        # returned value comes from the scalar on those (pow-vs-multiply
+        # rounds 1 ULP apart on rare values).
+        sdx, sdy = x2 - x1, y2 - y1
+        slen_sq = sdx * sdx + sdy * sdy
+        d2 = np.minimum(
+            np.minimum(_pt_edges_d2(x1, y1, ex1, ey1, dx, dy, len_sq),
+                       _pt_edges_d2(x2, y2, ex1, ey1, dx, dy, len_sq)),
+            np.minimum(
+                _pt_edges_d2(ex1, ey1, np.float64(x1), np.float64(y1),
+                             np.float64(sdx), np.float64(sdy), np.float64(slen_sq)),
+                _pt_edges_d2(ex2, ey2, np.float64(x1), np.float64(y1),
+                             np.float64(sdx), np.float64(sdy), np.float64(slen_sq))))
+        m = d2.min()
+        cand = np.nonzero(d2 <= m + 8 * np.spacing(m))[0]
+        return min(_seg_seg_dist_coords(x1, y1, x2, y2,
+                                        ex1[i], ey1[i], ex2[i], ey2[i])
+                   for i in cand)
     best = float('inf')
     for ring in rings:
         n = len(ring)
@@ -3554,7 +3823,7 @@ if __name__ == "__main__":
 
     from fab_tiers import add_fab_tier_args, fab_tier_from_args, set_default_fab_tier
     add_fab_tier_args(parser)
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
     set_default_fab_tier(*fab_tier_from_args(args))
 
     # Grade at the clearance the board was actually routed to. When -c is not
@@ -3654,34 +3923,56 @@ if __name__ == "__main__":
             net_clearances = net_clearance_map(
                 args.pcb, [n.name for n in _net_objs.values()],
                 rules=_rules) or None
-        _pro_edge = float(_rules.get('constraints', {})
-                          .get('min_copper_edge_clearance') or 0.0)
-        if _pro_edge > args.board_edge_clearance:
-            args.board_edge_clearance = _pro_edge
-            if not args.quiet:
-                print(f"Board-edge clearance {_pro_edge:.4g} mm "
-                      f"(from project min_copper_edge_clearance)")
+        # #603: a board minimum that overrides an EXPLICIT CLI value is
+        # announced on stderr even under --quiet. Silently substituting is how
+        # polykit_x_inputboard's `--hole-to-hole-clearance 0.2` (taken from
+        # list_nets' then-wrong floor line) came back graded at 0.25 with
+        # nothing in the output saying so -- the grader could not tell the
+        # requested floor from the applied one. stderr keeps stdout
+        # machine-readable for the callers that parse it.
+        def _pin_up(attr, board_val, source, label):
+            cur = getattr(args, attr)
+            if board_val <= cur:
+                return
+            # Explicitness must come from the COMMAND LINE, not from comparing
+            # against the default: --hole-to-hole-clearance 0.2 IS the default
+            # value, and that is exactly the case in the field report.
+            flag = '--' + attr.replace('_', '-')
+            explicit = any(a == flag or a.startswith(flag + '=')
+                           for a in sys.argv[1:])
+            setattr(args, attr, board_val)
+            msg = f"{label} {board_val:.4g} mm (from project {source})"
+            if explicit:
+                print(f"NOTE: {label} CLAMPED UP to {board_val:.4g} mm by the "
+                      f"board's own {source} -- the requested {cur:.4g} mm is "
+                      f"below a DRC-enforced minimum and cannot be graded at. "
+                      f"Route at {board_val:.4g} too, or the grade will not "
+                      f"match what was routed.", file=sys.stderr)
+            elif not args.quiet:
+                print(msg)
+
+        _pin_up('board_edge_clearance',
+                float(_rules.get('constraints', {})
+                      .get('min_copper_edge_clearance') or 0.0),
+                'min_copper_edge_clearance', 'Board-edge clearance')
         # #439: board-derive the hole-to-hole floor too (symmetry with edge above
         # and with the router, which pins it from min_hole_to_hole). Without this a
         # board declaring min_hole_to_hole > the 0.2 default is graded too loose and
         # a real hole-to-hole violation between 0.2 and the board value is missed.
-        _pro_h2h = float(_rules.get('constraints', {})
-                         .get('min_hole_to_hole') or 0.0)
-        if _pro_h2h > args.hole_to_hole_clearance:
-            args.hole_to_hole_clearance = _pro_h2h
-            if not args.quiet:
-                print(f"Hole-to-hole clearance {_pro_h2h:.4g} mm "
-                      f"(from project min_hole_to_hole)")
+        _pin_up('hole_to_hole_clearance',
+                float(_rules.get('constraints', {})
+                      .get('min_hole_to_hole') or 0.0),
+                'min_hole_to_hole', 'Hole-to-hole clearance')
         # COPPER-to-hole, the third of the same family and the one that was
-        # missing. The two blocks above board-derive their floors; this check
-        # did not, and graded every board at the hardcoded 0.20
+        # missing (#617). The two blocks above board-derive their floors; this
+        # check did not, and graded every board at the hardcoded 0.20
         # NPTH_TO_TRACK_CLEARANCE instead -- so a board declaring
-        # min_hole_clearance 0.25 had its authored 0.20-0.25 band graded clean,
-        # and no ratchet was needed to hide it (neo6502: 3 NPTH holes, tightest
-        # 0.2126 mm). Same shape as the two above: raise, never lower.
+        # min_hole_clearance 0.25 had its authored 0.20-0.25 band graded clean
+        # (neo6502: 3 NPTH holes, tightest 0.2126 mm). Routed through _pin_up
+        # so it inherits #603's explicit-clamp announcement like the others.
         _pro_hclr = float(_rules.get('constraints', {})
                           .get('min_hole_clearance') or 0.0)
-        _hclr_src = 'project min_hole_clearance'
+        _hclr_src = 'min_hole_clearance'
         # ...and the ORIGIN, which is the value the board declared before the
         # chain rewrote it. The writeback only loosens, so `min_hole_clearance`
         # in the project beside a routed board is the smallest thing the RUN
@@ -3707,11 +3998,8 @@ if __name__ == "__main__":
                         'board declared BEFORE the chain lowered it)'
             except Exception:                                  # noqa: BLE001
                 pass
-        if _pro_hclr > args.hole_clearance:
-            args.hole_clearance = _pro_hclr
-            if not args.quiet:
-                print(f"Copper-to-hole clearance {_pro_hclr:.4g} mm "
-                      f"(from {_hclr_src})")
+        _pin_up('hole_clearance', _pro_hclr, _hclr_src,
+                'Copper-to-hole clearance')
     except Exception as e:
         if not args.quiet:
             print(f"  (netclass/edge rules not read: {e})")

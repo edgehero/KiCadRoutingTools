@@ -28,6 +28,18 @@ from net_queries import matches_net_filter
 from qfn_fanout.layout import analyze_qfn_layout, analyze_pad
 from qfn_fanout.geometry import calculate_fanout_stub
 
+# #621: nets whose escape was never ATTEMPTED because this run's own
+# `cancel_check` stopped it -- in practice the GUI's Cancel button or the plan
+# executor's Stop, the only cancel sources there are (the CLI passes None).
+# Refreshed by every generate_qfn_fanout call and EMPTY unless a cancel
+# actually fired.
+#
+# Deliberately a separate ledger from failed_nets/unescaped_nets: an unfinished
+# search has measured nothing about a pad, and folding untried pads into the
+# failure list reports a cancel as a routing defect -- which would send the
+# planner (or the user) into a pointless tighter-clearance retry.
+LAST_CANCEL_SKIPPED: List[str] = []
+
 
 def _snap_tip_on_grid(corner, tip, net_id, grid_step, grazes):
     """Move a shortened fan tip back ONTO the routing grid (#446).
@@ -244,7 +256,8 @@ def run_output_conflict(vx, vy, net_id, placed, px=None, py=None, *,
 
 def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
                          track_width, clearance, via_size, via_drill, grid_step,
-                         allow_via_in_pad=False, board_edge_clearance=0.0):
+                         allow_via_in_pad=False, board_edge_clearance=0.0,
+                         progress_callback=None):
     """Via-drop escape (issue #164): instead of a surface 45-degree fan, run a
     short stub from each pad to a through-via just past the pad edge and let
     signal routing pick the net up on an inner/back layer. This escapes a
@@ -298,9 +311,16 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
     fanned_nets = {pi.pad.net_id for pi in pad_infos}
     cfg = GridRouteConfig(layers=list(pcb_data.board_info.copper_layers or [layer]),
                           track_width=track_width, clearance=clearance)
+    _ref = getattr(footprint, 'reference', '?')
+
+    def _prog(cur, tot, what):
+        if progress_callback:
+            progress_callback(cur, tot, f"QFN via-drop {_ref}: {what}")
+
     from kicad_dru import install_layer_clearances
     install_layer_clearances(cfg, None, None, pcb_data)  # #498
     layer_map = build_layer_map(cfg.layers)
+    _prog(0, 0, "building obstacle map...")
     obstacles = build_base_obstacle_map(pcb_data, cfg, nets_to_route=list(fanned_nets),
                                         extra_clearance=track_width / 2)
     obs_layer_idx = layer_map.get(layer)
@@ -549,7 +569,9 @@ def _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
         by_side[pi.side].append(pi)
 
     n_alt = 0
-    for side, pis in by_side.items():
+    for _si, (side, pis) in enumerate(by_side.items()):
+        _prog(_si + 1, len(by_side),
+              f"placing via drops, side {side} ({len(pis)} pin(s))")
         pis.sort(key=lambda pi: (pi.pad.global_x, pi.pad.global_y))
         order_fwd = list(range(len(pis)))
         best, best_n, best_ci = None, -1, 0
@@ -641,7 +663,15 @@ def generate_qfn_fanout(footprint: Footprint,
                         via_size: float = 0.45,
                         via_drill: float = 0.25,
                         allow_via_in_pad: bool = False,
-                        board_edge_clearance: float = 0.0) -> Tuple[List[Dict], List[Dict], List[str]]:
+                        board_edge_clearance: float = 0.0,
+                        # #581: > 0 forbids via-in-pad (overrides
+                        # allow_via_in_pad); None auto-reads the .kicad_pro
+                        # record a chain step persisted.
+                        same_net_pad_clearance: Optional[float] = None,
+                        # progress_callback(current, total, label); the fanout
+                        # tab otherwise shows one static label for the run.
+                        progress_callback=None,
+                        cancel_check=None) -> Tuple[List[Dict], List[Dict], List[str]]:
     """
     Generate QFN fanout tracks for a footprint.
 
@@ -667,11 +697,41 @@ def generate_qfn_fanout(footprint: Footprint,
         too close to another net's stub (endpoint spacing < track_width +
         extension); those tracks are still emitted but flagged as failing
         clearance so the GUI can surface them.
+
+    Cancellation (#621): `cancel_check` is the standard zero-arg cooperative
+    predicate (`batch_route` / `create_plane` take the same one), honoured at
+    the head of the escape work and at the head of the per-stub clearance loop
+    -- the loop that actually costs the time (every stub is checked against the
+    obstacle map, every foreign pad and the board edge, then shortened by
+    search). It BREAKS the loop, never raises: an exception here dies in this
+    package's `except Exception` swallowers. Stubs already kept ship their
+    tracks; pads it never reached carry no copper and are NOT added to
+    failed_nets -- an unfinished search has measured nothing. The untried pads'
+    nets are published as qfn_fanout.LAST_CANCEL_SKIPPED. Passing None (the
+    default, and what the CLI passes) is fully inert.
     """
+    LAST_CANCEL_SKIPPED.clear()
+    _cancelled = [False]
+
+    def _cancel() -> bool:
+        if cancel_check is not None and cancel_check():
+            _cancelled[0] = True
+            return True
+        return False
     layout = analyze_qfn_layout(footprint)
     if layout is None:
         print(f"Warning: {footprint.reference} doesn't appear to be a QFN/QFP")
         return [], [], []
+
+    # #581: an active (> 0) same-net pad via clearance forbids via-in-pad --
+    # it overrides an explicit allow_via_in_pad.
+    if same_net_pad_clearance is None:
+        from protected_nets import read_snpc_for_pcb_data as _read_snpc581
+        same_net_pad_clearance = _read_snpc581(pcb_data)
+    if same_net_pad_clearance > 0 and allow_via_in_pad:
+        print(f"  Same-net pad via clearance {same_net_pad_clearance:g}mm "
+              f"(#581): via-in-pad DISABLED (overrides allow-via-in-pad)")
+        allow_via_in_pad = False
 
     # #498: a .kicad_dru rule for the (single) escape layer REPLACES the pair
     # clearance -- QFN stubs live on exactly one layer, so the scalar swap is
@@ -722,6 +782,11 @@ def generate_qfn_fanout(footprint: Footprint,
     pad_infos: List[PadInfo] = []
     side_counts = defaultdict(int)
 
+    if progress_callback:
+        progress_callback(
+            0, 0, f"QFN fanout {getattr(footprint, 'reference', '?')}: "
+                  f"analyzing {len(footprint.pads)} pad(s)...")
+
     for pad in footprint.pads:
         if not pad.net_name or pad.net_id == 0:
             continue
@@ -758,6 +823,26 @@ def generate_qfn_fanout(footprint: Footprint,
     if not pad_infos:
         return [], [], []
 
+    def _record_skipped(tracks_, vias_, failed_):
+        """#621: the untried complement -- a candidate pad with no copper from
+        this call and no entry in failed_. Only built when a cancel fired."""
+        if not _cancelled[0]:
+            return
+        live = ({t.get('net_id') for t in tracks_}
+                | {v.get('net_id') for v in vias_})
+        done = set(failed_)
+        LAST_CANCEL_SKIPPED.extend(sorted(
+            {pi.pad.net_name for pi in pad_infos
+             if pi.pad.net_name and pi.pad.net_id not in live
+             and pi.pad.net_name not in done}))
+
+    # #621 escape-work head: covers BOTH escape methods, so a cancel raised
+    # before the first pad stops here with nothing tried instead of running an
+    # unbounded escape.
+    if _cancel():
+        _record_skipped([], [], [])
+        return [], [], []
+
     # Via-drop / underpad escape (issue #164): drop a through-via just past each
     # pad and let signal routing pick the net up on an inner layer, for crowded
     # fine-pitch edges where the surface fan has no room.
@@ -767,7 +852,8 @@ def generate_qfn_fanout(footprint: Footprint,
         return _underpad_via_escape(footprint, pcb_data, pad_infos, layout, layer,
                                     track_width, clearance, via_size, via_drill, grid_step,
                                     allow_via_in_pad=allow_via_in_pad,
-                                    board_edge_clearance=board_edge_clearance)
+                                    board_edge_clearance=board_edge_clearance,
+                                    progress_callback=progress_callback)
 
     # Build stubs
     stubs: List[FanoutStub] = []
@@ -827,8 +913,11 @@ def generate_qfn_fanout(footprint: Footprint,
     install_layer_clearances(_obs_cfg, None, None, pcb_data)  # #498
     _obs_layer_map = build_layer_map(_obs_cfg.layers)
     _fanned_net_ids = [p.net_id for p in footprint.pads if p.net_id]
+    if progress_callback:
+        progress_callback(0, 0, "QFN fanout: building obstacle map...")
     _obstacles = build_base_obstacle_map(pcb_data, _obs_cfg, nets_to_route=_fanned_net_ids,
-                                         extra_clearance=track_width / 2)
+                                         extra_clearance=track_width / 2,
+                                         progress_callback=progress_callback)
     _obs_layer_idx = _obs_layer_map.get(layer)
     # Window the foreign-pad scan by the actual STUB extent (every stub endpoint),
     # not the part's pad bbox: on large packages (LQFP) a straight escape runs
@@ -926,7 +1015,18 @@ def generate_qfn_fanout(footprint: Footprint,
     n_short = 0
     n_ext_short = 0
     kept_stubs: List[FanoutStub] = []
-    for stub, pad_info in zip(stubs, pad_infos):
+    # The per-stub graze test scans every foreign pad; on a crowded board this
+    # loop is where the QFN seconds go, so count it out to the status line.
+    for _sti, (stub, pad_info) in enumerate(zip(stubs, pad_infos)):
+        if _cancel():                                   # #621
+            # Untried stubs are simply not kept: no copper, and NOT appended to
+            # qfn_dropped -- they were never checked, so they are not failures.
+            break
+        if progress_callback:
+            progress_callback(
+                _sti + 1, len(stubs),
+                f"QFN fanout {getattr(footprint, 'reference', '?')}: "
+                f"clearing stub {stub.pad.net_name or stub.net_id}")
         nid = stub.net_id
         if _seg_grazes(stub.pad_pos, stub.corner_pos, nid):
             # #513 item 15 (ice4pi): a straight escape toward a nearby board
@@ -1064,6 +1164,7 @@ def generate_qfn_fanout(footprint: Footprint,
     else:
         print(f"  Validated: No endpoint collisions")
 
+    _record_skipped(tracks, [], failed_nets)
     return tracks, [], failed_nets
 
 
@@ -1082,14 +1183,15 @@ def main():
                              'is mounted on)')
     parser.add_argument('--width', '-w', type=float, default=0.1,
                         help='Track width in mm')
-    parser.add_argument('--extension', type=float, default=0.1,
+    import routing_defaults as defaults
+    parser.add_argument('--extension', type=float, default=defaults.QFN_EXTENSION,
                         help='Extension past pad edge before bend (mm)')
-    parser.add_argument('--clearance', type=float, default=0.1,
+    parser.add_argument('--clearance', type=float, default=defaults.QFN_CLEARANCE,
                         help='Min clearance to other-net pads (mm); stubs that '
                              'would graze a foreign pad are shortened or dropped')
     parser.add_argument('--nets', '-n', nargs='*',
                         help='Net patterns to include')
-    parser.add_argument('--grid-step', type=float, default=0.1,
+    parser.add_argument('--grid-step', type=float, default=defaults.GRID_STEP,
                         help='Routing grid step in mm (default: 0.1). Fanned stub ends are '
                              'snapped to this grid so the router gets on-grid terminals (issue '
                              '#149); MATCH the --grid-step you pass to route.py.')
@@ -1101,12 +1203,17 @@ def main():
                         help='Underpad escape via outer diameter (mm, default 0.45)')
     parser.add_argument('--via-drill', type=float, default=0.25,
                         help='Underpad escape via drill diameter (mm, default 0.25)')
-    parser.add_argument('--board-edge-clearance', type=float, default=0.0,
+    parser.add_argument('--board-edge-clearance', type=float, default=defaults.BOARD_EDGE_CLEARANCE,
                         help='Min clearance from stub/via copper to the Edge.Cuts '
                              'outline in mm (default 0 = use --clearance). Stubs '
                              'that would graze the board edge are shortened or '
                              'dropped; underpad escape vias near the edge are '
                              'rejected (issue #288).')
+    parser.add_argument('--same-net-pad-clearance', type=float, default=None,
+                        help='#581: > 0 forbids via-in-pad (overrides --allow-via-in-pad) and '
+                             'is recorded in the sibling .kicad_pro so later chain steps '
+                             'inherit it. -1 explicitly allows via-in-pad. Default: the '
+                             'project record, else allowed.')
     parser.add_argument('--allow-via-in-pad', action='store_true',
                         help='Underpad escape: let the escape via overlap its OWN pad '
                              '(via-in-pad), so a via boxed in on the outward side can '
@@ -1127,7 +1234,7 @@ def main():
     # identical behavior for existing commands.
     from fix_kicad_drc_settings import add_drc_fix_args
     add_drc_fix_args(parser)
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
     from fix_kicad_drc_settings import warn_if_missing_project_floor
     warn_if_missing_project_floor(args.pcb)  # #441: a dropped sibling .kicad_pro strands the DRC floor
     # #513 item 15: default the edge keep-out to the BOARD'S OWN
@@ -1233,6 +1340,10 @@ def main():
               f"mounted layer {footprint.layer} - stubs will NOT touch the "
               f"SMD pads unless this is intentional")
 
+    # #621: the CLI passes no cancel_check. The engine's cooperative cancel is
+    # the GUI's (its Cancel button / the plan executor's Stop); a CLI-side
+    # wall-clock budget was removed deliberately -- no result this tool produces
+    # may depend on timing, or the same command stops producing the same board.
     tracks, vias, _failed_nets = generate_qfn_fanout(
         footprint,
         pcb_data,
@@ -1246,7 +1357,8 @@ def main():
         escape_method=args.escape_method,
         via_size=args.via_size,
         via_drill=args.via_drill,
-        allow_via_in_pad=args.allow_via_in_pad
+        allow_via_in_pad=args.allow_via_in_pad,
+        same_net_pad_clearance=args.same_net_pad_clearance  # #581
     )
 
     if tracks or vias:
@@ -1284,6 +1396,10 @@ def main():
                        | {v['net_id'] for v in vias if v.get('net_id') is not None})
     unescaped = sorted(set(_failed_nets))
     escaped = len(escaped_net_ids)
+    # The CLI never cancels (#621: no --deadline, no other CLI cancel source),
+    # so LAST_CANCEL_SKIPPED is empty here by construction and every pad was
+    # concluded one way or the other. The partial-ledger arithmetic lives in the
+    # engine for the GUI, which does have a cancel.
     requested = escaped + len(unescaped)
     drc_grazes = {}
     out_path = getattr(args, 'output', None)
@@ -1325,6 +1441,16 @@ def main():
                 clamp_nondefault_netclasses=True)  # #439: fanout escapes route to --clearance; always clamp
         except Exception as _e:
             print(f"  (skipped DRC-settings fix: {_e})")
+        # #581: record an ACTIVE same-net pad via clearance for later steps.
+        try:
+            from protected_nets import (persist_same_net_pad_clearance,
+                                        pro_path_for_board)
+            if args.same_net_pad_clearance is not None \
+                    and args.same_net_pad_clearance > 0:
+                persist_same_net_pad_clearance(
+                    pro_path_for_board(out_path), args.same_net_pad_clearance)
+        except Exception as _e:
+            print(f"  (skipped same-net pad clearance record: {_e})")
     summary = {
         'component': args.component,
         'requested': requested,
@@ -1344,9 +1470,12 @@ def main():
         # and check_drc grade the board at this floor.
         'min_clearance_used': eff_clearance,
     }
+    try:                       # #653: env knobs into the machine-readable
+        import env_knobs as _ek653   # summary, so a harness can detect a
+        summary['env_knobs'] = _ek653.active_env_knobs()   # dirty baseline
+    except Exception:          # without re-reading logs
+        pass
     print(f"JSON_SUMMARY: {_json.dumps(summary)}")
-
-
     return 0
 
 

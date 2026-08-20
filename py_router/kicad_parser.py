@@ -881,23 +881,23 @@ def _custom_pad_global_polygons(pad_text: str, global_x: float, global_y: float,
                 filled = not re.search(r'\(fill\s+(?:no|none)\b', block)
                 r_in = 0.0 if filled else max(0.0, r_mid - hw)
                 if R > 0:
-                    # Adaptive tessellation for PRIMITIVE circles (run-4 B6).
-                    # The fixed inscribed 32-gon had a ~2.4um radial error at
-                    # r=0.5 -- larger than the 1.6um by which a solder-jumper
-                    # pad's real copper undercut the 0.09 floor on run 3's
-                    # tigard board, so check_drc graded a graze clean that
-                    # kicad-cli (exact arcs) flagged. Stay INSCRIBED (never
-                    # exceed real copper), 1um sagitta, capped at 64 vertices
-                    # for the 266-custom-pad boards (sofle_pico caution).
-                    N = _adaptive_circle_n(R)
+                    # REVERTED to main's fixed inscribed 32-gon. The adaptive
+                    # version (run-4 B6) was more accurate -- ~2.4um radial
+                    # error at r=0.5 vs 1um sagitta -- but it sits in the
+                    # PARSER, so it moved obstacle geometry and DRC grading
+                    # together on every board with circle-primitive custom
+                    # pads, which makes cross-era comparisons on those boards
+                    # unresolvable by re-grading (both sides shift). Restore
+                    # if the accuracy is wanted, but land it as a deliberate,
+                    # measured baseline change rather than a silent one.
+                    N = 32
                     outer = [(c[0] + R * math.cos(2 * math.pi * k / N),
                               c[1] + R * math.sin(2 * math.pi * k / N))
                              for k in range(N)]
                     if r_in > 0.05:
-                        Ni = _adaptive_circle_n(r_in)
-                        inner = [(c[0] + r_in * math.cos(-2 * math.pi * k / Ni),
-                                  c[1] + r_in * math.sin(-2 * math.pi * k / Ni))
-                                 for k in range(Ni)]
+                        inner = [(c[0] + r_in * math.cos(-2 * math.pi * k / N),
+                                  c[1] + r_in * math.sin(-2 * math.pi * k / N))
+                                 for k in range(N)]
                         local = outer + [outer[0], inner[0]] + inner[1:] + [inner[0]]
                     else:
                         local = outer
@@ -1090,6 +1090,9 @@ def _unescape_kicad_string(s: str) -> str:
     return s.replace('\\\\', '\\').replace('\\"', '"')
 
 
+_PAREN_OR_QUOTE = re.compile(r'["()]')
+
+
 def find_matching_paren(content: str, open_idx: int) -> int:
     """Return the index just past the ``)`` matching the ``(`` at ``open_idx``.
 
@@ -1100,29 +1103,43 @@ def find_matching_paren(content: str, open_idx: int) -> int:
     following footprints' pads (issue #113). Returns ``len(content)`` if no match
     is found.
     """
+    # Hot path for every block extraction: instead of a per-character state
+    # machine, jump between the only characters that matter (quote/parens)
+    # with C-level scans. Semantics are identical to the classic loop: a
+    # quote toggles string mode, and inside a string a quote only closes it
+    # when preceded by an even run of backslashes (\" and \\ escapes).
     depth = 0
-    in_string = False
     i = open_idx
     n = len(content)
-    while i < n:
-        char = content[i]
-        if in_string:
-            if char == '\\':
-                i += 2  # skip escaped char
-                continue
-            if char == '"':
-                in_string = False
-        else:
-            if char == '"':
-                in_string = True
-            elif char == '(':
-                depth += 1
-            elif char == ')':
-                depth -= 1
-                if depth == 0:
-                    return i + 1
-        i += 1
-    return n
+    search = _PAREN_OR_QUOTE.search
+    find_quote = content.find
+    while True:
+        m = search(content, i)
+        if m is None:
+            return n
+        j = m.start()
+        c = content[j]
+        if c == '(':
+            depth += 1
+            i = j + 1
+        elif c == ')':
+            depth -= 1
+            if depth == 0:
+                return j + 1
+            i = j + 1
+        else:  # opening quote: skip the whole string
+            i = j + 1
+            while True:
+                k = find_quote('"', i)
+                if k == -1:
+                    return n  # unterminated string: no match, like the old loop
+                nb = 0
+                while k - 1 - nb >= 0 and content[k - 1 - nb] == '\\':
+                    nb += 1
+                if nb % 2 == 0:
+                    i = k + 1
+                    break
+                i = k + 1
 
 
 def extract_layers(content: str) -> BoardInfo:
@@ -3603,6 +3620,109 @@ def _nm_quantize_bounds(bounds):
     return tuple(round(v, 6) for v in bounds)
 
 
+def stage_live_project_rules(board_path: str, board):
+    """Author `board_path`'s sibling .kicad_pro from the LIVE pcbnew board's
+    in-memory design settings. Crash-safe replacement for the sibling that
+    pcbnew.SaveBoard's implicit settings save used to write (#627).
+
+    dab5c82 (the PR #613 SIGABRT fix) passed aSkipSettings=True at every
+    SaveBoard, so GUI temp snapshots stopped carrying a sibling .kicad_pro
+    -- and the exact-fill refill of such a snapshot fell back to pcbnew's
+    STOCK rules (the "bare board refills at stock rules" trap refill_islands
+    documents). The CLI's counterpart refill resolves the chain-stamped
+    project (update_live_drc_floors mirrors those clamps into the live
+    board's memory, but nothing put them back on disk for the subprocess),
+    so the GUI's plane-fragility field priced the A* off a different fill:
+    4 GND segments + 1 via on the parity board, one grid cell apart.
+
+    Seeds from the board's real project file when one exists (non-Default
+    classes, assignments, and every key we do not own survive verbatim),
+    then overwrites the design-settings rule floors and the Default net
+    class with the live in-memory values -- the only values the GUI mutates
+    mid-session. Serializing plain values cannot re-trigger the KiCad 10
+    settings-save merge crash. Best-effort: returns the written path, or
+    None (callers refill bare, exactly today's behavior).
+    """
+    import json
+    try:
+        pro = os.path.splitext(board_path)[0] + '.kicad_pro'
+        proj = None
+        try:
+            src = board.GetFileName() or ''
+        except Exception:
+            src = ''
+        if src:
+            src_pro = os.path.splitext(src)[0] + '.kicad_pro'
+            if os.path.isfile(src_pro):
+                try:
+                    with open(src_pro, 'r', encoding='utf-8') as fh:
+                        proj = json.load(fh)
+                except Exception:
+                    proj = None
+        if proj is None:
+            proj = {"board": {"design_settings": {"rules": {}}},
+                    "meta": {"filename": os.path.basename(pro),
+                             "version": 1},
+                    "net_settings": {"classes": [], "meta": {"version": 0}}}
+        rules = proj.setdefault('board', {}).setdefault(
+            'design_settings', {}).setdefault('rules', {})
+        bds = board.GetDesignSettings()
+        for key, attr in (('min_clearance', 'm_MinClearance'),
+                          ('min_track_width', 'm_TrackMinWidth'),
+                          ('min_via_diameter', 'm_ViasMinSize'),
+                          ('min_through_hole_diameter', 'm_MinThroughDrill'),
+                          ('min_via_annular_width', 'm_ViasMinAnnularWidth'),
+                          ('min_hole_to_hole', 'm_HoleToHoleMin'),
+                          ('min_hole_clearance', 'm_HoleClearance'),
+                          ('min_copper_edge_clearance',
+                           'm_CopperEdgeClearance')):
+            try:
+                rules[key] = getattr(bds, attr) / 1e6
+            except Exception:
+                pass
+        # Default net class: KiCad 10 accessor first (board.GetNetClasses()
+        # returns an EMPTY map there), then the legacy map.
+        nc = None
+        try:
+            nc = bds.m_NetSettings.GetDefaultNetclass()
+        except Exception:
+            nc = None
+        if nc is None:
+            try:
+                for _name, _c in board.GetNetClasses().items():
+                    if _name == 'Default':
+                        nc = _c
+                        break
+            except Exception:
+                nc = None
+        if nc is not None:
+            classes = proj.setdefault('net_settings',
+                                      {}).setdefault('classes', [])
+            entry = None
+            for c in classes:
+                if isinstance(c, dict) and c.get('name') == 'Default':
+                    entry = c
+                    break
+            if entry is None:
+                entry = {'name': 'Default'}
+                classes.append(entry)
+            for key, getter in (('clearance', 'GetClearance'),
+                                ('track_width', 'GetTrackWidth'),
+                                ('via_diameter', 'GetViaDiameter'),
+                                ('via_drill', 'GetViaDrill')):
+                try:
+                    entry[key] = getattr(nc, getter)() / 1e6
+                except Exception:
+                    pass
+        tmp = pro + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as fh:
+            json.dump(proj, fh, indent=2)
+        os.replace(tmp, pro)
+        return pro
+    except Exception:
+        return None
+
+
 def build_pcb_data_from_board(board, guide_layer: str = "User.1",
                               keepout_layer: str = "User.2") -> PCBData:
     """Build PCBData directly from a pcbnew board object (no file I/O).
@@ -3959,15 +4079,41 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
 
         # Net-tie pad groups — parity with the text parser (Kelvin shunts /
         # net-tie parts; KiCad exempts the grouped pads' mutual clearance).
-        # GetNetTiePadGroups() returns a vector of "1, 2"-style strings.
+        #
+        # #604: GetNetTiePadGroups() returns a raw std::vector<wxString> that
+        # this SWIG build does not wrap as a Python sequence -- iterating it
+        # raises TypeError, the except swallowed it, and every net-tie board
+        # came back with net_tie_groups=[] while the text parser read the
+        # groups fine. That is a real model gap (the GUI builds its PCBData
+        # here, so its clearance waiver was blind to net ties), and it made
+        # validate_pcb_data report a permanent false parity FAIL on 7 of the
+        # 99 sets-21-27 boards (lm399_burnin: 26 NT parts).
+        #
+        # GetNetTiePads(pad) IS wrapped -- it returns a tuple of the PADs tied
+        # to that pad, the queried pad included -- so rebuild each group from
+        # it and de-duplicate. Gated on IsNetTie() so ordinary footprints cost
+        # one bool, and the raw-vector path stays as the fallback for builds
+        # that wrap it but lack IsNetTie.
+        fp_net_tie = []
         try:
-            fp_net_tie = []
-            for _grp in fp.GetNetTiePadGroups():
-                _nums = [p.strip() for p in str(_grp).split(',') if p.strip()]
-                if len(_nums) >= 2:
-                    fp_net_tie.append(_nums)
+            if fp.IsNetTie():
+                _seen = set()
+                for _pad in fp.Pads():
+                    _grp = frozenset(str(p.GetNumber())
+                                     for p in fp.GetNetTiePads(_pad))
+                    if len(_grp) >= 2 and _grp not in _seen:
+                        _seen.add(_grp)
+                        fp_net_tie.append(sorted(_grp))
         except Exception:
             fp_net_tie = []
+        if not fp_net_tie:
+            try:
+                for _grp in fp.GetNetTiePadGroups():
+                    _nums = [p.strip() for p in str(_grp).split(',') if p.strip()]
+                    if len(_nums) >= 2:
+                        fp_net_tie.append(_nums)
+            except Exception:
+                pass
 
         # Own uuid + sheet path (#459), the pcbnew mirrors of the text parser's
         # (uuid ...) / (path ...). Defensive: both accessors have moved across
@@ -4318,14 +4464,21 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
                     locked=bool(track.IsLocked()),
                 ))
         elif track_class == "PCB_VIA":
-            # KiCad 9/10 padstack vias can refuse layerless GetWidth() with
-            # 'result with an error set' (seen on vias ADDED in-session by
-            # the plugin, then re-synced); GetFrontWidth() is the stable
-            # accessor for the outer-annulus size.
+            # GetFrontWidth() FIRST (#605). KiCad 9/10 padstack vias can
+            # refuse layerless GetWidth() with 'result with an error set'
+            # (seen on vias ADDED in-session by the plugin, then re-synced),
+            # and on KiCad 10 a bare PCB_VIA::GetWidth() trips a wxASSERT
+            # ("GetWidth called without a layer argument") for EVERY via. The
+            # assert does NOT raise, so asking GetWidth() first printed one
+            # stderr line per via and then fell through to the same answer:
+            # 34 of the 99 sets-21-27 boards logged 70-90 lines of it, in the
+            # same stream as warnings that matter. GetFrontWidth() is the
+            # stable outer-annulus accessor; GetWidth stays as the fallback
+            # for builds that lack it.
             try:
-                _vw = track.GetWidth()
-            except Exception:
                 _vw = track.GetFrontWidth()
+            except Exception:
+                _vw = track.GetWidth()
             v = Via(
                 x=to_mm(track.GetPosition().x),
                 y=to_mm(track.GetPosition().y),
@@ -4506,15 +4659,32 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
             import pcbnew as _pcbnew
             fd, tmp = tempfile.mkstemp(suffix='.kicad_pcb')
             os.close(fd)
-            _pcbnew.SaveBoard(tmp, _board)
+            # aSkipSettings: the implicit settings save aborts KiCad on
+            # pre-KiCad-10 projects (uncaught type_error merging the
+            # pre-migration file with the migrated in-memory settings).
+            # The sibling .kicad_pro that save used to write is what made
+            # the refill run at the session's LIVE rules -- losing it was
+            # #627's GUI-only copper drift (the refill fell back to stock
+            # rules; project_from=tmp resolved nothing). stage_live_
+            # project_rules re-authors it from the live board, crash-free.
+            _pcbnew.SaveBoard(tmp, _board, aSkipSettings=True)
+            _pro = stage_live_project_rules(tmp, _board)
+            _h = hashlib.sha256()
             with open(tmp, 'rb') as _fh:
-                _key = hashlib.sha256(_fh.read()).digest()
+                _h.update(_fh.read())
+            if _pro:
+                # The fill depends on the staged rules too: a step boundary
+                # can change the live floors on an unchanged board, and the
+                # memo must miss then.
+                with open(_pro, 'rb') as _fh:
+                    _h.update(_fh.read())
+            _key = _h.digest()
             if _key in _memo:
                 # Deep copy on hit: a caller mutating its polygons must not
                 # poison later consumers (same contract as refill_islands'
                 # own memo).
                 return _copy.deepcopy(_memo[_key])
-            islands = refill_islands(tmp, project_from=tmp)
+            islands = refill_islands(tmp)
             if islands:
                 _memo.clear()          # one board state at a time
                 _memo[_key] = _copy.deepcopy(islands)
@@ -4553,6 +4723,19 @@ def build_pcb_data_from_board(board, guide_layer: str = "User.1",
         duplicate_references=_dups_live,
         guide_paths=guide_paths,
         keepout_zones=keepout_zones,
+        # Writer parity with parse_kicad_pcb (which has always set this): on a
+        # KiCad 10 name-net board the writers emit `(net "NAME")` ONLY when they
+        # have this map -- `board_uses_name_nets()` decides the FORM, but the
+        # call sites pass `net_id_to_name if kicad_v10 else None`, so an empty
+        # map silently degrades to numeric `(net N)` ids. KiCad 10 boards carry
+        # NO numeric net table, so those ids are resolved against pcbnew's own
+        # ordering: harmless when our numbering happens to coincide, and wrong
+        # copper when it does not. A board loaded from a pre-KiCad-10 file
+        # renumbers on load, so it does not coincide -- act_probe_2ghz's staged
+        # finalize board came back with 90 phantom unconnected links (all of
+        # GND aimed at one point) and the oracle ground for minutes trying to
+        # weld breaks that never existed.
+        net_id_to_name={net_id: net.name for net_id, net in nets.items()},
         # #498 parity with parse_kicad_pcb: sibling-file discovery (.kicad_dru)
         source_path=os.path.abspath(board.GetFileName()) if board.GetFileName() else "",
         # #424: exact-fill consumers read the LIVE board, never a stale file

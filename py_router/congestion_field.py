@@ -167,7 +167,8 @@ def congestion2_knobs():
     return dict(env_knobs.CONGESTION2)
 
 
-def congestion_bins(pcb_data, net_ids, num_layers, bin_mm):
+def congestion_bins(pcb_data, net_ids, num_layers, bin_mm,
+                    extra_demand_points=None):
     """THE demand/capacity census: {(bx,by): (free_area_mm2, owners)} plus
     per-net terminal coords.
 
@@ -176,6 +177,12 @@ def congestion_bins(pcb_data, net_ids, num_layers, bin_mm):
     at the placement->routing handoff -- because every per-net gate
     (check_channels, check_reachability) passed run 23's board while two
     nets died in one bin whose demand/free-area no instrument ever printed.
+
+    extra_demand_points (#589): optional {net_id: [(x_mm, y_mm), ...]} of
+    predicted-corridor samples (the global plan's rough paths) folded into
+    each net's terminal set -- the net then claims demand along its whole
+    predicted path instead of only at its endpoints, and its own exemption
+    disks follow the corridor (owner-exempt by construction).
     """
     bin_mm = max(0.25, bin_mm)
     num_layers = max(1, num_layers)
@@ -203,6 +210,8 @@ def congestion_bins(pcb_data, net_ids, num_layers, bin_mm):
         for v in pcb_data.vias:
             if v.net_id == nid:
                 pts.append((v.x, v.y))
+        if extra_demand_points:
+            pts.extend(extra_demand_points.get(nid, ()))
         terminals[nid] = pts
         for (x, y) in pts:
             owners.setdefault((int(x // bin_mm), int(y // bin_mm)), set()).add(nid)
@@ -219,15 +228,19 @@ def congestion_bins(pcb_data, net_ids, num_layers, bin_mm):
     return bins, terminals
 
 
-def build_congestion2(pcb_data, config, net_ids_to_route):
+def build_congestion2(pcb_data, config, net_ids_to_route,
+                      extra_demand_points=None):
     """Precompute bins {(bx,by): (free_area_mm2, owners frozenset)} plus
-    per-net terminal coords. Returns None when disabled."""
+    per-net terminal coords. Returns None when disabled.
+
+    extra_demand_points (#589): see `congestion_bins` -- forwarded through."""
     k = congestion2_knobs()
     if k['cost'] <= 0:
         return None
     bin_mm = max(0.25, k['bin'])
     bins, terminals = congestion_bins(
-        pcb_data, net_ids_to_route, len(config.layers), bin_mm)
+        pcb_data, net_ids_to_route, len(config.layers), bin_mm,
+        extra_demand_points=extra_demand_points)
     n_hot = sum(1 for b, (fa, ow) in bins.items()
                 if len(ow) / fa > k['thresh'])
     print(f"Congestion2 field: {len(bins)} demand bins, {n_hot} above "
@@ -236,12 +249,16 @@ def build_congestion2(pcb_data, config, net_ids_to_route):
     return {'bins': bins, 'bin_mm': bin_mm, 'terminals': terminals, 'k': k}
 
 
-def stamp_congestion2(obstacles, config, net_id, routed_net_ids):
-    """Per-net prepare stamp: demand recomputed by set arithmetic, owner
-    disks exempted, rows applied as layer-proximity costs."""
+def congestion2_rows(config, net_id, routed_net_ids):
+    """Per-net congestion-v2 rows [layer, gx, gy, cost] (or None): demand
+    recomputed by set arithmetic, owner disks exempted. Returned as a SOURCE
+    for merge_track_proximity_costs' composition pass (#585 item 7) so sum
+    mode SUMS congestion with the other fields instead of max-inserting it
+    afterwards (in max mode the two are identical -- max commutes). Rows are
+    unique per (layer, cell) by construction = within-source dedupe."""
     d2 = getattr(config, '_congestion2', None)
     if d2 is None:
-        return
+        return None
     k = d2['k']
     bin_mm = d2['bin_mm']
     routed = set(routed_net_ids)
@@ -272,4 +289,14 @@ def stamp_congestion2(obstacles, config, net_id, routed_net_ids):
                 for li in range(num_layers):
                     rows.append((li, gx0 + dx, gy0 + dy, c))
     if rows:
-        obstacles.set_layer_proximity_batch(np.array(rows, dtype=np.int32))
+        return np.array(rows, dtype=np.int32)
+    return None
+
+
+def stamp_congestion2(obstacles, config, net_id, routed_net_ids):
+    """Legacy direct stamp (max-insert) -- kept for callers outside the
+    composition pass; the routing builders feed congestion2_rows into
+    merge_track_proximity_costs instead."""
+    rows = congestion2_rows(config, net_id, routed_net_ids)
+    if rows is not None:
+        obstacles.set_layer_proximity_batch(rows)

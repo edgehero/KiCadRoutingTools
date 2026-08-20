@@ -41,42 +41,13 @@ _REPO_DIR = os.path.abspath(os.path.join(ROOT_DIR, '..'))
 if _REPO_DIR not in sys.path:
     sys.path.insert(0, _REPO_DIR)
 
-def _windows_kicad_pythons():
-    """Every installed KiCad python on Windows, newest version first.
-
-    GLOBBED rather than listed. A hardcoded ``9.0`` (and its siblings across
-    the tree) simply stops matching the day KiCad 10 installs, and the failure
-    is silent-looking: `run_plan.py` printed "no python with pcbnew + wx found"
-    on a machine where KiCad 10.0's python was present and working. Version
-    dirs sort NUMERICALLY -- plain string sort puts "9.0" above "10.0".
-    """
-    import glob
-    out = []
-    for base in (os.environ.get('ProgramFiles', r'C:\Program Files'),
-                 os.environ.get('ProgramW6432', r'C:\Program Files'),
-                 os.environ.get('ProgramFiles(x86)', '')):
-        if not base:
-            continue
-        found = []
-        for path in glob.glob(os.path.join(base, 'KiCad', '*', 'bin',
-                                           'python.exe')):
-            ver = os.path.basename(os.path.dirname(os.path.dirname(path)))
-            try:
-                key = tuple(int(x) for x in ver.split('.'))
-            except ValueError:
-                key = (-1,)
-            found.append((key, path))
-        out.extend(p for _, p in sorted(found, reverse=True))
-        out.append(os.path.join(base, 'KiCad', 'bin', 'python.exe'))
-    seen = set()
-    return [p for p in out if not (p in seen or seen.add(p))]
-
-
 # Where KiCad's bundled python (the one with pcbnew + wx) lives per platform.
-KICAD_PYTHONS = [
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-    "/usr/bin/python3",
-] + (_windows_kicad_pythons() if os.name == 'nt' else [])
+# Shared with kicad_exact_fill so the install layouts -- notably Windows'
+# VERSIONED directory, which the bare C:\Program Files\KiCad\bin path missed
+# for every KiCad >= 6 (#647) -- are described in exactly one place.
+from kicad_exact_fill import kicad_python_candidates  # noqa: E402
+
+KICAD_PYTHONS = kicad_python_candidates()
 
 
 def have_kicad_python() -> bool:
@@ -183,6 +154,21 @@ def run_plan(board_path, steps, indices=None, snapshot_dir=None,
     board = pcbnew.LoadBoard(board_path)
     pcbnew.GetBoard = lambda: board   # the plugin reads the "live" board through this
 
+    # LoadBoard's net propagation reassigns netcodes of copper touching STALE
+    # zone fills (a mid-chain input: pours poured before the copper existed).
+    # Restore the file's stored nets, then refill so the fills carry real
+    # knockouts and later connectivity rebuilds cannot flip them again.
+    try:
+        from kicad_exact_fill import repin_netcodes_from_file
+        _n_repin = repin_netcodes_from_file(board, board_path)
+        if _n_repin:
+            print(f"run_plan: restored {_n_repin} netcode(s) the board load "
+                  f"flipped over stale fills")
+            from kicad_routing_plugin.gui_utils import refill_all_zones
+            refill_all_zones(board)
+    except Exception as _e:
+        print(f"run_plan: (net repin skipped: {_e})")
+
     from kicad_parser import build_pcb_data_from_board
     from kicad_routing_plugin import swig_gui
     from kicad_routing_plugin.ai_plan import PlanExecutor, step_label
@@ -213,7 +199,12 @@ def run_plan(board_path, steps, indices=None, snapshot_dir=None,
             snap = os.path.join(snapshot_dir, snapshot_format.format(
                 prefix=snapshot_prefix, n=index + 1, action=action))
             try:
-                pcbnew.SaveBoard(snap, board)
+                # aSkipSettings: per-step copper snapshot, no .kicad_pro
+                # wanted (KiCad 10's settings save merges the pre-migration
+                # on-disk project JSON with its migrated in-memory view;
+                # an uncaught type_error aborts the process on any
+                # pre-KiCad-10 project).
+                pcbnew.SaveBoard(snap, board, aSkipSettings=True)
                 result['snapshots'].append(snap)
             except Exception as e:
                 result['log'].append(f"snapshot step {index + 1} failed: {e}")
@@ -226,7 +217,13 @@ def run_plan(board_path, steps, indices=None, snapshot_dir=None,
                 # Save back to the same path, beside the .kicad_pro that
                 # PlanExecutor._write_drc_floors just stamped with the routed
                 # floors -- a board without its floor grades wrong (#441).
-                pcbnew.SaveBoard(board_path, board)
+                # aSkipSettings for two reasons: the implicit settings save
+                # would REWRITE that just-stamped .kicad_pro from KiCad's
+                # in-memory (pre-stamp) view, silently dropping the floors;
+                # and on pre-KiCad-10 projects it aborts the process outright
+                # (uncaught type_error merging the pre-migration file with
+                # the migrated in-memory settings).
+                pcbnew.SaveBoard(board_path, board, aSkipSettings=True)
             except Exception as e:
                 result['log'].append(f"final save failed: {e}")
         app.ExitMainLoop()

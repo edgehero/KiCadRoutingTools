@@ -4,6 +4,156 @@ KiCad Routing Tools - GUI Utilities
 Shared utilities for the plugin GUI.
 """
 
+# Re-entrancy latch for ui_thread_status (see below). Module-level, not
+# per-tab: a nested repaint can reach a DIFFERENT tab's helper.
+_IN_UI_STATUS = False
+
+# Secondary sink for ui_thread_status messages. The AI-tab plan executor
+# registers one while a plan runs: its own status mirror is POLL-driven
+# (wx.CallLater), so a step that runs ON the UI thread (fanout, cap
+# optimize, every tab's apply phase) blocks the poll and the AI tab froze
+# even while the working tab's label was repainting. ui_thread_status
+# pushes each message here as well, so the tab the user is actually
+# LOOKING at moves too. fn(message); None = no mirror.
+_UI_STATUS_MIRROR = None
+
+
+def set_ui_status_mirror(fn):
+    """Register (or clear, with None) the secondary ui_thread_status sink."""
+    global _UI_STATUS_MIRROR
+    _UI_STATUS_MIRROR = fn
+
+
+# Timestamp of the last UI-category event-loop pump (see ui_thread_status):
+# throttles the YieldFor so a fast message burst stays cheap.
+_LAST_UI_YIELD = 0.0
+
+
+def ui_thread_status(status_text, progress_bar, message):
+    """Show `message` for work running ON the wx main thread.
+
+    Engine-thread progress reaches the UI through wx.CallAfter, so the main
+    loop paints it. Work that runs ON the main thread (the apply phase, the
+    fanout, the plane-copper cleanup) BLOCKS that loop, so a bare SetLabel
+    would not repaint until the work finished -- the previous phase's label
+    stays on screen and reads as a hang.
+
+    Repainting from inside a KiCad ACTION PLUGIN is the delicate part, and the
+    reason this is one guarded helper rather than three hand-rolled copies:
+
+      * Only ever touch wx from the main thread. Off-thread callers are
+        marshalled with CallAfter instead (never dropped).
+      * Refresh + Update ONLY the static text. `wx.Gauge.Pulse()` starts an
+        indeterminate ANIMATION -- on macOS that schedules timers and can
+        dispatch events re-entrantly, which is exactly what corrupts the
+        thread state PYTHON_ACTION_PLUGIN::CallMethod releases on return
+        (a PyGILState_Release fatal abort takes KiCad down with it).
+      * A latch, because Update() runs the paint path and a nested call from
+        it must not recurse.
+      * Fully guarded: a status update must never break the work it reports.
+
+    macOS caveat that shaped this function: wxWindow.Update() CANNOT force a
+    synchronous repaint on wxOSX/Cocoa -- painting only happens when the run
+    loop turns (the wx docs call this out; Andy's report confirms it: labels
+    set + Refresh + Update during a blocking fanout never appeared on screen).
+    So after invalidating the label(s), this pumps the event loop for the
+    UI/paint CATEGORY ONLY, throttled: wx.EventLoopBase.YieldFor(
+    wx.EVT_CATEGORY_UI) dispatches paint/geometry events and RE-QUEUES
+    everything else -- user input (a stray click, the dialog's close button)
+    and timers (the plan executor's poll) are NOT dispatched, so nothing can
+    re-enter a handler mid-run. This is deliberately narrower than the plain
+    wx.Yield() the tabs use once at run start.
+
+    Escape hatch: KICAD_NO_UI_STATUS_REPAINT=1 sets the label but never forces
+    the paint or pumps the loop. The status then lags on blocking phases (the
+    pre-fix behaviour), which is strictly cosmetic -- so if a repaint from
+    inside the plugin ever destabilises a KiCad build, the label is the thing
+    to give up, not the run.
+    """
+    global _IN_UI_STATUS, _LAST_UI_YIELD
+    if _IN_UI_STATUS:
+        return
+    try:
+        import os
+        import time
+        import wx
+        if not wx.IsMainThread():
+            wx.CallAfter(ui_thread_status, status_text, progress_bar, message)
+            return
+        _IN_UI_STATUS = True
+        try:
+            no_repaint = os.environ.get('KICAD_NO_UI_STATUS_REPAINT', '') in \
+                ('1', 'yes', 'true')
+            if status_text:
+                status_text.SetLabel(message)
+                if not no_repaint:
+                    status_text.Refresh()
+                    status_text.Update()
+            if _UI_STATUS_MIRROR is not None:
+                # Push to the AI tab's mirror (inside the latch, so a
+                # paint-triggered nested call cannot recurse). Guarded
+                # separately: a dead mirror widget must not break the
+                # working tab's own status.
+                try:
+                    _UI_STATUS_MIRROR(message)
+                except Exception:
+                    pass
+            if not no_repaint:
+                # Actually PAINT the invalidated labels (see macOS caveat in
+                # the docstring). Throttled so a fast per-ball burst costs a
+                # bounded number of loop turns; a slow phase paints every
+                # message. Guarded: a failed pump degrades to the lagging
+                # label, never breaks the run.
+                now = time.monotonic()
+                if now - _LAST_UI_YIELD >= 0.05:
+                    _LAST_UI_YIELD = now
+                    try:
+                        loop = wx.EventLoopBase.GetActive()
+                        # IsRunning guard: only pump a loop that is actually
+                        # dispatching (KiCad's MainLoop). An activated-but-
+                        # never-run loop (synthetic harnesses) asserts inside
+                        # YieldFor's pending-event sweep.
+                        if loop is not None and loop.IsRunning():
+                            loop.YieldFor(wx.EVT_CATEGORY_UI)
+                    except Exception:
+                        pass
+        finally:
+            _IN_UI_STATUS = False
+    except Exception:
+        _IN_UI_STATUS = False
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def redirect_prints_to_log(append_log):
+    """Route print() output into the GUI log for the duration of a block,
+    while preserving the original stdout (StdoutRedirector tees, not swallows).
+
+    One shared helper because the audit found the coverage was accidental:
+    the route/diff/planes WORKERS redirected, but the fanout tab never did,
+    and every tab's APPLY phase runs after its worker restored stdout -- so
+    engine narration (fanout escapes, the oracle reconnect, zone refills,
+    plane cleanup) reached the terminal but never the log tab. Guarded:
+    append_log=None (or a failure) degrades to plain stdout, never breaks
+    the work.
+    """
+    import sys
+    if not append_log:
+        yield
+        return
+    original = sys.stdout
+    try:
+        sys.stdout = StdoutRedirector(append_log, original)
+    except Exception:
+        yield
+        return
+    try:
+        yield
+    finally:
+        sys.stdout = original
+
 
 class StdoutRedirector:
     """Redirects stdout to a callback function while preserving original output."""
@@ -203,26 +353,41 @@ def apply_teardrops_to_board(board):
 
 
 def refill_all_zones(board):
-    """Re-fill EVERY copper zone on the board so plane pours pull back around
-    copper added after they were first filled (#362).
+    """Re-fill EVERY copper zone, then rebuild connectivity -- the ONLY safe
+    way to register freshly added copper while filled zones exist (#362).
 
-    The plane tab fills only the zones it just created; a signal routed in a
-    LATER plan step (e.g. +1V1 after the GND/+3V3 planes exist) then leaves the
-    plane fill STALE -- no antipad around the new track/via -- which KiCad DRC
-    flags as clearance / shorting violations on the saved board (the CLI board
-    is graded with kicad-cli --refill-zones, so it never shows these). Call this
-    after any apply that adds copper while filled zones exist. Best-effort.
+    Two distinct corruptions this prevents:
+    - STALE FILLS (#362): a signal routed after planes exist leaves the plane
+      fill with no antipad around the new track/via, which KiCad DRC flags as
+      clearance / shorting violations on the saved board (the CLI board is
+      graded with kicad-cli --refill-zones, so it never shows these).
+    - NET FLIPS (mez_rx): ``board.BuildConnectivity()`` over a stale fill
+      REASSIGNS a new via's netcode to the zone's net (the fill has no
+      knockout, so pcbnew's net propagation sees them touching -- measured:
+      a fresh RGMII_TX_CTL via under the BGA came back GND/V1P8/V3P3, 42 of
+      131 fanout vias misnetted). Once flipped, the via is same-net with the
+      zone, so a LATER refill keeps no knockout and the wrong net STICKS.
+      ``pcbnew.LoadBoard`` propagates the same way, so a saved board with
+      stale fills is corrupted for every pcbnew consumer that opens it.
+
+    Therefore: call THIS (never a bare ``BuildConnectivity``) as the first
+    connectivity rebuild after adding copper. ZONE_FILLER computes knockouts
+    from the still-correct netcodes, and only then is connectivity rebuilt.
+    Best-effort; builds connectivity even when the board has no zones.
     Returns the number of zones refilled (0 if none / on error)."""
     try:
         import pcbnew
         zones = list(board.Zones())
-        if not zones:
-            return 0
-        pcbnew.ZONE_FILLER(board).Fill(zones)
+        if zones:
+            pcbnew.ZONE_FILLER(board).Fill(zones)
         board.BuildConnectivity()
         return len(zones)
     except Exception as e:
         print(f"(zone refill skipped: {e})")
+        try:
+            board.BuildConnectivity()
+        except Exception:
+            pass
         return 0
 
 
@@ -667,7 +832,20 @@ def run_kicad_oracle_on_live_board(board, net_names, *, clearance,
         with tempfile.NamedTemporaryFile(suffix='.kicad_pcb',
                                          delete=False) as f:
             tmp = f.name
-        pcbnew.SaveBoard(tmp, board)
+        # aSkipSettings: the implicit settings save aborts KiCad on worker
+        # threads for pre-KiCad-10 projects (uncaught C++ type_error in the
+        # .kicad_pro merge; see _stage_live_board in swig_gui.py). But the
+        # sibling .kicad_pro it used to write carried the session's LIVE
+        # rules to the oracle's exact-fill refill -- project_from below only
+        # stages the on-disk project, which is missing every clamp
+        # update_live_drc_floors applied in memory (#627). Re-author the
+        # sibling from the live board instead, crash-free.
+        pcbnew.SaveBoard(tmp, board, aSkipSettings=True)
+        try:
+            from kicad_parser import stage_live_project_rules
+            stage_live_project_rules(tmp, board)
+        except Exception:
+            pass
         # #490: stage the REAL project's netclasses for the refill, or the
         # exact-fill link source runs at stock rules.
         try:
@@ -684,10 +862,12 @@ def run_kicad_oracle_on_live_board(board, net_names, *, clearance,
                                     if hole_to_hole_clearance is not None
                                     else defaults.HOLE_TO_HOLE_CLEARANCE),
             progress_callback=progress_callback)
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
+        for _p in (tmp, os.path.splitext(tmp)[0] + '.kicad_pro',
+                   os.path.splitext(tmp)[0] + '.kicad_prl'):
+            try:
+                os.unlink(_p)
+            except OSError:
+                pass
         # #508 finding 15: the oracle's stranded-fragment deletions are
         # stripped from its temp file, but the LIVE board still holds that
         # copper -- delete it here, BEFORE the adds, so a same-position

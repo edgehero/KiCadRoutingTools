@@ -58,6 +58,35 @@ def point_in_polygon(x: float, y: float, polygon: List[Tuple[float, float]]) -> 
     return inside
 
 
+def points_in_polygon_mask(xs, ys, polygon):
+    """Vectorized point_in_polygon over coordinate arrays -- the same even-odd
+    ray cast, comparison for comparison (pure compares and one division, no
+    pow), so the mask is byte-identical to the scalar per point. Sweep item 7
+    (#625 follow-up): the zone-credit scan ran the scalar per net point per
+    zone per connectivity check."""
+    import numpy as np
+    xs = np.asarray(xs, dtype=np.float64)
+    ys = np.asarray(ys, dtype=np.float64)
+    n = len(polygon)
+    if n < 3 or not len(xs):
+        return np.zeros(xs.shape, dtype=bool)
+    P = np.asarray(polygon, dtype=np.float64)
+    xi, yi = P[:, 0], P[:, 1]
+    xj, yj = np.roll(P[:, 0], 1), np.roll(P[:, 1], 1)
+    inside = np.zeros(xs.shape, dtype=bool)
+    # Chunk the (points x vertices) broadcast to bound temporaries.
+    _B = max(1, 4_000_000 // n)
+    for s in range(0, len(xs), _B):
+        px = xs[s:s + _B, None]
+        py = ys[s:s + _B, None]
+        cond = (yi[None, :] > py) != (yj[None, :] > py)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            xint = (xj - xi)[None, :] * (py - yi[None, :]) / (yj - yi)[None, :] + xi[None, :]
+            crossing = cond & (px < xint)
+        inside[s:s + _B] = (np.count_nonzero(crossing, axis=1) & 1).astype(bool)
+    return inside
+
+
 def matches_any_pattern(name: str, patterns: List[str]) -> bool:
     """Check if a net name matches any of the given patterns (fnmatch style)."""
     for pattern in patterns:
@@ -248,12 +277,23 @@ def _pads_copper_touch(pi: Pad, pj: Pad, tolerance: float = 0.05) -> bool:
         return point_to_pad_distance(pj.global_x, pj.global_y, pi) <= tolerance
     # Both directions: one pad fully inside the other still hits (the inner
     # pad's perimeter samples are inside the outer copper, distance 0).
-    for x, y in _pad_perimeter_points(pi):
-        if point_to_pad_distance(x, y, pj) <= tolerance:
-            return True
-    for x, y in _pad_perimeter_points(pj):
-        if point_to_pad_distance(x, y, pi) <= tolerance:
-            return True
+    # Sweep item 5 (#625 follow-up): the broadcast proxy nominates candidate
+    # samples (with a generous band around the tolerance, since its multiply
+    # kernel rounds up to 1 ULP apart from the scalar's **2); the verdict on
+    # each candidate is the scalar itself, so the boolean is byte-identical.
+    # This feeds the multipoint router's terminal grouping (#317/#346), so
+    # exactness matters here, not just speed.
+    from check_drc import _pad_perimeter_array, _pad_dist_d2_proxy
+    import numpy as np
+    hi2 = (tolerance * (1 + 1e-9)) ** 2
+    for a, b in ((pi, pj), (pj, pi)):
+        xs, ys, pts = _pad_perimeter_array(a)
+        if not len(xs):
+            continue
+        d2 = _pad_dist_d2_proxy(xs, ys, b)
+        for i in np.nonzero(d2 <= hi2)[0]:
+            if point_to_pad_distance(pts[i][0], pts[i][1], b) <= tolerance:
+                return True
     return False
 
 
@@ -619,6 +659,47 @@ def net_pad_pairs_within_outlines(pcb_data, result, pads):
     return total, conn
 
 
+def reconcile_status_line(recon: dict) -> str:
+    """One-line verdict for the KiCad-refill cross-check (#654).
+
+    The cross-check used to speak only when it CHANGED something, so a reader
+    could not tell "KiCad ran and agreed" from "KiCad never ran" -- both were
+    silence, and both ended in the same `ALL NETS FULLY CONNECTED!`. That
+    distinction matters most exactly when the copper-grading model is under
+    suspicion of fill-model artifacts, which is the whole reason the
+    cross-check exists.
+
+    `recon` keys: state (ran | did_not_run | disabled | not_applicable |
+    error), links, reclass, kicad_only, detail. Kept a pure function of that
+    dict so the wording is testable without a board.
+    """
+    st = recon.get('state')
+    if st == 'ran':
+        n = recon.get('links', 0)
+        parts = [f"ran, {n} KiCad link(s)"]
+        if recon.get('reclass'):
+            parts.append(f"reclassified {recon['reclass']} net(s) CONNECTED")
+        if recon.get('kicad_only'):
+            parts.append(f"flagged {recon['kicad_only']} net(s) KiCad-only "
+                         "UNCONNECTED")
+        if not recon.get('reclass') and not recon.get('kicad_only'):
+            parts.append("agrees with copper grading")
+        return "KiCad refill cross-check: " + ", ".join(parts)
+    if st == 'did_not_run':
+        return ("KiCad refill cross-check: DID NOT RUN "
+                f"({recon.get('detail', 'unknown')}) -- zone-covered nets are "
+                "graded by the copper model ALONE; KiCad has not agreed with "
+                "them")
+    if st == 'disabled':
+        return ("KiCad refill cross-check: DISABLED "
+                f"({recon.get('detail', '')}) -- copper grading only")
+    if st == 'error':
+        return ("KiCad refill cross-check: UNAVAILABLE "
+                f"({recon.get('detail', '')}) -- copper grading only")
+    return ("KiCad refill cross-check: not applicable "
+            f"({recon.get('detail', 'board has no zones')})")
+
+
 def check_net_connectivity(net_id: int, segments: List[Segment], vias: List[Via],
                            pads: List[Pad], zones: List[Zone] = None,
                            tolerance: float = 0.02,
@@ -863,11 +944,16 @@ def check_net_connectivity(net_id: int, segments: List[Segment], vias: List[Via]
         points_on_layer = [(x, y, layer, pid, size) for x, y, layer, pid, size in all_points
                            if layer == zone_layer]
 
-        # Find which points are inside the zone polygon
+        # Find which points are inside the zone polygon (item 7: one
+        # vectorized ray cast for the whole layer's points, then the model /
+        # validator logic only on the inside ones -- mask byte-identical).
         points_in_zone = []   # legacy blob (no model verdict)
         points_by_comp = {}   # fill component id -> [pid]
-        for x, y, layer, pid, size in points_on_layer:
-            if point_in_polygon(x, y, zone.polygon):
+        _mask = points_in_polygon_mask([p[0] for p in points_on_layer],
+                                       [p[1] for p in points_on_layer],
+                                       zone.polygon)
+        for _in_poly, (x, y, layer, pid, size) in zip(_mask, points_on_layer):
+            if _in_poly:
                 # Removal gates pass a fill validator (#outline-over-credit,
                 # bitaxe Q2): outline membership only counts where real fill
                 # can provably exist. GRADING callers pass None and keep the
@@ -1442,12 +1528,20 @@ def run_connectivity_check(pcb_file: str, net_patterns: Optional[List[str]] = No
     # Filter by component if specified
     component_net_ids = None
     if component:
-        component_net_ids = set()
-        for net_id, pads in pads_by_net.items():
-            for pad in pads:
-                if pad.component_ref == component:
-                    component_net_ids.add(net_id)
-                    break
+        # Shared with route.py via net_queries (#537): a checker that resolved
+        # --component differently from the router would be verifying a different
+        # set of nets than the one that was routed.
+        #
+        # This also drops net 0 from the component's net set, which the local
+        # loop used to include. Net 0 is the no-net pseudo-net (#497): on a board
+        # that carries it in `nets`, --component graded it as a real net and
+        # reported every no-net pad on the part as "disconnected" -- interf_u
+        # --component U9 shipped a phantom "(net 0): 6 disconnected components".
+        # The no-component path never had this (net 0 has no segments/vias, so
+        # its `and net_id in pads_by_net` arm excludes it); only the component
+        # filter let it through.
+        from net_queries import nets_for_components
+        component_net_ids = set(nets_for_components(pcb_data, [component]).net_ids)
         if not quiet:
             print(f"Found {len(component_net_ids)} nets on component {component}")
 
@@ -1693,30 +1787,44 @@ def run_connectivity_check(pcb_file: str, net_patterns: Optional[List[str]] = No
     # synthetic/unit boards never pay the kicad-cli call.
     _zone_issue_ids = {i['net_id'] for i in issues
                        if any(z.net_id == i['net_id'] for z in pcb_data.zones)}
+    # #654: this block used to print ONLY when it CHANGED something, so
+    # "ran and agreed", "skipped -- no kicad-cli", "disabled" and "not
+    # applicable" were one indistinguishable silence -- and a run that never
+    # cross-checked still ended `ALL NETS FULLY CONNECTED!` / exit 0. That is
+    # exactly the ambiguity the cross-check exists to remove, and resolving it
+    # cost a hand call to kicad_unconnected() mid-campaign. Every path below
+    # now records a state, and exactly ONE status line is printed after the
+    # block, so a zone-backed verdict can be trusted or distrusted from the
+    # report alone.
+    _recon = {'state': 'not_applicable', 'links': 0, 'reclass': 0,
+              'kicad_only': 0, 'detail': ''}
+    if not pcb_data.zones:
+        _recon['detail'] = 'board has no zones'
+    elif os.environ.get('KICAD_NO_GRADE_RECONCILE'):
+        _recon['state'] = 'disabled'
+        _recon['detail'] = 'KICAD_NO_GRADE_RECONCILE is set'
     if pcb_data.zones and not os.environ.get('KICAD_NO_GRADE_RECONCILE'):
         try:
             from kicad_oracle import find_kicad_cli, kicad_unconnected
             _cli = find_kicad_cli()
             _links = kicad_unconnected(pcb_file, _cli) if _cli else None
-            if _links is None and not quiet:
-                # There was no `else` here, so "the oracle ran and agreed" and
-                # "the oracle never ran" printed identically -- i.e. nothing --
-                # and the run still ended `ALL NETS FULLY CONNECTED!` / exit 0.
-                # On a board with zones that is the difference between a graded
-                # result and an ungraded one, and the reader could not tell.
+            if _links is None:
                 # kicad_unconnected() returns None for a missing CLI, a DRC
                 # timeout (ORACLE_DRC_TIMEOUT 240s), a bad return code, or
                 # unreadable JSON; only the timeout prints anything of its own.
-                print(f"  NOTE: the KiCad grade reconciliation did NOT run "
-                      f"({'kicad-cli not found' if not _cli else 'the oracle returned nothing -- DRC timeout, bad exit, or unreadable output'})."
-                      f" Zone-covered nets below are graded by the copper model "
-                      f"ALONE; KiCad has not agreed with them.")
+                _recon['state'] = 'did_not_run'
+                _recon['detail'] = ('kicad-cli not found' if not _cli else
+                                    'the oracle returned nothing -- DRC '
+                                    'timeout, bad exit, or unreadable output')
             if _links is not None:
+                _recon['state'] = 'ran'
+                _recon['links'] = len(_links)
                 _linked_nets = {lk[0] for lk in _links}
                 _reclass = [i for i in issues
                             if i['net_id'] in _zone_issue_ids
                             and i['net_name'] not in _linked_nets]
                 if _reclass:
+                    _recon['reclass'] = len(_reclass)
                     issues[:] = [i for i in issues if i not in _reclass]
                     _names = ', '.join(i['net_name'] for i in _reclass)
                     print(f"  {len(_reclass)} zone-backed net(s) reclassified "
@@ -1836,14 +1944,21 @@ def run_connectivity_check(pcb_file: str, net_patterns: Optional[List[str]] = No
                                                 for lk in _nl[:4])),
                     })
                 if _rev:
+                    _recon['kicad_only'] = len(_rev)
                     issues.extend(_rev)
                     _names = ', '.join(i['net_name'] for i in _rev)
                     print(f"  {len(_rev)} net(s) UNCONNECTED per KiCad "
                           f"refill though copper grading passed them: "
                           f"{_names}")
         except Exception as _re:
-            if not quiet:
-                print(f"  (KiCad grade reconciliation unavailable: {_re})")
+            _recon['state'] = 'error'
+            _recon['detail'] = str(_re)
+
+    # #654: the single always-printed status line. Emitted for EVERY state,
+    # including the two that used to be silent (ran-and-agreed, and skipped),
+    # because their silence was identical to a clean pass.
+    if not quiet:
+        print("  " + reconcile_status_line(_recon))
 
     # Report results
     if quiet:
@@ -1923,7 +2038,7 @@ if __name__ == "__main__":
     parser.add_argument('--routed-only', '-r', action='store_true',
                         help='Only check routed nets (skip unrouted net detection)')
 
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
 
     issues = run_connectivity_check(args.pcb, args.nets, args.tolerance, args.quiet, args.verbose, args.component, args.routed_only)
     # 2 = the scope selected nothing, so no board was graded. Deliberately not

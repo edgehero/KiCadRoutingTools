@@ -896,8 +896,7 @@ def build_plane_base_obstacles(
         obstacles.add_stub_proximity_costs_batch(
             all_other_vias_grid,
             proximity_radius_grid,
-            proximity_cost_grid,
-            False
+            proximity_cost_grid
         )
 
     # Block existing segments on this layer from other nets
@@ -1025,6 +1024,301 @@ def route_plane_connection(
     return route_points
 
 
+
+def _grammar_cluster(points, link=5.0):
+    """Single-linkage clusters of 2D points (union-find, O(N^2))."""
+    n = len(points)
+    parent = list(range(n))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    l2 = link * link
+    for i in range(n):
+        xi, yi = points[i]
+        for j in range(i + 1, n):
+            dx = points[j][0] - xi
+            dy = points[j][1] - yi
+            if dx * dx + dy * dy <= l2:
+                ra, rb = find(i), find(j)
+                if ra != rb:
+                    parent[ra] = rb
+    groups = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(points[i])
+    return list(groups.values())
+
+
+def _grammar_hull(points):
+    """Convex hull (monotone chain); returns CCW polygon or None."""
+    pts = sorted(set(points))
+    if len(pts) < 3:
+        return None
+    def cross(o, a, b):
+        return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
+    lower = []
+    for pt in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], pt) <= 0:
+            lower.pop()
+        lower.append(pt)
+    upper = []
+    for pt in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], pt) <= 0:
+            upper.pop()
+        upper.append(pt)
+    hull = lower[:-1] + upper[:-1]
+    return hull if len(hull) >= 3 else None
+
+
+def _grammar_inflate(hull, r):
+    """Offset a CCW convex polygon outward by r (edge-normal offset +
+    consecutive-line intersection)."""
+    import math as _m
+    n = len(hull)
+    lines = []
+    for i in range(n):
+        x1, y1 = hull[i]
+        x2, y2 = hull[(i + 1) % n]
+        ex, ey = x2 - x1, y2 - y1
+        L = _m.hypot(ex, ey) or 1e-9
+        # CCW polygon: outward normal is (ey, -ex)/L
+        nx, ny = ey / L, -ex / L
+        lines.append((x1 + nx * r, y1 + ny * r, x2 + nx * r, y2 + ny * r))
+    out = []
+    for i in range(n):
+        x1, y1, x2, y2 = lines[i - 1]
+        x3, y3, x4, y4 = lines[i]
+        d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3)
+        if abs(d) < 1e-12:
+            out.append((x3, y3))
+            continue
+        t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d
+        out.append((x1 + t * (x2 - x1), y1 + t * (y2 - y1)))
+    return out
+
+
+def _grammar_point_in_poly(x, y, poly):
+    """Even-odd ray cast; robust for the slightly non-convex polygons that
+    per-vertex board-bounds clamping can produce."""
+    inside = False
+    j = len(poly) - 1
+    for i in range(len(poly)):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if (yi > y) != (yj > y) and \
+                x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def _grammar_seg_dist2(px, py, x1, y1, x2, y2):
+    dx, dy = x2 - x1, y2 - y1
+    L2 = dx * dx + dy * dy
+    if L2 <= 0:
+        ex, ey = px - x1, py - y1
+        return ex * ex + ey * ey
+    t = ((px - x1) * dx + (py - y1) * dy) / L2
+    t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
+    ex, ey = px - (x1 + t * dx), py - (y1 + t * dy)
+    return ex * ex + ey * ey
+
+
+def _grammar_sheet_raster(sheet_polygon):
+    """Coarse raster of the background sheet for the #662 invariant-3b
+    check. Returns (x0, y0, sx, sy, nx, ny, free) with free a bytearray
+    (1 = sheet cell)."""
+    import math as _m
+    xs = [p[0] for p in sheet_polygon]
+    ys = [p[1] for p in sheet_polygon]
+    x0, x1 = min(xs), max(xs)
+    y0, y1 = min(ys), max(ys)
+    diag = _m.hypot(x1 - x0, y1 - y0) or 1.0
+    step = max(0.6, min(3.0, diag / 100.0))
+    nx = max(2, int(round((x1 - x0) / step)))
+    ny = max(2, int(round((y1 - y0) / step)))
+    sx = (x1 - x0) / nx
+    sy = (y1 - y0) / ny
+    free = bytearray(nx * ny)
+    for i in range(nx):
+        cx = x0 + (i + 0.5) * sx
+        for j in range(ny):
+            if _grammar_point_in_poly(cx, y0 + (j + 0.5) * sy, sheet_polygon):
+                free[i * ny + j] = 1
+    return (x0, y0, sx, sy, nx, ny, free)
+
+
+def _grammar_sheet_ok(raster, islands, carve_mm, dom_pts):
+    """#662 invariant 3b: True when the background sheet minus the islands
+    (each widened by carve_mm, the fill's clearance band) is still ONE
+    usable connected region. A detached piece counts as a severing only
+    when it holds a dominant-net pad/seed (its copper would ship as an
+    open or a weld obligation) or >=25% of the sheet; a source-less sliver
+    is culled by fill island removal and is not a severing."""
+    from collections import deque
+    x0, y0, sx, sy, nx, ny, base = raster
+    free = bytearray(base)
+    # Half a raster cell rides on the carve: a neck narrower than a cell is
+    # sampled unreliably, and a sub-millimetre neck is the confetti
+    # anti-pattern this invariant exists to reject, not connectivity.
+    carve_mm = carve_mm + 0.5 * max(sx, sy)
+    c2 = carve_mm * carve_mm
+    for poly in islands:
+        pxs = [p[0] for p in poly]
+        pys = [p[1] for p in poly]
+        i0 = max(0, int((min(pxs) - carve_mm - x0) / sx) - 1)
+        i1 = min(nx - 1, int((max(pxs) + carve_mm - x0) / sx) + 1)
+        j0 = max(0, int((min(pys) - carve_mm - y0) / sy) - 1)
+        j1 = min(ny - 1, int((max(pys) + carve_mm - y0) / sy) + 1)
+        n = len(poly)
+        for i in range(i0, i1 + 1):
+            cx = x0 + (i + 0.5) * sx
+            for j in range(j0, j1 + 1):
+                k = i * ny + j
+                if not free[k]:
+                    continue
+                cy = y0 + (j + 0.5) * sy
+                if _grammar_point_in_poly(cx, cy, poly):
+                    free[k] = 0
+                    continue
+                for e in range(n):
+                    ax, ay = poly[e]
+                    bx, by = poly[(e + 1) % n]
+                    if _grammar_seg_dist2(cx, cy, ax, ay, bx, by) <= c2:
+                        free[k] = 0
+                        break
+    total_free = sum(free)
+    if total_free == 0:
+        return False
+    # label connected components (4-neighbour flood fill)
+    comp = [0] * (nx * ny)
+    sizes = {}
+    ncomp = 0
+    for start in range(nx * ny):
+        if not free[start] or comp[start]:
+            continue
+        ncomp += 1
+        comp[start] = ncomp
+        size = 1
+        q = deque([start])
+        while q:
+            k = q.popleft()
+            i, j = divmod(k, ny)
+            for kk in ((k - ny) if i > 0 else -1,
+                       (k + ny) if i < nx - 1 else -1,
+                       (k - 1) if j > 0 else -1,
+                       (k + 1) if j < ny - 1 else -1):
+                if kk >= 0 and free[kk] and not comp[kk]:
+                    comp[kk] = ncomp
+                    size += 1
+                    q.append(kk)
+        sizes[ncomp] = size
+    if ncomp <= 1:
+        return True
+    meaningful = set()
+    for c, size in sizes.items():
+        if size >= 0.25 * total_free:
+            meaningful.add(c)
+    for px, py in dom_pts:
+        i = int((px - x0) / sx)
+        j = int((py - y0) / sy)
+        if 0 <= i < nx and 0 <= j < ny and comp[i * ny + j]:
+            meaningful.add(comp[i * ny + j])
+    return len(meaningful) <= 1
+
+
+def _grammar_zone_polygons(seeds_by_net, zone_polygon, board_bounds,
+                           name_of, verbose=False,
+                           inflate_mm=2.0, link_mm=5.0, pads_by_net=None,
+                           carve_mm=0.8):
+    """#662: build {net_id: [polygons]} as background sheet + hull islands.
+    Returns None when degenerate (a single seeded net, or the dominant net
+    cannot be identified) so the caller falls back to Voronoi."""
+    import math as _m
+    seeded = {nid: pts for nid, pts in seeds_by_net.items() if pts}
+    if len(seeded) < 2:
+        return None
+    bx0, by0, bx1, by1 = board_bounds
+    bdiag = _m.hypot(bx1 - bx0, by1 - by0) or 1.0
+    # dominant = largest spread (board-wide rail), tiebreak seed count
+    def spread(pts):
+        xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+        return _m.hypot(max(xs) - min(xs), max(ys) - min(ys))
+    # dominance = board-wide reach x consumer count (the human gives the
+    # layer to the rail with the most board-wide service to deliver, not
+    # merely the widest bbox -- spread-only picked P1.35V over the 39-pad
+    # P3.3V on orangecrab).
+    # Score on PADS (consumers), not augmented seeds -- seed lists carry
+    # MST route samples that scale with route length, not importance.
+    def score_pts(nid):
+        pts = (pads_by_net or {}).get(nid) or seeded[nid]
+        return spread(pts) / bdiag * len(pts), len(pts)
+    scored = sorted(((score_pts(nid)[0], score_pts(nid)[1], nid)
+                     for nid in seeded), reverse=True)
+    dom = scored[0][2]
+    out = {dom: [list(zone_polygon)]}
+    # Invariant 3b: the background sheet must remain ONE connected region
+    # after every carve. Checked on a coarse raster against the islands
+    # committed so far; a severing island first shrinks its inflation,
+    # then demotes to tracks (the route step carries every plane net in
+    # its --nets, #562, so a demoted cluster is served by copper, just
+    # not by a zone).
+    raster = _grammar_sheet_raster(zone_polygon)
+    dom_pts = list((pads_by_net or {}).get(dom) or []) + list(seeded[dom])
+    committed = []
+    n_islands = 0
+    n_shrunk = 0
+    n_demoted = 0
+    for nid, pts in seeded.items():
+        if nid == dom:
+            continue
+        polys = []
+        for cl in _grammar_cluster(pts, link=link_mm):
+            placed = None
+            for r in (inflate_mm, inflate_mm / 2.0, 0.0):
+                hull = _grammar_hull(cl)
+                if hull is None:
+                    # 1-2 points (or collinear): a small box around them
+                    xs = [p[0] for p in cl]; ys = [p[1] for p in cl]
+                    m = max(r, 0.5)
+                    hull = [(min(xs) - m, min(ys) - m), (max(xs) + m, min(ys) - m),
+                            (max(xs) + m, max(ys) + m), (min(xs) - m, max(ys) + m)]
+                elif r > 0:
+                    hull = _grammar_inflate(hull, r)
+                # clamp to board bounds (also keeps hulls off the edge band)
+                hull = [(min(max(x, bx0 + 0.3), bx1 - 0.3),
+                         min(max(y, by0 + 0.3), by1 - 0.3)) for x, y in hull]
+                if _grammar_sheet_ok(raster, committed + [hull], carve_mm,
+                                     dom_pts):
+                    placed = hull
+                    if r != inflate_mm:
+                        n_shrunk += 1
+                        print(f"  Grammar pour: '{name_of.get(nid, nid)}' "
+                              f"island shrunk (inflate {inflate_mm} -> {r}) "
+                              f"to keep the background sheet connected")
+                    break
+            if placed is None:
+                n_demoted += 1
+                print(f"  Grammar pour: '{name_of.get(nid, nid)}' cluster of "
+                      f"{len(cl)} point(s) demoted to tracks -- its island "
+                      f"severs the background sheet (#662 invariant 3b)")
+                continue
+            committed.append(placed)
+            polys.append(placed)
+        if polys:  # a fully-demoted net gets NO zone entry (tracks serve it)
+            out[nid] = polys
+        n_islands += len(polys)
+    print(f"  Grammar pour (#662): '{name_of.get(dom, dom)}' = background "
+          f"sheet; {n_islands} hull island(s) across "
+          f"{len(seeded) - 1} net(s)"
+          + (f"; {n_shrunk} shrunk" if n_shrunk else "")
+          + (f"; {n_demoted} demoted to tracks" if n_demoted else "")
+          + " (KICAD_GRAMMAR_POUR=0 reverts to Voronoi)")
+    return out
+
+
 def _generate_multinet_layer_zones(
     layer: str,
     nets_on_layer: List[str],
@@ -1120,9 +1414,43 @@ def _generate_multinet_layer_zones(
                 pts.append((pad.global_x, pad.global_y))
         pads_on_layer_by_net[net_id] = pts
 
+    # A pad outside the Edge.Cuts outline can never reach the fill (it is
+    # clipped to the outline) -- point-seeding it plants a Voronoi cell in dead
+    # space (#291 class). Used by the projected-pad seeding just below and by
+    # the #107 corridor pass further down.
+    from check_drc import make_off_board_test
+    _off_board_test = make_off_board_test(pcb_data.board_info)
+
+    # #598: pours run BEFORE any routing (#562), so a virgin INNER layer holds
+    # no copper at all -- no vias, and no pads either when every pad is SMD on
+    # an outer layer. Both nets of a requested inner split plane then had zero
+    # seeds and BOTH zones were silently skipped, shipping a board with no
+    # plane where one was explicitly asked for. Fall back to that net's pads
+    # PROJECTED onto this layer (their x/y, whatever layer the copper sits on):
+    # those positions exist regardless of routing state, they are where the
+    # route step's pour-launch vias will come down, and they partition the
+    # layer between the nets the way the components themselves are spread over
+    # the board. Only nets with NO seeds of their own get this, so a board that
+    # already poured correctly is untouched.
+    projected_pads_by_net: Dict[int, List[Tuple[float, float]]] = {}
+    for net_name in nets_on_layer:
+        net_id = net_name_to_id.get(net_name)
+        if net_id is None or vias_by_net.get(net_id) or pads_on_layer_by_net.get(net_id):
+            continue
+        pts = []
+        for pad in pcb_data.pads_by_net.get(net_id, []):
+            if getattr(pad, 'pad_type', '') == 'np_thru_hole':
+                continue  # NPTH has no copper to tie into the plane (#328)
+            px, py = pad.global_x, pad.global_y
+            if _off_board_test is not None and _off_board_test(px, py):
+                continue
+            pts.append((px, py))
+        projected_pads_by_net[net_id] = pts
+
     # A net earns a zone if it has ANY connection point on this layer -- a via
-    # or a pad. nets_with_vias still drives the via-to-via MST routing below;
-    # nets_with_seeds (vias OR pads) drives whether a zone is created at all.
+    # or a pad -- or, with the layer still bare, its projected pads. nets_with_vias
+    # still drives the via-to-via MST routing below; nets_with_seeds (vias, pads,
+    # or projected pads) drives whether a zone is created at all.
     nets_with_vias = []
     nets_with_seeds = []
     for net_name in nets_on_layer:
@@ -1131,15 +1459,20 @@ def _generate_multinet_layer_zones(
             continue
         via_count = len(vias_by_net.get(net_id, []))
         pad_count = len(pads_on_layer_by_net.get(net_id, []))
-        if via_count == 0 and pad_count == 0:
-            print(f"  Warning: Net '{net_name}' has no vias or pads on layer {layer}, skipping zone")
+        proj_count = len(projected_pads_by_net.get(net_id, []))
+        if via_count == 0 and pad_count == 0 and proj_count == 0:
+            print(f"  Warning: Net '{net_name}' has no vias or pads on layer {layer}, "
+                  f"and no on-board pads anywhere to project, skipping zone")
             continue
         nets_with_seeds.append(net_name)
         if via_count > 0:
             nets_with_vias.append(net_name)
             print(f"  Net '{net_name}': {via_count} vias")
-        else:
+        elif pad_count > 0:
             print(f"  Net '{net_name}': no vias, {pad_count} pad(s) on {layer} (pad-seeded zone)")
+        else:
+            print(f"  Net '{net_name}': no copper on {layer} yet, partition seeded "
+                  f"from {proj_count} projected pad(s) (#598)")
 
     if len(nets_with_seeds) < 2:
         # Only one net has connections on this layer: use full board rectangle.
@@ -1348,11 +1681,9 @@ def _generate_multinet_layer_zones(
         th_fallback = 0
         th_off_board = 0
         fallback_pad_refs: List[str] = []
-        # A pad outside the Edge.Cuts outline can never reach the fill (it is
-        # clipped to the outline) -- corridor-routing toward it is wasted and
+        # _off_board_test (built above) skips pads outside the outline: the fill
+        # is clipped there, so corridor-routing toward such a pad is wasted and
         # point-seeding it plants a Voronoi cell in dead space (#291 class).
-        from check_drc import make_off_board_test
-        _off_board_test = make_off_board_test(pcb_data.board_info)
         for nm_on_layer in nets_on_layer:
             nid = net_name_to_id.get(nm_on_layer)
             if nid is None:
@@ -1414,9 +1745,11 @@ def _generate_multinet_layer_zones(
 
     # #114: a net with no stitching vias gets no MST and therefore no Voronoi
     # seeds from the routing above. Seed it directly from its pads on this layer
-    # (through-hole + SMD-on-layer) so it still receives a Voronoi-partitioned
+    # (through-hole + SMD-on-layer), or -- with the layer still bare -- from its
+    # pads projected onto it (#598), so it still receives a Voronoi-partitioned
     # zone. Via-bearing nets are left to the #107 corridor logic above so their
-    # via topology is not perturbed.
+    # via topology is not perturbed. These are partition seeds ONLY: they never
+    # enter vias_by_net, so no MST edge or plane route is invented for them.
     if augmented_vias_by_net is not None:
         for net_name in nets_with_seeds:
             net_id = net_name_to_id.get(net_name)
@@ -1424,7 +1757,8 @@ def _generate_multinet_layer_zones(
                 continue
             seeds = augmented_vias_by_net.setdefault(net_id, [])
             seen = {(round(x, 3), round(y, 3)) for x, y in seeds}
-            for px, py in pads_on_layer_by_net.get(net_id, []):
+            for px, py in (pads_on_layer_by_net.get(net_id) or
+                           projected_pads_by_net.get(net_id, [])):
                 k = (round(px, 3), round(py, 3))
                 if k not in seen:
                     seeds.append((px, py))
@@ -1457,17 +1791,48 @@ def _generate_multinet_layer_zones(
             print(f"  Added deferred-BGA point seeds for "
                   f"{_seeded_nets} net(s) to the Voronoi")
 
+    # GRAMMAR POUR (#662, default ON; KICAD_GRAMMAR_POUR=0 reverts to the
+    # pad-Voronoi partition): the dominant net becomes a BACKGROUND SHEET
+    # (the whole layer) and every other net gets compact INFLATED CLUSTER
+    # HULLS. zone_overlap_priorities then ranks the nested hulls above the
+    # sheet (smaller area wins), so KiCad's fill does the subtraction --
+    # no polygon booleans. Rationale (measured, orangecrab vs its human
+    # original): Voronoi cells scored 0.3-2.6mm mean width and split the
+    # dominant rail into 7 crumbs (copper confetti with maximal neck-to-
+    # interior ratio -- every island is a weld obligation); the human's
+    # grammar is one deep sheet (15.8mm mean width) + compact islands
+    # (>=5mm). Connectedness is the binding metric, not pad coverage.
+    if os.environ.get('KICAD_GRAMMAR_POUR', '1') != '0' \
+            and len([n for n, s in augmented_vias_by_net.items() if s]) > 1:
+        _gz = _grammar_zone_polygons(
+            augmented_vias_by_net, zone_polygon, board_bounds,
+            {nid: (pcb_data.nets[nid].name if nid in pcb_data.nets else str(nid))
+             for nid in augmented_vias_by_net}, verbose,
+            pads_by_net={nid: [(pd.global_x, pd.global_y)
+                               for pd in pcb_data.pads_by_net.get(nid, [])]
+                         for nid in augmented_vias_by_net},
+            carve_mm=zone_clearance + min_thickness / 2.0)
+        if _gz is not None:
+            zone_polygons = _gz
+            _skip_voronoi = True
+        else:
+            _skip_voronoi = False
+    else:
+        _skip_voronoi = False
+
     # Compute final Voronoi zones
     total_seeds = sum(len(vias) for vias in augmented_vias_by_net.values())
-    print(f"  Computing final Voronoi zones with {total_seeds} seed points")
+    if not _skip_voronoi:
+        print(f"  Computing final Voronoi zones with {total_seeds} seed points")
 
     try:
-        zone_polygons, _, _ = compute_zone_boundaries(
-            augmented_vias_by_net, board_bounds,
-            return_raw_polygons=True,
-            board_edge_clearance=board_edge_clearance,
-            verbose=verbose
-        )
+        if not _skip_voronoi:
+            zone_polygons, _, _ = compute_zone_boundaries(
+                augmented_vias_by_net, board_bounds,
+                return_raw_polygons=True,
+                board_edge_clearance=board_edge_clearance,
+                verbose=verbose
+            )
     except ValueError as e:
         print(f"  Error computing zone boundaries: {e}")
         print(f"  Falling back to full board rectangle for first net")
@@ -1561,6 +1926,8 @@ def _generate_multinet_layer_zones(
     resistance_results = {}
     copper_oz = stackup_copper_oz(pcb_data, layer)
     for net_id, polygons in zone_polygons.items():
+        if not polygons:  # every island demoted (#662 invariant 3b)
+            continue
         net = pcb_data.nets.get(net_id)
         net_name = net.name if net else f"net_{net_id}"
         mst_edges = net_mst_edges.get(net_id, [])
@@ -1772,7 +2139,8 @@ def _neck_plane_segments(all_new_segments, pcb_data, clearance, all_layers,
 def _finalize_plane_copper(all_new_segments, all_new_vias, pcb_data, clearance,
                            all_layers, track_width, grid_step, via_size,
                            via_drill, hole_to_hole_clearance,
-                           net_clearances=None, strip_sink=None):
+                           net_clearances=None, strip_sink=None,
+                           same_net_pad_clearance=None):  # #581
     """Run the full pre-write cleanup pipeline on plane tap copper and return the
     resulting all_new_segments.
 
@@ -1814,7 +2182,10 @@ def _finalize_plane_copper(all_new_segments, all_new_vias, pcb_data, clearance,
          gz_input_strips) = cleanup_plane_taps_grazing(
             pcb_data, all_new_segments, scope, clearance=clearance,
             max_shift=grid_step / 2, all_new_vias=all_new_vias,
-            hole_to_hole=hole_to_hole_clearance)
+            hole_to_hole=hole_to_hole_clearance,
+            same_net_pad_clearance=(same_net_pad_clearance
+                                    if same_net_pad_clearance is not None
+                                    else -1.0))  # #581
         if gz_rm:
             print(f"  Graze prune: removed {gz_rm} grazing tap segment(s)")
         if gz_nudge:
@@ -2713,7 +3084,10 @@ def create_plane(
     add_teardrops: bool = False,
     pcb_data: Optional[PCBData] = None,
     return_results: bool = False,
-    same_net_pad_clearance: float = defaults.SAME_NET_PAD_CLEARANCE,
+    # #581: None (default) auto-reads the persisted .kicad_pro record;
+    # explicit values keep their meaning (> 0 active, >= 0 legacy
+    # stitching semantics, -1 explicitly allows via-in-pad).
+    same_net_pad_clearance: Optional[float] = None,
     skip_existing_zones: bool = False,
     no_bga_zone: bool = False,
     progress_callback=None,
@@ -2799,6 +3173,9 @@ def create_plane(
             pass
 
     # Step 1: Load PCB (or use provided pcb_data)
+    # Whether the CALLER handed us live board state decides who is authoritative
+    # about existing zones further down (see Step 2).
+    _live_pcb_data = pcb_data is not None
     if pcb_data is None:
         print(f"Loading PCB from {input_file}...")
         pcb_data = parse_kicad_pcb(input_file)
@@ -2865,23 +3242,37 @@ def create_plane(
     # Each entry is (net_id, net_name, plane_layer, pad_info)
 
     # Step 2: Check for existing zones on each target layer.
-    # Combine zones from the input file with zones already present in the
-    # provided pcb_data (the live pcbnew board state when invoked from the
-    # GUI). This way zones that exist on the live board but haven't been
-    # saved to disk are also detected.
-    try:
-        existing_zones = list(extract_zones(input_file))
-    except (FileNotFoundError, OSError):
-        existing_zones = []
-    seen_keys = {(z.net_name, z.layer) for z in existing_zones}
-    for z in (getattr(pcb_data, 'zones', None) or []):
-        key = (z.net_name, z.layer)
-        if key in seen_keys:
-            continue
-        existing_zones.append(ZoneInfo(net_id=z.net_id, net_name=z.net_name, layer=z.layer,
-                                      in_footprint=getattr(z, 'in_footprint', False),
-                                      priority=int(getattr(z, 'priority', 0) or 0)))
-        seen_keys.add(key)
+    #
+    # When the caller supplied pcb_data it IS the board (the live pcbnew state
+    # from the GUI), and it is the ONLY authority. This used to union the input
+    # FILE's zones in as well, to catch a zone added live but not yet saved --
+    # but a union can only ever ADD, so the opposite edit was invisible: delete a
+    # zone by hand in KiCad, hit Create Plane, and the unsaved-to-disk file still
+    # supplied the deleted zone, so skip_existing_zones kept "it already exists"
+    # and no plane was ever poured. The live board already reports both cases
+    # correctly (build_pcb_data_from_board lists the zone before deletion and
+    # none after), so trust it alone. Only fall back to the file when no caller
+    # supplied board state -- i.e. the CLI, where the file IS the board.
+    existing_zones = []
+    if _live_pcb_data:
+        for z in (getattr(pcb_data, 'zones', None) or []):
+            existing_zones.append(ZoneInfo(net_id=z.net_id, net_name=z.net_name, layer=z.layer,
+                                           in_footprint=getattr(z, 'in_footprint', False),
+                                           priority=int(getattr(z, 'priority', 0) or 0)))
+    else:
+        try:
+            existing_zones = list(extract_zones(input_file))
+        except (FileNotFoundError, OSError):
+            existing_zones = []
+        seen_keys = {(z.net_name, z.layer) for z in existing_zones}
+        for z in (getattr(pcb_data, 'zones', None) or []):
+            key = (z.net_name, z.layer)
+            if key in seen_keys:
+                continue
+            existing_zones.append(ZoneInfo(net_id=z.net_id, net_name=z.net_name, layer=z.layer,
+                                          in_footprint=getattr(z, 'in_footprint', False),
+                                          priority=int(getattr(z, 'priority', 0) or 0)))
+            seen_keys.add(key)
 
     should_create_zones = []  # Per-net flag for whether to create zone
     zones_to_replace = []  # List of (net_id, layer) tuples for zones to replace
@@ -3007,6 +3398,23 @@ def create_plane(
         layer_costs=layer_costs,
         ripup_blocker_select=ripup_blocker_select
     )
+    # #581: an ACTIVE (> 0) same-net pad via clearance rides the config so
+    # every via this step places (stitching already honored it; taps, joins,
+    # blocker reroutes now do too) keeps off same-net pads; -1 and 0 keep the
+    # pre-#581 behavior exactly. Resolution: an explicit flag value wins
+    # (> 0 activates; 0 / -1 explicitly off); None (unset) auto-reads the
+    # record an earlier chain step persisted into the sibling .kicad_pro.
+    # Normalized to a concrete float here -- downstream stitching/tap call
+    # sites compare it numerically.
+    if same_net_pad_clearance is None:
+        from protected_nets import read_snpc_for_pcb_data as _read_snpc581
+        _snpc581 = _read_snpc581(pcb_data, input_file)
+        same_net_pad_clearance = _snpc581 if _snpc581 > 0 else -1.0
+        if _snpc581 > 0:
+            print(f"  Same-net pad via clearance {_snpc581:g}mm (from project "
+                  f"record, #581)")
+    if same_net_pad_clearance > 0:
+        config.same_net_pad_clearance = same_net_pad_clearance
     # #498: per-layer .kicad_dru clearance rules -- tap tracks/vias, region
     # joins and blocker reroutes must obey them like every other routed copper.
     from kicad_dru import install_layer_clearances
@@ -3612,7 +4020,8 @@ def create_plane(
     all_new_segments = _finalize_plane_copper(
         all_new_segments, all_new_vias, pcb_data, clearance, all_layers,
         track_width, grid_step, via_size, via_drill, hole_to_hole_clearance,
-        net_clearances=net_clearances, strip_sink=_finalize_strips)
+        net_clearances=net_clearances, strip_sink=_finalize_strips,
+        same_net_pad_clearance=same_net_pad_clearance)  # #581
 
     # Route trace (#482): emit the finalized plane-tap tracks/vias, grouped by
     # net so each plane's taps land as one animation event, then write
@@ -3729,6 +4138,20 @@ def create_plane(
     # the GUI applier must delete these individually -- the whole-net delete
     # only covers ripped nets.
     reconnect_strips: list = list(_finalize_strips)
+    # #581 GUI leg: the CLI main persists an active same-net pad via clearance
+    # into the OUTPUT's project after fix_project_for_output; the GUI has no
+    # output file, so record it against the live board's own project here.
+    if return_results and same_net_pad_clearance is not None \
+            and same_net_pad_clearance > 0:
+        try:
+            from protected_nets import (persist_same_net_pad_clearance,
+                                        pro_path_for_board)
+            _src581 = getattr(pcb_data, 'source_path', "") or ""
+            if _src581:
+                persist_same_net_pad_clearance(
+                    pro_path_for_board(_src581), same_net_pad_clearance)
+        except Exception as _e581:
+            print(f"  (skipped same-net pad clearance record: {_e581})")
     if return_results:
         # GUI parity with the CLI's in-run ripped-net reconnect (#347): the
         # file path above reroutes verified-broken casualties after writing;
@@ -3883,26 +4306,13 @@ Examples:
 
     # Same-net pad clearance (avoid via-in-pad)
     parser.add_argument("--same-net-pad-clearance", type=float,
-                        default=defaults.SAME_NET_PAD_CLEARANCE,
-                        help="Edge-to-edge clearance (mm) between stitching vias and same-net pads. "
-                             "-1 (default) allows via-in-pad placement; any value >= 0 forces vias "
-                             "outside same-net pads with that clearance.")
-
-    parser.add_argument("--deadline", type=float, default=None, metavar="SECONDS",
-                        help="Wall-clock budget for the PLANE LOOPS. Not a hard cap "
-                             "on total runtime -- the cancel is cooperative and the "
-                             "bounded tail (fills, write, cleanup, DRC writeback) "
-                             "still runs -- so expect to overshoot. What it "
-                             "guarantees is TERMINATION on THIS tool's terms: it "
-                             "stops between regions, writes the copper it has, and "
-                             "prints a JSON_SUMMARY carrying complete=false / "
-                             "status=deadline before exiting 7. Without it an "
-                             "external kill on Windows is TerminateProcess, which "
-                             "leaves NO summary and NO exit code of ours. ANY "
-                             "harness with an external timeout should pass this at "
-                             "~0.8x its own. Default: no budget (a wall-clock "
-                             "default would break replay determinism). "
-                             "Env: KRT_DEADLINE_S")
+                        default=None,
+                        help="Edge-to-edge clearance (mm) between placed vias and same-net pads. "
+                             "> 0 keeps ALL of this step's vias (stitching, taps, joins) off "
+                             "same-net pads and is recorded in the sibling .kicad_pro so later "
+                             "chain steps (route/route_diff/fanout/repair) inherit it (#581); "
+                             "0 keeps its legacy stitching-only meaning; -1 explicitly allows "
+                             "via-in-pad. Default: the project's recorded value, else -1.")
 
     # Debug options
     parser.add_argument("--dry-run", action="store_true", help="Analyze without writing output")
@@ -3953,7 +4363,7 @@ Examples:
         help="Pin GND return vias to this net (default: auto -- match each "
              "signal's own ground domain, which is plain GND on a board with "
              "one ground)")
-    parser.add_argument("--gnd-via-distance", type=float, default=2.0,
+    parser.add_argument("--gnd-via-distance", type=float, default=defaults.GND_VIA_DISTANCE,
         help="Maximum distance from signal via to place GND via in mm (default: 2.0)")
 
     from fab_tiers import (add_fab_tier_args, fab_tier_from_args, set_default_fab_tier,
@@ -3961,7 +4371,7 @@ Examples:
     add_fab_tier_args(parser)
     from fab_tiers import add_board_floor_args as _add_bf
     _add_bf(parser)
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
     # #439: identical net-class/clearance model to route.py. --clearance is the
     # clamp switch: GIVEN -> ceiling, every class capped at min(class, ceiling),
     # writeback clamps (_clamp_netclasses True). OMITTED -> each net routes at its
@@ -4089,27 +4499,11 @@ Examples:
     _out_before = (os.path.getmtime(args.output_file)
                    if args.output_file and os.path.isfile(args.output_file) else None)
 
-    # The deadline is ONE closure into plumbing this engine already has:
-    # `cancel_check` is honoured at every region/pad/route loop head and the
-    # write branch still runs on cancel, so a cancelled run yields a real,
-    # gated, partial pour rather than nothing.
-    #
-    # RESERVE BAND, same correctness reason as route_disconnected_planes': the
-    # bounded tail after the engine (GND return vias, plane copper cleanup, the
-    # DRC-floor writeback) is what makes the partial board readable, and the
-    # KiCad-exact-fill validation inside the engine can itself burn minutes. So
-    # the region loops trip early, leaving clock for the tail.
-    import krt_deadline
-    _rp_report = {'tool': 'route_planes.py', 'board': args.input_file}
-    _dl = krt_deadline.arm(args.deadline, tool='route_planes',
-                           on_partial=lambda: _rp_report)
-    _reserve = max(30.0, (args.deadline or 0) * 0.2) if _dl else 0.0
-
+    # The engine's cooperative `cancel_check` / `progress_callback` are the
+    # GUI's (the planes tab's Cancel button); the CLI passes neither. There is
+    # deliberately no wall-clock budget -- no result this tool produces may
+    # depend on timing.
     create_plane(
-        cancel_check=(_dl.cancel_check('plane create', reserve=_reserve)
-                      if _dl else None),
-        progress_callback=(krt_deadline.stdout_progress(deadline=_dl)
-                           if _dl else None),
         input_file=args.input_file,
         output_file=args.output_file,
         ripup_blocker_select=args.ripup_blocker_select,
@@ -4299,6 +4693,18 @@ Examples:
                 **drc_fix_kwargs(args))
         except Exception as e:
             print(f"  (skipped DRC-settings fix: {e})")
+        # #581: record an ACTIVE same-net pad via clearance in the output's
+        # project so every later chain step keeps its vias off same-net pads
+        # too. After fix_project_for_output so the .kicad_pro exists.
+        try:
+            from protected_nets import (persist_same_net_pad_clearance,
+                                        pro_path_for_board)
+            persist_same_net_pad_clearance(
+                pro_path_for_board(args.output_file),
+                args.same_net_pad_clearance
+                if args.same_net_pad_clearance is not None else -1.0)
+        except Exception as e:
+            print(f"  (skipped same-net pad clearance record: {e})")
 
     # Machine-readable summary so an orchestrator and the next pipeline step can
     # read the clearance this step actually used (mirrors route.py/route_diff.py).
@@ -4362,41 +4768,27 @@ Examples:
     except Exception:
         pass
 
-    # Emit through krt_deadline, NOT a raw print. `_emitted` is set only inside
-    # krt_deadline.emit(), so a bare print leaves it False and the atexit flush
-    # then publishes the contentless partial report armed at --deadline time --
-    # a SECOND, contradicting `{"complete": false, "status": "incomplete"}` line
-    # after the real one, which any consumer keying on the LAST JSON_SUMMARY
-    # reads as a failed run. (Measured in route_disconnected_planes, run 11.)
-    # `stopped_in`, not just `expired()`. The reserve band means the region
-    # loops trip at `deadline - reserve`, so a run whose bounded tail then
-    # finishes BEFORE the wall clock runs out is past its cancel and not past
-    # its deadline -- `expired()` alone would report a partial pour as
-    # complete, which is the exact confusion this whole mechanism removes.
-    # `stopped_in` is set by `Deadline.check` at the moment the cancel fires,
-    # so it is the durable record that the loops were cut short.
-    if _dl is not None and (_dl.stopped_in or _dl.expired()):
-        krt_deadline.stamp(_summary)
-        _rp_report.update(_summary)
-        krt_deadline.emit(_summary, complete=False, status='deadline',
-                          deadline=_dl)
-        print(f"{RED}DEADLINE: this run stopped on its own budget after "
-              f"{_dl.elapsed():.0f}s of {_dl.seconds:g}s"
-              + (f" (in {_dl.stopped_in})" if _dl.stopped_in else "")
-              + f". The board at {args.output_file or '(none)'} is a PARTIAL "
-              f"pour -- real copper, fully gated, but the plane work did not "
-              f"finish. Do not read it as clean.{RESET}")
-        return krt_deadline.DEADLINE_EXIT
-    _rp_report.update(_summary)
-    krt_deadline.emit(_summary)
+    # The run either finished or raised; there is no partial shape to report
+    # (the CLI has no cancel source). `complete`/`status` are kept because
+    # consumers read them -- see route_summary's sticky-incompleteness merge.
+    import json as _json
+    _summary.setdefault('complete', True)
+    _summary.setdefault('status', 'ok')
+    try:                       # #653: env knobs into the machine-readable
+        import env_knobs as _ek653   # summary, so a harness can detect a
+        _summary['env_knobs'] = _ek653.active_env_knobs()   # dirty baseline
+    except Exception:          # without re-reading logs
+        pass
+    print('JSON_SUMMARY: ' + _json.dumps(_summary, sort_keys=True, default=str),
+          flush=True)
     return 0
 
 
 if __name__ == "__main__":
     from console_encoding import enable_utf8_console
     enable_utf8_console()  # cp1252-safe non-ASCII prints (issue #152)
-    # CMD/EXIT self-echo (run-3 B1); see route.py for why this waited for
-    # --deadline. CLI-`__main__`-only: the GUI imports create_plane.
+    # CMD/EXIT self-echo (run-3 B1); see route.py for the external-kill caveat.
+    # CLI-`__main__`-only: the GUI imports create_plane.
     import cli_banner
     cli_banner.install()
     # `or 0`: main() has one early `return` (the net/plane-layer count

@@ -130,7 +130,6 @@ def run_reroute_loop(
             total_failed = failed_so_far + failed
             failed_str = f" ({total_failed} failed)" if total_failed > 0 else ""
             print(f"\n[REROUTE {route_index}/{current_total}{failed_str}] Re-routing ripped net {ripped_net_name}")
-            print("-" * 40)
 
             # Update progress for reroute
             if progress_callback:
@@ -588,9 +587,10 @@ def run_reroute_loop(
                 if not reroute_succeeded:
                     if not ripped_items:
                         print(f"  {RED}ROUTE FAILED - no rippable blockers found{RESET}")
-                        from routing_diagnostics import static_boxin_hint
+                        from routing_diagnostics import static_boxin_hint, condense_hint
                         hint, _boxin = static_boxin_hint(
                             result, config, pcb_data, return_verdict=True)
+                        hint = condense_hint(hint)
                         if hint:
                             print(f"  {hint}")
                         if _boxin:
@@ -662,7 +662,6 @@ def run_reroute_loop(
             total_failed = failed_so_far + failed
             failed_str = f" ({total_failed} failed)" if total_failed > 0 else ""
             print(f"\n[REROUTE {route_index}/{current_total}{failed_str}] Re-routing ripped diff pair {ripped_pair_name}")
-            print("-" * 40)
 
             # Update progress for diff pair reroute
             if progress_callback:

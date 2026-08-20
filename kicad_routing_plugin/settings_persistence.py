@@ -42,6 +42,9 @@ def get_dialog_settings(dialog):
         'layers': [layer for layer, cb in dialog.layer_checks.items() if cb.GetValue()],
 
         # Basic options
+        # #581: via-in-pad policy (moved from the planes tab to the Basic tab)
+        'allow_via_in_pad': dialog.via_in_pad_check.GetValue(),
+        'same_net_pad_clearance': dialog.same_net_pad_clearance.GetValue(),
         'enable_layer_switch': dialog.enable_layer_switch.GetValue(),
         'move_text_check': dialog.move_text_check.GetValue(),
         'add_teardrops_check': dialog.add_teardrops_check.GetValue(),
@@ -100,6 +103,7 @@ def get_dialog_settings(dialog):
         'mps_reverse_rounds': dialog.mps_reverse_rounds.GetValue(),
         'mps_layer_swap': dialog.mps_layer_swap.GetValue(),
         'keep_input_copper': dialog.keep_input_copper.GetValue(),
+        'smoothing': dialog.smoothing.GetValue(),
         'force_reroute': dialog.force_reroute.GetValue(),
         'mps_segment_intersection': dialog.mps_segment_intersection.GetValue(),
         'no_crossing_layer_check': dialog.no_crossing_layer_check.GetValue(),
@@ -291,6 +295,14 @@ def restore_dialog_settings(dialog, settings):
         dialog.track_width.SetValue(settings['track_width'])
     if 'clearance' in settings:
         dialog.clearance.SetValue(settings['clearance'])
+    # #581: via-in-pad policy (Basic tab; absent in legacy dicts -> defaults
+    # keep via-in-pad allowed). Restore the checkbox LAST so the spin's
+    # enabled-state matches it.
+    if 'same_net_pad_clearance' in settings:
+        dialog.same_net_pad_clearance.SetValue(settings['same_net_pad_clearance'])
+    if 'allow_via_in_pad' in settings:
+        dialog.via_in_pad_check.SetValue(settings['allow_via_in_pad'])
+        dialog.same_net_pad_clearance.Enable(not settings['allow_via_in_pad'])
     if 'via_size' in settings:
         dialog.via_size.SetValue(settings['via_size'])
     if 'via_drill' in settings:
@@ -432,6 +444,8 @@ def restore_dialog_settings(dialog, settings):
         dialog.mps_layer_swap.SetValue(settings['mps_layer_swap'])
     if 'keep_input_copper' in settings:
         dialog.keep_input_copper.SetValue(settings['keep_input_copper'])
+    if 'smoothing' in settings:
+        dialog.smoothing.SetValue(settings['smoothing'])
     if 'force_reroute' in settings:
         dialog.force_reroute.SetValue(settings['force_reroute'])
     if 'mps_segment_intersection' in settings:

@@ -177,6 +177,10 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
                 routing_clearance_margin: float = defaults.ROUTING_CLEARANCE_MARGIN,
                 hole_to_hole_clearance: float = defaults.HOLE_TO_HOLE_CLEARANCE,
                 board_edge_clearance: float = defaults.BOARD_EDGE_CLEARANCE,
+                # #581: > 0 keeps every placed via off same-net SMD pads at
+                # this edge-to-edge clearance; None auto-reads the persisted
+                # .kicad_pro record; 0 / -1 explicitly off.
+                same_net_pad_clearance: Optional[float] = None,
                 max_turn_angle: float = defaults.DIFF_PAIR_MAX_TURN_ANGLE,
                 gnd_via_enabled: bool = True,
                 vertical_attraction_radius: float = defaults.VERTICAL_ATTRACTION_RADIUS,
@@ -376,7 +380,15 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
         print(f"  Layer costs: {costs_str}")
 
     # Calculate layer-specific widths for impedance-controlled routing
-    # For diff pairs, we use the diff_pair_gap as the fixed spacing and calculate width
+    # For diff pairs, we use the diff_pair_gap as the fixed spacing and calculate width.
+    # #610: with --track-width OMITTED the impedance request sets the width floor
+    # it implies (bounded below by the fab tier); an explicit --track-width stays
+    # a verbatim floor. Clamps land in impedance_width_clamped -> JSON_SUMMARY.
+    from impedance import impedance_width_floor
+    imp_width_floor, imp_floor_desc = impedance_width_floor(
+        track_width, diff_pair_width_from_class,
+        len(getattr(pcb_data.board_info, 'copper_layers', None) or []))
+    impedance_width_clamped = {}
     layer_widths = {}
     if impedance is None and coplanar_gap:
         # See route.py: the gap only selects the impedance model (#486).
@@ -389,16 +401,22 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
         else:
             print(f"\nCalculating trace widths for {impedance}Ω differential impedance...")
             print(f"Using diff pair spacing: {diff_pair_gap}mm ({diff_pair_gap * 39.3701:.2f} mil)")
+            if diff_pair_width_from_class:
+                print(f"  --track-width not given: solved widths floor at the "
+                      f"fab-tier track minimum {imp_width_floor}mm, not the "
+                      f"default pair width (#610)")
             layer_widths = calculate_layer_widths_for_impedance(
                 pcb_data, layers, impedance,
                 spacing=diff_pair_gap, is_differential=True,
                 fallback_width=track_width,
-                min_width=track_width,
-                coplanar_gap=coplanar_gap
+                min_width=imp_width_floor,
+                coplanar_gap=coplanar_gap,
+                floor_desc=imp_floor_desc,
+                clamp_report=impedance_width_clamped
             )
             print_impedance_routing_plan(pcb_data, layers, impedance,
                                         spacing=diff_pair_gap, is_differential=True,
-                                        min_width=track_width,
+                                        min_width=imp_width_floor,
                                         coplanar_gap=coplanar_gap)
 
     # #521: impedance declarations persist per net (see route.py's twin).
@@ -430,11 +448,15 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
                 print(f"  Reapplying stored {_ohms:g} ohm differential impedance "
                       f"(gap {_pgap}mm{f', coplanar {_cgap}mm' if _cgap else ''}) "
                       f"from .kicad_pro (recorded by an earlier --impedance step)")
+                # #610: same floor rule as a live --impedance solve, so the
+                # reapplied widths really ARE the same widths.
                 layer_widths = calculate_layer_widths_for_impedance(
                     pcb_data, layers, _ohms,
                     spacing=_pgap or diff_pair_gap, is_differential=True,
-                    fallback_width=track_width, min_width=track_width,
-                    coplanar_gap=_cgap)
+                    fallback_width=track_width, min_width=imp_width_floor,
+                    coplanar_gap=_cgap,
+                    floor_desc=imp_floor_desc,
+                    clamp_report=impedance_width_clamped)
         elif _specs:
             print(f"  WARNING: targeted nets carry {len(_specs)} different stored "
                   f"impedance spec(s){' (plus unspecified nets)' if _uncovered else ''} "
@@ -499,6 +521,21 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
     # track_margin channel to ride instead. Margin helpers computed against
     # this reserve are then 0 for impedance-width legs, i.e. today's behaviour.
     config_kwargs['reserve_layer_widths'] = True
+    # #581: an active (> 0) same-net pad via clearance keeps every placed via
+    # off same-net SMD pads. Explicit --same-net-pad-clearance wins (> 0
+    # activates; 0 / -1 explicitly off); unset auto-reads the record an
+    # earlier chain step persisted into the sibling .kicad_pro.
+    if same_net_pad_clearance is None:
+        from protected_nets import read_snpc_for_pcb_data as _read_snpc581
+        _snpc581 = _read_snpc581(pcb_data, input_file)
+        _snpc_src = "project record"
+    else:
+        _snpc581 = same_net_pad_clearance
+        _snpc_src = "flag"
+    if _snpc581 > 0:
+        config_kwargs['same_net_pad_clearance'] = _snpc581
+        print(f"Same-net pad via clearance {_snpc581:g}mm (from {_snpc_src}, "
+              f"#581): vias stay off same-net pads")
     config = GridRouteConfig(**config_kwargs)
 
     # Find differential pairs from all provided nets
@@ -736,9 +773,11 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
         # DQ_S0's target was fanned to B.Cu, which is 100% blocked by a connector
         # pad wall, while the inner layers right there were empty).
         _swap_probe_clearance = (config.track_width + config.diff_pair_gap) / 2
+        if progress_callback:
+            progress_callback(0, 0, "Building layer-swap probe obstacle map...")
         swap_probe_obstacles = build_base_obstacle_map(
             pcb_data, config, [nid for _, nid in net_ids], _swap_probe_clearance,
-            net_clearances=net_clearances)
+            net_clearances=net_clearances, progress_callback=progress_callback)
         total_layer_swaps, all_stubs_by_layer, stub_endpoints_by_layer = apply_diff_pair_layer_swaps(
             pcb_data, config, diff_pair_ids_to_route_set, diff_pairs,
             can_swap_to_top_layer, all_segment_modifications, all_swap_vias,
@@ -843,10 +882,13 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
     # Extra clearance = spacing from centerline to P/N track center
     diff_pair_extra_clearance = (config.track_width + config.diff_pair_gap) / 2
     print(f"Building diff pair obstacle map (extra clearance: {diff_pair_extra_clearance:.3f}mm)...")
+    if progress_callback:
+        progress_callback(0, 0, "Building diff-pair obstacle map...")
     dp_base_start = time.time()
     diff_pair_base_obstacles = build_base_obstacle_map(pcb_data, config, all_net_ids_to_route,
                                                        diff_pair_extra_clearance,
-                                                       net_clearances=net_clearances)
+                                                       net_clearances=net_clearances,
+                                                       progress_callback=progress_callback)
     dp_base_elapsed = time.time() - dp_base_start
     print(f"Diff pair obstacle map built in {dp_base_elapsed:.2f}s")
     if debug_memory:
@@ -880,7 +922,11 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
                 _classes, _rules, _wfloor, _gfloor = {}, {}, 0.0, 0.0
             for _pn, _pair in diff_pair_ids_to_route:
                 _c = _classes.get(resolve_net_class(_pair.p_net_name, _rules), {}) if _classes else {}
-                _w = _c.get('diff_pair_width') if diff_pair_width_from_class else None
+                # --impedance derives width per layer, so a netclass width must
+                # not override it (#610: from_class now purely means "the flag
+                # was omitted", the impedance guard lives here).
+                _w = (_c.get('diff_pair_width')
+                      if diff_pair_width_from_class and impedance is None else None)
                 _g = _c.get('diff_pair_gap') if diff_pair_gap_from_class else None
                 _ew = max(_w if _w is not None else config.track_width, _wfloor)
                 _eg = max(_g if _g is not None else config.diff_pair_gap, _gfloor)
@@ -891,9 +937,14 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
                     _ec = (geom[0] + geom[1]) / 2
                     print(f"  #435: building diff obstacle map for class geometry "
                           f"width={geom[0]} gap={geom[1]} (extra clearance {_ec:.3f}mm)...")
+                    if progress_callback:
+                        progress_callback(
+                            0, 0, f"Building diff-pair obstacle map "
+                                  f"(width {geom[0]} / gap {geom[1]})...")
                     diff_pair_base_obstacles_by_geom[geom] = build_base_obstacle_map(
                         pcb_data, replace(config, track_width=geom[0], diff_pair_gap=geom[1]),
-                        all_net_ids_to_route, _ec, net_clearances=net_clearances)
+                        all_net_ids_to_route, _ec, net_clearances=net_clearances,
+                        progress_callback=progress_callback)
             if len(set(pair_diff_geom.values())) > 1:
                 print(f"  #435: {len(diff_pair_base_obstacles_by_geom)} distinct diff-pair "
                       f"geometries across {len(pair_diff_geom)} pair(s).")
@@ -1024,6 +1075,12 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
     # The cache is re-merged on every prepare in every path (single-ended,
     # diff pair, Phase 3 via the working-map clone).
     from obstacle_costs import compute_bga_proximity_cost_cells, BGA_PROXIMITY_CACHE_KEY
+    # #585 item 4: proximity fields for EVERY fine-pitch package (BGA/QFN/QFP)
+    # with pad-count-scaled radii; the hard zones stay BGA-only.
+    from routing_common import package_proximity_zones
+    if env_knobs.PACKAGE_PROXIMITY:
+        config.package_proximity_zones = package_proximity_zones(
+            pcb_data, config.bga_proximity_radius)
     _bga_cells = compute_bga_proximity_cost_cells(config, len(config.layers))
     if len(_bga_cells):
         track_proximity_cache[BGA_PROXIMITY_CACHE_KEY] = _bga_cells
@@ -1034,6 +1091,10 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
     # cell cost via the Rust via branch.
     from congestion_field import register_congestion_field
     register_congestion_field(pcb_data, config, track_proximity_cache)
+
+    # History congestion (#590): fresh per-cell conflict field for this call.
+    from history_congestion import reset_history
+    reset_history(config)
     layer_map = state.layer_map
     reroute_queue = state.reroute_queue
     polarity_swapped_pairs = state.polarity_swapped_pairs
@@ -1290,9 +1351,21 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
                                       skipped_fanout=skipped_fanout_info)
     _audit_mismatches = [r for r in pair_reports if r['member_audit_mismatch']]
     for _r in _audit_mismatches:
+        # The pair CLAIMED 'coupled'; build_pair_reports has already demoted
+        # its outcome to 'incomplete' (#602), so name the claim, not the
+        # post-demotion value.
         print(f"{RED}MEMBER AUDIT MISMATCH: {_r['pair']} reported "
-              f"'{_r['outcome']}' but member(s) with disconnected pads: "
-              f"{', '.join(_r['incomplete_members'])}{RESET}")
+              f"'coupled' but member(s) with disconnected pads: "
+              f"{', '.join(_r['incomplete_members'])} "
+              f"-> outcome '{_r['outcome']}'{RESET}")
+    # #602: the audit's own verdict as a machine-readable field. Every pair
+    # with ANY disconnected member pad lands here -- both the contradicted
+    # 'coupled' claims above and the by-design 'partial' pairs whose peeled
+    # terminals the single-ended follow-up still has to close -- so a caller
+    # can gate on it without deciding which of those it is, and without
+    # parsing the MEMBER AUDIT prose out of the log.
+    _member_incomplete = sorted({r['pair'] for r in pair_reports
+                                 if r.get('incomplete_members')})
     routed_diff_pairs = []
     failed_diff_pairs = []
     single_ended_diff_pairs = []
@@ -1351,6 +1424,14 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
         print(f"  {RED}Partial:       {len(partial_diff_pairs)} pair(s) whose coupled "
               f"route left member pads disconnected (see MEMBER AUDIT): "
               f"{', '.join(sorted(partial_diff_pairs))}{RESET}")
+    if _member_incomplete:
+        # Counted separately from the buckets above: a by-design 'partial'
+        # pair is still in routed_diff_pairs (its trunk IS coupled), so the
+        # coupled count alone never tells you its pads are open (#602).
+        print(f"  Member-incomplete: {len(_member_incomplete)} pair(s) with "
+              f"disconnected member pads at this step "
+              f"({', '.join(_member_incomplete)}) — JSON_SUMMARY."
+              f"member_incomplete_pairs")
     if ripup_success_pairs:
         print(f"  Rip-up success: {len(ripup_success_pairs)} (routes that ripped blockers)")
     if rerouted_pairs:
@@ -1392,6 +1473,12 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
         'routed_diff_pairs': routed_diff_pairs,
         'failed_diff_pairs': failed_diff_pairs,
         'partial_diff_pairs': sorted(partial_diff_pairs),
+        # #602: every pair the member audit found with a disconnected member
+        # pad, whatever bucket it landed in. Gate on THIS for "did the pair's
+        # copper actually reach its pads", instead of inferring it from the
+        # coupled count (which by design still includes a partial pair whose
+        # trunk is coupled and whose peeled terminals close later).
+        'member_incomplete_pairs': _member_incomplete,
         'single_ended_diff_pairs': single_ended_diff_pairs,
         'ripup_success_pairs': sorted(ripup_success_pairs),
         'rerouted_pairs': sorted(rerouted_pairs),
@@ -1423,13 +1510,15 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
     }
     if ac_coupled_summary:
         summary['ac_coupled_xnets'] = ac_coupled_summary
-    # See route.py's identical stamp: a budget armed by the CLI must reach the
-    # one summary this engine prints, because the cancel path still writes.
-    # Inert with no budget armed (every GUI call) or a budget not spent.
-    try:
-        import krt_deadline as _kdl
-        _kdl.stamp(summary)
-    except Exception:
+    if impedance_width_clamped:
+        # #610: layers whose impedance-solved width was clamped UP to the
+        # width floor, {layer: [solved_mm, floor_mm]} -- those layers will NOT
+        # meet the impedance request. Key absent when no clamp fired.
+        summary['impedance_width_clamped'] = impedance_width_clamped
+    try:                       # #653: env knobs into the machine-readable
+        import env_knobs as _ek653   # summary, so a harness can detect a
+        summary['env_knobs'] = _ek653.active_env_knobs()   # dirty baseline
+    except Exception:          # without re-reading logs
         pass
     print(f"JSON_SUMMARY: {json.dumps(summary)}")
 
@@ -1590,8 +1679,8 @@ def batch_route_diff_pairs(input_file: str, output_file: str, net_names: List[st
 if __name__ == "__main__":
     from console_encoding import enable_utf8_console
     enable_utf8_console()  # cp1252-safe non-ASCII prints (issue #152)
-    # CMD/EXIT self-echo (run-3 B1); see route.py for why this waited for
-    # --deadline. CLI-`__main__`-only: the GUI imports the engine function.
+    # CMD/EXIT self-echo (run-3 B1); see route.py for the external-kill caveat.
+    # CLI-`__main__`-only: the GUI imports the engine function.
     import cli_banner
     cli_banner.install()
     import argparse
@@ -1650,7 +1739,7 @@ Examples:
                              "width can only widen it), not ignored.")
     parser.add_argument("--impedance", type=float, default=None,
                         help="Target differential impedance in ohms (e.g., 100). Calculates track width per layer from board stackup using --diff-pair-gap as spacing.")
-    parser.add_argument("--coplanar-gap", type=float, default=0.0,
+    parser.add_argument("--coplanar-gap", type=float, default=defaults.COPLANAR_GAP,
                         help="Declare that the pairs in this call run through a ground "
                              "pour on their OWN layer, this far (mm) from each trace's "
                              "OUTER edge. Outer layers then use the coplanar-waveguide-"
@@ -1682,21 +1771,22 @@ Examples:
                         help="Via drill size in mm (default: the board Default net-class via drill, else 0.3)")
 
     # Router algorithm parameters
-    parser.add_argument("--grid-step", type=float, default=0.1,
+    parser.add_argument("--grid-step", type=float, default=defaults.GRID_STEP,
                         help="Grid resolution in mm (default: 0.1)")
-    parser.add_argument("--via-cost", type=int, default=50,
-                        help="Penalty for placing a via, in 0.1mm grid steps (default: 50 = 5mm of path, doubled for diff pairs; mm-equivalent at any --grid-step)")
-    parser.add_argument("--via-proximity-cost", type=int, default=10,
-                        help="Via cost multiplier in stub/BGA proximity zones (default: 10, 0=block vias)")
-    parser.add_argument("--max-iterations", type=int, default=200000,
+    parser.add_argument("--via-cost", type=int, default=defaults.VIA_COST,
+                        help=f"Penalty for placing a via, in 0.1mm grid steps (default: {defaults.VIA_COST}, doubled for diff pairs; mm-equivalent at any --grid-step)")
+    parser.add_argument("--via-proximity-cost", type=int, default=defaults.VIA_PROXIMITY_COST,
+                        help="Via cost multiplier in stub/BGA proximity zones (default: 10, 0=no extra cost)")
+    parser.add_argument("--max-iterations", type=int, default=defaults.MAX_ITERATIONS,
                         help="Max A* iterations before giving up (default: 200000)")
-    parser.add_argument("--max-probe-iterations", type=int, default=5000,
+    parser.add_argument("--max-probe-iterations", type=int, default=defaults.MAX_PROBE_ITERATIONS,
                         help="Max iterations for quick probe phase per direction (default: 5000)")
-    parser.add_argument("--heuristic-weight", type=float, default=1.9,
-                        help="A* heuristic weight, higher=faster but less optimal (default: 1.9)")
-    parser.add_argument("--proximity-heuristic-factor", type=float, default=0.02,
-                        help="Factor for proximity-aware A* heuristic (default: 0.02, 0=disabled)")
-    parser.add_argument("--turn-cost", type=int, default=1000,
+    parser.add_argument("--heuristic-weight", type=float, default=defaults.HEURISTIC_WEIGHT,
+                        help=f"A* heuristic weight, higher=faster but less optimal (default: {defaults.HEURISTIC_WEIGHT})")
+    parser.add_argument("--proximity-heuristic-factor", type=float,
+                        default=defaults.PROXIMITY_HEURISTIC_FACTOR,
+                        help=f"Factor for proximity-aware A* heuristic (default: {defaults.PROXIMITY_HEURISTIC_FACTOR}, 0=disabled)")
+    parser.add_argument("--turn-cost", type=int, default=defaults.TURN_COST,
                         help="Penalty for direction changes, encourages straighter paths (default: 1000)")
     parser.add_argument("--direction-preference-cost", type=int, default=defaults.DIRECTION_PREFERENCE_COST,
                         help=f"Penalty for non-preferred layer direction, 0=disabled (default: {defaults.DIRECTION_PREFERENCE_COST})")
@@ -1716,21 +1806,21 @@ Examples:
                         help=f"User layer the keepout polygons are drawn on (default: {defaults.KEEPOUT_LAYER})")
 
     # Stub proximity penalty
-    parser.add_argument("--stub-proximity-radius", type=float, default=2.0,
+    parser.add_argument("--stub-proximity-radius", type=float, default=defaults.STUB_PROXIMITY_RADIUS,
                         help="Radius around stubs to penalize routing in mm (default: 2.0)")
-    parser.add_argument("--stub-proximity-cost", type=float, default=0.2,
+    parser.add_argument("--stub-proximity-cost", type=float, default=defaults.STUB_PROXIMITY_COST,
                         help="Cost penalty near stubs in mm equivalent (default: 0.2)")
 
     # BGA proximity penalty
-    parser.add_argument("--bga-proximity-radius", type=float, default=7.0,
+    parser.add_argument("--bga-proximity-radius", type=float, default=defaults.BGA_PROXIMITY_RADIUS,
                         help="Radius around BGA edges to penalize routing in mm (default: 7.0)")
-    parser.add_argument("--bga-proximity-cost", type=float, default=0.2,
+    parser.add_argument("--bga-proximity-cost", type=float, default=defaults.BGA_PROXIMITY_COST,
                         help="Cost penalty near BGA edges in mm equivalent (default: 0.2)")
 
     # Track proximity penalty (same layer only)
-    parser.add_argument("--track-proximity-distance", type=float, default=2.0,
+    parser.add_argument("--track-proximity-distance", type=float, default=defaults.TRACK_PROXIMITY_DISTANCE,
                         help="Radius around routed tracks in mm, same layer only (0 = disabled, default: 2.0)")
-    parser.add_argument("--track-proximity-cost", type=float, default=0.0,
+    parser.add_argument("--track-proximity-cost", type=float, default=defaults.TRACK_PROXIMITY_COST,
                         help="Cost penalty near routed tracks (0 = disabled, default: 0.0)")
 
     # Differential pair routing options
@@ -1759,7 +1849,7 @@ Examples:
                         help="Glob patterns for diff pair nets that can have targets swapped (e.g., 'rx1_*')")
     parser.add_argument("--schematic-dir", default=None,
                         help="Directory containing .kicad_sch files to update with pad swaps (default: no schematic update)")
-    parser.add_argument("--crossing-penalty", type=float, default=1000.0,
+    parser.add_argument("--crossing-penalty", type=float, default=defaults.CROSSING_PENALTY,
                         help="Penalty for crossing assignments in target swap optimization (default: 1000.0)")
     parser.add_argument("--mps-reverse-rounds", action="store_true",
                         help="Reverse MPS round order: route most-conflicting groups first instead of least-conflicting")
@@ -1774,9 +1864,9 @@ Examples:
     # Length matching options
     parser.add_argument("--length-match-group", action="append", nargs="+", dest="length_match_groups",
                         help="Net patterns to length-match as a group (can be repeated). Use 'auto' for DDR4 auto-grouping")
-    parser.add_argument("--length-match-tolerance", type=float, default=0.1,
+    parser.add_argument("--length-match-tolerance", type=float, default=defaults.LENGTH_MATCH_TOLERANCE,
                         help="Acceptable length variance within group in mm (default: 0.1)")
-    parser.add_argument("--meander-amplitude", type=float, default=1.0,
+    parser.add_argument("--meander-amplitude", type=float, default=defaults.MEANDER_AMPLITUDE,
                         help="Height of meander perpendicular to trace in mm (default: 1.0)")
     parser.add_argument("--meander-spacing", type=float, default=defaults.MEANDER_SPACING,
                         help="Centre-to-centre spacing of adjacent single-ended meander arms, in "
@@ -1787,7 +1877,7 @@ Examples:
     # Time matching options (alternative to length matching)
     parser.add_argument("--time-matching", action="store_true",
                         help="Match by propagation time instead of length (accounts for layer dielectric)")
-    parser.add_argument("--time-match-tolerance", type=float, default=1.0,
+    parser.add_argument("--time-match-tolerance", type=float, default=defaults.TIME_MATCH_TOLERANCE,
                         help="Acceptable time variance in picoseconds (default: 1.0)")
 
     parser.add_argument("--diff-chamfer-extra", type=float, default=1.5,
@@ -1800,7 +1890,7 @@ Examples:
                              "and place the compensating meanders on whichever segment has room. Off by default.")
 
     # Rip-up and retry options
-    parser.add_argument("--max-ripup", type=int, default=3,
+    parser.add_argument("--max-ripup", type=int, default=defaults.MAX_RIPUP,
                         help="Maximum blockers to rip up at once during rip-up and retry (default: 3)")
     parser.add_argument("--ripup-blocker-select",
                         choices=list(defaults.RIPUP_BLOCKER_SELECT_CHOICES),
@@ -1808,7 +1898,7 @@ Examples:
                         help="""Blocker SELECTION algorithm for the rip-up ladder (see route.py --help / docs/rip-up-reroute.md)""")
     parser.add_argument("--max-setback-angle", type=float, default=45.0,
                         help="Maximum angle (degrees) for setback position search (default: 45.0)")
-    parser.add_argument("--routing-clearance-margin", type=float, default=1.0,
+    parser.add_argument("--routing-clearance-margin", type=float, default=defaults.ROUTING_CLEARANCE_MARGIN,
                         help="Multiplier on track-via clearance (1.0 = minimum DRC)")
     parser.add_argument("--hole-to-hole-clearance", type=float, default=None,
                         help="Minimum clearance between drill holes in mm. Default: the "
@@ -1816,13 +1906,20 @@ Examples:
     parser.add_argument("--board-edge-clearance", type=float, default=None,
                         help="Clearance from board edge in mm. Default: the board's own "
                              f"min_copper_edge_clearance constraint, else {defaults.BOARD_EDGE_CLEARANCE}.")
+    parser.add_argument("--same-net-pad-clearance", type=float, default=None,
+                        help="Edge-to-edge clearance (mm) between EVERY placed via and "
+                             "same-net pads (#581). > 0 keeps vias off same-net SMD pads "
+                             "(escape vias, via-in-pad rescue, tap vias) and is recorded "
+                             "in the sibling .kicad_pro so later chain steps inherit it; "
+                             "-1 explicitly allows via-in-pad. Default: the project's "
+                             "recorded value, else via-in-pad allowed.")
     parser.add_argument("--max-turn-angle", type=float, default=180.0,
                         help="Max cumulative turn angle (degrees) before reset, to prevent U-turns (default: 180)")
 
     # Vertical alignment attraction options
-    parser.add_argument("--vertical-attraction-radius", type=float, default=1.0,
+    parser.add_argument("--vertical-attraction-radius", type=float, default=defaults.VERTICAL_ATTRACTION_RADIUS,
                         help="Radius in mm for cross-layer track attraction (0 = disabled, default: 1.0)")
-    parser.add_argument("--vertical-attraction-cost", type=float, default=0.0,
+    parser.add_argument("--vertical-attraction-cost", type=float, default=defaults.VERTICAL_ATTRACTION_COST,
                         help="Cost bonus for aligning with tracks on other layers (0 = disabled, default: 0.0)")
 
     # Ripped route avoidance options
@@ -1830,21 +1927,6 @@ Examples:
                         help=f"Radius in mm around ripped route segments/vias for soft penalty (default: {defaults.RIPPED_ROUTE_AVOIDANCE_RADIUS})")
     parser.add_argument("--ripped-route-avoidance-cost", type=float, default=defaults.RIPPED_ROUTE_AVOIDANCE_COST,
                         help=f"Soft penalty cost for routing through ripped corridors (0 = disabled, default: {defaults.RIPPED_ROUTE_AVOIDANCE_COST})")
-
-    parser.add_argument("--deadline", type=float, default=None, metavar="SECONDS",
-                        help="Wall-clock budget for the ROUTING LOOPS. Not a hard "
-                             "cap on total runtime -- the cancel is cooperative and "
-                             "the bounded tail (write, DRC writeback) still runs -- "
-                             "so expect to overshoot. What it guarantees is "
-                             "TERMINATION on THIS tool's terms: it stops between "
-                             "pairs, writes the copper it has, and prints a "
-                             "JSON_SUMMARY carrying complete=false / status=deadline "
-                             "before exiting 7. Without it an external kill on "
-                             "Windows is TerminateProcess, which leaves NO summary "
-                             "and NO exit code of ours. ANY harness with an external "
-                             "timeout should pass this at ~0.8x its own. Default: no "
-                             "budget (a wall-clock default would break replay "
-                             "determinism). Env: KRT_DEADLINE_S")
 
     # Debug options
     parser.add_argument("--debug-lines", action="store_true",
@@ -1865,7 +1947,7 @@ Examples:
     add_fab_tier_args(parser)
     from fab_tiers import add_board_floor_args as _add_bf
     _add_bf(parser)
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
     # #439: the PRESENCE of --clearance is the clamp switch (see route.py). Given ->
     # non-Default classes capped at min(class, --clearance) + writeback clamps.
     # Omitted -> honor classes: base = board Default net-class clearance, classes
@@ -1877,9 +1959,11 @@ Examples:
     # #435: whether the diff geometry was EXPLICITLY set on the CLI. If NOT, each
     # pair falls back engine-side to its OWN netclass diff_pair_gap/width (not the
     # board Default class), so a multi-class board routes every pair to its own
-    # impedance geometry. An explicit value (or --impedance for width) is honored
-    # verbatim for all pairs, subject only to the fab/board DRC floors.
-    _dp_width_explicit = (args.track_width is not None) or (args.impedance is not None)
+    # impedance geometry. --impedance no longer counts as explicit here (#610):
+    # the engine guards the netclass-width path itself when impedance is set, and
+    # uses this bit to floor impedance-solved widths at the fab tier instead of
+    # the resolved default pair width.
+    _dp_width_explicit = args.track_width is not None
     _dp_gap_explicit = args.diff_pair_gap is not None
     # --track-width IS the diff-pair LEG WIDTH here: when omitted, default to the
     # board's OWN Default net-class diff_pair_width (else routing_defaults), so a
@@ -2055,22 +2139,8 @@ Examples:
                   f"(mm: {_classes}); diff-pair routing respects cross-class max(A,B). "
                   f"Override with --net-clearances.")
 
-    # See route.py: the deadline is ONE closure into plumbing this engine
-    # already has. `cancel_check` breaks the pair/reroute/cleanup loops rather
-    # than raising, so the write and the summary still happen and a cancelled
-    # run yields real, gated copper. The atexit hook armed here is what makes a
-    # JSON_SUMMARY land on the paths that never reach the engine at all.
-    import krt_deadline
-    _rd_report = {'tool': 'route_diff.py', 'board': args.input_file}
-    _dl = krt_deadline.arm(args.deadline, tool='route_diff',
-                           on_partial=lambda: _rd_report)
-
     batch_route_diff_pairs(args.input_file, args.output_file, net_names,
                 net_clearances=_net_clearances_map,
-                cancel_check=(_dl.cancel_check('diff-pair routing')
-                              if _dl else None),
-                progress_callback=(krt_deadline.stdout_progress(deadline=_dl)
-                                   if _dl else None),
                 direction_order=args.direction,
                 ordering_strategy=args.ordering,
                 disable_bga_zones=args.no_bga_zones,
@@ -2124,6 +2194,7 @@ Examples:
                 routing_clearance_margin=args.routing_clearance_margin,
                 hole_to_hole_clearance=args.hole_to_hole_clearance,
                 board_edge_clearance=args.board_edge_clearance,
+                same_net_pad_clearance=args.same_net_pad_clearance,
                 max_turn_angle=args.max_turn_angle,
                 gnd_via_enabled=not args.no_gnd_vias,
                 vertical_attraction_radius=args.vertical_attraction_radius,
@@ -2146,22 +2217,6 @@ Examples:
                 keep_input_copper=args.keep_input_copper,
                 schematic_dir=args.schematic_dir,
                 add_teardrops=args.add_teardrops)
-
-    # The engine printed the authoritative JSON_SUMMARY (stamped by
-    # krt_deadline.stamp when the budget was spent). Seal so the atexit flush
-    # does not publish a second, contradicting `incomplete` line after it.
-    krt_deadline.seal()
-    # `stopped_in or expired()`: the durable record that the cancel fired, not
-    # just "the wall clock has since passed". See krt_deadline.stamp.
-    _deadline_hit = bool(_dl and (_dl.stopped_in or _dl.expired()))
-    if _deadline_hit:
-        print(f"{RED}DEADLINE: this run stopped on its own budget after "
-              f"{_dl.elapsed():.0f}s of {_dl.seconds:g}s"
-              + (f" (in {_dl.stopped_in})" if _dl.stopped_in else "")
-              + f". The board at {args.output_file or '(none)'} is a PARTIAL "
-              f"route -- real, gated copper, but pairs were left unattempted. "
-              f"Do not read it as clean; the JSON_SUMMARY above carries "
-              f"complete=false.{RESET}")
 
     # Make the output project's DRC design rules consistent with the floors we
     # just routed to (issue #160), mirroring route.py, so a manual DRC in KiCad
@@ -2196,17 +2251,16 @@ Examples:
             _pro = pro_path_for_board(args.output_file)
             persist_protected_nets(_pro, consume_protection_candidates())
             persist_impedance_specs(_pro, consume_impedance_specs())
+            # #581: an explicit active flag on this step is recorded so later
+            # chain steps keep their vias off same-net pads too.
+            if getattr(args, 'same_net_pad_clearance', None) is not None \
+                    and args.same_net_pad_clearance > 0:
+                from protected_nets import persist_same_net_pad_clearance
+                persist_same_net_pad_clearance(_pro, args.same_net_pad_clearance)
         except Exception as e:
             print(f"  (skipped protected-nets record: {e})")
 
-    # LAST, and non-zero: the bounded post-passes above belong to the partial
-    # board (skipping the DRC writeback would strand the output without its
-    # floor -- the #441 hazard), but a caller reading exit 0 would treat an
-    # unfinished route as a finished one.
-    if _deadline_hit:
-        sys.exit(krt_deadline.DEADLINE_EXIT)
-    # AFTER the deadline: a run that ran out of clock exits 7, and that is the
-    # more specific fact. This is the other false success -- the patterns
+    # The other false success -- the patterns
     # matched no pair at all, which used to print `Error:` and exit 0 because
     # main called the router as a bare statement. Measured: a shell rewrote
     # every `/IO_Banks/Z*` argument into a Windows path and 14 patterns matched

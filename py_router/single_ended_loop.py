@@ -79,7 +79,8 @@ from connectivity import (
 from net_queries import get_chip_pad_positions, calculate_route_length
 from pcb_modification import add_route_to_pcb_data
 from single_ended_routing import (route_net_with_obstacles,
-                                  route_multipoint_main, route_oracle_links)
+                                  route_multipoint_main, route_oracle_links,
+                                  deferred_diagnostics, flush_diagnostics)
 from blocking_analysis import analyze_frontier_blocking, print_blocking_analysis, filter_rippable_blockers, invalidate_obstacle_cache, record_frontier_blocking
 from rip_up_reroute import rip_up_net, restore_net
 from leg_rip import LEG_RIP_ENABLED, select_blocking_branch  # #510
@@ -608,7 +609,6 @@ def route_single_ended_nets(
             if failed > 0:
                 msg += f" ({failed} failed)"
             progress_callback(route_index, total_routes, msg)
-        print("-" * 40)
 
         # Periodic memory reporting (every 10 nets)
         if config.debug_memory and (route_index % 10 == 1 or route_index == total_routes):
@@ -665,10 +665,38 @@ def route_single_ended_nets(
         # main-edge selection + attraction too (they used to route blind).
         attraction_path, reverse_direction = bus_attraction_context(
             net_id, bus_net_to_group, bus_corridors, bus_routed_paths)
+        # #589 v2 owner attraction (KICAD_GLOBAL_PLAN_ATTRACT=1): a net
+        # with a planned rough corridor and NO bus corridor is attracted
+        # to its own plan -- the global->detailed handoff the repulsion-
+        # only reservations lack. Densified like a bus corridor; the
+        # attraction bonus/radius knobs are shared with bus routing.
+        if attraction_path is None:
+            _gp = getattr(config, '_global_plan', None)
+            if (_gp is not None and net_id in _gp.rough_paths
+                    and env_knobs.GLOBAL_PLAN.get('attract')):
+                # #658 river: predecessor's realized copper outranks the
+                # net's own probe corridor (follow-the-leader packing).
+                _riv = None
+                if env_knobs.GLOBAL_PLAN.get('river'):
+                    from global_plan import river_attraction_path
+                    _riv = river_attraction_path(config, net_id, pcb_data)
+                attraction_path = (_sample_path(_riv) if _riv is not None
+                                   else _sample_path(_gp.rough_paths[net_id]))
+                reverse_direction = False
         # Off-lane surcharge (the stick): members with a corridor pay
         # scaled step costs everywhere EXCEPT near the lane, where the
         # attraction discount compensates -- defection costs real money.
         cfg_route = bus_stick_config(config, attraction_path)
+        # #589 option 2 (KICAD_GLOBAL_PLAN_LAYER=pref): soft discount on the
+        # net's plan-assigned layer so corridor cliques pack N layers deep
+        # instead of all fighting for the probes' shared favorite layer.
+        # Unchanged cfg_route when the plan/knob is off or the net has no
+        # assignment.
+        from global_plan import plan_layer_config, power_layer_config
+        cfg_route = plan_layer_config(cfg_route, config, net_id)
+        # #658 power discipline: power nets get their own layer economics
+        # (off the highways, dive-fast) -- see power_layer_config.
+        cfg_route = power_layer_config(cfg_route, config, net_id)
         # #572: oracle forced links outrank endpoint derivation -- the
         # model's zone credit merges the exact-fill clusters, so both the
         # multipoint and plain derivations "see" no gap and succeed with
@@ -680,23 +708,27 @@ def route_single_ended_nets(
         _olinks = (getattr(state, 'oracle_links_by_net', None) or {}).get(net_id)
         # Check for multi-point net (3+ pads, no existing segments)
         multipoint_pads = get_multipoint_net_pads(pcb_data, net_id, config)
-        if _olinks:
-            print(f"  Routing {len(_olinks)} exact-fill oracle link(s) "
-                  f"(#572 forced edges)")
-            result = route_oracle_links(pcb_data, net_id, cfg_route, obstacles,
-                                        _olinks,
-                                        attraction_path=attraction_path)
-        elif multipoint_pads:
-            print(f"  Detected multi-point net with {len(multipoint_pads)} pads (Phase 1: main route only)")
-            result = route_multipoint_main(pcb_data, net_id, cfg_route, obstacles, multipoint_pads,
-                                           attraction_path=attraction_path, state=state)
-            # Track for Phase 3 completion after length matching
-            if result and not result.get('failed') and result.get('is_multipoint'):
-                state.pending_multipoint_nets[net_id] = result
-        else:
-            result = route_net_with_obstacles(pcb_data, net_id, cfg_route, obstacles,
-                                              attraction_path=attraction_path,
-                                              reverse_direction=reverse_direction)
+        # Hold the A* search diagnostics until we know whether this net failed;
+        # a stall that the router recovers from needs no explanation (--verbose
+        # streams them live).
+        with deferred_diagnostics(config) as diag_buf:
+            if _olinks:
+                print(f"  Routing {len(_olinks)} exact-fill oracle link(s) "
+                      f"(#572 forced edges)")
+                result = route_oracle_links(pcb_data, net_id, cfg_route, obstacles,
+                                            _olinks,
+                                            attraction_path=attraction_path)
+            elif multipoint_pads:
+                print(f"  Detected multi-point net with {len(multipoint_pads)} pads (Phase 1: main route only)")
+                result = route_multipoint_main(pcb_data, net_id, cfg_route, obstacles, multipoint_pads,
+                                               attraction_path=attraction_path, state=state)
+                # Track for Phase 3 completion after length matching
+                if result and not result.get('failed') and result.get('is_multipoint'):
+                    state.pending_multipoint_nets[net_id] = result
+            else:
+                result = route_net_with_obstacles(pcb_data, net_id, cfg_route, obstacles,
+                                                  attraction_path=attraction_path,
+                                                  reverse_direction=reverse_direction)
 
         elapsed = time.time() - start_time
         total_time += elapsed
@@ -752,6 +784,9 @@ def route_single_ended_nets(
             invalidate_obstacle_cache(obstacle_cache, net_id)
         else:
             iterations = result['iterations'] if result else 0
+            # This net failed, so the buffered search diagnostics are now the
+            # explanation the reader wants -- print them ahead of the verdict.
+            flush_diagnostics(diag_buf)
             print(f"  FAILED: Could not find route ({elapsed:.2f}s)")
             total_iterations += iterations
 
@@ -1133,6 +1168,12 @@ def route_single_ended_nets(
                         # Bus attraction for the retry, multipoint included
                         retry_attraction_path, retry_reverse_direction = bus_attraction_context(
                             net_id, bus_net_to_group, bus_corridors, bus_routed_paths)
+                        if retry_attraction_path is None:
+                            # #656: keep the plan lane through rip retries
+                            from global_plan import plan_attraction_path
+                            retry_attraction_path = plan_attraction_path(
+                                config, net_id, pcb_data)
+                            retry_reverse_direction = False
                         retry_cfg = bus_stick_config(config, retry_attraction_path)
                         # #572: a forced-link net retries its EXACT links
                         # against the post-rip board (same reason as the
@@ -1413,11 +1454,15 @@ def route_single_ended_nets(
                     "reason": "no rippable blockers found"
                 })
                 print(f"  {RED}ROUTE FAILED - no rippable blockers found{RESET}")
-                from routing_diagnostics import static_boxin_hint, preexisting_blocker_hint
+                from routing_diagnostics import (static_boxin_hint,
+                                                 preexisting_blocker_hint,
+                                                 condense_hint)
                 hint, _boxin = static_boxin_hint(result, config, pcb_data,
                                                  return_verdict=True)
                 if hint:
-                    print(f"  {hint}")
+                    hint = condense_hint(hint)
+                    if hint:
+                        print(f"  {hint}")
                 if _boxin:
                     # The verdict, not just the sentence. `preexisting_blockers`
                     # below has been recorded and serialized since #301; this
@@ -1439,7 +1484,9 @@ def route_single_ended_nets(
                     _cells301, config, pcb_data, net_id,
                     routed_net_ids=state.routed_net_ids, return_names=True)
                 if hint301:
-                    print(f"  {hint301}")
+                    _c301 = condense_hint(hint301)
+                    if _c301:
+                        print(f"  {_c301}")
                     record_net_event(state, net_id, "preexisting_blockers", {
                         "hint": hint301, "blockers": blockers301})
                 # Tap-relocation rung (#424 planes-first, env-gated): a

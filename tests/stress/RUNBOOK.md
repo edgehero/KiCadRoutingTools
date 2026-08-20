@@ -9,7 +9,7 @@ non-interactively and record everything.
 The whole set-1 + set-2 corpus is driven by ONE queue manager:
 
 ```bash
-bash tests/stress/run_queue.sh [concurrency=10] [model=sonnet]
+bash tests/stress/run_queue.sh [max_concurrency=8] [model=sonnet]
 ```
 
 It keeps N headless `claude -p` board workers in flight until every board has a
@@ -80,7 +80,7 @@ within a board. `<SET>` below is `_set<N>` (e.g. `_set1` for set 1, `_set2` for 
 
 
 **`<TOOLS_REPO>` below means the tools-repo directory whose ABSOLUTE path your
-prompt already gives you** (the same path in "Run tools as: `python3 -X utf8
+prompt already gives you** (the same path in "Run tools as: `python3 -u -X utf8
 <TOOLS_REPO>/<tool>.py`" and in `--add-dir`). Substitute that absolute path
 yourself wherever you see `<TOOLS_REPO>`; never type the literal string
 `<TOOLS_REPO>` into a shell, and do not expect it to be set as an environment
@@ -194,11 +194,15 @@ harmless.
 
 ## Rules
 
-1. Invoke all tools as `python3 -X utf8 <TOOLS_REPO>/<tool>.py ...`
+1. Invoke all tools as `python3 -u -X utf8 <TOOLS_REPO>/<tool>.py ...`
    from your working dir. Tee every command's output to a log file in your run dir.
+   **`-u` is mandatory, not cosmetic (#599):** without it stdout is fully
+   buffered, so a step killed part-way — by a command timeout, the memory
+   watchdog, or a crash — leaves an EMPTY log and the one artifact that would
+   explain the kill dies with it (`usmu_smu`, sets-21-27 wave).
    MEMORY CAP (mandatory): prefix EVERY routing/fanout/plane/check command with
    the watchdog wrapper, e.g.
-   `bash <TOOLS_REPO>/tests/stress/run_limited.sh python3 -X utf8 py_router/route.py ... 2>&1 | tee step.log`
+   `bash <TOOLS_REPO>/tests/stress/run_limited.sh python3 -u -X utf8 .../route.py ... 2>&1 | tee step.log`
    It kills the job at ~4 GB RSS (exit 137, `MEMORY_LIMIT_EXCEEDED` on stderr).
    Separately, the board-mutating tools self-record their invocations to
    `<run-dir>/redo_commands.sh` (run_board.sh sets `REDO_MANIFEST`) so the whole
@@ -350,8 +354,11 @@ harmless.
    UNDER the pad field on inner layers and escapes what channel can't (-> 0). It
    routes diff pairs single-ended and skips power/plane nets (plane them first).
    Do not start signal routing while balls are dropped.
-   DECOUPLING-CAP OPTIMIZE (issue #130): after EACH BGA/PGA fanout completes
-   (escaped == requested) and BEFORE signal routing, run
+   DECOUPLING-CAP OPTIMIZE (issue #130): ONCE after ALL BGA/PGA fanouts have
+   completed (escaped == requested) and BEFORE signal routing -- not after each
+   one: the pass is board-global, and per-BGA runs compound cap displacement
+   (each run re-seeds at the moved position) and change what later fanouts
+   route around (cap pads are escape obstacles). Run
    `python3 py_placer/place_fanout_clearance.py <fanned>.kicad_pcb <out>.kicad_pcb
    --clearance <floor>` (same clearance as the fanout). A foreign-net fanout via
    landing under a decoupling cap is a real PAD-VIA at the floor; this nudges
@@ -453,9 +460,18 @@ harmless.
    a progressing search to a 1e7 ceiling, so a fixed budget only caps it.
    `--max-ripup` above 5 is measured WORSE (each extra rip level risks a
    victim whose corridor is taken while it is out).
-10. One retry round allowed: if routing fails some nets, re-run the failed nets
-   per the skill's "Diagnose and Retry" table (use the same output->input
-   chaining). Record both attempts. If the failures are CONGESTION (rippable
+10. One retry round allowed: if routing fails some nets, re-run per the skill's
+   "Diagnose and Retry" table (use the same output->input chaining) with
+   **`--nets '*'`, NOT a hand-listed set of the failed net names**. route.py
+   skips nets that are already fully connected, so a wildcard retry attempts
+   exactly the nets still broken -- same work, same result, and it stays correct
+   for any router. A hand-listed retry freezes THIS run's failure identity into
+   the manifest: every future replay hands the baseline a rescue fitted to its
+   own failures while any engine change, failing a different net, gets its
+   failure shipped and healthy nets retried (RUNBOOK rule 5 -- 25% of the corpus
+   is already contaminated this way). Name nets only when the naming IS the
+   experiment (the skill's failed-first split), and expect that board to be
+   unusable for A/B. Record both attempts. If the failures are CONGESTION (rippable
    churn, many fails clustered in one channel, or "boxed in by static obstacles"
    at fine pitch), route signals at the FAB FLOOR (skill: "Route signals at the
    FAB floor by default"). KEY POINTS: (a) thinner is monotonically better on
@@ -471,6 +487,25 @@ harmless.
    blockers are the already-routed wider tracks), keep power/impedance nets wide,
    add a finer --grid-step for fine-pitch escapes; if still congested step the
    width down further toward 0.0889.
+10a. RIP AUTHORITY IS A LAST RESORT, NOT A RETRY DEFAULT (#600). `--rip-existing-nets`
+   and `--force-reroute` are permission to DESTROY already-routed copper, and a rip
+   whose restore is refused leaves that net broken. In the sets-21-27 wave this was
+   the single largest source of lost connectivity — larger than routing failure
+   itself (7 of 99 boards; `bms_sensor` turned a 3-pad problem into a 20-pad one,
+   `spartan6_4layer` lost 20 nets all of their copper). **Scoping `--nets` does NOT
+   protect you** — `ftdi_debug_toolkit` regressed from a retry naming three nets. It
+   is the rip PERMISSION, not the route scope. Order of preference: (1) re-run the
+   whole signal step THINNER per rule 10 — destroys nothing; (2) a PLAIN retry of the
+   failed nets — the in-run #103 escalation already grants itself targeted authority
+   over the exact blockers the log named, so you usually need no flag at all;
+   (3) `--rip-existing-nets <the named blockers>`; (4) `'*'` only as a last resort,
+   and never with `--force-reroute` over a large net list — that combination is the
+   `spartan6_4layer` shape. The engine now backstops this: a run that ends net-worse
+   prints `IMPROVEMENT GATE … REVERTED` and restores the input board. **If you see
+   that, the step did not fail to run — it ran and was REJECTED.** Do not re-run it
+   with more authority; change the approach or accept the open nets and report them.
+   Assert on the `JSON_IMPROVEMENT_GATE:` line (`lost`/`gained`/`verdict`) rather
+   than reading prose, and record a REVERTED step in `issues`.
 11. Verification (always, on the final board):
     - `check_drc.py <final> --clearance <floor> --hole-to-hole-clearance <floor> 2>&1 | tee drc.log`
       (manufacturing floor from `--design-rules`, per step 7; note the flags used)
@@ -496,7 +531,19 @@ harmless.
     cycles 1M-iteration A* exhaustions with no net newly connected (issue #211:
     ulx3s) is wedged, not slow. NEVER end your turn while
     a routing command is still running — you will be terminated and the run
-    orphaned. Run commands in the FOREGROUND (timeout up to 600000 ms). If a
+    orphaned. Run commands in the FOREGROUND, and **pass an EXPLICIT timeout on
+    every routing/fanout/plane command: `timeout: 600000` (10 min, the maximum).
+    This is required, not an upper bound you may ignore (#599).** The Bash
+    tool's DEFAULT timeout is 120000 ms — two minutes — while a route step
+    routinely takes 3-20x that (`faderbank_16nx` 316 s, `wisweep_driver` 264 s,
+    `crazyflie_fpga_deck` 189 s). Omitting the timeout killed at least one
+    attempt on 21 of the 99 boards in the sets-21-27 wave; the kill takes the
+    launching shell with it, so `run_limited.sh` reports it as
+    `BACKGROUNDED_STEP_ORPHANED` and it reads like a hang or a rule-12
+    violation when it was neither. The wrapper now prints the elapsed time and
+    a "the caller's timeout is too short" hint when it dies far short of the
+    3-hour cap — believe it, and re-run with the timeout rather than retrying
+    the same way or blaming the router. If a
     command exceeds the 10-min foreground cap, keep waiting in foreground:
     repeatedly run `until ! pgrep -f "<unique-cmd-fragment>" >/dev/null; do
     sleep 10; done` (each up to 10 min) until the process exits, then read its
@@ -643,6 +690,140 @@ Rule of thumb: full-chain regressions → `ab_replay_grade.py`; diff-pair
 regressions → `redo_diff_stage.py`; plane/reconnect/grading-only changes →
 `partial_replay_from_planes.py` (reuses a prior wave's upstream boards).
 
+## Corpus-scale A/B and bisect on the cloud (no LLM, ~$1/arm)
+
+`ab_replay_grade.py` and `ab_wave_driver.py` run locally and grade what YOUR
+machine can chew through. These two run the same replays on rented cores, keep
+the routed boards, and are what you want for "did this change help across 150
+boards" and "which commit broke connectivity".
+
+- **`cloud_replay_sets.py`** — replay whole sets on Modal, KEEP the finished
+  `.kicad_pcb` (with its `.kicad_pro`/`.kicad_dru` siblings), and A/B against a
+  baseline. Six stages, pick with `--only`: `plan` (prices it, spends nothing) /
+  `upload` / `run` / `harvest` / `baseline` / `compare`.
+
+  ```bash
+  # where does HEAD stand vs the recorded runs, sets 10-19?
+  python3 tests/stress/cloud_replay_sets.py --sets set10-set19
+  # one arm with a knob changed (rides the ARM SPEC -- containers do NOT
+  # inherit your shell's env)
+  python3 tests/stress/cloud_replay_sets.py --sets set10-set19 --label smoothoff \
+      --env KICAD_SMOOTH_ROUTE=0
+  # or a routing_defaults constant, patched in the container's own repo copy
+  ... --label hw19 --defaults HEURISTIC_WEIGHT=1.9
+  ```
+
+- **`corpus_bisect.sh`** — score ONE engine commit across the corpus, for
+  bisecting a regression: `bash tests/stress/corpus_bisect.sh <sha> <tag>`.
+  5-6 points bracket a 38-commit range for under $10.
+
+- **`cloud_arms_to_sweep.py`** — score a knob screened as SEPARATE
+  `cloud_replay_sets.py` arms. Each arm lands in its own wave dir, and the
+  wave-dir readers (`ab_wave_report.py`, `--compare`) do a two-wave roll-up
+  with no chain pairing, no rescue-clean cell and no `--hard` split — i.e.
+  without rules 3, 5 and the congestion dilution below. Merge the arms into
+  one sweep json and score them with the tool that applies all of it:
+
+  ```bash
+  # one control arm + one knob arm, launched separately, at the SAME commit
+  python3 tests/stress/cloud_replay_sets.py --sets set1-set5 --label dirs250
+  python3 tests/stress/cloud_replay_sets.py --sets set1-set5 --label dirs5 \
+      --defaults DIRECTION_PREFERENCE_COST=5 --no-baseline
+  python3 tests/stress/cloud_arms_to_sweep.py \
+      ~/Documents/kicad_stress_test/cloud_dirs250_<sha> \
+      ~/Documents/kicad_stress_test/cloud_dirs5_<sha> --out sweep_dirs.json
+  python3 tests/stress/modal_sweep/rank_arms.py sweep_dirs.json --drop-rescue-clean
+  ```
+
+  It merges each wave's REGRADED grading with the `_raw` provenance the local
+  regrade drops (`arm`, `steps`, `rescue_steps`, `patched_defaults`) — feed
+  rank_arms the regraded rows alone and you silently disable its arm
+  identification, its chain-identity guard and its rescue cell at once. Rows
+  the regrade could not re-score (cloud-graded, so no kicad-cli `drc_real`)
+  are dropped rather than paired against locally-graded rows, per rule 2.
+
+  **Launch the arms at ONE commit and do not commit in between.** The image is
+  `git archive HEAD`, so a commit landing between two launches makes the arms
+  differ by more than the knob — the arm name records the sha it was launched
+  at, so check that both wave dirs carry the same one.
+
+### Rules that make these trustworthy
+
+1. **The baseline is the RECORDED RUNS, re-graded — not an archived `ab_*` wave.**
+   The corpus gets re-recorded: after the #562 pours-first reshape every one of
+   sets 10-19's 150 boards produces a different final output than the 2026-07-28
+   wave did, so diffing against it mixes a different PLAN in with the engine
+   delta. `--baseline recorded` (the default) compares like with like; preflight
+   refuses a wave whose chains disagree.
+2. **Grade both sides on the same terms.** The cloud image ships no KiCad, so
+   `drc_real` falls back to raw DRC and connectivity uses the raster fill model.
+   Comparing a cloud row against a locally-graded baseline measures the GRADER:
+   it once reported "DRC +40 worse" when the truth was "-37 better". Harvest
+   re-grades the kept boards locally by default (`--no-local-regrade` opts out).
+3. **Compare arms only on boards that replayed an IDENTICAL chain** — same step
+   count and same final board. A short chain grades artificially WELL, because
+   nets its missing steps never attempted are not counted as incomplete.
+
+   **Do NOT pair on `nets_total` as reported.** It is not a property of the
+   board: check_connected's "Checking N routed nets" counts only nets that ended
+   up with COPPER, so a net an arm fails entirely drops out of that arm's total
+   and reappears under "Unrouted nets". The same board therefore reports a
+   different total per arm (butterstick: 310/314/316/316 on an identical 16-step
+   chain — all 317 once the unrouted are added back), and pairing on it discards
+   exactly the boards WITH unrouted nets, i.e. the congested ones. On the #590
+   sets 1-10 wave that dropped 40 of 103 boards carrying ~85% of all the
+   incompleteness and turned a -48 result into -8. `ab_replay_grade._completion`
+   now reports the corrected census; `rank_arms.gradeable_nets` reconstructs it
+   for rows banked earlier. Known residual: a one-pad net that picks up plane
+   copper counts as routed but never appears among the unrouted (which grades
+   >=2-pad nets), leaving a rare +-1 that only a census emitted by
+   check_connected itself can fix.
+4. **Score connectivity on `nets_incomplete` ALONE.** It already counts unrouted
+   PLUS connectivity-issue nets. `nets_incomplete + conn` (which the sweep's
+   screened-stage gate used to score) counts every connectivity-issue net twice,
+   pricing "failed to connect a net" at double "lost the net's copper entirely".
+   Grading on `conn` alone is wrong from the other side: a net that loses its
+   copper LEAVES the conn bucket for the unrouted one, so conn can fall while the
+   board got worse. `rank_arms.py <sweep.json>` applies all of this — paired
+   verdict per arm, W/L, DRC reported beside it rather than folded in.
+5. **A recorded RESCUE step biases the board against any change — 25% of the
+   corpus has one.** Chains often end with `route.py ... --nets '/CM4
+   GPIO/GPIO22' '/CM4 GPIO/SD_CMD'`: the nets that failed *in the run being
+   recorded*, retried at a tighter clearance or width. The baseline replays that
+   run deterministically, so the rescue lands exactly on its failures and the
+   board finishes clean; an arm that routes differently fails a DIFFERENT net,
+   which the frozen list never retries, so its failure ships while healthy nets
+   get retried. None of that measures routing — in production the retry is
+   authored AFTER seeing what failed; only in replay is it pinned to one arm's
+   failure set.
+
+   The bias bites hardest where the rescue leaves the baseline nearly clean:
+   no headroom to win, every displaced net a loss. Measured on both #590 waves,
+   that cell punished EVERY arm — sets 11-20: +2..+8 per arm over 22 boards
+   holding 2 baseline failures; sets 1-10: +3..+6 over 16 boards holding 4.
+   Congested rescue boards still discriminate (they keep showing arm-ordered
+   differences), so only the clean ones are unmeasurable. Removing that cell
+   alone moved the sets 11-20 winner from -2.5% (p=0.15) to -5.2% (p=0.046).
+
+   `ab_replay_grade` records `rescue_steps` per board; `rank_arms.py` reports
+   the cell and drops it with `--drop-rescue-clean`. Report it either way —
+   silently dropping boards is how a knob talks itself into a default.
+6. **A two-board result is not a default change.** Per-board run-to-run spread is
+   +-2..3 nets (the same config measured 7 and 5 on consecutive runs), so single
+   boards cannot resolve anything smaller. Two defaults were shipped and reverted
+   on this exact mistake.
+7. **Arm names carry the source commit**, so resuming re-uses banked rows only
+   within one commit; the launch-time name is recorded in `<out>/arm.txt` because
+   HEAD moves between stages when another session commits.
+8. **A manifest records COMMANDS, not the recording shell's environment.** A
+   `KICAD_*` export the driving agent set as a workaround replays as unset --
+   the recorded timing/outcome can then be unreproducible at ANY commit.
+   core64_logic (#625) "replayed in 4 min historically": the original run only
+   terminated because its agent exported `KICAD_DYNAMIC_ITERATIONS=0` mid-run;
+   every replay ran the shipped default and burned the 3 h cap. Before trusting
+   a recorded run as a baseline, grep its `transcript.jsonl` for `KICAD_`
+   exports (the timing sidecar cannot tell you).
+
 ## Multi-set waves & release sign-off
 
 `ab_replay_grade.py` grades **one set**. A release decision (should this become a
@@ -707,6 +888,13 @@ they interoperate with `--compare` and `--regrade`.
   `ab_dp250` = sets 6-11) reports on the sets it has. Boards whose **chain broke**
   are listed separately and are a release blocker — they can never show up as a
   DRC delta, because a broken chain has no final board to grade.
+
+  `diff_pairs_coupled` measures COUPLED TRUNKS, not member-pad connectivity
+  (#602): a pair whose terminals were peeled to the single-ended follow-up is
+  counted as coupled by design. To assert that a diff-pair stage left no open
+  member pads, gate on **`diff_pairs_member_incomplete`** (route_diff's own
+  member audit, `member_incomplete_pairs` in `JSON_SUMMARY`) — not on the
+  coupled count, and not by grepping the `MEMBER AUDIT` lines out of the log.
 
 ### Running a wave that lasts hours
 
@@ -817,10 +1005,10 @@ placement run can succeed at all:
 
 ```bash
 # the original must route ...
-python3 -X utf8 py_router/route.py <control>.kicad_pcb /tmp/ctl.kicad_pcb --nets "*" --deadline 900
+python3 -X utf8 py_router/route.py <control>.kicad_pcb /tmp/ctl.kicad_pcb --nets "*"
 python3 -X utf8 py_router/check_connected.py /tmp/ctl.kicad_pcb
 # ... and the damaged one must NOT
-python3 -X utf8 py_router/route.py <staged>.kicad_pcb  /tmp/dmg.kicad_pcb --nets "*" --deadline 900
+python3 -X utf8 py_router/route.py <staged>.kicad_pcb  /tmp/dmg.kicad_pcb --nets "*"
 python3 -X utf8 py_router/check_connected.py /tmp/dmg.kicad_pcb
 ```
 

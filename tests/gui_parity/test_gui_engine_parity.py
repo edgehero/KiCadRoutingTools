@@ -59,7 +59,6 @@ Needs pcbnew; re-execs into KiCad's python automatically.
 # ---------------------------------------------------------------------------
 import os
 import shutil
-import glob
 import subprocess
 import sys
 
@@ -69,15 +68,15 @@ sys.path.insert(0, os.path.join(REPO, 'py_router'))  # #522
 sys.path.insert(0, os.path.join(REPO, 'py_tools'))  # #522
 sys.path.insert(0, os.path.join(REPO, 'tests', 'gui_parity'))  # replay_plan_vs_run
 
-KICAD_PYTHONS = [
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3",
-    "/usr/bin/python3",
-    os.path.expandvars(r"C:\\Program Files\\KiCad\\bin\\python.exe"),
-    # KiCad 9/10 install under a VERSIONED directory on Windows
-    # (C:\Program Files\KiCad\10.0\bin), which the bare path above misses.
-    # Newest first, so the most recent KiCad wins.
-    *sorted(glob.glob(r"C:\Program Files\KiCad\*\bin\python.exe"), reverse=True),
-]
+# KiCad 9/10 install under a VERSIONED directory on Windows
+# (C:\Program Files\KiCad\10.0\bin), which a bare .../KiCad/bin path misses.
+# Shared with the engine (#647) so the layouts are described once -- and so
+# this list gets the NUMERIC version sort: the local `sorted(..., reverse=True)`
+# this replaced ordered "9.0" above "10.0" and handed a dual-install machine
+# its older KiCad. The loop below still does its own pcbnew verification.
+from kicad_exact_fill import kicad_python_candidates  # noqa: E402
+
+KICAD_PYTHONS = kicad_python_candidates()
 
 
 def _host_env():
@@ -342,6 +341,23 @@ def main():
     os.makedirs(workdir, exist_ok=True)
 
     board = stage_board(board, workdir)
+    # KICAD_SAVELOG=<path>: log every in-process SaveBoard call + stack.
+    # Ground truth for "which snapshot sites actually run in this gate" --
+    # #627's mechanism hunt stalled on instrumentation that concluded
+    # _live_fill/_stage_live_board never execute here; this hook shows both
+    # do (via plane_fragility and the in-run finalize oracle staging).
+    if os.environ.get('KICAD_SAVELOG'):
+        import pcbnew as _pn
+        import traceback as _tb
+        _orig_save = _pn.SaveBoard
+
+        def _logged_save(*a, **k):
+            with open(os.environ['KICAD_SAVELOG'], 'a') as _f:
+                _f.write(f"SaveBoard args={a[:1]} kwargs={k}\n")
+                _tb.print_stack(file=_f)
+                _f.write('---\n')
+            return _orig_save(*a, **k)
+        _pn.SaveBoard = _logged_save
     cli_final = run_cli_leg(board, workdir)
     gui_final = run_gui_leg(board, workdir)
 

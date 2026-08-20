@@ -443,7 +443,19 @@ It reads two tiers of rules and combines them with the JLCPCB fab floor:
   nominal and still pass DRC (issues #111/#115).
 
 From these it prints a **manufacturing floor** (the Constraint or the JLC fab
-minimum for the board's layer count, whichever is larger). The floor spells out
+minimum for the board's layer count, whichever is larger — for **hole-to-hole**
+and **board-edge**, which the rest of the toolchain pins up from the board's own
+constraint). **Copper clearance is the deliberate exception:** it prints the fab
+minimum alone, because `min_clearance` is an unreliable edit-floor (often 0,
+sometimes stale-large), nothing downstream enforces it, and grading above what
+was routed manufactures phantom violations (#439). A board minimum that raised
+the hole-to-hole floor above the JLC figure is named on its own line, since that
+is the value to route *and* grade at (#603 — printing the bare fab 0.2 while
+`check_drc` graded at the board's 0.25 sent a value into every command that the
+toolchain would not honour). Where an explicit `--hole-to-hole-clearance` /
+`--board-edge-clearance` is below such a minimum, `check_drc` now says it is
+being clamped (on stderr, so it survives `--quiet`) instead of substituting
+silently. The floor spells out
 two distinct rules the router honours: **hole-to-hole** (drill-to-drill) is
 net-INDEPENDENT and applies to via/via, via/pad-drill and pad-drill/pad-drill on
 *all* nets including same-net; **copper clearance** applies to via/pad and
@@ -1107,10 +1119,10 @@ override box is the equivalent (unchecked = honor classes, checked = clamp).
 The **GUI plugin** does the equivalent on the live board via the pcbnew API
 (`BOARD_DESIGN_SETTINGS` + the Default net class + severities) after routing, and
 marks the board modified so your next save keeps it. A single **"Fix DRC settings
-after routing"** checkbox on the **Basic tab** controls this for every routing
+after routing"** checkbox on the **Route tab** controls this for every routing
 action in the dialog — single-ended routing, differential pairs, and plane
 create/repair all read that one shared toggle (it is on by default); a **"Keep
-thermal-relief DRC severity"** checkbox on the **Advanced tab** is the GUI
+thermal-relief DRC severity"** checkbox on the **Advanced options tab** is the GUI
 counterpart of `--keep-thermal` (off by default). Both front-ends share the same
 target-computing logic (`compute_targets` / `severity_plan` in
 `fix_kicad_drc_settings.py`) and differ only in how they apply it (`.kicad_pro`

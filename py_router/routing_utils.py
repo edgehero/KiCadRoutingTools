@@ -14,6 +14,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+import env_knobs
+from collections import OrderedDict
 from kicad_parser import Segment, POSITION_DECIMALS
 
 
@@ -203,6 +205,21 @@ def iter_pad_blocked_cells(
     # sub-grid deviation (diff pair P/N offsets) pass a larger buffer.
     if corner_buffer is None:
         corner_buffer = grid_step / 2
+    # DELIBERATELY NOT MEMOIZED -- do not paste the _PAD_OFFSETS_CACHE
+    # fast-path from pad_blocked_cells_array in here. Two reasons:
+    #   1. This is a GENERATOR. `return <array>` inside one is not a result,
+    #      it is a bare StopIteration -- the fast path would yield NOTHING
+    #      and the pad would silently get no keep-out at all. That shipped
+    #      once (02f5375a, v0.20.4) and emptied this function on every warm
+    #      cache; tests/test_pad_offset_keepout.py pins it.
+    #   2. Even done correctly it would be wrong to share: this scalar
+    #      rasterizer is the INDEPENDENT reference implementation that
+    #      test_pad_offset_keepout.py grades the vectorized twin against.
+    #      Serving it from the twin's cache makes that cross-check vacuous
+    #      (and only when the cache happens to be warm, so it would pass or
+    #      fail by call order). The perf case for the memo is entirely
+    #      pad_blocked_cells_array's -- that is the twin every obstacle
+    #      builder actually calls.
     rotated = abs(rotation_deg) > 1e-9 and abs(abs(rotation_deg) - 180.0) > 1e-9
     if rotated:
         _rrad = math.radians(rotation_deg)
@@ -244,6 +261,12 @@ def iter_pad_blocked_cells(
                 yield (pad_gx + ex, pad_gy + ey)
 
 
+# Relative-offset memo for the pad rasterizer (see docstring below).
+_PAD_OFFSETS_CACHE: Dict[Tuple, "np.ndarray"] = {}
+_PAD_OFFSETS_ROWS = 0
+_PAD_OFFSETS_ROW_CAP = 2_000_000
+
+
 def pad_blocked_cells_array(
     pad_gx: int, pad_gy: int,
     half_width: float, half_height: float,
@@ -257,6 +280,15 @@ def pad_blocked_cells_array(
 ):
     """Vectorized twin of iter_pad_blocked_cells: returns an (N, 2) int32
     array of blocked (gx, gy) cells.
+
+    Memoized (2026-08-14 orangecrab profiling: 2.04M calls / 84s, the pad
+    twin of the capsule memo below): unlike the capsule, the ENTIRE
+    computation here lives in the pad-relative frame -- pad_gx/pad_gy enter
+    only as a final INTEGER shift -- so caching the relative offsets keyed
+    by geometry alone and adding the position per call is bit-identical by
+    construction (integer adds are exact; the #493 float-translation hazard
+    does not apply). One cache entry serves every same-geometry pad on the
+    board (a BGA field is one entry per sub-cell offset class).
 
     off_x/off_y are the pad center's sub-cell offset in mm
     (real_center - quantized_cell, i.e. pad.global_x - pad_gx*grid_step). When
@@ -272,6 +304,13 @@ def pad_blocked_cells_array(
     """
     if corner_buffer is None:
         corner_buffer = grid_step / 2
+    key = (half_width, half_height, margin, grid_step, corner_radius,
+           corner_buffer, off_x, off_y, rotation_deg)
+    offs = _PAD_OFFSETS_CACHE.get(key)
+    if offs is not None:
+        out = np.empty_like(offs)
+        np.add(offs, np.array([[pad_gx, pad_gy]], dtype=np.int32), out=out)
+        return out
     rotated = abs(rotation_deg) > 1e-9 and abs(abs(rotation_deg) - 180.0) > 1e-9
     if rotated:
         _rrad = math.radians(rotation_deg)
@@ -334,10 +373,45 @@ def pad_blocked_cells_array(
     dist_sq = np.where(corner_region, corner_dist_sq, rect_dist_sq)
     mask = dist_sq < effective_margin_sq
 
-    cells = np.empty((int(mask.sum()), 2), dtype=np.int32)
-    cells[:, 0] = (exg[mask] + pad_gx).astype(np.int32)
-    cells[:, 1] = (eyg[mask] + pad_gy).astype(np.int32)
+    global _PAD_OFFSETS_ROWS
+    offs = np.empty((int(mask.sum()), 2), dtype=np.int32)
+    offs[:, 0] = exg[mask].astype(np.int32)
+    offs[:, 1] = eyg[mask].astype(np.int32)
+    offs.setflags(write=False)
+    if _PAD_OFFSETS_ROWS + len(offs) > _PAD_OFFSETS_ROW_CAP:
+        _PAD_OFFSETS_CACHE.clear()
+        _PAD_OFFSETS_ROWS = 0
+    _PAD_OFFSETS_CACHE[key] = offs
+    _PAD_OFFSETS_ROWS += len(offs)
+    cells = np.empty_like(offs)
+    np.add(offs, np.array([[pad_gx, pad_gy]], dtype=np.int32), out=cells)
     return cells
+
+
+# Exact-key memo for the capsule rasterizer. Profiling the orangecrab rescue
+# tail (2026-08-14): the rescue/escalation ladders rebuild windowed obstacle
+# maps per rung (826 full builds in one step), re-rasterizing the same ~13k
+# segments ~800x each -- 10.8M calls / 332s of a 1228s profiled step, most
+# of it per-call meshgrid allocation. Keys are the EXACT input floats:
+# translation canonicalization is NOT bit-safe ((ax+k)*step float-rounds
+# differently per cell -- the #493 one-ULP class), so a hit returns the
+# byte-identical cell set by construction and cached-vs-computed behavior
+# cannot diverge. Arrays are returned READ-ONLY and shared (consumers stamp
+# or copy, never mutate -- audited: obstacle_map._add_segment_obstacle,
+# obstacle_cache._collect_segment_obstacles, plane_obstacle_builder,
+# blocking_analysis). Bounded by total cached rows; wholesale clear on
+# overflow (the keyspace only churns via per-rung clearance margins).
+_SEG_CAPSULE_CACHE: "OrderedDict[Tuple[float, float, float, float, float, float], np.ndarray]" = OrderedDict()
+_SEG_CAPSULE_ROWS = 0
+
+
+def _seg_capsule_row_budget() -> int:
+    # 8 bytes per (N,2) int32 row; the capsule cache gets half the shared
+    # KICAD_RASTER_CACHE_MB budget (the polygon cache takes most of the
+    # rest). LRU-evicted, never wholesale-cleared: profiling showed the old
+    # 64MB clear-all cap cycling ~40x on orangecrab (69% hit rate where the
+    # keyspace supports ~99%).
+    return int(env_knobs.RASTER_CACHE_MB * 0.5 * 1e6 / 8)
 
 
 def segment_blocked_cells_array(x1: float, y1: float, x2: float, y2: float,
@@ -352,7 +426,16 @@ def segment_blocked_cells_array(x1: float, y1: float, x2: float, y2: float,
     staircase under-covered the perpendicular direction between steps. A foreign
     track cleared the rounded stamp but grazed the real track (issue #70/B). Here
     distances are measured from the real segment, so off-grid + diagonal are exact.
+
+    The result is memoized (exact float key) and READ-ONLY -- callers must not
+    mutate it.
     """
+    global _SEG_CAPSULE_ROWS
+    key = (x1, y1, x2, y2, margin, grid_step)
+    cached = _SEG_CAPSULE_CACHE.get(key)
+    if cached is not None:
+        _SEG_CAPSULE_CACHE.move_to_end(key)
+        return cached
     inv = 1.0 / grid_step
     glo_x = int(math.floor((min(x1, x2) - margin) * inv))
     ghi_x = int(math.ceil((max(x1, x2) + margin) * inv))
@@ -376,6 +459,13 @@ def segment_blocked_cells_array(x1: float, y1: float, x2: float, y2: float,
     out = np.empty((int(mask.sum()), 2), dtype=np.int32)
     out[:, 0] = gxg[mask]
     out[:, 1] = gyg[mask]
+    out.setflags(write=False)
+    _SEG_CAPSULE_CACHE[key] = out
+    _SEG_CAPSULE_ROWS += len(out)
+    budget = _seg_capsule_row_budget()
+    while _SEG_CAPSULE_ROWS > budget and _SEG_CAPSULE_CACHE:
+        _, old_arr = _SEG_CAPSULE_CACHE.popitem(last=False)
+        _SEG_CAPSULE_ROWS -= len(old_arr)
     return out
 
 

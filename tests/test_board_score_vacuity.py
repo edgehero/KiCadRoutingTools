@@ -23,7 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
-SCORE = os.path.join(ROOT, '.claude', 'skills', 'plan-pcb-routing',
+SCORE = os.path.join(ROOT, '.claude', 'skills', 'plan-pcb-placement-and-routing',
                      'scripts', 'board_score.py')
 
 

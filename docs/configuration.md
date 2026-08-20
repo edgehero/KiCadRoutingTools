@@ -38,7 +38,17 @@ python py_router/route.py in.kicad_pcb out.kicad_pcb --nets "Net-(*CLK*)" "Net-(
 
 # Route all nets on a component (auto-excludes GND/VCC/VDD/unconnected)
 python py_router/route.py in.kicad_pcb out.kicad_pcb --component U1
+
+# Several components at once, with fnmatch globs. A BARE reference is exact,
+# so U1 does not also select U10; write U1* if that is what you want.
+python py_router/route.py in.kicad_pcb out.kicad_pcb --component U3 U4 "J1*"
 ```
+
+`--component` takes one or more references and errors out (naming the offender,
+with a did-you-mean) if any of them matches no footprint — routing the remaining
+subset after a typo would quietly do the wrong thing. Because it accepts several
+values it consumes the tokens after it, so pass the output via `--output` or put
+`--component` last.
 
 ### Ripping Pre-Existing Routes
 
@@ -74,7 +84,7 @@ connected") — there is no way to make the router replace a
 connected-but-unwanted route (e.g. one that squeaked through a corridor you
 want cleared). `--force-reroute` is that way: every selected net has its
 copper stripped and is replanned from scratch. In the GUI it is the
-**Force re-route selected nets** checkbox on the Basic tab.
+**Force re-route selected nets** checkbox on the Route tab.
 
 Safety rails:
 
@@ -114,7 +124,7 @@ The **fab tier** is the JLCPCB manufacturing floor every routing step shrinks tr
 vias and clearances *down toward* when it needs to. It is shared by every CLI
 (`route.py`, `route_diff.py`, `route_planes.py`, `repair_planes.py`,
 `bga_fanout.py`, `qfn_fanout.py`, `check_drc.py`, `fix_kicad_drc_settings.py`,
-`list_nets.py`) and the GUI (one selector on the Basic tab). Values are sourced from
+`list_nets.py`) and the GUI (one selector on the Route tab). Values are sourced from
 [jlcpcb.com/capabilities](https://jlcpcb.com/capabilities).
 
 | Option | Default | Description |
@@ -248,7 +258,7 @@ See [Rip-Up and Reroute](rip-up-reroute.md) for how failed routes trigger rip-up
 |--------|---------|-------------|
 | `--stub-proximity-radius` | 2.0 | Radius around stubs to penalize (mm) |
 | `--stub-proximity-cost` | 0.2 | Cost penalty at stub center (mm equivalent) |
-| `--via-proximity-cost` | 10.0 | Via cost multiplier in stub proximity zones (0 = block vias) |
+| `--via-proximity-cost` | 10.0 | Via cost multiplier in stub proximity zones (0 = no extra cost) |
 | `--bga-proximity-radius` | 7.0 | Radius around BGA edges to penalize (mm) |
 | `--bga-proximity-cost` | 0.2 | Cost penalty at BGA edge (mm equivalent) |
 | `--track-proximity-distance` | 2.0 | Radius around routed tracks to penalize on same layer (mm) |
@@ -348,7 +358,7 @@ Notes:
   meant for open board area.
 - Unlike a guide corridor (which is best-effort), a keepout is absolute — if a zone walls off the
   only path to a pad, that net will fail to route. With the flag off, routing is unchanged.
-- **Plugin only:** the Basic tab has optional "Clear guide layer after routing" / "Clear keepout
+- **Plugin only:** the Route tab has optional "Clear guide layer after routing" / "Clear keepout
   layer after routing" checkboxes (unchecked by default). When ticked, a *successful* route deletes
   the drawn guide/keepout graphics from that User layer so you can draw fresh ones — it only acts
   for the feature it pairs with, and never runs if nothing routed.

@@ -949,6 +949,8 @@ class DifferentialTab(wx.Panel):
                 input_file=self.board_filename,
                 output_file="",  # Not used when return_results=True
                 net_names=net_names,
+                # #581: the Basic tab's via-in-pad policy (shared params).
+                same_net_pad_clearance=config.get('same_net_pad_clearance', -1.0),
                 layers=config.get('layers', defaults.DEFAULT_LAYERS),
                 layer_costs=config.get('layer_costs') or None,  # per-layer bias (#193); None -> all 1.0
                 track_width=config.get('diff_pair_width', defaults.DIFF_PAIR_WIDTH),
@@ -971,9 +973,9 @@ class DifferentialTab(wx.Panel):
                 board_edge_clearance=config.get('board_edge_clearance',
                                                 defaults.BOARD_EDGE_CLEARANCE),
                 grid_step=config.get('grid_step', 0.1),
-                via_cost=config.get('via_cost', 50),
+                via_cost=config.get('via_cost', defaults.VIA_COST),
                 max_iterations=config.get('max_iterations', 200000),
-                proximity_heuristic_factor=config.get('proximity_heuristic_factor', 0.02),
+                proximity_heuristic_factor=config.get('proximity_heuristic_factor', defaults.PROXIMITY_HEURISTIC_FACTOR),
                 keepout_enabled=config.get('keepout_enabled', False),
                 keepout_layer=config.get('keepout_layer', defaults.KEEPOUT_LAYER),
                 diff_pair_gap=config.get('diff_pair_gap', 0.101),
@@ -1001,7 +1003,7 @@ class DifferentialTab(wx.Panel):
                 direction_order=config.get('direction'),
                 disable_bga_zones=config.get('no_bga_zones'),
                 max_probe_iterations=config.get('max_probe_iterations', 5000),
-                heuristic_weight=config.get('heuristic_weight', 1.9),
+                heuristic_weight=config.get('heuristic_weight', defaults.HEURISTIC_WEIGHT),
                 turn_cost=config.get('turn_cost', 1000),
                 direction_preference_cost=config.get(
                     'direction_preference_cost', defaults.DIRECTION_PREFERENCE_COST),
@@ -1097,7 +1099,11 @@ class DifferentialTab(wx.Panel):
         # front let the executor start the NEXT step mid-apply (Andy's
         # 'tracks don't all appear, rerun fixes it').
         try:
-            self._on_routing_complete_body()
+            # Tee the apply phase's prints into the log tab: the worker's
+            # redirect was restored before this main-thread handler runs.
+            from .gui_utils import redirect_prints_to_log
+            with redirect_prints_to_log(self.append_log):
+                self._on_routing_complete_body()
         finally:
             self.route_btn.Enable()
             self.cancel_btn.SetLabel("Close")
@@ -1181,6 +1187,20 @@ class DifferentialTab(wx.Panel):
         # Refresh the pair list to show updated connectivity
         self.pair_panel.refresh()
 
+    def _apply_status(self, message):
+        """Status update for the apply phase, which runs ON the UI thread.
+
+        _update_progress is marshalled from the engine thread via CallAfter, so
+        the main loop paints it; the apply BLOCKS that loop, so a bare SetLabel
+        would leave the last routing message frozen on screen for the whole
+        apply. Same pattern as the route/planes/fanout tabs; see
+        gui_utils.ui_thread_status for why the repaint is deliberately narrow
+        (no Gauge.Pulse) inside an action plugin.
+        """
+        from .gui_utils import ui_thread_status
+        ui_thread_status(getattr(self, 'status_text', None),
+                         getattr(self, 'progress_bar', None), message)
+
     def _apply_results_to_board(self, results_data):
         """Apply routing results directly to the open pcbnew board."""
         import pcbnew
@@ -1192,6 +1212,8 @@ class DifferentialTab(wx.Panel):
         if board is None:
             wx.MessageBox("Board is no longer open", "Error", wx.OK | wx.ICON_ERROR)
             return 0, 0, 0
+
+        self._apply_status("Applying diff-pair copper to the board...")
 
         # Apply pad/stub net swaps (polarity fixes, target swaps) and stub layer
         # modifications BEFORE adding new tracks - the routes were created
@@ -1293,8 +1315,12 @@ class DifferentialTab(wx.Panel):
             board.Add(track)
             tracks_added += 1
 
-        # Build connectivity to register new items properly
-        board.BuildConnectivity()
+        # Refill zones, THEN rebuild connectivity (refill_all_zones does both,
+        # in that order): a bare BuildConnectivity over stale pours flips new
+        # vias' netcodes to the zones' nets -- see refill_all_zones's docstring.
+        self._apply_status("Refilling zones and rebuilding connectivity...")
+        from .gui_utils import refill_all_zones
+        refill_all_zones(board)
 
         # Make the live board's DRC constraints consistent with what we just
         # routed to (issue #160), the GUI counterpart of the CLI route_diff's
@@ -1339,6 +1365,7 @@ class DifferentialTab(wx.Panel):
                 print(f"(skipped DRC-settings write-back: {e})")
 
         # Refresh the view
+        self._apply_status("Refreshing the board view...")
         pcbnew.Refresh()
 
         # Sync pcb_data from pcbnew board

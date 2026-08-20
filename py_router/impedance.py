@@ -243,6 +243,52 @@ def differential_stripline_z0(w: float, s: float, h: float, t: float, er: float)
     return (z_diff, z_odd)
 
 
+def differential_stripline_z0_asymmetric(w: float, s: float, h1: float, h2: float,
+                                         t: float, er: float) -> Tuple[float, float]:
+    """
+    Differential (edge-coupled) stripline between UNEQUALLY spaced planes.
+
+    The differential twin of stripline_z0_asymmetric: the effective height is
+    the harmonic mean 2*h1*h2/(h1+h2), which is always SMALLER than the
+    arithmetic average and therefore yields a lower Zdiff (a trace between two
+    planes needs to be narrower than the equivalent microstrip, not wider).
+
+    #607: calculate_impedance_for_layer tested is_asymmetric_stripline() for
+    the single-ended answer and then called the symmetric differential model at
+    the AVERAGED height three lines later, discarding the asymmetry. On a
+    6-layer stack with 0.1mm prepreg and a 0.55mm core, --impedance 90 returned
+    a width that the tool scored at 89.83 ohm and a field solver measured at
+    67 -- outside USB's 81-99 window, and wide-of-target in the direction
+    OPPOSITE to the physics.
+
+    The harmonic-mean substitution is the same approximation the single-ended
+    path has used since #486. It is a large improvement, not an exact answer:
+    on the stackup above it moves the prediction from +34% to about -10%
+    against a method-of-moments solve. The residual is the coupling factor
+    itself, which is calibrated for symmetric stripline; closing it needs a
+    two-plane closed form or fab-calibrated tables. Deriving the coupling from
+    the true plate separation (h1+h2+t) instead was measured WORSE (-18%), so
+    the near plane evidently governs the coupling as well as the capacitance.
+
+    Args:
+        w: Trace width in mm
+        s: Spacing between traces (edge to edge) in mm
+        h1: Distance to the upper reference plane in mm
+        h2: Distance to the lower reference plane in mm
+        t: Trace thickness in mm
+        er: Dielectric constant
+
+    Returns:
+        Tuple of (Zdiff, Zodd) in ohms
+    """
+    if w <= 0 or h1 <= 0 or h2 <= 0 or er <= 0 or s <= 0:
+        return (0.0, 0.0)
+
+    h_eff = (2 * h1 * h2) / (h1 + h2)
+
+    return differential_stripline_z0(w, s, h_eff, t, er)
+
+
 # =============================================================================
 # Coplanar waveguide over ground (#486 part A)
 #
@@ -765,6 +811,40 @@ def differential_stripline_width_for_z0(zdiff_target: float, s: float, h: float,
     return (w_min + w_max) / 2
 
 
+def differential_stripline_asymmetric_width_for_z0(zdiff_target: float, s: float,
+                                                   h1: float, h2: float,
+                                                   t: float, er: float,
+                                                   tolerance: float = 0.5,
+                                                   max_iterations: int = 50) -> float:
+    """
+    Trace width for a target DIFFERENTIAL impedance on an asymmetric stripline.
+
+    Must bisect over the same model calculate_impedance_for_layer scores, or a
+    solved width does not reproduce its own target -- the #486 failure, which
+    #607 found still open on the differential path: the solver worked at the
+    averaged height and handed back traces ~80% too wide on a 6-layer stack.
+
+    Args:
+        zdiff_target: Target differential impedance in ohms
+        s: Spacing between traces (edge to edge) in mm
+        h1: Distance to the upper reference plane in mm
+        h2: Distance to the lower reference plane in mm
+        t: Trace thickness in mm
+        er: Dielectric constant
+
+    Returns:
+        Required trace width in mm, or 0.0 if the inputs are degenerate.
+    """
+    if zdiff_target <= 0 or s <= 0 or h1 <= 0 or h2 <= 0 or er <= 0:
+        return 0.0
+
+    h_eff = (2 * h1 * h2) / (h1 + h2)
+
+    return differential_stripline_width_for_z0(zdiff_target, s, h_eff, t, er,
+                                               tolerance=tolerance,
+                                               max_iterations=max_iterations)
+
+
 def get_layer_impedance_params(pcb: PCBData, layer_name: str) -> Optional[LayerImpedanceParams]:
     """
     Get impedance calculation parameters for a specific copper layer.
@@ -964,9 +1044,12 @@ def calculate_impedance_for_layer(pcb: PCBData, layer_name: str, trace_width: fl
             result['zdiff'] = zdiff
             result['zodd'] = zodd
     else:
-        # Stripline
-        # Use asymmetric formula if heights differ significantly
-        if is_asymmetric_stripline(params):
+        # Stripline. One asymmetry decision governs BOTH the single-ended and
+        # the differential answer -- they drifted apart in #607, where the flag
+        # was tested for z0 and ignored for zdiff three lines later.
+        asymmetric = is_asymmetric_stripline(params)
+
+        if asymmetric:
             result['z0'] = stripline_z0_asymmetric(
                 trace_width,
                 params.height_above,
@@ -983,12 +1066,21 @@ def calculate_impedance_for_layer(pcb: PCBData, layer_name: str, trace_width: fl
             )
 
         if spacing > 0:
-            zdiff, zodd = differential_stripline_z0(
-                trace_width, spacing,
-                params.dielectric_height,
-                params.copper_thickness,
-                params.dielectric_constant
-            )
+            if asymmetric:
+                zdiff, zodd = differential_stripline_z0_asymmetric(
+                    trace_width, spacing,
+                    params.height_above,
+                    params.height_below,
+                    params.copper_thickness,
+                    params.dielectric_constant
+                )
+            else:
+                zdiff, zodd = differential_stripline_z0(
+                    trace_width, spacing,
+                    params.dielectric_height,
+                    params.copper_thickness,
+                    params.dielectric_constant
+                )
             result['zdiff'] = zdiff
             result['zodd'] = zodd
 
@@ -1050,6 +1142,16 @@ def calculate_width_for_impedance(pcb: PCBData, layer_name: str, target_z0: floa
             width = differential_microstrip_width_for_z0(
                 target_z0, spacing,
                 params.dielectric_height,
+                params.copper_thickness,
+                params.dielectric_constant
+            )
+        elif is_asymmetric_stripline(params):
+            # Must match calculate_impedance_for_layer's model choice on the
+            # differential path too, not just the single-ended one (#607).
+            width = differential_stripline_asymmetric_width_for_z0(
+                target_z0, spacing,
+                params.height_above,
+                params.height_below,
                 params.copper_thickness,
                 params.dielectric_constant
             )
@@ -1153,11 +1255,36 @@ def print_stackup_impedance_table(pcb: PCBData, trace_width: float = 0.15, spaci
 IMPEDANCE_WIDTH_SCALE = 1.0
 
 
+def impedance_width_floor(track_width: float, width_from_class: bool,
+                          copper_layer_count: int) -> Tuple[float, str]:
+    """#610: the width floor impedance-solved widths are clamped to.
+
+    An EXPLICIT --track-width (width_from_class=False) is honored verbatim --
+    the operator asked for that geometry. With --track-width OMITTED, the
+    impedance request sets the floor it implies, bounded below only by the
+    active fab tier's track minimum: clamping solved widths to the resolved
+    default width silently converted an electrical spec into a geometric one
+    (90 ohm requested -> 0.3 mm ~45 ohm copper shipped, invisible to
+    pipelines).
+
+    Returns (floor_mm, floor_desc) where floor_desc names the floor's source
+    for the clamp warning.
+    """
+    if not width_from_class:
+        return track_width, "--track-width; lower it to reach the target"
+    from fab_tiers import fab_floors
+    floor = fab_floors(copper_layer_count or 4).get('track_width', 0.0) or 0.0
+    return floor, ("the fab-tier track minimum (--track-width not given); the "
+                   "target needs a narrower trace than this fab tier can build")
+
+
 def calculate_layer_widths_for_impedance(pcb: PCBData, layers: List[str], target_z0: float,
                                          spacing: float = 0.0, is_differential: bool = False,
                                          fallback_width: float = 0.1,
                                          min_width: float = 0.0,
-                                         coplanar_gap: float = 0.0) -> Dict[str, float]:
+                                         coplanar_gap: float = 0.0,
+                                         floor_desc: str = "--track-width; lower it to reach the target",
+                                         clamp_report: Optional[Dict[str, List[float]]] = None) -> Dict[str, float]:
     """
     Calculate trace widths for each layer to achieve target impedance.
 
@@ -1174,10 +1301,17 @@ def calculate_layer_widths_for_impedance(pcb: PCBData, layers: List[str], target
         spacing: Differential pair spacing in mm (required if is_differential=True)
         is_differential: If True, target_z0 is differential impedance
         fallback_width: Width to use if impedance calculation fails
-        min_width: Minimum allowed track width (from --track-width parameter)
+        min_width: Minimum allowed track width (an explicit --track-width, or
+            the fab-tier track floor when --track-width was omitted -- see
+            impedance_width_floor, #610)
         coplanar_gap: DESIGN side gap to same-layer ground pour in mm (#486).
             > 0 uses the coplanar-waveguide-over-ground model on outer layers.
             Callers pass this straight through from --coplanar-gap.
+        floor_desc: names min_width's source in the clamp warning (#610).
+        clamp_report: optional dict the caller owns; every clamped layer is
+            recorded as {layer: [solved_mm, floor_mm]} so the run summary can
+            surface the clamp (#610 -- it was loud on a terminal and invisible
+            in JSON_SUMMARY).
 
     Returns:
         Dict mapping layer name to trace width in mm
@@ -1198,9 +1332,30 @@ def calculate_layer_widths_for_impedance(pcb: PCBData, layers: List[str], target
             # Apply scaling factor to match online calculators
             calculated_width = result['calculated_width_mm'] * IMPEDANCE_WIDTH_SCALE
 
-            # Enforce minimum width
+            # Enforce minimum width. Say what the clamp COSTS, not just that it
+            # happened (#607): naming the impedance the clamped trace will
+            # actually have makes that visible in a scripted run's log. #610
+            # narrowed when this fires at all: with --track-width omitted the
+            # callers pass the fab-tier floor here (impedance_width_floor), so
+            # only an explicit --track-width or a genuinely unmanufacturable
+            # target still clamps -- and the clamp lands in clamp_report so
+            # JSON_SUMMARY consumers can detect it.
             if calculated_width < min_width:
-                print(f"  WARNING: {layer_name} calculated width {calculated_width:.4f}mm < min {min_width:.4f}mm, using min")
+                clamped_z = 0.0
+                try:
+                    _v = calculate_impedance_for_layer(pcb, layer_name, min_width,
+                                                       spacing, coplanar_gap=coplanar_gap)
+                    clamped_z = _v.get('zdiff' if is_differential else 'z0', 0) or 0.0
+                except Exception:
+                    pass
+                note = (f" -- this trace will be ~{clamped_z:.0f} ohm, not "
+                        f"{target_z0:g}") if clamped_z > 0 else ""
+                print(f"  WARNING: {layer_name} calculated width {calculated_width:.4f}mm "
+                      f"< min {min_width:.4f}mm, using min{note}")
+                print(f"           (the width floor is {floor_desc})")
+                if clamp_report is not None:
+                    clamp_report[layer_name] = [round(calculated_width, 4),
+                                                round(min_width, 4)]
                 calculated_width = min_width
 
             layer_widths[layer_name] = calculated_width

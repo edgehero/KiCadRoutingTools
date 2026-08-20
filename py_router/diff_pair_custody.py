@@ -162,6 +162,20 @@ def build_pair_reports(state, diff_pair_ids_to_route, member_audit,
         incomplete = [nm for tag, nm in (('p', pair.p_net_name),
                                          ('n', pair.n_net_name))
                       if not aud.get(tag, True)]
+        # A COUPLED claim contradicted by actual pad connectivity (#514).
+        mismatch = bool(outcome == 'coupled' and incomplete)
+        if mismatch:
+            # #602: demote the OUTCOME as well, not just the summary bucket.
+            # route_diff already keeps such a pair out of routed_diff_pairs,
+            # but the per-pair record kept saying 'coupled' next to its own
+            # 'members with disconnected pads' -- one JSON blob carrying two
+            # verdicts, and callers read the optimistic one (muzy_zynq4
+            # /HDMI_CK + /HDMI_D2, lwdo_sdr, spartan6_4layer). 'incomplete'
+            # is distinct from the by-design 'partial': a partial pair's
+            # peeled terminals are EXPECTED to close in the single-ended
+            # follow-up, whereas this one claimed a finished coupled route
+            # and did not deliver it.
+            outcome = 'incomplete'
         # 'partial' credit discriminator: a partial pair KEEPS its
         # routed_diff_pairs credit while it kept ANY coupled trunk copper;
         # it is demoted ONLY when it kept no coupled trunk copper at all.
@@ -210,9 +224,11 @@ def build_pair_reports(state, diff_pair_ids_to_route, member_audit,
             # (no_coupled_trunk above) -- there is no coupled route to
             # credit. route_diff reads this flag to move the pair from
             # routed_diff_pairs to partial_diff_pairs.
-            'member_audit_mismatch': bool((outcome == 'coupled'
-                                           and incomplete)
-                                          or no_coupled_trunk),
+            # NOTE `mismatch` is the CAPTURED value: #602 rewrites
+            # `outcome` to 'incomplete' above, so re-testing
+            # `outcome == 'coupled'` here would be permanently False and
+            # would drop #602's audit flag on the merge.
+            'member_audit_mismatch': bool(mismatch or no_coupled_trunk),
             'no_coupled_trunk': no_coupled_trunk,
         }
         if diag.get('blocking_nets'):

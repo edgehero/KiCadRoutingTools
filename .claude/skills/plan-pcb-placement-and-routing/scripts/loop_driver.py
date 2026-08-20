@@ -1454,11 +1454,13 @@ hole-conflicting will still be there after the route, and no router setting
 removes it. Keep that board: it is the baseline `check_channels --baseline`
 needs, and you return its path below.
 
-Set `--deadline` on every searching step, BELOW THE SMALLEST CAP IN THE STACK,
-your harness's included. A 2400s deadline inside a 600s window can never fire:
-the harness SIGTERMs, the tool's own shutdown never runs, and you get exit 143
-with no partial board and no summary. 143 and 124 are the SHELL's codes, not a
-tool's. Run long steps detached rather than raising the number.
+Only route.py, place_seed and place_plan take a wall-clock budget
+(`--deadline`); the other mains lost the flag to #621, and passing it there is
+an argparse error. A harness timeout SIGTERMs a budget-less tool, its own
+shutdown never runs, and you get exit 143 with no partial board and no
+summary. 143 and 124 are the SHELL's codes, not a tool's. Run long steps
+DETACHED; pass `--deadline` where the tool has one, and bound the rest by
+SCOPE -- fewer nets, a tighter --max-ripup, a smaller violator set.
 
 Record EVERY accepted iteration into the ledger above with converge.py, and
 every rejected one with --rejected before stepping back. The stage after this
@@ -1507,7 +1509,7 @@ Do not summarise the process, and do not retype the numbers.
 IF A STEP RUNS LONG, HAND BACK -- do not wait on it. You cannot: a teammate has
 no way to sit on a backgrounded process and be woken when it exits, and both
 routing halves in run 20 returned "still working, I'll wait" for exactly that
-reason. Launch it detached WITH --deadline, then return three things and stop:
+reason. Launch it detached (WITH --deadline when the tool takes one), then return three things and stop:
   LOG=<where it is writing>   MARKER=<the file whose appearance means done>
   NEXT=<what consumes it>
 This loop arms the wait and resumes you. That is a correct hand-back, not a
@@ -1554,11 +1556,13 @@ only ones in front of you:
 Its Step 0 placement gate will pass: you just did that work, and the close-out
 is the evidence -- so it drops straight through to the routing stages.
 
-Set `--deadline` on every searching step, BELOW THE SMALLEST CAP IN THE STACK
--- your harness's included. A 2400s deadline inside a 600s window can never
-fire: the harness SIGTERMs, the tool's own shutdown never runs, and you get
-exit 143 with no partial board and no summary. 143 and 124 are the SHELL's
-codes, not a tool's. Run long steps detached rather than raising the number.
+Only route.py, place_seed and place_plan take a wall-clock budget
+(`--deadline`); the other mains lost the flag to #621, and passing it there is
+an argparse error. A harness timeout SIGTERMs a budget-less tool, its own
+shutdown never runs, and you get exit 143 with no partial board and no
+summary. 143 and 124 are the SHELL's codes, not a tool's. Run long steps
+DETACHED; pass `--deadline` where the tool has one, and bound the rest by
+SCOPE -- fewer nets, a tighter --max-ripup, a smaller violator set.
 
 Two rules that are only true HERE, where the halves meet:
   - copper is not evidence about placement. A route that completed does not
@@ -1592,7 +1596,7 @@ def l3(a):
         return err(e + '\n\nA retry without a classification is a guess, and '
                        'the three shapes re-enter at three different points. '
                        'Produce the score first:\n  python3 -X utf8 '
-                       '.claude/skills/plan-pcb-routing/scripts/board_score.py '
+                       '.claude/skills/plan-pcb-placement-and-routing/scripts/board_score.py '
                        '<board> --json wk/score.json')
     blocking = score.get('blocking')
     if blocking is None:
@@ -1602,7 +1606,7 @@ def l3(a):
             'nothing examined is reported UNEXAMINED, never clean. Re-score '
             'the board and read why the count is missing before classifying '
             'anything:\n  python3 -X utf8 '
-            '.claude/skills/plan-pcb-routing/scripts/board_score.py <board> '
+            '.claude/skills/plan-pcb-placement-and-routing/scripts/board_score.py <board> '
             '--json wk/score.json')
     # Bind the score to the board, exactly as L5 does. L3 named `--board` in
     # every command it emitted and never checked that `--score` described the
@@ -2171,7 +2175,7 @@ def l5(a):
             'L5 decides whether the loop is OVER, and that is a measurement, '
             'not a judgement call. Score the board and come back:\n'
             '  python3 -X utf8 '
-            '.claude/skills/plan-pcb-routing/scripts/board_score.py '
+            '.claude/skills/plan-pcb-placement-and-routing/scripts/board_score.py '
             f'{a.board} --json wk/score_final.json\n'
             f'  python3 -X utf8 {sys.argv[0]} --stage L5 --board {a.board} \\\n'
             f'      --ledger {a.ledger} --score wk/score_final.json\n\n'
@@ -2220,7 +2224,7 @@ def l5(a):
             f'unreadable measurement is not a stop condition. Re-score the '
             f'board, then come back:\n'
             f'  python3 -X utf8 '
-            f'.claude/skills/plan-pcb-routing/scripts/board_score.py '
+            f'.claude/skills/plan-pcb-placement-and-routing/scripts/board_score.py '
             f'{a.board} --json wk/score_final.json\n'
             f'  python3 -X utf8 {sys.argv[0]} --stage L5 --board {a.board} \\\n'
             f'      --ledger {a.ledger} --score wk/score_final.json')
@@ -2342,7 +2346,7 @@ Verify this board end to end, independently.
   board:  {a.board}
   ledger: {a.ledger}
 
-Read .claude/skills/plan-pcb-routing/references/verifier-prompts.md and apply
+Read .claude/skills/plan-pcb-placement-and-routing/references/verifier-prompts.md and apply
 its routed-board lenses, then check the PLACEMENT half too: the copper-free
 gate cannot be re-run on a routed board, so verify it from the ledger's
 recorded placement close-out and confirm the poses still match the board.

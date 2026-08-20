@@ -21,6 +21,19 @@ for p in (ROOT, _TESTS, os.path.join(ROOT, 'rust_router'),
         sys.path.insert(0, p)
 from run_utils import tool as _tool  # #522: resolve a moved CLI, loudly
 
+# #522 reorg + skill merge: engine -> py_router/, placer -> py_placer/,
+# board_score.py -> the placement-and-routing skill. Without these roots the
+# imports below raise and the test never runs (it reports as a failure while
+# asserting nothing).
+_R522 = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+for _p522 in ('py_router', 'py_placer',
+              os.path.join('.claude', 'skills',
+                           'plan-pcb-placement-and-routing', 'scripts')):
+    _d522 = os.path.join(_R522, _p522)
+    if _d522 not in sys.path:
+        sys.path.insert(0, _d522)
+
+
 BOARD = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
 
 

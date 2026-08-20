@@ -314,35 +314,11 @@ class CreatePlanesOptionsPanel(wx.Panel):
         _zrow.Add(self.zone_clearance, 1, wx.EXPAND)
         grid.Add(_zrow, 0, wx.EXPAND)
 
-        # Same-net pad clearance (default = main clearance; checkbox below overrides to via-in-pad)
-        grid.Add(wx.StaticText(self, label="Same-net Pad Clearance (mm):"), 0, wx.ALIGN_CENTER_VERTICAL)
-        r = defaults.PARAM_RANGES['same_net_pad_clearance']
-        self.same_net_pad_clearance = wx.SpinCtrlDouble(self, min=r['min'], max=r['max'],
-                                                        initial=defaults.CLEARANCE, inc=r['inc'])
-        self.same_net_pad_clearance.SetDigits(r['digits'])
-        self.same_net_pad_clearance.SetToolTip(
-            "Edge-to-edge clearance between stitching vias and same-net pads. "
-            "Disabled if 'Allow via-in-pad' is checked.")
-        grid.Add(self.same_net_pad_clearance, 0, wx.EXPAND)
-
         zone_sizer.Add(grid, 0, wx.EXPAND | wx.ALL, 5)
-
-        # Via-in-pad override: when checked, vias may be placed inside same-net pads
-        # (and Same-net Pad Clearance is disabled / passed as -1).
-        self.via_in_pad_check = wx.CheckBox(self, label="Allow via-in-pad (override clearance)")
-        self.via_in_pad_check.SetToolTip(
-            "When checked, stitching vias may be placed on top of same-net pads, "
-            "ignoring 'Same-net Pad Clearance'.")
-        # Default ON = same_net_pad_clearance -1.0, matching route_planes.py's
-        # SAME_NET_PAD_CLEARANCE default. A same-net stitching via on its own
-        # net's pad can't short; enforcing a positive clearance instead (the old
-        # GUI default 0.25) blocks stitches and left 24 MORE pads unconnected at
-        # plane create on rp2350 (67 vs 43) -- a CLI/GUI parity gap that drove
-        # the plane-repair overshoot (#362). Uncheck to enforce a clearance.
-        self.via_in_pad_check.SetValue(True)
-        self.via_in_pad_check.Bind(wx.EVT_CHECKBOX, self._on_via_in_pad_toggle)
-        self.same_net_pad_clearance.Enable(False)  # sync with default-checked box
-        zone_sizer.Add(self.via_in_pad_check, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+        # #581: the via-in-pad policy controls (Allow via-in-pad checkbox +
+        # Same-net Pad Clearance spin) moved to the TOP of the Basic tab's
+        # Options box -- one policy shared by every step; this tab reads it
+        # through get_shared_params.
 
         # #487: thermal-relief pad connections (the zone writer always
         # supported them; every front hardcoded solid). Control named after
@@ -489,23 +465,14 @@ class CreatePlanesOptionsPanel(wx.Panel):
 
         self.SetSizer(sizer)
 
-    def _on_via_in_pad_toggle(self, event):
-        """Enable/disable the same-net pad clearance spin ctrl based on the via-in-pad checkbox."""
-        self.same_net_pad_clearance.Enable(not self.via_in_pad_check.GetValue())
-
     def get_config(self):
         """Get the configuration values."""
-        if self.via_in_pad_check.GetValue():
-            same_net_clr = -1.0  # via-in-pad allowed
-        else:
-            same_net_clr = self.same_net_pad_clearance.GetValue()
         return {
             'zone_clearance': (self.zone_clearance.GetValue()
                                if self.zone_clearance_check.GetValue() else None),
             'add_gnd_vias': self.add_gnd_vias_check.GetValue(),
             'gnd_via_distance': self.gnd_via_distance.GetValue(),
             'gnd_via_net': self.gnd_via_net.GetValue(),
-            'same_net_pad_clearance': same_net_clr,
             'thermal_relief': self.thermal_relief.GetValue(),
             'thermal_vias': self.thermal_vias.GetValue(),
             'stitch_vias': self.stitch_vias.GetValue(),
@@ -852,6 +819,21 @@ class PlanesTab(wx.Panel):
             self.progress_bar.Pulse()  # Indeterminate phase
             self.status_text.SetLabel(label)
 
+    def _apply_status(self, message):
+        """Status update for work running ON the UI thread (the apply path).
+
+        _update_progress is marshalled from the engine thread via CallAfter, so
+        the main loop paints it. Anything running ON the main thread blocks that
+        loop, so a bare SetLabel would not repaint until the work finished --
+        leaving the previous phase's label on screen and reading as a hang.
+        Guarded: a status update must never break the apply. See
+        gui_utils.ui_thread_status for why the repaint is deliberately narrow
+        (no Gauge.Pulse) inside an action plugin.
+        """
+        from .gui_utils import ui_thread_status
+        ui_thread_status(getattr(self, 'status_text', None),
+                         getattr(self, 'progress_bar', None), message)
+
     def _run_create_planes(self, config):
         """Run plane creation."""
         # Cleared here; repopulated from create_plane's returned ripped set
@@ -941,6 +923,7 @@ class PlanesTab(wx.Panel):
         _plane_clamp = config.get('clamp_netclasses', False)
         _plane_ceiling = _plane_clearance if _plane_clamp else None
         _plane_net_clearances = {}
+        plane_error = None      # set if plane creation raises; surfaced to the dialog
         try:
             from .fanout_gui import _get_net_classes_from_board
             from .swig_gui import _get_netclass_parameters
@@ -1047,7 +1030,9 @@ class PlanesTab(wx.Panel):
                 pcb_data=self.pcb_data,
                 return_results=True,
                 layer_nets=layer_nets,
-                same_net_pad_clearance=config.get('same_net_pad_clearance', defaults.SAME_NET_PAD_CLEARANCE),
+                # #581: from the Basic tab via get_shared_params (explicit;
+                # -1 = via-in-pad allowed).
+                same_net_pad_clearance=config.get('same_net_pad_clearance', -1.0),
                 # #381 D6: config-driven (was hardcoded True). Interactive
                 # default stays True -- an interactive re-create on a live board
                 # should skip re-emitting an existing zone. A plan can override
@@ -1149,9 +1134,29 @@ class PlanesTab(wx.Panel):
             import traceback
             traceback.print_exc()
             print(f"Error creating planes: {e}")
+            # SURFACE it. This used to only print, and the result dict below was
+            # then built with zeros and no 'error' key -- so a hard failure inside
+            # create_plane was indistinguishable from a legitimate no-op, and the
+            # traceback went to stdout, which is invisible unless KiCad's scripting
+            # console happens to be open. The dialog reported "0 vias, 0 traces"
+            # (now "No plane was created") and the user had nothing to act on.
+            plane_error = f"{type(e).__name__}: {e}"
+
+        # How many requested pours the ENGINE kept as-is because that net already
+        # has a zone on that layer (skip_existing_zones). Without this the dialog
+        # cannot distinguish "already there, nothing to do" from a real failure --
+        # both arrive as zero new zones.
+        try:
+            _have = {(z.net_name, z.layer)
+                     for z in (getattr(self.pcb_data, 'zones', None) or [])}
+            zones_kept = sum(1 for _n, _l in zip(expanded_nets, expanded_layers)
+                             if (_n, _l) in _have)
+        except Exception:
+            zones_kept = 0
 
         self._operation_result = {
             'mode': 'create',
+            'zones_kept': zones_kept,
             'total_vias': total_vias,
             'total_traces': total_traces,
             'total_pads': total_pads,
@@ -1160,6 +1165,8 @@ class PlanesTab(wx.Panel):
             'affected_nets': sorted(set(expanded_nets)),
             'config': config,
         }
+        if plane_error:
+            self._operation_result['error'] = plane_error
 
 
     def _poll_operation(self):
@@ -1207,17 +1214,40 @@ class PlanesTab(wx.Panel):
         # Apply results to board
         self._apply_results_to_board()
 
-        # Show completion message
-        msg = f"Plane creation complete!\n\n"
-        msg += f"Vias placed: {result.get('total_vias', 0)}\n"
-        msg += f"Traces added: {result.get('total_traces', 0)}\n"
+        # Show completion message. Lead with ZONES: the pour is what this tab
+        # produces. Vias/traces are legacy tap counters that are structurally 0
+        # now the plane step places no taps (#492/#562), so only mention them
+        # when non-zero -- otherwise every successful pour announced "0 and 0".
+        zones_added, zones_skipped = getattr(self, '_last_zone_counts', (0, 0))
+        nets = result.get('affected_nets') or []
         failed_pads = result.get('failed_pads', 0)
+
+        if zones_added:
+            msg = "Plane creation complete!\n\n"
+            msg += f"Planes poured: {zones_added} zone(s)"
+            msg += f" on {len(nets)} net(s)\n" if nets else "\n"
+        else:
+            msg = "No plane was created.\n\n"
+        kept = zones_skipped + result.get('zones_kept', 0)
+        if kept:
+            # The usual reason a pour looks like it did nothing. Covers both the
+            # engine keeping an existing zone and the apply step declining to
+            # duplicate one already on the live board.
+            msg += (f"Kept existing: {kept} zone(s) -- that net already has a "
+                    f"zone on that layer, so nothing needed pouring.\n"
+                    f"Uncheck 'Skip existing zones' to replace it instead.\n")
+        for label, key in (("Vias placed", 'total_vias'), ("Traces added", 'total_traces')):
+            if result.get(key, 0):
+                msg += f"{label}: {result[key]}\n"
         if failed_pads:
             msg += f"Failed pads (no via placed): {failed_pads}\n"
-        self.status_text.SetLabel(
-            f"Created: {result.get('total_vias', 0)} vias, "
-            f"{result.get('total_traces', 0)} traces, "
-            f"{failed_pads} failed")
+
+        status = f"Created: {zones_added} zone(s)"
+        if kept:
+            status += f", {kept} kept (already present)"
+        if failed_pads:
+            status += f", {failed_pads} failed"
+        self.status_text.SetLabel(status)
 
         # If any pads failed to get a via, append heuristic suggestions.
         if result.get('failed_pads', 0) > 0:
@@ -1260,12 +1290,27 @@ class PlanesTab(wx.Panel):
         self.net_panel.refresh()
 
     def _apply_results_to_board(self):
-        """Apply operation results to the pcbnew board."""
+        """Apply operation results to the pcbnew board.
+
+        Delegates under a log tee: the worker's stdout redirect is restored
+        before this main-thread handler runs, so without it the zone-add/
+        refill/cleanup narration reached the terminal but never the log tab.
+        """
+        from .gui_utils import redirect_prints_to_log
+        with redirect_prints_to_log(self.append_log):
+            return self._apply_results_to_board_body()
+
+    def _apply_results_to_board_body(self):
         import pcbnew
 
+        # Reset before the early return below, so the completion message can
+        # never report a PREVIOUS run's zone tally.
+        self._last_zone_counts = (0, 0)
         board = pcbnew.GetBoard()
         if board is None:
             return
+
+        self._apply_status("Applying plane copper to the board...")
 
         # Relocate net-less copper logos/graphics to silkscreen (issue #146),
         # matching the CLI plane writer (plane_io.py): a copper logo is not a
@@ -1555,8 +1600,19 @@ class PlanesTab(wx.Panel):
         if vias_added > 0 or tracks_added > 0 or zones_added > 0:
             print(f"Added to board: {zones_added} zones, {vias_added} vias, {tracks_added} tracks")
 
-        # Build connectivity before filling so nets are resolved properly.
-        board.BuildConnectivity()
+        # Hand the zone tally to the completion message. The pour itself is the
+        # product here -- vias/traces are structurally 0 since the plane step
+        # stopped placing taps (#492/#562), so a dialog reporting only those two
+        # reads as "nothing happened" on a perfectly successful pour, and hides
+        # the one number that explains a no-op: zones SKIPPED because the net
+        # already has a zone on that layer (skip_existing_zones, default on).
+        self._last_zone_counts = (zones_added, zones_skipped)
+
+        # NO bare BuildConnectivity here: the taps/stitch vias just added sit
+        # under the EXISTING (stale) fills, and building connectivity before
+        # the refill flips their netcodes to the zones' nets (see
+        # refill_all_zones's docstring). The refill below rebuilds
+        # connectivity itself, after the fills have correct knockouts.
 
         # Teardrops, if the shared "Add teardrops" checkbox is on (#489 §9). Both
         # plane modes apply copper into pcbnew, so the writers' file-side pass
@@ -1574,6 +1630,7 @@ class PlanesTab(wx.Panel):
         # around it, and later signal steps add copper these planes must clear
         # too (#362). Filling only new_zone_objs left the existing planes stale.
         from .gui_utils import refill_all_zones
+        self._apply_status("Refilling zones (KiCad exact fill)...")
         _rf = refill_all_zones(board)
         if _rf:
             print(f"Filled/refilled {_rf} zone(s)")
@@ -1634,9 +1691,11 @@ class PlanesTab(wx.Panel):
             except Exception as e:
                 print(f"(skipped DRC-settings write-back: {e})")
 
+        self._apply_status("Refreshing the board view...")
         pcbnew.Refresh()
 
         # Sync pcb_data
+        self._apply_status("Syncing board data...")
         if self.sync_pcb_data_callback:
             self.sync_pcb_data_callback()
 
@@ -1676,8 +1735,15 @@ class PlanesTab(wx.Panel):
             cfg = getattr(self, '_plane_drc_config', {}) or {}
             clearance = cfg.get('clearance') or defaults.CLEARANCE
             grid_step = cfg.get('grid_step', defaults.GRID_STEP)
+            self._apply_status("Plane cleanup: reading the live board...")
             pcb = build_pcb_data_from_board(board)
-            delta = compute_plane_copper_cleanup(pcb, names, clearance, grid_step)
+            # Runs on the UI thread, so it reports through _apply_status (which
+            # forces the repaint) rather than the engine-thread callback. This
+            # is the shared 13-pass pipeline -- it named none of its passes.
+            delta = compute_plane_copper_cleanup(
+                pcb, names, clearance, grid_step,
+                progress_callback=(lambda c, t, m:
+                                   self._apply_status(f"{m} ({c}/{t})" if t else m)))
             if delta.is_empty:
                 return
 
@@ -1726,7 +1792,10 @@ class PlanesTab(wx.Panel):
                 added += 1
 
             if removed or added or delta.snapped:
-                board.BuildConnectivity()
+                # refill-first (rebuilds connectivity itself): a bare
+                # BuildConnectivity over stale fills flips new copper's nets.
+                from .gui_utils import refill_all_zones
+                refill_all_zones(board)
                 print(f"Plane cleanup: closed {delta.snapped} stub gap(s), "
                       f"trimmed {len(delta.segments_to_remove)} dead-end "
                       f"segment(s), added {added} connector(s)")

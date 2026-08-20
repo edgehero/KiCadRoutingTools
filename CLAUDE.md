@@ -35,7 +35,7 @@ a `build_router.py --from-source` rebuild, and re-distributing prebuilt per-plat
 binaries via GitHub Releases — heavy overhead. When a feature seems to need a Rust
 change, surface that cost early and check for a Python-only approach first.
 
-**Important:** When making changes to the Rust router, bump the version in `rust_router/Cargo.toml` and update the version history in `rust_router/README.md`. The release triple is `rust_router/Cargo.toml` + `/VERSION` + `metadata.json` — keep them aligned. **The crate is 0.20.0 and the 0.20.0 binaries ARE published** (v0.20.0), so a plain `python3 build_router.py` fetches a matching asset and `startup_checks` is satisfied; `--from-source` is only needed while testing local Rust changes. When you next bump `Cargo.toml` ahead of a release, that gap reopens — a plain build then downloads the older published asset and `startup_checks` rejects the mismatch — so use `--from-source` until the matching binaries ship.
+**Important:** When making changes to the Rust router, bump the version in `rust_router/Cargo.toml` and update the version history in `rust_router/README.md`. The release triple is `rust_router/Cargo.toml` + `/VERSION` + `metadata.json` — keep them aligned. **The crate is 0.20.1 and the 0.20.1 binaries ARE now published, in the v0.20.2 release** (2026-08-09; verified — the published `grid_router-macos-arm64.so` reports `__version__ == 0.20.1`). v0.20.2 is a python-only release, so `Cargo.toml` correctly stayed at 0.20.1 while `/VERSION` went to 0.20.2, and the release built the crate as it stands: a plain `python3 build_router.py` now **downloads and keeps** the prebuilt instead of paying a wasted download and rebuilding from source. (The older hazard, for reference: the v0.20.1 release carried 0.20.0-built assets. `build_router.py` handles that case on its own — it skips the download when Cargo.toml is ahead of the release tag, and when the tag matches but the asset inside is stale it detects the version mismatch after install and rebuilds from source. Both checks verify in a fresh subprocess: an in-process re-import of a compiled extension reports the previously-loaded library. `--from-source` just skips the lookup. 0.20.1 removes the `block_vias` parameter from `add_stub_proximity_costs_batch`, so the 0.20.0 binary is API-incompatible with current Python besides the version gate.) **Note this is why `/VERSION` can lead `Cargo.toml`** — a python-only release still republishes the current crate binaries, which is the cheapest way to unstick a stale-asset release.
 
 ## Testing & Verification
 
@@ -210,7 +210,15 @@ Every recorded stress run leaves a `redo_commands.sh` manifest that replays the
 full chain with **no LLM**. To regression-test or A/B an engine change across the
 board corpus, use `tests/stress/ab_replay_grade.py` (whole-set replay + DRC/
 connectivity grading) or `tests/stress/redo_diff_stage.py` (diff-pair stages only).
-See `tests/stress/RUNBOOK.md` ("Replaying & A/B (no LLM)") for the recipes.
+For CORPUS-SCALE work (~$1/arm on rented cores, keeps the routed boards):
+`tests/stress/cloud_replay_sets.py` A/Bs a change over whole sets, and
+`tests/stress/corpus_bisect.sh` scores one engine commit for bisecting a
+regression. See `tests/stress/RUNBOOK.md` ("Replaying & A/B (no LLM)" and
+"Corpus-scale A/B and bisect on the cloud") for the recipes and the rules that
+make them trustworthy -- notably: the baseline is the RECORDED RUNS re-graded
+(not an archived wave), grade both sides on the same terms, compare only boards
+that replayed an IDENTICAL chain, and **a two-board result is not a default
+change** (per-board spread is +-2..3 nets).
 
 **A new PLACEMENT objective term goes through `tests/test_placement_ab.py`
 before it ships on.** It runs the same board twice (flag off, flag on), writes
@@ -317,6 +325,18 @@ through there too.
   rename, or REMOVE a dialog control** — deleting one without updating
   `settings_persistence` crashes on close and loses the user's settings
   (that shipped once; see 31f359c). Seconds to run, no routing.
+- `tests/gui_parity/test_fanout_rotated_gui.py` — needs KiCad python; the only
+  gate that runs a **fanout** step. Drives the REAL FanoutTab on a rotated
+  QFN (haasoscope U2, QFN-76 @ 90°) and compares against the CLI's text-parsed
+  engine call, replaying the tab's OWN captured kwargs so the two fronts cannot
+  differ by a parameter. Asserts side classification parity (the check that
+  catches a local-frame bug), emitted-copper parity, and outward escapes.
+  Seconds to run. Its wx-free half is `tests/test_rotated_footprint_frame.py`
+  (round-trip invariants + change detectors, ~1 s, runs under `run_all.py`).
+  **Fanout is the only routing consumer of `pad.local_x/local_y`**, and those
+  are the one PCBData field the GUI COMPUTES rather than reads — see the
+  `_global_to_local` entry in `.gui-parity-checked` for the bug that motivated
+  these.
 - `tests/gui_parity/test_gui_engine_parity.py` — needs KiCad python; runs the
   plan through the GUI engine path and grades against the CLI chain
   (`KICAD_DUMP_BATCH_KWARGS` diffs the full batch_route param set, ~105 keys).

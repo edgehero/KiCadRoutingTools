@@ -1925,7 +1925,8 @@ def _try_route_direction(src, tgt, pcb_data, config, obstacles, base_obstacles,
 
     # Create pose-based router for centerline
     # Double via cost since diff pairs place two vias per layer change
-    # via_proximity_cost is a multiplier on via cost in stub/BGA proximity zones (0 = block vias)
+    # via_proximity_cost multiplies the graded (stub + layer) proximity cost at
+    # via placement, same formula as the single-ended router (0 = no extra cost)
     # diff_pair_spacing is the P/N offset from centerline in grid units (for self-intersection prevention)
     # Use 2*spacing to prevent P/N tracks from crossing when centerline loops.
     # Flipped (opposite-side) attempts wrap around their endpoints, so give the
@@ -1982,6 +1983,18 @@ def _try_route_direction(src, tgt, pcb_data, config, obstacles, base_obstacles,
     _layer_costs = config.get_layer_costs()
     if any(c != 1000 for c in _layer_costs):
         pose_kwargs['layer_costs'] = _layer_costs
+    # #658 diff parity: forward the per-layer H/V direction preference the
+    # single-ended router has always applied. Only passed when armed, so an
+    # older grid_router binary (pre-0.21.1) still constructs.
+    _dirs = config.get_layer_direction_preferences()
+    if _dirs and config.direction_preference_cost > 0:
+        pose_kwargs['layer_direction_preferences'] = _dirs
+        pose_kwargs['direction_preference_cost'] = \
+            config.direction_preference_cost
+    import os as _dbgos
+    if _dbgos.environ.get('KICAD_DIFF_DIRS_DEBUG'):
+        print(f"  [dirs-debug] PoseRouter site1: dirs={_dirs} "
+              f"cost={config.direction_preference_cost}")
     pose_router = PoseRouter(**pose_kwargs)
 
     # Route using pose-based A* with Dubins heuristic
@@ -2558,6 +2571,10 @@ def _route_direct_coupled_middle(pcb_data, diff_pair, config, obstacles, layer_n
     _lc = config.get_layer_costs()
     if any(c != 1000 for c in _lc):
         pose_kwargs['layer_costs'] = _lc
+    _dirs2 = config.get_layer_direction_preferences()
+    if _dirs2 and config.direction_preference_cost > 0:
+        pose_kwargs['layer_direction_preferences'] = _dirs2
+        pose_kwargs['direction_preference_cost'] =             config.direction_preference_cost
     pr = PoseRouter(**pose_kwargs)
     via_spacing_grid = max(1, int(max(spacing_mm, (config.via_size + config.clearance) / 2)
                                   / config.grid_step + 0.5))
@@ -3462,8 +3479,11 @@ def _route_hybrid_leg(pcb_data, net_id, config, obstacles, layer_names, coord,
     if attract_path:
         router.set_attraction_path([(int(p[0]), int(p[1]), int(p[2]))
                                     for p in attract_path])
-        print(f"      leg couple: net {net_id} attracted to partner leg "
-              f"({len(attract_path)} pts, radius {_att_radius}, bonus {_att_bonus})")
+        if config.verbose:
+            # Mechanism narration, not an outcome: the coupling heuristic
+            # engaging is the normal case, once per leg.
+            print(f"      leg couple: net {net_id} attracted to partner leg "
+                  f"({len(attract_path)} pts, radius {_att_radius}, bonus {_att_bonus})")
     nlayers = len(config.layers)
     own_tol = _launch_assoc_tol(config)
     # An existing same-net through-hole (the net's THT pads + any pre-placed via,
@@ -3615,8 +3635,9 @@ def _route_hybrid_leg(pcb_data, net_id, config, obstacles, layer_names, coord,
         if path is None and sibling_margin:
             # Reserved sibling room doesn't fit here -- route at normal width
             # (the sibling leg then finds its own way; completion beats room).
-            print(f"      leg couple: sibling-room margin ({sibling_margin} cells) "
-                  f"unroutable for net {net_id}; retrying without")
+            if config.verbose:
+                print(f"      leg couple: sibling-room margin ({sibling_margin} cells) "
+                      f"unroutable for net {net_id}; retrying without")
             path, _it2 = _route_leg(router, obstacles, config, sources, targets,
                                     0, pcb_data, net_id)
             it += _it2

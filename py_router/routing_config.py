@@ -98,11 +98,18 @@ class GridRouteConfig:
     via_size: float = 0.3  # mm via outer diameter
     via_drill: float = 0.2  # mm via drill
     grid_step: float = 0.1  # mm grid resolution
-    via_cost: int = 50  # grid steps equivalent penalty for via
+    via_cost: int = 75  # grid steps equivalent penalty for via (#586: 50 -> 75)
     layers: List[str] = field(default_factory=lambda: ['F.Cu', 'B.Cu'])
     max_iterations: int = 200000
     max_probe_iterations: int = 5000  # Quick probe per direction to detect stuck routes
-    heuristic_weight: float = 1.9
+    heuristic_weight: float = 2.3  # (#586: 1.9 -> 2.3, corpus dose-response peak)
+    # #589 rough-pass probe marker: the result is a HINT (predicted path),
+    # never shipped copper, so ship-safety rejects (the #157 terminal-bridge
+    # short gate) must not veto it -- on a fanned board the probe map
+    # excludes every to-route net's stubs (relaxed legality), so probe
+    # terminals legitimately overlap future nets' copper. Set only on the
+    # global plan's replace() clone; never on a config that emits copper.
+    plan_probe: bool = False
     turn_cost: int = 1000  # Penalty for direction changes (encourages straighter paths)
     # BGA exclusion zones (auto-detected from PCB) - vias blocked inside these areas
     bga_exclusion_zones: List[Tuple[float, float, float, float]] = field(default_factory=list)
@@ -111,9 +118,16 @@ class GridRouteConfig:
     # NOTE (soft-knobs C6): in the Rust via branch this also MULTIPLIES the
     # summed stub+layer proximity at the via site (track-proximity and
     # ripped-corridor soft costs included), not just stub/BGA-zone costs.
-    via_proximity_cost: float = 10.0  # via cost multiplier in stub/BGA proximity zones (0 = block vias)
-    bga_proximity_radius: float = 7.0  # mm - distance from BGA edges to penalize
+    via_proximity_cost: float = 10.0  # via cost multiplier in stub/BGA proximity zones (0 = no extra cost)
+    bga_proximity_radius: float = 7.0  # mm - proximity-field CAP (largest packages reach it)
     bga_proximity_cost: float = 0.2  # mm equivalent cost at BGA edge
+    # Per-package proximity-field rects (#585 item 4): (min_x, min_y, max_x,
+    # max_y, radius_mm) for EVERY fine-pitch package (BGA/QFN/QFP), radius
+    # scaled by sqrt(n_pads/1000) * bga_proximity_radius clamped to
+    # [2.0, bga_proximity_radius]. Filled by the batch engines from the board
+    # (routing_common.package_proximity_zones); None = legacy behavior
+    # (bga_exclusion_zones at the flat radius).
+    package_proximity_zones: Optional[List[Tuple[float, float, float, float, float]]] = None
     # Direction search order: "forward" or "backward"
     direction_order: str = "forward"
     # Differential pair routing parameters
@@ -157,6 +171,16 @@ class GridRouteConfig:
                                            # Hole-to-Hole Spacing" (keep in sync with
                                            # routing_defaults.HOLE_TO_HOLE_CLEARANCE)
     board_edge_clearance: float = 0.0  # mm - clearance from board edge (0 = use track clearance)
+    # #581: edge-to-edge clearance between ANY placed via and SAME-NET pads.
+    # > 0 forbids via-in-pad globally: routing/tap/rescue via placement blocks
+    # same-net SMD pads at this clearance, and pad-centre swap vias are
+    # declined. -1 (default) AND 0 preserve the pre-#581 behavior exactly
+    # (0 keeps only its legacy meaning where route_planes passes it explicitly
+    # into its stitching via maps). Set from route_planes
+    # --same-net-pad-clearance or the persisted .kicad_pro record
+    # (kicad_routing_tools.same_net_pad_clearance); there is deliberately no
+    # route.py/route_diff.py CLI flag.
+    same_net_pad_clearance: float = -1.0
     # mm - copper-to-HOLE floor (KiCad's `min_hole_clearance`). 0 = not set by
     # the caller, so the obstacle builder reads the board's own constraint and
     # falls back to routing_defaults.NPTH_TO_TRACK_CLEARANCE. It is NOT the same
@@ -277,9 +301,18 @@ class GridRouteConfig:
     # Debug options
     collect_stats: bool = False  # Collect A* search statistics for debugging
     # Heuristic tuning
-    proximity_heuristic_factor: float = 0.02  # Factor for proximity heuristic (higher = tighter heuristic, faster but may overestimate)
+    proximity_heuristic_factor: float = 0.0  # proximity add-on to the A* heuristic (0 since the hw-2.3 default; the base greediness covers it)
     # Layer direction preference - alternates H/V starting with horizontal on top
-    direction_preference_cost: int = 250  # Cost penalty for non-preferred direction (0 = disabled); see routing_defaults
+    # DELIBERATELY NOT routing_defaults.DIRECTION_PREFERENCE_COST (which #663
+    # took 250 -> 5). route.py/route_diff.py always pass the caller's value, so
+    # this default is reached only by configs built field-by-field that never
+    # pass the parameter at all -- the oracle-weld and plane sub-configs
+    # (route.py:3673, route.py:4216, route_planes.py, repair_planes.py). Those
+    # legs have ALWAYS run at 250, on both front-ends, and #663's corpus screen
+    # patched only the module constant -- so it measured signal routing and says
+    # nothing about them. Lowering this to match would be an unmeasured change,
+    # not a consistency fix; measure it first (see #663).
+    direction_preference_cost: int = 250  # Cost penalty for non-preferred direction (0 = disabled)
     # Bus routing - auto-detection and parallel routing of grouped nets
     bus_enabled: bool = False  # Enable bus detection and routing
     bus_detection_radius: float = 5.0  # mm - max endpoint distance to form bus
@@ -630,10 +663,14 @@ class GridRouteConfig:
     def via_proximity_cost_int(self) -> int:
         """Rust-facing integer via-proximity multiplier.
 
-        0 stays 0 (its special meaning: BLOCK vias near obstacles instead of
-        penalizing); any positive fraction rounds to at least 1 (soft-knobs
-        review B3: a GUI value of 0.5 passed through bare int() became 0 --
-        neither blocked nor penalized, weaker than both settings around it).
+        0 means NO EXTRA via cost from proximity -- the same "0 = off"
+        convention as every other soft knob. (Historically 0 meant BLOCK
+        vias in proximity zones; that inverted mode -- 0 as the STRONGEST
+        setting -- is removed. The single-ended router multiplies the
+        graded proximity cost by this value, so 0 is naturally inert
+        there.) Any positive fraction rounds to at least 1 (soft-knobs
+        review B3: a GUI value of 0.5 passed through bare int() became 0,
+        silently weaker than both settings around it).
         """
         c = self.via_proximity_cost
         return 0 if c == 0 else max(1, int(round(c)))

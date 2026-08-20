@@ -394,9 +394,20 @@ def build_via_obstacle_map(
         same_net_pad_clearance: If >= 0, also block target-net pads as via obstacles
             using this edge-to-edge clearance (in mm) in place of config.clearance.
             -1 (default) leaves same-net pads unblocked, allowing via-in-pad placement.
+            When the caller leaves it negative, the config's own
+            same_net_pad_clearance (#581: set from the route_planes flag or the
+            persisted .kicad_pro record) applies — so every via map built from a
+            config that carries the constraint honors it, including callers that
+            never learned the parameter (repair_planes taps, the #562 finalize).
     """
     import time
     t_start = time.time()
+    if same_net_pad_clearance is None or same_net_pad_clearance < 0:
+        # #581 compat contract: only an ACTIVE (> 0) config value changes
+        # behavior; an explicit caller-passed 0 above keeps its legacy meaning.
+        _cfg_snpc = getattr(config, 'same_net_pad_clearance', -1.0)
+        same_net_pad_clearance = _cfg_snpc if (_cfg_snpc is not None
+                                               and _cfg_snpc > 0) else -1.0
 
     coord = GridCoord(config.grid_step)
     num_layers = len(config.layers)
@@ -445,6 +456,7 @@ def build_via_obstacle_map(
     # Since vias span all layers, we must check segments on all copper layers, not just config.layers
     t0 = time.time()
     seg_count = 0
+    _seg_via_arrs = []
     for seg in pcb_data.segments:
         if seg.net_id == exclude_net_id:
             continue
@@ -458,8 +470,21 @@ def build_via_obstacle_map(
                             + config.layer_clearance(  # #498: meet on seg.layer
                                 seg.layer, config.obstacle_clearance(seg.net_id))
                             + grid_cushion)
-        _add_segment_via_obstacle(obstacles, seg, coord, seg_expansion_mm)
+        # FFI batching (2026-08-14): accumulate the memoized capsule arrays
+        # and stamp once after the loop -- concatenation preserves the exact
+        # row multiset/order and the batch inserts commute, so the map state
+        # is byte-identical to the per-segment calls this replaces.
+        _va = segment_blocked_cells_array(seg.start_x, seg.start_y,
+                                          seg.end_x, seg.end_y,
+                                          seg_expansion_mm, coord.grid_step)
+        if len(_va):
+            _seg_via_arrs.append(_va)
         seg_count += 1
+    if _seg_via_arrs:
+        _vall = (np.concatenate(_seg_via_arrs) if len(_seg_via_arrs) > 1
+                 else _seg_via_arrs[0])
+        obstacles.add_blocked_vias_batch(
+            np.ascontiguousarray(_vall.astype(np.int32)))
     if verbose:
         print(f"  Segments: {seg_count} tracks in {time.time() - t0:.2f}s")
 
@@ -1133,6 +1158,7 @@ def build_routing_obstacle_map(
     # Use actual segment width for proper clearance calculation
     t0 = time.time()
     seg_count = 0
+    _seg_cell_arrs = []
     for seg in pcb_data.segments:
         if seg.net_id == exclude_net_id:
             continue
@@ -1145,8 +1171,21 @@ def build_routing_obstacle_map(
         seg_expansion_mm = (route_track_w / 2 + seg.width / 2
                             + config.layer_clearance(  # #498 (#434 cross-class)
                                 route_layer, config.obstacle_clearance(seg.net_id)))
-        _add_segment_routing_obstacle(obstacles, seg, coord, layer_idx, seg_expansion_mm)
+        # FFI batching (2026-08-14): same pattern as the via loop above --
+        # accumulate, then one Rust call for the whole (single-layer) set.
+        _ca = segment_blocked_cells_array(seg.start_x, seg.start_y,
+                                          seg.end_x, seg.end_y,
+                                          seg_expansion_mm, coord.grid_step)
+        if len(_ca):
+            _seg_cell_arrs.append(_ca)
         seg_count += 1
+    if _seg_cell_arrs:
+        _call = (np.concatenate(_seg_cell_arrs) if len(_seg_cell_arrs) > 1
+                 else _seg_cell_arrs[0])
+        _rows = np.empty((len(_call), 3), dtype=np.int32)
+        _rows[:, :2] = _call
+        _rows[:, 2] = layer_idx
+        obstacles.add_blocked_cells_batch(np.ascontiguousarray(_rows))
     if verbose:
         print(f"  Segments: {seg_count} tracks in {time.time() - t0:.2f}s")
 

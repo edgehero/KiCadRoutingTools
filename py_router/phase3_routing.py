@@ -895,15 +895,15 @@ def try_phase3_ripup(
     # sort ahead of every frontier-inferred tier under all select algorithms.
     _blame = getattr(pcb_data, '_via_unblock_blame', None)
     _blame_ids = set(_blame.pop(net_id, None) or ()) if _blame else set()
-    # Same channel, second producer (run-6 fix): the stuck-probe wall cells.
-    # A probe that exhausts below its limit proves the endpoint is walled, and
-    # the wall's TRACK owners are recorded by _identify_blocking_obstacles --
-    # often a 1-3 cell decisive net that count-ranking buries under
-    # large-perimeter bystanders (test-board run 5: GPIO7 at "1 cell, near
-    # tgt" under whole rails, N=3 exhausted on the wrong victims).
-    _wall = getattr(pcb_data, '_stuck_wall_blame', None)
-    _wall_ids = set(_wall.pop(net_id, None) or ()) if _wall else set()
-    _known_ids = (_blame_ids | _wall_ids) - exclude_ids
+    # (1a903195, reverted) a second producer used to feed this channel: the
+    # stuck-probe wall's TRACK owners, recorded by _identify_blocking_obstacles
+    # and promoted here as validator-named. That let the phase-1 DIAGNOSTIC
+    # estimator outrank phase 3's own frontier evidence unconditionally, and
+    # cost 8 disconnected nets on neo6502. Its intent -- a decisive 1-3 cell
+    # wall should not sort under large-perimeter bystanders -- belongs in
+    # rank_blockers, which already has `unique_cells`/`near_target_cells` for
+    # exactly that, not in a cross-feed from a different estimator.
+    _known_ids = _blame_ids - exclude_ids
     _known = [(nid, 1) for nid in sorted(_known_ids)] or None
 
     # PER-EDGE attribution (audit #2i): three tap edges failing in three
@@ -1334,7 +1334,10 @@ def try_phase3_ripup(
             _cells103, config, pcb_data, net_id,
             routed_net_ids=routed_net_ids, return_names=True)
         if _h103:
-            print(f"    {_h103}")
+            from routing_diagnostics import condense_hint as _ch
+            _c103 = _ch(_h103)
+            if _c103:
+                print(f"    {_c103}")
             record_net_event(state, net_id, "preexisting_blockers",
                              {"hint": _h103, "blockers": _b103})
     except Exception:
@@ -1494,6 +1497,12 @@ def _retry_victim_main_with_ripup(
         _attr, _rev = bus_attraction_context(
             victim_id, getattr(state, 'bus_net_to_group', None),
             getattr(state, 'bus_corridors', None))
+        if _attr is None:
+            # #656: phase-3 victim reroutes keep their PLAN lane too --
+            # churn on contested nets is where adherence erodes (#655).
+            from global_plan import plan_attraction_path
+            _attr = plan_attraction_path(config, victim_id, pcb_data)
+            _rev = False
         if was_multipoint:
             multipoint_pads = get_multipoint_net_pads(pcb_data, victim_id, config)
             if multipoint_pads:
@@ -1892,7 +1901,8 @@ def seam_reask_one_net(net_id, pcb_data, config, state, base_obstacles,
         diff_pair_by_net_id or {}, remaining_net_ids, results, config,
         track_proximity_cache, state.working_obstacles,
         state.net_obstacles_cache, state.ripped_route_layer_costs,
-        state.ripped_route_via_positions, layer_map)
+        state.ripped_route_via_positions, layer_map,
+        history_conflict=False)   # #590: own-tree re-ask, not contention
     if saved is None:
         return False
     cfg_polish = _dc_replace(config, max_rip_up_count=0)
@@ -1920,7 +1930,8 @@ def seam_reask_one_net(net_id, pcb_data, config, state, base_obstacles,
             routed_results, diff_pair_by_net_id or {}, remaining_net_ids,
             results, config, track_proximity_cache, state.working_obstacles,
             state.net_obstacles_cache, state.ripped_route_layer_costs,
-            state.ripped_route_via_positions, layer_map)
+            state.ripped_route_via_positions, layer_map,
+            history_conflict=False)   # #590: undoing our own re-ask
     restore_net(net_id, saved, ripped_ids, was_in, pcb_data, routed_net_ids,
                 routed_net_paths, routed_results, diff_pair_by_net_id or {},
                 remaining_net_ids, results, config, track_proximity_cache,

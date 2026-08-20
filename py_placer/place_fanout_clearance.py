@@ -12,7 +12,15 @@ unresolved.
 Usage:
   python place_fanout_clearance.py fanned.kicad_pcb [output.kicad_pcb] [options]
 
-Pipeline: bga_fanout.py -> place_fanout_clearance.py -> (gnd/power vias, route)
+Run it ONCE after ALL fanouts, not after each: the pass is board-global (it
+reads every via and every BGA footprint), so one late run sees every constraint
+at once. Per-BGA runs compound displacement -- each cap's seed is wherever it
+sits on the board it is handed, so a second run re-seeds at the already-moved
+position -- and they change what later fanouts route around, since cap pads are
+in the escape router's obstacle map.
+
+Pipeline: bga_fanout.py (all of them) -> place_fanout_clearance.py -> (gnd/power
+vias, route)
 """
 import _path  # noqa: F401  (py_placer -> py_router/py_tools on sys.path)
 
@@ -91,7 +99,7 @@ Examples:
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Print each accepted move")
 
-    args = parser.parse_args()
+    args = __import__("cli_nets").pin_dash_digit_values(parser).parse_args()
     from fix_kicad_drc_settings import warn_if_missing_project_floor
     warn_if_missing_project_floor(args.input_file)  # #441: a dropped sibling .kicad_pro strands the DRC floor
 

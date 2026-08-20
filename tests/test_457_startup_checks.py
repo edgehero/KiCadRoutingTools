@@ -150,7 +150,9 @@ _PROBE = textwrap.dedent('''
 
 
 def _run_probe(module_name):
-    env = dict(_tool_env(), PYTHONPATH=_tool_env()["PYTHONPATH"])
+    # #522: startup_checks lives under py_router/ now; the probe subprocess
+    # needs it on ITS path. run_utils.tool_env covers the reorg dirs.
+    env = _tool_env()
     return subprocess.run([sys.executable, '-c', _PROBE, module_name],
                           capture_output=True, text=True, cwd=ROOT, env=env)
 
@@ -181,6 +183,7 @@ def test_routing_clis_use_the_guard_at_module_scope():
     grid_router fails with something cryptic."""
     for name in ('route.py', 'route_diff.py', 'route_planes.py',
                  'repair_planes.py'):
+        # #522: resolve the moved CLI through the shipped resolver, loudly.
         src = open(_tool(name), encoding='utf-8').read()
         assert 'exit_on_error_if_main(__name__)' in src, \
             f"{name} does not use the import-safe guard"

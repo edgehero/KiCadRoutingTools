@@ -47,11 +47,13 @@ except ImportError:  # pragma: no cover - stale checkout
 def _via_width(via):
     """KiCad 9/10 padstack vias can refuse layerless GetWidth() ('result
     with an error set', seen on vias ADDED in-session then re-synced);
-    GetFrontWidth() is the stable outer-annulus accessor."""
+    GetFrontWidth() is the stable outer-annulus accessor and is asked FIRST
+    (#605) -- a bare PCB_VIA::GetWidth() also trips a non-raising wxASSERT
+    on KiCad 10, one stderr line per via, before returning the same answer."""
     try:
-        return via.GetWidth()
-    except Exception:
         return via.GetFrontWidth()
+    except Exception:
+        return via.GetWidth()
 
 from .fanout_gui import NetSelectionPanel
 from .gui_utils import StdoutRedirector
@@ -370,13 +372,13 @@ class RoutingDialog(wx.Dialog):
         # Create notebook for tabs
         self.notebook = wx.Notebook(main_panel)
 
-        # Tab 1: Basic parameters
+        # Tab 1: Route (the basic routing parameters)
         config_panel = self._create_config_tab()
-        self.notebook.AddPage(config_panel, "Basic")
+        self.notebook.AddPage(config_panel, "Route")
 
-        # Tab 2: Advanced (swappable nets + advanced parameters + options)
+        # Tab 2: Advanced options (swappable nets + advanced parameters + options)
         advanced_panel = self._create_advanced_tab()
-        self.notebook.AddPage(advanced_panel, "Advanced")
+        self.notebook.AddPage(advanced_panel, "Advanced options")
 
         # Tab 3: Differential
         differential_panel = self._create_differential_tab()
@@ -397,7 +399,7 @@ class RoutingDialog(wx.Dialog):
         # (settings persistence, _ai_params, resets) is unaffected; the page
         # added here is the container.
         ai_container = self._create_ai_tab()
-        self.notebook.AddPage(ai_container, "AI")
+        self.notebook.AddPage(ai_container, "AI Drive")
 
         # Tab 7: Log
         log_panel = self._create_log_tab()
@@ -810,6 +812,15 @@ class RoutingDialog(wx.Dialog):
     def _effective_clearance(self):
         return self._effective_geometry_floor('clearance')
 
+    def _same_net_pad_clearance_value(self):
+        """#581: the Basic tab's via-in-pad policy as the engines' scalar --
+        -1.0 while 'Allow via-in-pad' is checked (the default, pre-#581
+        behavior), else the spin's clearance (> 0 keeps every placed via off
+        same-net SMD pads). Shared by ALL step tabs."""
+        if self.via_in_pad_check.GetValue():
+            return -1.0
+        return self.same_net_pad_clearance.GetValue()
+
     def _effective_via_size(self):
         return self._effective_geometry_floor('via_size')
 
@@ -1000,7 +1011,7 @@ class RoutingDialog(wx.Dialog):
             ('neckdown_length', 'Neck-down (mm):', defaults.NECKDOWN_LENGTH, "Length of narrow track from the pad when a wide power route is necked down (issue #72)"),
             ('neckdown_taper_length', 'Neck Taper (mm):', defaults.NECKDOWN_TAPER_LENGTH, "Length of the stepped narrow-to-wide width taper on necked routes (0 = abrupt)"),
             ('coplanar_gap', 'Coplanar Gap (mm):', defaults.COPLANAR_GAP, "#486: declare that impedance-controlled traces run through a same-layer ground pour this far away (edge to edge). >0 uses the coplanar-waveguide-over-ground model instead of microstrip -- a NARROWER trace for the same ohms. Pour the plane layers with a MATCHING zone clearance, then verify with check_impedance.py. 0 = plain microstrip."),
-            ('via_proximity_cost', 'Via Prox. Multiplier:', defaults.VIA_PROXIMITY_COST, "Cost multiplier for placing vias near other vias"),
+            ('via_proximity_cost', 'Via Prox. Multiplier:', defaults.VIA_PROXIMITY_COST, "Via cost multiplier in stub/BGA proximity zones (0 = no extra cost)"),
             ('track_proximity_distance', 'Track Prox. (mm):', defaults.TRACK_PROXIMITY_DISTANCE, "Distance to detect parallel tracks for bunching avoidance"),
             ('track_proximity_cost', 'Track Prox. Cost:', defaults.TRACK_PROXIMITY_COST, "Cost for routing parallel to existing tracks"),
             ('vertical_attraction_radius', 'Vert. Attract (mm):', defaults.VERTICAL_ATTRACTION_RADIUS, "Radius for cross-layer track stacking: attracts the route toward ANY net's tracks on other layers (net-agnostic)"),
@@ -1154,6 +1165,39 @@ class RoutingDialog(wx.Dialog):
         options_scroll = wx.ScrolledWindow(panel, style=wx.VSCROLL)
         options_scroll.SetScrollRate(0, 10)
         options_inner = wx.BoxSizer(wx.VERTICAL)
+
+        # #581: via-in-pad policy, shared by EVERY step (route, diff, planes,
+        # fanout). Checked (default) = via-in-pad allowed (pre-#581 behavior);
+        # unchecked = the spin's clearance keeps ALL placed vias off same-net
+        # SMD pads (escape vias, rescue vias, tap vias; fanout runs dog-bone).
+        # Moved here from the Planes tab -- one policy for the whole session.
+        self.via_in_pad_check = wx.CheckBox(options_scroll,
+                                            label="Allow via-in-pad")
+        self.via_in_pad_check.SetValue(True)
+        self.via_in_pad_check.SetToolTip(
+            "When checked (default), vias may be placed on same-net pads. "
+            "Uncheck to keep EVERY placed via (escape, rescue, tap, stitch) "
+            "at 'Same-net Pad Clearance' from same-net SMD pads; BGA/QFN "
+            "fanout then runs dog-bone escapes (#581).")
+        options_inner.Add(self.via_in_pad_check, 0, wx.ALL, 3)
+        snpc_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        snpc_sizer.Add(wx.StaticText(options_scroll,
+                                     label="Same-net Pad Clearance (mm):"),
+                       0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        _snpc_r = defaults.PARAM_RANGES['same_net_pad_clearance']
+        self.same_net_pad_clearance = wx.SpinCtrlDouble(
+            options_scroll, min=_snpc_r['min'], max=_snpc_r['max'],
+            initial=defaults.CLEARANCE, inc=_snpc_r['inc'])
+        self.same_net_pad_clearance.SetDigits(_snpc_r['digits'])
+        self.same_net_pad_clearance.SetToolTip(
+            "Edge-to-edge clearance between placed vias and same-net SMD "
+            "pads. Active only while 'Allow via-in-pad' is unchecked.")
+        self.same_net_pad_clearance.Enable(False)  # sync with default-checked box
+        self.via_in_pad_check.Bind(
+            wx.EVT_CHECKBOX,
+            lambda evt: self.same_net_pad_clearance.Enable(not evt.IsChecked()))
+        snpc_sizer.Add(self.same_net_pad_clearance, 0)
+        options_inner.Add(snpc_sizer, 0, wx.EXPAND | wx.ALL, 3)
 
         # Stub layer swaps
         self.enable_layer_switch = wx.CheckBox(options_scroll, label="Stub layer swaps")
@@ -1323,6 +1367,17 @@ class RoutingDialog(wx.Dialog):
             "passes never remove or rewrite it (fanout escape stubs, hand-routed nets), "
             "only this run's new copper is cleaned")
         options_inner.Add(self.keep_input_copper, 0, wx.ALL, 3)
+
+        # #536 octolinear smoothing, ON by default (the brief OFF default was
+        # refuted by a 147-board A/B: ON 129 incomplete nets vs OFF 149). Named
+        # `smoothing` to match the engine param, so the plan executor sets it by name.
+        self.smoothing = wx.CheckBox(options_scroll, label="Smooth routes")
+        self.smoothing.SetValue(True)
+        self.smoothing.SetToolTip(
+            "Collapse staircase micro-jogs into octolinear shortcuts (#536). ON by "
+            "default: a 147-board corpus A/B measured smoothing ON at 129 incomplete "
+            "nets and OFF at 149, so disabling it costs ~20 nets. Uncheck only to A/B.")
+        options_inner.Add(self.smoothing, 0, wx.ALL, 3)
 
         # Layer costs
         layer_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -1734,6 +1789,9 @@ class RoutingDialog(wx.Dialog):
                 # reaches fanout too -- it is the step where a track-to-via
                 # teardrop matters most.
                 'add_teardrops': self.add_teardrops_check.GetValue(),
+                # #581: one via-in-pad policy for every step (Basic tab).
+                # > 0 -> BGA under-pad escapes run dog-bone, QFN via-in-pad off.
+                'same_net_pad_clearance': self._same_net_pad_clearance_value(),
             }
 
         return FanoutTab(
@@ -1743,7 +1801,8 @@ class RoutingDialog(wx.Dialog):
             get_shared_params=get_shared_params,
             on_fanout_complete=self._on_tab_operation_complete,
             get_connectivity_check=self._get_connectivity_check_fn,
-            sync_pcb_data_callback=self._sync_pcb_data_from_board
+            sync_pcb_data_callback=self._sync_pcb_data_from_board,
+            append_log=self._append_log
         )
 
     def _create_planes_tab(self):
@@ -1786,6 +1845,8 @@ class RoutingDialog(wx.Dialog):
                 # Shared across all tabs: the single "Fix DRC settings after
                 # routing" toggle lives on the Basic tab (issue #160).
                 'fix_drc_settings': self.fix_drc_check.GetValue(),
+                # #581: one via-in-pad policy for every step (Basic tab).
+                'same_net_pad_clearance': self._same_net_pad_clearance_value(),
                 'keep_thermal': self.keep_thermal_check.GetValue(),
                 'clamp_netclasses': self.clearance_check.GetValue(),
                 'fab_tier': self.fab_tier.GetString(self.fab_tier.GetSelection()),
@@ -1884,6 +1945,8 @@ class RoutingDialog(wx.Dialog):
                 # Shared across all tabs: the single "Fix DRC settings after
                 # routing" toggle lives on the Basic tab (issue #160).
                 'fix_drc_settings': self.fix_drc_check.GetValue(),
+                # #581: one via-in-pad policy for every step (Basic tab).
+                'same_net_pad_clearance': self._same_net_pad_clearance_value(),
             }
 
         def get_routing_config():
@@ -2122,6 +2185,24 @@ class RoutingDialog(wx.Dialog):
             # Enable hide checkbox by default on Basic tab only
             if self.net_panel.hide_check:
                 self.net_panel.hide_check.SetValue(True)
+
+        # #581: surface the board's PERSISTED same-net pad via clearance (a
+        # CLI chain step recorded it in the .kicad_pro) in the Basic-tab
+        # controls, so a GUI session on that board honors the constraint by
+        # default instead of silently reverting to via-in-pad. Runs after the
+        # settings restore -- the board's recorded constraint outranks a stale
+        # per-user habit; the user can still re-check the box to override.
+        try:
+            from protected_nets import (read_same_net_pad_clearance,
+                                        pro_path_for_board)
+            _rec581 = read_same_net_pad_clearance(
+                pro_path_for_board(self.board_filename or ""))
+            if _rec581 > 0:
+                self.via_in_pad_check.SetValue(False)
+                self.same_net_pad_clearance.SetValue(_rec581)
+                self.same_net_pad_clearance.Enable(True)
+        except Exception:
+            pass
 
         # Pre-check nets the user selected in the PCB editor. This overrides any
         # restored/default net selection so the KiCad selection takes priority.
@@ -2397,12 +2478,14 @@ class RoutingDialog(wx.Dialog):
                 _po.gnd_via_distance.SetValue(defaults.GND_VIA_DISTANCE)
             if hasattr(_po, 'gnd_via_net'):
                 _po.gnd_via_net.SetValue(defaults.GND_VIA_NET)
-            if hasattr(_po, 'via_in_pad_check'):
-                # Default ON = same_net_pad_clearance -1.0 (CLI parity, big plane
-                # connectivity win; see CreatePlanesOptionsPanel #362).
-                _po.via_in_pad_check.SetValue(True)
-                if hasattr(_po, 'same_net_pad_clearance'):
-                    _po.same_net_pad_clearance.Enable(False)
+        except Exception:
+            pass
+        # #581: the via-in-pad policy controls live on the Basic tab now
+        # (moved from the planes tab). Default ON = -1.0 (CLI parity).
+        try:
+            self.via_in_pad_check.SetValue(True)
+            self.same_net_pad_clearance.SetValue(defaults.CLEARANCE)
+            self.same_net_pad_clearance.Enable(False)
         except Exception:
             pass
         try:
@@ -2565,6 +2648,7 @@ class RoutingDialog(wx.Dialog):
         self.mps_reverse_rounds.SetValue(False)
         self.mps_layer_swap.SetValue(False)
         self.keep_input_copper.SetValue(False)
+        self.smoothing.SetValue(True)
         self.mps_segment_intersection.SetValue(False)
         self.bus_enabled.SetValue(False)
         self.bus_detection_radius.SetValue(defaults.BUS_DETECTION_RADIUS)
@@ -2617,6 +2701,22 @@ class RoutingDialog(wx.Dialog):
         self.ai_tab.set_model_value(None)
         self.ai_tab.set_effort_value(None)
 
+        # Reset component filters to "All".
+        #
+        # #537: this used to clear the dropdown and the programmatic value ONLY
+        # inside `if panel.component_dropdown:`, and never touched the Comp
+        # Filter TEXT BOX at all. A param the reset misses leaks between plan
+        # steps (CLAUDE.md), so a step that set a component filter silently
+        # scoped every later step to the same footprint.
+        for _panel in (self.net_panel, self.swappable_net_panel,
+                       self.differential_tab.pair_panel,
+                       self.fanout_tab.net_panel,
+                       self.planes_tab.net_panel):
+            if getattr(_panel, 'component_dropdown', None):
+                _panel.component_dropdown.SetSelection(0)
+            if getattr(_panel, 'component_filter_ctrl', None):
+                _panel.component_filter_ctrl.SetValue("")
+            _panel._component_filter_value = ""
         # Reset the Placement sub-tab's backend/model/effort too
         self.placement_tab.set_backend_value(None)
         self.placement_tab.set_model_value(None)
@@ -2680,8 +2780,17 @@ class RoutingDialog(wx.Dialog):
         self.status_text.SetLabel("Settings reset to defaults")
 
     def _append_log(self, text):
-        """Append text to the log (thread-safe via CallAfter)."""
-        wx.CallAfter(self._do_append_log, text)
+        """Append text to the log (thread-safe via CallAfter).
+
+        Main-thread callers append DIRECTLY: a UI-thread step (fanout, the
+        apply phases) blocks the loop, so a CallAfter'd append would queue
+        until the step ENDED and the log would arrive in one burst. Direct
+        append + the ui_thread_status UI-category pump makes it live.
+        """
+        if wx.IsMainThread():
+            self._do_append_log(text)
+        else:
+            wx.CallAfter(self._do_append_log, text)
 
     def _do_append_log(self, text):
         """Actually append text to log (must be called on main thread).
@@ -2804,6 +2913,8 @@ class RoutingDialog(wx.Dialog):
             # Basic parameters
             'track_width': self._effective_track_width(),
             'clearance': self._effective_clearance(),
+            # #581: via-in-pad policy (Basic tab; -1 = allowed)
+            'same_net_pad_clearance': self._same_net_pad_clearance_value(),
             'via_size': self._effective_via_size(),
             'via_drill': self._effective_via_drill(),
             'grid_step': self.grid_step.GetValue(),
@@ -2880,6 +2991,7 @@ class RoutingDialog(wx.Dialog):
             'mps_reverse_rounds': self.mps_reverse_rounds.GetValue(),
             'mps_layer_swap': self.mps_layer_swap.GetValue(),
             'keep_input_copper': self.keep_input_copper.GetValue(),
+            'smoothing': self.smoothing.GetValue(),
             'force_reroute': self.force_reroute.GetValue(),
             'mps_segment_intersection': self.mps_segment_intersection.GetValue(),
             # Bus routing options
@@ -3272,7 +3384,15 @@ class RoutingDialog(wx.Dialog):
                     with tempfile.NamedTemporaryFile(
                             suffix='.kicad_pcb', delete=False) as _f:
                         _p = _f.name
-                    pcbnew.SaveBoard(_p, _b)
+                    # aSkipSettings: the oracle leg needs the copper, not a
+                    # .kicad_pro. KiCad 10's implicit project-settings save
+                    # merges the pre-migration on-disk project JSON with its
+                    # migrated in-memory view and throws on any key whose
+                    # type changed (KiCad 9 wrote sheet_component_classes as
+                    # [], 10 holds an object) -- and with no C++ handler
+                    # above this worker thread, that throw aborts ALL of
+                    # KiCad. Snapshots must always skip the settings save.
+                    pcbnew.SaveBoard(_p, _b, aSkipSettings=True)
                     return _p
                 except Exception as e:
                     print(f"(could not stage the live board for the "
@@ -3285,14 +3405,18 @@ class RoutingDialog(wx.Dialog):
                     input_file=self.board_filename,
                     output_file="",  # Not used when return_results=True
                     net_names=net_names,
+                    # #581: the Basic tab's via-in-pad policy (explicit value;
+                    # the dialog control is the session authority).
+                    same_net_pad_clearance=self._same_net_pad_clearance_value(),
                     layers=config['layers'],
                     track_width=track_width,
-                    # #435 companion: Track Width override UNCHECKED (and no impedance)
-                    # -> route each net at its OWN netclass width engine-side, matching
-                    # the CLI's omitted --track-width. Checked/impedance = the CLI's
-                    # explicit flag (verbatim global width).
-                    track_width_from_class=(not self.track_width_check.GetValue()
-                                            and not config.get('impedance')),
+                    # #435 companion: Track Width override UNCHECKED -> the width was
+                    # not explicitly set, matching the CLI's omitted --track-width.
+                    # Without impedance the engine routes each net at its OWN netclass
+                    # width; with impedance it floors solved widths at the fab tier
+                    # instead of the default width (#610 -- the engine guards the
+                    # netclass path itself, so no impedance term here anymore).
+                    track_width_from_class=not self.track_width_check.GetValue(),
                     clearance=clearance,
                     via_size=via_size,
                     via_drill=via_drill,
@@ -3304,7 +3428,9 @@ class RoutingDialog(wx.Dialog):
                     max_iterations=config['max_iterations'],
                     max_probe_iterations=config.get('max_probe_iterations', 5000),
                     heuristic_weight=config['heuristic_weight'],
-                    proximity_heuristic_factor=config.get('proximity_heuristic_factor', 0.02),
+                    proximity_heuristic_factor=config.get(
+                        'proximity_heuristic_factor',
+                        defaults.PROXIMITY_HEURISTIC_FACTOR),
                     turn_cost=config['turn_cost'],
                     direction_preference_cost=config.get('direction_preference_cost', defaults.DIRECTION_PREFERENCE_COST),
                     max_rip_up_count=config['max_ripup'],
@@ -3338,6 +3464,7 @@ class RoutingDialog(wx.Dialog):
                     mps_reverse_rounds=config.get('mps_reverse_rounds', False),
                     mps_layer_swap=config.get('mps_layer_swap', False),
                     keep_input_copper=config.get('keep_input_copper', False),
+                    smoothing=config.get('smoothing', True),
                     mps_segment_intersection=config.get('mps_segment_intersection', False),
                     bus_enabled=config.get('bus_enabled', False),
                     bus_detection_radius=config.get('bus_detection_radius', 5.0),
@@ -3441,6 +3568,22 @@ class RoutingDialog(wx.Dialog):
             self.progress_bar.Pulse()  # Indeterminate progress
             self.status_text.SetLabel(step_name)
 
+    def _apply_status(self, message):
+        """Status update for the APPLY phase, which runs on the UI thread.
+
+        _update_progress is fed by the engine thread through wx.CallAfter, so
+        the main loop paints it. Apply runs ON the main thread and blocks it,
+        so a bare SetLabel would not repaint until apply finished -- leaving
+        the engine's LAST message ("Plane finalize: ...", "Cleanup: ...") on
+        screen for the whole apply and reading as a hang. Force the repaint.
+        Guarded: a status update must never be able to break the apply. See
+        gui_utils.ui_thread_status for why the repaint is deliberately narrow
+        (no Gauge.Pulse) inside an action plugin.
+        """
+        from .gui_utils import ui_thread_status
+        ui_thread_status(getattr(self, 'status_text', None),
+                         getattr(self, 'progress_bar', None), message)
+
     def _clear_user_layer_graphics(self, board, layer_name):
         """Remove graphic shapes (lines/polys/rects) on a User layer from the board.
 
@@ -3464,8 +3607,21 @@ class RoutingDialog(wx.Dialog):
             board.RemoveNative(d)
         return len(to_remove)
 
-    def _apply_results_to_board(self, results_data, successful, failed, total_time, config):
-        """Apply routing results directly to the open pcbnew board."""
+    def _apply_results_to_board(self, results_data, successful, failed,
+                                total_time, config):
+        """Apply routing results directly to the open pcbnew board.
+
+        Delegates under a log tee: the worker's stdout redirect is restored
+        before this main-thread handler runs, so without it the apply/oracle/
+        refill narration reached the terminal but never the log tab.
+        """
+        from .gui_utils import redirect_prints_to_log
+        with redirect_prints_to_log(self._append_log):
+            return self._apply_results_to_board_body(
+                results_data, successful, failed, total_time, config)
+
+    def _apply_results_to_board_body(self, results_data, successful, failed,
+                                     total_time, config):
         import pcbnew
         from .board_swaps import apply_swaps_to_board
 
@@ -3473,6 +3629,8 @@ class RoutingDialog(wx.Dialog):
         if board is None:
             wx.MessageBox("Board is no longer open", "Error", wx.OK | wx.ICON_ERROR)
             return
+
+        self._apply_status("Applying copper to the board...")
 
         # Apply pad/stub net swaps (target swaps) and stub layer modifications
         # BEFORE adding new tracks - the routes were created assuming these
@@ -3620,14 +3778,14 @@ class RoutingDialog(wx.Dialog):
             if cleared:
                 print(f"Cleared {cleared} graphic(s) from the guide/keepout User layer(s)")
 
-        # Build connectivity to register new items properly
-        board.BuildConnectivity()
-
         # Re-fill plane zones so any pour pulls back around the copper we just
-        # routed (#362): a signal routed AFTER planes exist would otherwise
-        # leave the plane fill stale (no antipad), which KiCad DRC flags as
-        # clearance / shorting violations on the saved board.
+        # routed (#362), then rebuild connectivity -- refill_all_zones does
+        # both, in that order. The refill must come FIRST: a bare
+        # BuildConnectivity over the stale fills flips new vias' netcodes to
+        # the zones' nets, and once flipped the refill keeps no knockout and
+        # the wrong net sticks (see refill_all_zones's docstring).
         from .gui_utils import refill_all_zones
+        self._apply_status("Refilling zones around the new copper...")
         _rf = refill_all_zones(board)
         if _rf:
             print(f"Refilled {_rf} zone(s) around the new copper")
@@ -3646,6 +3804,11 @@ class RoutingDialog(wx.Dialog):
         if _pfo and _pfo.get('nets'):
             try:
                 from .gui_utils import run_kicad_oracle_on_live_board
+                # Runs on the UI thread like the rest of apply, so it reports
+                # through _apply_status (which forces the repaint) rather than
+                # the engine-thread callback. The oracle names the net and the
+                # link count it is working through, so a long leg is legible
+                # instead of looking wedged.
                 _orc = run_kicad_oracle_on_live_board(
                     board, _pfo['nets'],
                     clearance=_pfo.get('clearance'),
@@ -3655,9 +3818,16 @@ class RoutingDialog(wx.Dialog):
                     grid_step=_pfo.get('grid_step'),
                     hole_to_hole_clearance=_pfo.get(
                         'hole_to_hole_clearance'),
-                    layer_clearances=_pfo.get('layer_clearances'))
+                    layer_clearances=_pfo.get('layer_clearances'),
+                    progress_callback=(
+                        lambda c, t, m: self._apply_status(
+                            f"{m} ({c}/{t})" if t else m)))
                 if _orc is not None:
-                    board.BuildConnectivity()
+                    self._apply_status("Refilling zones after the "
+                                       "plane-finalize oracle...")
+                    # refill FIRST (it rebuilds connectivity itself): a bare
+                    # BuildConnectivity here would flip the oracle's new vias
+                    # to the stale fills' nets.
                     _rf2 = refill_all_zones(board)
                     if _rf2:
                         print(f"Refilled {_rf2} zone(s) after the "
@@ -3726,10 +3896,12 @@ class RoutingDialog(wx.Dialog):
             pass
 
         # Refresh the view
+        self._apply_status("Refreshing the board view...")
         pcbnew.Refresh()
 
         # Sync pcb_data from pcbnew board to ensure subsequent routing and
         # connectivity checks see the new tracks
+        self._apply_status("Syncing board data...")
         self._sync_pcb_data_from_board()
 
         # Update UI and show completion message

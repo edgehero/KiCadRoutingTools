@@ -139,6 +139,9 @@ FLAG_PARAMS = {
     '--stitch-max-freq': 'stitch_max_freq',
     '--exit-margin': 'exit_margin',
     '--extension': 'extension',
+    # #581: same-net pad via clearance -- valid on planes, route, route_diff,
+    # bga/qfn fanout and repair steps; the GUI control lives on the Basic tab.
+    '--same-net-pad-clearance': 'same_net_pad_clearance',
     '--max-track-width': 'max_track_width',
     '--min-track-width': 'min_track_width',
     '--analysis-grid-step': 'analysis_grid_step',
@@ -171,6 +174,8 @@ LIST_FLAGS = {
 }
 BOOL_FLAGS = {
     '--rip-blocker-nets': 'rip_blocker_nets',
+    '--smoothing': 'smoothing',      # #536 octolinear smoothing (default ON)
+    '--no-smoothing': 'no_smoothing',  # the negative must survive a replay
     '--add-gnd-vias': 'add_gnd_vias',
     # #485: route_planes area via stitching toggles (planes-tab checkboxes
     # stitch_vias / stitch_edge_fence, applied by the plan executor's
@@ -313,17 +318,37 @@ def parse_command(argv):
                 vals.append(_num(argv[i]))
                 i += 1
             lists[a] = vals
-        elif a == '--component':
-            step['component'] = argv[i + 1]
-            i += 2
         elif a in ('--group', '--group-scope', '--group-by'):
-            # #459 placement blocks. HOIST these to the step, like --component,
-            # instead of letting them fall through to `params` -- a param with no
-            # matching dialog control is silently dropped, and `nets` then falls
-            # back to ['*'], so the GUI would route the WHOLE BOARD where the CLI
-            # routed one block. apply_step_selection() resolves them.
-            step[a.lstrip('-').replace('-', '_')] = argv[i + 1]
-            i += 2
+            # #459 placement blocks: these must land as TOP-LEVEL step keys,
+            # not in params. ai_plan's route action reads step["group"] /
+            # ["group_by"] / ["group_scope"] directly (_group_net_names); the
+            # generic unknown-flag path below would file them under params,
+            # where nothing reads them -- and per that function's own comment
+            # the step then silently widens to the WHOLE BOARD where the CLI
+            # routed one block. Same shape as --component just below.
+            i += 1
+            if i < len(argv) and not argv[i].startswith('--'):
+                step[a.lstrip('-').replace('-', '_')] = argv[i]
+                i += 1
+        elif a == '--component':
+            # #537: --component now takes one or more references. One converts
+            # to the `component` key the plan executor already understands;
+            # several are kept under `components` so the step is not silently
+            # narrowed to the first footprint (the GUI list control that
+            # consumes them is still to come -- see the issue's Tier 2).
+            # Stop at a positional board file: bga_fanout/qfn_fanout still take
+            # a SINGLE --component, and `--component U9 out.kicad_pcb` must not
+            # swallow the output path out of step['_files'] (which pruning uses).
+            vals = []
+            i += 1
+            while (i < len(argv) and not argv[i].startswith('--')
+                   and not argv[i].endswith('.kicad_pcb')):
+                vals.append(argv[i])
+                i += 1
+            if len(vals) == 1:
+                step['component'] = vals[0]
+            elif vals:
+                step['components'] = vals
         elif a.startswith('--'):
             # unknown flag: skip it and any non-flag values (still carried
             # generically when it maps to a control name)

@@ -25,6 +25,100 @@ commits). Outcome: NO GAP -- verified, not assumed.
   them yet; the GUI placement sub-tab reads check_assembly's JSON, which is
   additive-only here (new keys, `blocking` untouched).
 
+0fd0a991 2026-08-19 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
+Audit 972131a4..0fd0a991 on main. NO GAP FOUND. Five gates green, all five
+reproducing the previous audit's numbers exactly (8407/402/0 and 12/0,
+8/15/1/0/0/0, 188 keys, 10/10, 1267/128 copper-identical).
+
+THE SURFACE. Six commits. Two are mine and touch tests/stress/ only (#663's
+--defaults int coercion and the cloud_arms_to_sweep bridge) -- no front-end
+surface at all. The other four are #653 (env-knob logging), #654 (the KiCad
+refill cross-check always states what it did), d4831b93 (the exact-fill refill
+re-launched pcbnew instead of running a script) and the previous ledger entry.
+
+Checked mechanically, not assumed: NO new `add_argument` anywhere in
+py_router/ across the range, no new engine kwarg at a front-end boundary, and
+the only new results-data key is `env_knobs` (below).
+
+#653 SPLITS ACROSS THE BOUNDARY, AND THE HALVES LAND DIFFERENTLY. This is the
+one thing in the range that needed real checking rather than a glance:
+
+  * route.py:3520 and route_diff.py:1515 add `summary['env_knobs']` INSIDE
+    batch_route / batch_route_diff_pairs -- the shared engine functions both
+    fronts call. The GUI gets the key for free; Class-1 shape from CLAUDE.md.
+  * route_planes.py:4599 and repair_planes.py:3654 add the same key in
+    `main()`, i.e. CLI-only. NOT a gap: the planes/repair GUI paths call the
+    shared engines with return_results and emit no JSON_SUMMARY at all, so
+    there is no GUI artifact for the key to be missing from. Report-only,
+    mutates no board -- which is why test_cli_postpass_coverage still reads
+    8/15/1/0/0/0 rather than flagging a new Class-2 post-pass.
+  * cli_banner.install() is CLI-only BY CONSTRUCTION and says so in its own
+    docstring ("The GUI never calls install(), so no GUI path changes"). It
+    prints a CMD/EXIT banner and patches ArgumentParser.error for the
+    dash-leading-net-name hint; a GUI has no command line and no argparse, so
+    there is nothing to mirror.
+  * bga_fanout.py / qfn_fanout.py print the knob line directly in `__main__`
+    because those two fronts do not install the banner. Same CLI-only status,
+    and the fanout GUI tab is unaffected.
+
+d4831b93 IS A GUI FIX LIVING IN A SHARED MODULE, which is the inverted case
+worth naming. `kicad_exact_fill._this_interpreter()` replaces bare
+`sys.executable` in kicad_python_candidates(), because inside KiCad's embedded
+python sys.executable is the pcbnew HOST BINARY -- spawning it opened the
+application once per call instead of running the refill script. The fix is in
+the shared resolver, so both fronts pick it up and the front that was BROKEN
+is the GUI. No wiring needed; the parity direction here is CLI-was-fine,
+GUI-was-broken, shared-module-fix.
+
+#654 IS CHECKER-SIDE ONLY. reconcile_status_line() and the run_connectivity_
+check reporting live in check_connected.py's report path. The GUI imports
+exactly one symbol from that module -- check_net_connectivity (swig_gui.py:
+2266) -- which the range does not touch (verified: the diff adds
+reconcile_status_line and edits run_connectivity_check, nothing else). No GUI
+counterpart is owed for a CLI report line.
+
+THE DEFAULT-CONSTANT CHECK THAT CAME OUT CLEAN, recorded because the #663 work
+needed it and the next person will too: DIRECTION_PREFERENCE_COST is read from
+`defaults` at every front-end site -- swig_gui.py:954 (the control's default),
+swig_gui.py:2570 (inside reset_params_to_defaults, verified by locating the
+enclosing def, not by proximity), differential_gui.py:1009, and both argparse
+defaults. manifest_to_plan has no FLAG_PARAMS row for
+--direction-preference-cost, but its generic fallthrough derives exactly the
+control name: converting the one corpus manifest that carries the flag
+(runs_set3/orangecrab) yields direction_preference_cost=5 on plan steps 11, 12
+and 14. So changing that default is a ONE-CONSTANT change, with no GUI
+mirroring and no FLAG_PARAMS row required.
+
+A REAL DUPLICATION FOUND, not a parity gap but adjacent and easy to trip over:
+routing_config.py:287 hardcodes `direction_preference_cost: int = 250` instead
+of reading routing_defaults, and the oracle-weld and plane sub-configs
+(route.py:3673, route.py:4216, route_planes.py, repair_planes.py) build a
+fresh GridRouteConfig field-by-field and never pass the parameter. So
+--direction-preference-cost -- which the skill and every tuned plan pass --
+has only ever reached signal routing; the weld/tap legs run at 250 on BOTH
+fronts. Both fronts agree, so parity holds; it is logged here because a future
+default change made only in routing_defaults would silently not reach those
+legs.
+
+GATES, all run on a tree verified clean by git status, KiCad python 10.0.0
++ wx 4.2.2 probed live before running rather than assumed (the ledger's own
+standing instruction):
+
+  test_manifest_plan_parity      8407 flag-checks / 402 manifests / 0 mismatch
+                                 12 params checked, 0 unresolved
+  test_cli_postpass_coverage     8 registered, 15 in active CLI use,
+                                 1 CLI-only acknowledged, 0 unreachable, 0 fail
+  test_settings_roundtrip        188 keys; save / restore / legacy / re-save OK
+  test_fanout_rotated_gui        10/10 (104 tracks both fronts, all outward)
+  test_gui_engine_parity         PARITY; segments 1267=1267, vias 128=128,
+                                 copper sets IDENTICAL
+
+CARRIED FORWARD UNCHANGED from the 972131a4 entry, because nothing in this
+range addresses them: test_gui_engine_parity is still VACUOUS for #549/#498
+(its board has no sibling .kicad_dru) and still blind to diff-pair/impedance
+parameters (its plan is signal+plane). Closing either needs a new fixture
+board, not another audit.
+
 84264a02 2026-08-19 -- FIRST TOKEN OF THIS FILE MUST BE THE AUDITED SHA.
 
 2026-08-19 parity audit cfdfb83..84264a02 (the run-22 honesty branch, 43

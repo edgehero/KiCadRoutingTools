@@ -38,7 +38,7 @@ DIAGONAL_MARGIN = 0.25  # mm
 UNBLOCK_REFIT_MARGIN_MM = 0.05  # mm (absolute; NOT a fraction like check_drc's clearance_margin)
 
 # Cost parameters
-VIA_COST = 50
+VIA_COST = 75  # 50 -> 75: #586 corpus (via75: -8 verdict, DRC -13, and composes with hw 2.3)
 VIA_PROXIMITY_COST = 10
 TURN_COST = 1000
 STUB_PROXIMITY_COST = 0.2
@@ -104,9 +104,15 @@ STITCH_PITCH = 20.0  # mm
 
 # Algorithm parameters
 MAX_ITERATIONS = 200000
-HEURISTIC_WEIGHT = 1.9
-PROXIMITY_HEURISTIC_FACTOR = 0.02
-MAX_RIPUP = 3
+HEURISTIC_WEIGHT = 2.3  # 1.9 -> 2.3: #586 corpus dose-response peak (-30 verdict, DRC -67, cpu/mem ~0.85x; 1.7 and 2.5 both worse)
+PROXIMITY_HEURISTIC_FACTOR = 0.02  # restored from 0 (1af3096): "quality-neutral"
+# was measured on a CLI that never applied it -- route.py's argparse still passed an
+# explicit 0.02, which overrides the module default, so the corpus kept routing at 0.02
+# for two more commits. b50fc86 fixed that drift and connectivity dropped 17 nets on a
+# 5-board probe the same day; restoring 0.02 recovers 14 of them (50 -> 36 incomplete,
+# eis reaching zero). Neighbouring doses are NOT better (0.01 -> 49, 0.04 -> 55), so
+# treat 0.02 as the known-good value rather than a tuned optimum.
+MAX_RIPUP = 3  # briefly 5 (s2 rescan -30 on the curated set) -- REVERTED: holdout sets 11-15 showed ripup5+zoned ERASING the other flips' gains (v4 -2% vs lean -45% vs old defaults) at +37% CPU; deep rip-up stays retry-tier guidance
 # Phase 3 tap rip-up abandon metric (#85 arbitration); documented in
 # docs/rip-up-reroute.md "Abandon metrics". Must match phase3_routing.ABANDON_METRICS.
 RIPUP_ABANDON_METRIC = 'stranded'
@@ -126,7 +132,10 @@ RIPUP_BLOCKER_SELECT_CHOICES = ('count', 'near-target', 'bidir', 'mincut', 'cost
 
 # Layer direction preference (0=horizontal, 1=vertical, 255=none)
 # Alternates H/V starting with horizontal on top layer
-DIRECTION_PREFERENCE_COST = 250  # Cost penalty for non-preferred direction (0 = disabled).
+DIRECTION_PREFERENCE_COST = 5  # 250 -> 5: #663 corpus screen (dirs5 vs dirs250, sets 1-5,
+# 75 boards/arm at one commit): verdict -22 incomplete nets (-19.6%), W15/L6, real DRC flat.
+# 250 taxed every off-axis move at >3 vias (VIA_COST 75); 5 keeps the H/V organization that
+# 0 loses. Cost penalty for non-preferred direction (0 = disabled).
 # 250 is a compromise: 5000 (5x a move) reproduced human H/V lane style but
 # starved routability on dense boards (sets 6-11 A/B: +104 incomplete nets,
 # kbic65 98.9%->15.1%, route.py ~2x slower); the old 50 (~5% of a move) was
@@ -182,7 +191,7 @@ BGA_DIFF_PAIR_GAP = 0.1  # mm
 # QFN Fanout defaults
 QFN_TRACK_WIDTH = 0.1  # mm
 QFN_CLEARANCE = 0.1  # mm
-QFN_EXTENSION = 0.1  # mm - extension past pad edge before bend
+QFN_EXTENSION = 0.05  # mm - extension past pad edge before bend (0.1 -> 0.05: s2 rescan, -25 verdict on 65 QFN boards -- shorter stubs leave routing room)
 
 # Differential Pair defaults
 DIFF_PAIR_WIDTH = 0.3  # mm track width for differential pairs (GUI diff tab

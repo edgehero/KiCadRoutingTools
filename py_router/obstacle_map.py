@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple, Dict, Set, Union
 from dataclasses import dataclass, field
+import env_knobs
 import numpy as np
+from collections import OrderedDict
 import math
 
 from kicad_parser import PCBData, Segment, Via, Pad, pad_drill_circles, pad_drill_capsule
@@ -147,8 +149,13 @@ def build_base_obstacle_map(pcb_data: PCBData, config: GridRouteConfig,
                  if static_base and hasattr(_real_obstacles, "add_static_blocked_cells_batch")
                  else _real_obstacles)
 
-    # Set BGA proximity radius for is_in_bga_proximity() checks
-    bga_prox_radius_grid = coord.to_grid_dist(config.bga_proximity_radius)
+    # Set BGA proximity radius for is_in_bga_proximity() checks -- armed only
+    # when the COST knob is on, so --bga-proximity-cost 0 is a real off-switch.
+    # (This used to arm unconditionally; with the old pose-router binary via
+    # cliff keyed on the radius alone, zeroing the cost silently left a 10x
+    # via multiplier active across the whole 7mm ring for diff pairs.)
+    bga_prox_radius_grid = (coord.to_grid_dist(config.bga_proximity_radius)
+                            if config.bga_proximity_cost > 0 else 0)
     obstacles.set_bga_proximity_radius(bga_prox_radius_grid)
 
     # Set BGA exclusion zones - block vias AND tracks on ALL layers.
@@ -194,6 +201,8 @@ def build_base_obstacle_map(pcb_data: PCBData, config: GridRouteConfig,
 
     # Add segments as obstacles (excluding nets we'll route - their stubs added per-net)
     # Use actual segment width for obstacle, and layer-specific width for routing track
+    _seg_cell_batch: Dict[int, list] = {}
+    _seg_via_batch: list = []
     _n_segs = len(pcb_data.segments)
     for _seg_i, seg in enumerate(pcb_data.segments):
         if (_seg_i & 511) == 0:
@@ -217,7 +226,7 @@ def build_base_obstacle_map(pcb_data: PCBData, config: GridRouteConfig,
                 vias_arr = segment_blocked_cells_array(
                     seg.start_x, seg.start_y, seg.end_x, seg.end_y,
                     via_block_mm, coord.grid_step)
-                _batch_vias(obstacles, vias_arr)
+                _seg_via_batch.append(vias_arr)
             continue
         # Compute expansion: routing-side reserve half-width (#156: nominal for
         # the single-ended engine -- impedance/power extra rides the per-net
@@ -233,7 +242,35 @@ def build_base_obstacle_map(pcb_data: PCBData, config: GridRouteConfig,
         expansion_mm = reserve_width / 2 + seg_width / 2 + trk_clearance + extra_clearance
         # For via blocking by segments: via half-size + segment half-width + clearance
         via_block_mm = config.via_size / 2 + seg_width / 2 + seg_clearance + extra_clearance
-        _add_segment_obstacle(obstacles, seg, coord, layer_idx, expansion_mm, via_block_mm)
+        # FFI batching (2026-08-14 profiling): one Rust call per segment was
+        # 7.5M crossings / ~90s across a rescue-heavy step. Accumulate the
+        # (memoized, read-only) cell arrays and stamp once per build below --
+        # concatenation preserves the exact row multiset and order, and the
+        # batch inserts process rows identically whether split or joined.
+        cells_arr = segment_blocked_cells_array(
+            seg.start_x, seg.start_y, seg.end_x, seg.end_y,
+            expansion_mm, coord.grid_step)
+        if len(cells_arr):
+            _seg_cell_batch.setdefault(layer_idx, []).append(cells_arr)
+        vias_arr = segment_blocked_cells_array(
+            seg.start_x, seg.start_y, seg.end_x, seg.end_y,
+            via_block_mm, coord.grid_step)
+        if len(vias_arr):
+            _seg_via_batch.append(vias_arr)
+
+    # Flush the accumulated segment stamps: one Rust call per layer for the
+    # track keep-outs, one for the via keep-outs.
+    for _li, _arrs in sorted(_seg_cell_batch.items()):
+        _cells = np.concatenate(_arrs) if len(_arrs) > 1 else _arrs[0]
+        _rows = np.empty((len(_cells), 3), dtype=np.int32)
+        _rows[:, :2] = _cells
+        _rows[:, 2] = _li
+        obstacles.add_blocked_cells_batch(np.ascontiguousarray(_rows))
+    if _seg_via_batch:
+        _vall = (np.concatenate(_seg_via_batch)
+                 if len(_seg_via_batch) > 1 else _seg_via_batch[0])
+        obstacles.add_blocked_vias_batch(
+            np.ascontiguousarray(_vall.astype(np.int32)))
 
     # Add vias as obstacles (excluding nets we'll route)
     _n_vias = len(pcb_data.vias)
@@ -293,6 +330,11 @@ def build_base_obstacle_map(pcb_data: PCBData, config: GridRouteConfig,
     # lifted only during the tied net's own route).
     pcb_data._net_tie_lift = _assemble_net_tie_lifts(
         _tie_corridors, _tie_recorded, layer_map)
+    # #667: the priced band = corridor cells OFF the own pad (the waived
+    # own-pad approach stays free -- the gradient IS the steering).
+    pcb_data._net_tie_price = {
+        nid: sorted(e['cells'] - e.get('safe_cells', set()))
+        for nid, e in _tie_corridors.items()}
     if len(nets_to_route_set) == 1:
         for _arr in pcb_data._net_tie_lift.get(next(iter(nets_to_route_set)), []):
             if len(_arr):
@@ -456,6 +498,27 @@ def _banded_edge_distance_rows(px_axis, py_axis, x1, y1, x2, y2, threshold):
     return np.sqrt(out_sq)
 
 
+# Exact-key memo for polygon rasterization (2026-08-14 orangecrab
+# profiling: 123k calls / 52s -- the 830 rescue/escalation map builds
+# re-rasterize every keepout/cutout polygon each time, and those polygons
+# are net-independent, so escalation's board-global builds hit across ALL
+# nets and reconcile laps). Keyed on the exact polygon bytes + grid +
+# margin + clip (absolute-frame math, so translation canonicalization is
+# NOT bit-safe -- the #493 class); a hit returns the identical arrays by
+# construction, shared READ-ONLY (all consumers build masks / index; none
+# mutate -- audited). Bounded by total cached cells (a board-ring keepout
+# at a fine grid is millions of cells); wholesale clear on overflow.
+_POLY_RASTER_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+_POLY_RASTER_BYTES = 0
+_POLY_CELL_BYTES = 17   # gx int32 + gy int32 + inside bool + edist float64
+
+
+def _poly_raster_byte_budget() -> int:
+    # 40% of the shared KICAD_RASTER_CACHE_MB budget (capsule cache takes
+    # half); LRU-evicted, never wholesale-cleared.
+    return int(env_knobs.RASTER_CACHE_MB * 0.4 * 1e6)
+
+
 def _rasterize_polygon(poly_points, coord: GridCoord, margin: float, clip_bounds=None):
     """Rasterize a closed polygon over its grid bounding box (expanded by `margin` mm).
 
@@ -477,9 +540,16 @@ def _rasterize_polygon(poly_points, coord: GridCoord, margin: float, clip_bounds
     or the bounding box is empty. Callers threshold ``edge_dist`` by their own
     clearance to decide which cells to block.
     """
+    global _POLY_RASTER_BYTES
     if len(poly_points) < 3:
         return None, None, None, None
     poly = np.array(poly_points, dtype=np.float64)
+    _mkey = (poly.tobytes(), coord.grid_step, margin,
+             tuple(clip_bounds) if clip_bounds is not None else None)
+    _mhit = _POLY_RASTER_CACHE.get(_mkey)
+    if _mhit is not None:
+        _POLY_RASTER_CACHE.move_to_end(_mkey)
+        return _mhit
     x1 = poly[:, 0]
     y1 = poly[:, 1]
     x2 = np.roll(poly[:, 0], -1)
@@ -491,12 +561,14 @@ def _rasterize_polygon(poly_points, coord: GridCoord, margin: float, clip_bounds
         cmin_x = max(cmin_x, clip_bounds[0]); cmin_y = max(cmin_y, clip_bounds[1])
         cmax_x = min(cmax_x, clip_bounds[2]); cmax_y = min(cmax_y, clip_bounds[3])
         if cmin_x > cmax_x or cmin_y > cmax_y:
+            _POLY_RASTER_CACHE[_mkey] = (None, None, None, None)
             return None, None, None, None  # polygon doesn't overlap the map
     gx_lo, gy_lo = coord.to_grid(cmin_x, cmin_y)
     gx_hi, gy_hi = coord.to_grid(cmax_x, cmax_y)
     gx_range = np.arange(gx_lo, gx_hi + 1, dtype=np.int32)
     gy_range = np.arange(gy_lo, gy_hi + 1, dtype=np.int32)
     if gx_range.size == 0 or gy_range.size == 0:
+        _POLY_RASTER_CACHE[_mkey] = (None, None, None, None)
         return None, None, None, None
 
     gx_grid, gy_grid = np.meshgrid(gx_range, gy_range)
@@ -514,7 +586,17 @@ def _rasterize_polygon(poly_points, coord: GridCoord, margin: float, clip_bounds
     edge_dist = _banded_edge_distance_rows(
         px_axis, py_axis, x1, y1, x2, y2, margin + coord.grid_step).ravel()
 
-    return gx_flat, gy_flat, inside, edge_dist
+    result = (gx_flat, gy_flat, inside, edge_dist)
+    for _a in result:
+        _a.setflags(write=False)
+    _POLY_RASTER_CACHE[_mkey] = result
+    _POLY_RASTER_BYTES += len(gx_flat) * _POLY_CELL_BYTES
+    budget = _poly_raster_byte_budget()
+    while _POLY_RASTER_BYTES > budget and _POLY_RASTER_CACHE:
+        _, old_res = _POLY_RASTER_CACHE.popitem(last=False)
+        if old_res[0] is not None:
+            _POLY_RASTER_BYTES -= len(old_res[0]) * _POLY_CELL_BYTES
+    return result
 
 
 def _block_cells_on_layers(obstacles: GridObstacleMap, gx_flat, gy_flat, mask, layer_idxs,
@@ -1054,73 +1136,65 @@ def _add_rectangular_edge_obstacles(obstacles: GridObstacleMap, coord: GridCoord
     an in-band pad's own copper cells landable on its own layer.
     """
     _le = layer_exempt or {}
-    _EMPTY = frozenset()
     edge_expand = max(track_expand, via_expand)
     grid_margin = edge_expand + 5
 
-    # Block left edge (full height, so it also covers the via band at both left corners)
-    for gx in range(gmin_x - grid_margin, gmin_x + edge_expand + 1):
-        block_track = gx <= gmin_x + track_expand
-        block_via = gx < gmin_x + via_expand
-        if not (block_track or block_via):
-            continue
-        for gy in range(gmin_y - grid_margin, gmax_y + grid_margin + 1):
-            if block_track:
-                _k = (gx << 32) + (gy & 0xFFFFFFFF)
-                for layer_idx in range(num_layers):
-                    if _k in _le.get(layer_idx, _EMPTY):
-                        continue  # #441: pad-own copper on its layer stays landable
-                    obstacles.add_static_blocked_cell(gx, gy, layer_idx)
-            if block_via:
-                obstacles.add_static_blocked_via(gx, gy)
+    # Sweep item 8 (#625 follow-up): the four edge sweeps called
+    # add_static_blocked_cell/add_static_blocked_via once PER CELL per layer
+    # (~300k+ FFI calls per build on a bbox-outline board). The bands are
+    # rectangles, so each sweep is one meshgrid + the same per-axis masks,
+    # exempt keys filtered with packed-int np.isin (the exact key packing the
+    # scalar used, including the & 0xFFFFFFFF wrap), and two _batch calls.
+    # The static bitmaps are idempotent sets, so equal cell sets = equal
+    # state, regardless of add order.
+    _le_packed = {li: np.sort(np.fromiter(s, dtype=np.int64, count=len(s)))
+                  for li, s in _le.items() if s}
 
-    # Block right edge (full height)
-    for gx in range(gmax_x - edge_expand, gmax_x + grid_margin + 1):
-        block_track = gx >= gmax_x - track_expand
-        block_via = gx > gmax_x - via_expand
-        if not (block_track or block_via):
-            continue
-        for gy in range(gmin_y - grid_margin, gmax_y + grid_margin + 1):
-            if block_track:
-                _k = (gx << 32) + (gy & 0xFFFFFFFF)
-                for layer_idx in range(num_layers):
-                    if _k in _le.get(layer_idx, _EMPTY):
-                        continue  # #441: pad-own copper on its layer stays landable
-                    obstacles.add_static_blocked_cell(gx, gy, layer_idx)
-            if block_via:
-                obstacles.add_static_blocked_via(gx, gy)
+    def _sweep(gx_lo, gx_hi, gy_lo, gy_hi, track_mask_fn, via_mask_fn, by_x):
+        xs = np.arange(gx_lo, gx_hi + 1, dtype=np.int64)
+        ys = np.arange(gy_lo, gy_hi + 1, dtype=np.int64)
+        if not len(xs) or not len(ys):
+            return
+        axis = xs if by_x else ys
+        tmask = track_mask_fn(axis)
+        vmask = via_mask_fn(axis)
+        GX, GY = np.meshgrid(xs, ys, indexing='ij')
+        gxf, gyf = GX.ravel(), GY.ravel()
+        cell_t = np.repeat(tmask, len(ys)) if by_x else np.tile(tmask, len(xs))
+        cell_v = np.repeat(vmask, len(ys)) if by_x else np.tile(vmask, len(xs))
+        if cell_t.any():
+            tx, ty = gxf[cell_t], gyf[cell_t]
+            keys = (tx << 32) + (ty & 0xFFFFFFFF)
+            for layer_idx in range(num_layers):
+                ex = _le_packed.get(layer_idx)
+                keep = ~np.isin(keys, ex) if ex is not None else slice(None)
+                kx, ky = tx[keep], ty[keep]
+                if len(kx):
+                    obstacles.add_static_blocked_cells_batch(np.column_stack(
+                        [kx, ky, np.full(len(kx), layer_idx, dtype=np.int64)]
+                    ).astype(np.int32))
+        if cell_v.any():
+            obstacles.add_static_blocked_vias_batch(np.column_stack(
+                [gxf[cell_v], gyf[cell_v]]).astype(np.int32))
 
-    # Block top edge (middle span; corners covered by the left/right sweeps above)
-    for gy in range(gmin_y - grid_margin, gmin_y + edge_expand + 1):
-        block_track = gy <= gmin_y + track_expand
-        block_via = gy < gmin_y + via_expand
-        if not (block_track or block_via):
-            continue
-        for gx in range(gmin_x + track_expand + 1, gmax_x - track_expand):
-            if block_track:
-                _k = (gx << 32) + (gy & 0xFFFFFFFF)
-                for layer_idx in range(num_layers):
-                    if _k in _le.get(layer_idx, _EMPTY):
-                        continue  # #441: pad-own copper on its layer stays landable
-                    obstacles.add_static_blocked_cell(gx, gy, layer_idx)
-            if block_via:
-                obstacles.add_static_blocked_via(gx, gy)
-
-    # Block bottom edge (middle span)
-    for gy in range(gmax_y - edge_expand, gmax_y + grid_margin + 1):
-        block_track = gy >= gmax_y - track_expand
-        block_via = gy > gmax_y - via_expand
-        if not (block_track or block_via):
-            continue
-        for gx in range(gmin_x + track_expand + 1, gmax_x - track_expand):
-            if block_track:
-                _k = (gx << 32) + (gy & 0xFFFFFFFF)
-                for layer_idx in range(num_layers):
-                    if _k in _le.get(layer_idx, _EMPTY):
-                        continue  # #441: pad-own copper on its layer stays landable
-                    obstacles.add_static_blocked_cell(gx, gy, layer_idx)
-            if block_via:
-                obstacles.add_static_blocked_via(gx, gy)
+    # Left edge (full height, so it also covers the via band at both left
+    # corners); right edge (full height); top/bottom middle spans.
+    _sweep(gmin_x - grid_margin, gmin_x + edge_expand,
+           gmin_y - grid_margin, gmax_y + grid_margin,
+           lambda gx: gx <= gmin_x + track_expand,
+           lambda gx: gx < gmin_x + via_expand, True)
+    _sweep(gmax_x - edge_expand, gmax_x + grid_margin,
+           gmin_y - grid_margin, gmax_y + grid_margin,
+           lambda gx: gx >= gmax_x - track_expand,
+           lambda gx: gx > gmax_x - via_expand, True)
+    _sweep(gmin_x + track_expand + 1, gmax_x - track_expand - 1,
+           gmin_y - grid_margin, gmin_y + edge_expand,
+           lambda gy: gy <= gmin_y + track_expand,
+           lambda gy: gy < gmin_y + via_expand, False)
+    _sweep(gmin_x + track_expand + 1, gmax_x - track_expand - 1,
+           gmax_y - edge_expand, gmax_y + grid_margin,
+           lambda gy: gy >= gmax_y - track_expand,
+           lambda gy: gy > gmax_y - via_expand, False)
 
 
 def _add_polygon_edge_obstacles(obstacles: GridObstacleMap, polygons,
@@ -1441,6 +1515,9 @@ def block_track_cells_near_override_pad_holes(obstacles: GridObstacleMap,
 
 _HOLE_CLR_CACHE = {}          # board path -> declared min_hole_clearance (mm)
 _HOLE_CLR_ANNOUNCED = set()
+_HOLE_CLR_ORIGIN = set()      # paths whose floor came from fab_floor_origin,
+                              # i.e. a later step's writeback had relaxed the
+                              # live rule below what the board declared
 
 
 def resolve_hole_clearance(pcb_data: PCBData, config) -> float:
@@ -1450,15 +1527,51 @@ def resolve_hole_clearance(pcb_data: PCBData, config) -> float:
     for exactly this), so both fronts inherit it with no wiring. An explicit
     ``config.hole_clearance`` wins and stops the read.
 
+    TWO sources, and the larger wins: ``design_settings.rules`` (what the
+    project declares NOW) and ``kicad_routing_tools.fab_floor_origin`` (what it
+    declared before this chain touched it). The second is needed because the
+    first is not durable -- each writeback clamps the live rule down to the
+    clearance that step routed at, so a chain ERASES the author's declaration
+    after step 1. Measured on a tigard pour+route chain declaring 0.25: the
+    pour left ``rules`` at 0.15 and the route step read 0.15, i.e. below the
+    0.20 fab floor, and stopped honouring the board without saying anything.
+    Reading the origin too makes the declaration survive the whole chain, which
+    is the only reading under which "the board declares 0.25" means what a user
+    would expect. See :func:`fix_kicad_drc_settings.declared_fab_floor`.
+
     WHO ACTUALLY INHERITS IT, precisely -- everything routed through
     ``add_drill_hole_obstacles`` (signal, diff pairs, BGA/QFN fanout, via
     ``build_base_obstacle_map``), plus ``plane_obstacle_builder`` which builds
-    its own map and therefore needed the call adding separately. It is NOT a
-    universal fix: the flat ``NPTH_TO_TRACK_CLEARANCE`` still stands in
-    ``plane_region_connector`` (taps / region joins / reconnects),
-    ``pcb_modification`` and ``placement/fanout_clearance``. Those are the same
-    defect and are not yet closed; do not read this helper's existence as
-    covering them.
+    its own map and therefore needed the call adding separately. #617 added the
+    call at every site that DECIDES WHERE COPPER GOES in the three engines this
+    docstring used to name as uncovered: ``plane_region_connector``
+    (``npth_floor_ok`` seeds, ``wide_route_clear`` legs, ``build_base_obstacles``
+    stamps), ``pcb_modification`` (``_seg_worst_offender``'s shortfall ranking
+    and ``nudge_grazing_microshift``'s detector + acceptance gate) and
+    ``placement/fanout_clearance`` (``_Repair``'s NPTH keep-out rects).
+
+    STILL AT THE FLAT ``NPTH_TO_TRACK_CLEARANCE``, and deliberately so -- read
+    this before "finishing the job":
+
+    * ``pcb_modification.close_soft_joints`` and ``_connector_clear`` gate a
+      BRIDGE between two pieces of copper that already exist (a soft joint's
+      caps already overlap; a stub snap spans at most 1.5 track widths). When
+      such a bridge violates a declared floor the flanking copper almost always
+      does too, so raising the gate drops the repair without removing the
+      violation -- measured, 99.96% of the refusals it would add.
+    * ``pcb_modification.nudge_grazing_octolinear`` and
+      ``placement/fanout_clearance.nudge_vias_for_unresolved`` are all-or-
+      nothing repairs: refusing their one clearing candidate abandons the
+      defect they exist to fix (measured: a -0.1 mm net-to-net overlap left in
+      place; a #130 pad-via graze left unrelocated) rather than routing around
+      the hole.
+    * ``placement/legality.PartPads`` builds its NPTH keep-out radii from a bare
+      ``fp``/``clearance`` pair with no board pointer in hand, so it cannot call
+      this helper without a threaded parameter.
+
+    The rule the first three encode: raise this floor on passes that CHOOSE
+    where new copper goes or that MOVE copper by a measured shortfall, not on
+    passes whose only alternative to their one candidate is doing nothing.
 
     Why it exists: this keep-out was priced at a hardcoded
     ``max(clearance, NPTH_TO_TRACK_CLEARANCE)`` -- a flat 0.20 fab floor -- and
@@ -1482,15 +1595,36 @@ def resolve_hole_clearance(pcb_data: PCBData, config) -> float:
         try:
             from list_nets import board_constraint
             v = board_constraint(path, 'min_hole_clearance')
-            _HOLE_CLR_CACHE[path] = float(v) if v and v > 0 else 0.0
+            v = float(v) if v and v > 0 else 0.0
+            # The DECLARED floor outranks the CURRENT rule, because the rule is
+            # not durable: every writeback clamps `rules.min_hole_clearance`
+            # down to the clearance that step routed at, so from step 2 onward
+            # the author's declaration is gone from the only place this used to
+            # look. Measured on a tigard pour+route chain declaring 0.25 -- the
+            # pour's writeback left rules at 0.15 and the route step then read
+            # 0.15, below the 0.20 fab floor, and silently stopped honouring
+            # the board. The original survives in `fab_floor_origin` (seeded at
+            # the first writeback, carried down with the project), so take the
+            # larger of the two. Raise-only, exactly like the rest of this
+            # helper: a board with no origin, or an origin at or below the
+            # rule, is bit-identical.
+            from fix_kicad_drc_settings import declared_fab_floor
+            _origin = declared_fab_floor(path, 'min_hole_clearance')
+            if _origin and _origin > v:
+                _HOLE_CLR_ORIGIN.add(path)
+                v = float(_origin)
+            _HOLE_CLR_CACHE[path] = v
         except Exception:                                       # noqa: BLE001
             _HOLE_CLR_CACHE[path] = 0.0
     v = _HOLE_CLR_CACHE[path]
     if v > defaults.NPTH_TO_TRACK_CLEARANCE and path not in _HOLE_CLR_ANNOUNCED:
         _HOLE_CLR_ANNOUNCED.add(path)
-        print(f"Copper-to-hole clearance {v:g}mm (from the board's own "
-              f"min_hole_clearance, above the {defaults.NPTH_TO_TRACK_CLEARANCE}"
-              f"mm fab floor)")
+        _src = ("the floor the board ORIGINALLY declared, which a later step's "
+                "writeback relaxed in the project"
+                if path in _HOLE_CLR_ORIGIN else "the board's own "
+                "min_hole_clearance")
+        print(f"Copper-to-hole clearance {v:g}mm (from {_src}, above the "
+              f"{defaults.NPTH_TO_TRACK_CLEARANCE}mm fab floor)")
     return v
 
 
@@ -1667,6 +1801,9 @@ def add_net_stubs_as_obstacles(obstacles: GridObstacleMap, pcb_data: PCBData,
     obs_clearance = config.obstacle_clearance(net_id)
 
     # Add segments - use actual segment width and the routing-side reserve width (#156)
+    # FFI batching (2026-08-14): accumulate + stamp once per layer, byte-identical.
+    _nb_cells: Dict[int, list] = {}
+    _nb_vias: list = []
     for seg in pcb_data.segments:
         if seg.net_id != net_id:
             continue
@@ -1681,7 +1818,25 @@ def add_net_stubs_as_obstacles(obstacles: GridObstacleMap, pcb_data: PCBData,
         trk_clearance = config.track_obstacle_clearance(seg.net_id, seg_clearance)
         expansion_mm = reserve_width / 2 + seg_width / 2 + trk_clearance + extra_clearance
         via_block_mm = config.via_size / 2 + seg_width / 2 + seg_clearance + extra_clearance
-        _add_segment_obstacle(obstacles, seg, coord, layer_idx, expansion_mm, via_block_mm)
+        _c = segment_blocked_cells_array(seg.start_x, seg.start_y,
+                                         seg.end_x, seg.end_y,
+                                         expansion_mm, coord.grid_step)
+        if len(_c):
+            _nb_cells.setdefault(layer_idx, []).append(_c)
+        _v = segment_blocked_cells_array(seg.start_x, seg.start_y,
+                                         seg.end_x, seg.end_y,
+                                         via_block_mm, coord.grid_step)
+        if len(_v):
+            _nb_vias.append(_v)
+    for _li, _arrs in sorted(_nb_cells.items()):
+        _call = np.concatenate(_arrs) if len(_arrs) > 1 else _arrs[0]
+        _rows = np.empty((len(_call), 3), dtype=np.int32)
+        _rows[:, :2] = _call
+        _rows[:, 2] = _li
+        obstacles.add_blocked_cells_batch(np.ascontiguousarray(_rows))
+    if _nb_vias:
+        _vall = np.concatenate(_nb_vias) if len(_nb_vias) > 1 else _nb_vias[0]
+        obstacles.add_blocked_vias_batch(np.ascontiguousarray(_vall.astype(np.int32)))
 
 
 def add_diff_pair_own_stubs_as_obstacles(obstacles: GridObstacleMap, pcb_data: PCBData,
@@ -2049,6 +2204,12 @@ def add_segments_list_as_obstacles(obstacles: GridObstacleMap, segments: list,
     # Add segments - use actual segment width and layer-specific routing track width.
     # Cross-class clearance (PR392): price each segment at ITS OWN net's KiCad
     # pairwise clearance; the REMOVE twin recomputes the same value from seg.net_id.
+    # FFI batching (2026-08-14): accumulate the memoized capsule arrays and
+    # stamp once per layer after the loop (byte-identical: same rows, same
+    # order, commuting inserts). The remove twin below was already batched.
+    _cells_by_layer: Dict[int, list] = {}
+    _via_arrs: list = []
+    _small_arrs: list = []
     for seg in segments:
         layer_idx = layer_map.get(seg.layer)
         if layer_idx is not None:
@@ -2063,15 +2224,32 @@ def add_segments_list_as_obstacles(obstacles: GridObstacleMap, segments: list,
                 getattr(seg, 'net_id', 0), seg_clearance)
             expansion_mm = reserve_width / 2 + seg_width / 2 + trk_clearance + extra_clearance
             via_block_mm = config.via_size / 2 + seg_width / 2 + seg_clearance
-            _add_segment_obstacle(obstacles, seg, coord, layer_idx, expansion_mm, via_block_mm)
+            _c = segment_blocked_cells_array(seg.start_x, seg.start_y,
+                                             seg.end_x, seg.end_y,
+                                             expansion_mm, coord.grid_step)
+            if len(_c):
+                _cells_by_layer.setdefault(layer_idx, []).append(_c)
+            _v = segment_blocked_cells_array(seg.start_x, seg.start_y,
+                                             seg.end_x, seg.end_y,
+                                             via_block_mm, coord.grid_step)
+            if len(_v):
+                _via_arrs.append(_v)
             # #568 small-map mirror (see _rung_small_armed): same via capsule
-            if _rung_small_armed():
-                _sm = segment_blocked_cells_array(
-                    seg.start_x, seg.start_y, seg.end_x, seg.end_y,
-                    via_block_mm, coord.grid_step)
-                if len(_sm):
-                    obstacles.add_blocked_vias_small_batch(
-                        np.asarray(_sm, dtype=np.int32))
+            if _rung_small_armed() and len(_v):
+                _small_arrs.append(_v)
+    for _li, _arrs in sorted(_cells_by_layer.items()):
+        _call = np.concatenate(_arrs) if len(_arrs) > 1 else _arrs[0]
+        _rows = np.empty((len(_call), 3), dtype=np.int32)
+        _rows[:, :2] = _call
+        _rows[:, 2] = _li
+        obstacles.add_blocked_cells_batch(np.ascontiguousarray(_rows))
+    if _via_arrs:
+        _vall = np.concatenate(_via_arrs) if len(_via_arrs) > 1 else _via_arrs[0]
+        obstacles.add_blocked_vias_batch(np.ascontiguousarray(_vall.astype(np.int32)))
+    if _small_arrs:
+        _sall = (np.concatenate(_small_arrs) if len(_small_arrs) > 1
+                 else _small_arrs[0])
+        obstacles.add_blocked_vias_small_batch(np.asarray(_sall, dtype=np.int32))
     _ledger_close(obstacles, _pre, "add_segments_list")
 
 
@@ -2116,19 +2294,25 @@ def remove_segments_list_from_obstacles(obstacles: GridObstacleMap, segments: li
         expansion_mm = reserve_width / 2 + seg_width / 2 + trk_clearance + extra_clearance
         via_block_mm = config.via_size / 2 + seg_width / 2 + seg_clearance
 
-        for cgx, cgy in segment_blocked_cells_array(
-                seg.start_x, seg.start_y, seg.end_x, seg.end_y, expansion_mm, coord.grid_step):
-            cells_to_remove.append((int(cgx), int(cgy), layer_idx))
-        for cgx, cgy in segment_blocked_cells_array(
-                seg.start_x, seg.start_y, seg.end_x, seg.end_y, via_block_mm, coord.grid_step):
-            vias_to_remove.append((int(cgx), int(cgy)))
+        # Sweep item 2 (#625 follow-up): the arrays already exist -- stack a
+        # layer column instead of per-row int() tuple appends (this runs on
+        # EVERY rip/restore; the batch rows are the identical multiset).
+        cell_arr = segment_blocked_cells_array(
+            seg.start_x, seg.start_y, seg.end_x, seg.end_y, expansion_mm, coord.grid_step)
+        if len(cell_arr):
+            cells_to_remove.append(np.column_stack(
+                [cell_arr.astype(np.int32),
+                 np.full(len(cell_arr), layer_idx, dtype=np.int32)]))
+        via_arr = segment_blocked_cells_array(
+            seg.start_x, seg.start_y, seg.end_x, seg.end_y, via_block_mm, coord.grid_step)
+        if len(via_arr):
+            vias_to_remove.append(via_arr.astype(np.int32))
 
     # Batch remove cells and vias
     if cells_to_remove:
-        cells_array = np.array(cells_to_remove, dtype=np.int32)
-        obstacles.remove_blocked_cells_batch(cells_array)
+        obstacles.remove_blocked_cells_batch(np.concatenate(cells_to_remove))
     if vias_to_remove:
-        vias_array = np.array(vias_to_remove, dtype=np.int32)
+        vias_array = np.concatenate(vias_to_remove)
         obstacles.remove_blocked_vias_batch(vias_array)
         if _rung_small_armed():  # #568: mirror of the add-side small stamp
             obstacles.remove_blocked_vias_small_batch(vias_array)
@@ -2183,40 +2367,89 @@ def remove_vias_list_from_obstacles(obstacles: GridObstacleMap, vias: list,
                                via.y - gy * coord.grid_step) / coord.grid_step
 
         # Track blocking - PER LAYER (mirror _add_via_obstacle's per-layer list).
+        # Sweep item 2 (#625 follow-up): disc enumeration via a mask over the
+        # integer offset grid. The threshold stays the scalar's `radius ** 2`
+        # (libm pow -- radius*radius rounds 1 ULP apart on rare values and
+        # would flip borderline cells); integer ex*ex+ey*ey against that
+        # scalar is an exact comparison, so the cell multiset is identical.
         for layer_idx in range(num_layers):
             radius = via_track_expansion_grid[layer_idx] + diagonal_margin + off_cells
             effective_track_block_sq = radius ** 2
             track_block_range = int(math.ceil(radius))
-            for ex in range(-track_block_range, track_block_range + 1):
-                for ey in range(-track_block_range, track_block_range + 1):
-                    if ex*ex + ey*ey <= effective_track_block_sq:
-                        cells_to_remove.append((gx + ex, gy + ey, layer_idx))
+            ax = np.arange(-track_block_range, track_block_range + 1, dtype=np.int32)
+            EX, EY = np.meshgrid(ax, ax, indexing='ij')
+            m = EX * EX + EY * EY <= effective_track_block_sq
+            if m.any():
+                cells_to_remove.append(np.column_stack(
+                    [EX[m] + gx, EY[m] + gy,
+                     np.full(int(m.sum()), layer_idx, dtype=np.int32)]))
 
         # Via blocking cells
         via_radius = via_via_expansion_grid + off_cells
         vr_range = int(math.ceil(via_radius))
         vr_sq = via_radius * via_radius
-        for ex in range(-vr_range, vr_range + 1):
-            for ey in range(-vr_range, vr_range + 1):
-                if ex*ex + ey*ey <= vr_sq:
-                    vias_to_remove.append((gx + ex, gy + ey))
+        ax = np.arange(-vr_range, vr_range + 1, dtype=np.int32)
+        EX, EY = np.meshgrid(ax, ax, indexing='ij')
+        m = EX * EX + EY * EY <= vr_sq
+        if m.any():
+            vias_to_remove.append(np.column_stack([EX[m] + gx, EY[m] + gy]))
 
         # #441: mirror the drill hole-to-hole disc add_vias_list_as_obstacles
         # stamped (same _via_h2h_cells), so rip-up removes exactly what it added.
         _h2h = _via_h2h_cells(via, config, coord)
-        if _h2h is not None:
-            vias_to_remove.extend((int(a), int(b)) for a, b in _h2h)
+        if _h2h is not None and len(_h2h):
+            vias_to_remove.append(np.asarray(_h2h, dtype=np.int64))
 
     # Batch remove cells and vias
     if cells_to_remove:
-        cells_array = np.array(cells_to_remove, dtype=np.int32)
+        cells_array = np.concatenate(cells_to_remove).astype(np.int32)
         obstacles.remove_blocked_cells_batch(cells_array)
     if vias_to_remove:
-        vias_array = np.array(vias_to_remove, dtype=np.int32)
+        vias_array = np.concatenate(vias_to_remove).astype(np.int32)
         obstacles.remove_blocked_vias_batch(vias_array)
         if _rung_small_armed():  # #568: mirror of the add-side small stamp
             obstacles.remove_blocked_vias_small_batch(vias_array)
     _ledger_close(obstacles, _pre, "remove_vias_list")
+
+
+def same_net_pad_via_keepout_cells(pcb_data: PCBData, net_id: int,
+                                   config: GridRouteConfig) -> "np.ndarray":
+    """#581: (N, 2) via-block cells over the net's own SMD pads when an active
+    (> 0) same_net_pad_clearance is on the config; empty otherwise.
+
+    Blocks VIA placement only (never tracks) at pad-edge + via/2 + clearance,
+    mirroring plane_obstacle_builder._add_pad_via_obstacle's geometry.
+    Through-hole pads are exempt (their barrel is the layer transition, and
+    the #581 concern is SMD reflow)."""
+    snpc = getattr(config, 'same_net_pad_clearance', -1.0)
+    if snpc is None or snpc <= 0:
+        return np.empty((0, 2), dtype=np.int32)
+    from routing_utils import pad_blocked_cells_array
+    coord = GridCoord(config.grid_step)
+    margin = config.via_size / 2 + snpc + config.grid_step / 2
+    chunks = []
+    for pad in pcb_data.pads_by_net.get(net_id, []):
+        if getattr(pad, 'drill', 0):
+            continue
+        gx, gy = coord.to_grid(pad.global_x, pad.global_y)
+        hw, hh = pad.size_x / 2, pad.size_y / 2
+        if pad.shape in ('circle', 'oval'):
+            cr = min(hw, hh)
+        elif pad.shape == 'roundrect':
+            cr = getattr(pad, 'roundrect_rratio', 0.25) * min(pad.size_x,
+                                                              pad.size_y)
+        else:
+            cr = 0
+        cells = pad_blocked_cells_array(
+            gx, gy, hw, hh, margin, config.grid_step, cr,
+            off_x=pad.global_x - gx * coord.grid_step,
+            off_y=pad.global_y - gy * coord.grid_step,
+            rotation_deg=getattr(pad, 'rect_rotation', 0.0) or 0.0)
+        if len(cells):
+            chunks.append(cells)
+    if not chunks:
+        return np.empty((0, 2), dtype=np.int32)
+    return np.concatenate(chunks)
 
 
 def add_same_net_via_clearance(obstacles: GridObstacleMap, pcb_data: PCBData,
@@ -2227,6 +2460,22 @@ def add_same_net_via_clearance(obstacles: GridObstacleMap, pcb_data: PCBData,
     enforcing DRC via-via clearance even within a single net.
     """
     coord = GridCoord(config.grid_step)
+
+    # #581: keep every new via off this net's own SMD pads when the board
+    # carries an active same-net pad via clearance. Callers of this function
+    # stamp CLONED per-route maps (Phase 3 taps, the non-incremental builder),
+    # so no balanced removal is needed. MIRROR into the small-rung map (#568):
+    # a rung-1 search consults ONLY blocked_vias_small for dynamic copper, so
+    # without the mirror it drops a small fab-rung via straight into the pad
+    # this keep-out exists to protect (neo6502: 0.45mm vias in R14/U6 pads).
+    _pad_cells = same_net_pad_via_keepout_cells(pcb_data, net_id, config)
+    if len(_pad_cells):
+        obstacles.add_blocked_vias_batch(_pad_cells)
+        try:
+            if _rung_small_armed():
+                obstacles.add_blocked_vias_small_batch(_pad_cells)
+        except (AttributeError, NameError):
+            pass
 
     # Via-via clearance: center-to-center distance must be >= via_size + clearance
     # So we block via placement within this radius of existing vias
@@ -2245,11 +2494,18 @@ def add_same_net_via_clearance(obstacles: GridObstacleMap, pcb_data: PCBData,
         radius = via_via_expansion_grid + off_cells
         rng = int(math.ceil(radius))
         radius_sq = radius * radius
-        # Only block via placement, not track routing (tracks can pass through same-net vias)
-        for ex in range(-rng, rng + 1):
-            for ey in range(-rng, rng + 1):
-                if ex*ex + ey*ey <= radius_sq:
-                    obstacles.add_blocked_via(gx + ex, gy + ey)
+        # Only block via placement, not track routing (tracks can pass through
+        # same-net vias). Sweep item 3 (#625): mask over the integer offset
+        # grid + one batch call instead of one FFI call per cell (this runs
+        # per net per prepare, re-run every rip round); integer ex*ex+ey*ey
+        # against the same scalar threshold blocks the identical cell set,
+        # and the batch increments refcounts exactly like the per-cell add.
+        ax = np.arange(-rng, rng + 1, dtype=np.int32)
+        EX, EY = np.meshgrid(ax, ax, indexing='ij')
+        m = EX * EX + EY * EY <= radius_sq
+        if m.any():
+            obstacles.add_blocked_vias_batch(
+                np.column_stack([EX[m] + gx, EY[m] + gy]))
 
 
 def add_same_net_pad_drill_via_clearance(obstacles: GridObstacleMap, pcb_data: PCBData,
@@ -2286,16 +2542,32 @@ def add_same_net_pad_drill_via_clearance(obstacles: GridObstacleMap, pcb_data: P
         half_len = math.hypot(p2x - p1x, p2y - p1y) / 2.0
         expand = coord.to_grid_dist_safe(required_dist + half_len) + 1  # ceil + 1-cell margin
 
-        for ex in range(-expand, expand + 1):
-            cx = (gx + ex) * step
-            for ey in range(-expand, expand + 1):
-                cy = (gy + ey) * step
-                if point_to_segment_distance(cx, cy, p1x, p1y, p2x, p2y) < required_dist:
-                    # Skip the pad center - the router can use the existing
-                    # through-hole for layer transitions without a new via
-                    if ex == 0 and ey == 0:
-                        continue
-                    obstacles.add_blocked_via(gx + ex, gy + ey)
+        # Sweep item 3 (#625): broadcast the capsule distance over the offset
+        # grid and batch the adds (was one scalar distance + one FFI call per
+        # cell, per net per prepare). The multiply-squared kernel NOMINATES:
+        # clearly-inside cells pass, cells within a few ULP of the strict
+        # `< required_dist` boundary are re-judged with the scalar (its **2 =
+        # libm pow rounds 1 ULP apart on rare values) -- identical cell set.
+        ax = np.arange(-expand, expand + 1, dtype=np.int64)
+        EX, EY = np.meshgrid(ax, ax, indexing='ij')
+        exf, eyf = EX.ravel(), EY.ravel()
+        cxs = (gx + exf) * step
+        cys = (gy + eyf) * step
+        dx_, dy_ = p2x - p1x, p2y - p1y
+        len_sq = dx_ * dx_ + dy_ * dy_
+        d2 = _pt_seg_d2_arr(cxs, cys, p1x, p1y, dx_, dy_, len_sq)
+        req2 = required_dist * required_dist
+        lo = req2 * (1 - 1e-12)
+        hi = req2 * (1 + 1e-12)
+        take = d2 < lo
+        border = np.nonzero((d2 >= lo) & (d2 <= hi))[0]
+        for i in border:
+            take[i] = point_to_segment_distance(
+                float(cxs[i]), float(cys[i]), p1x, p1y, p2x, p2y) < required_dist
+        take &= ~((exf == 0) & (eyf == 0))  # keep the pad centre landable
+        if take.any():
+            obstacles.add_blocked_vias_batch(np.column_stack(
+                [exf[take] + gx, eyf[take] + gy]).astype(np.int32))
 
 
 def get_same_net_through_hole_positions(pcb_data: PCBData, net_id: int,
@@ -2511,6 +2783,120 @@ class _RecordingObstacles:
         return getattr(self._real, name)
 
 
+# #625: cache of the expensive per-(own, partner) pad sampling below --
+# the partner-minus-own bad region reduced to its boundary points. It is a
+# pure function of the two pads' geometry (fine is a constant), yet it was
+# recomputed inside EVERY build_base_obstacle_map call: ~48 s per pass on
+# core64_logic's 14 custom-pad solder jumpers (2.16M point_to_pad_distance
+# calls -> 134M segment distances), multiplied by every rescue-rung window,
+# plane-finalize leg and reconcile sub-run rebuild -- hours of CPU on
+# 1.5 mm jumpers. Keyed by pad identity + position + size so a GUI process
+# that reloads an edited board never reuses stale samples. Value:
+# (bad_x, bad_y, bad_keys) post-boundary-reduction, or None when the
+# partner sampling found no in-pad points.
+_TIE_PAIR_SAMPLE_CACHE: Dict[tuple, object] = {}
+
+
+def _tie_pad_key(pad):
+    return (pad.component_ref, pad.pad_number, tuple(pad.layers or ()),
+            round(pad.global_x, 6), round(pad.global_y, 6),
+            round(pad.size_x, 6), round(pad.size_y, 6))
+
+
+def _pt_seg_d2_arr(px, py, x1, y1, dx, dy, len_sq):
+    """Squared point-to-segment distance over point arrays vs ONE segment --
+    the point_to_segment_distance formula with its exact proj association
+    (multiply-squared: nominate with it, judge borderline cells with the
+    scalar, whose **2 is libm pow)."""
+    if len_sq < 1e-10:
+        ddx = px - x1
+        ddy = py - y1
+        return ddx * ddx + ddy * ddy
+    t = np.clip(((px - x1) * dx + (py - y1) * dy) / len_sq, 0.0, 1.0)
+    ddx = px - (x1 + t * dx)
+    ddy = py - (y1 + t * dy)
+    return ddx * ddx + ddy * ddy
+
+
+def _pad_dist_le_batch(xs, ys, pad, tol):
+    """Vectorized `point_to_pad_distance(x, y, pad) <= tol` over coordinate
+    arrays -- the same geometry as check_drc's scalar (custom polygons,
+    rounded/rect/circle/oval, rect_rotation frames), without the per-point
+    Python. #625: the corridor sampler below ran the scalar ~2M times per
+    cold pass (134M segment distances) -- ~44 s that this brings to ~1 s."""
+    xs = np.asarray(xs, dtype=np.float64)
+    ys = np.asarray(ys, dtype=np.float64)
+    polys = getattr(pad, 'polygons', None)
+    if polys:
+        out = np.zeros(xs.shape, dtype=bool)
+        tol_sq = tol * tol
+        for poly in polys:
+            P = np.asarray(poly, dtype=np.float64)
+            if len(P) < 2:
+                continue
+            x1, y1 = P[:, 0], P[:, 1]
+            x2, y2 = np.roll(x1, -1), np.roll(y1, -1)
+            ex, ey = x2 - x1, y2 - y1
+            len_sq = ex * ex + ey * ey
+            # Chunk the (points x edges) broadcasts to bound temporaries.
+            _B = 8192
+            for s in range(0, xs.size, _B):
+                px = xs[s:s + _B, None]
+                py = ys[s:s + _B, None]
+                # Even-odd ray cast, the scalar _point_in_poly comparisons
+                # (its (i, j=i-1) vertex pairs are this same edge set).
+                cond = (y1[None, :] > py) != (y2[None, :] > py)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    xint = ex[None, :] * (py - y1[None, :]) / (y2 - y1)[None, :] + x1[None, :]
+                    crossing = cond & (px < xint)
+                inside = (np.count_nonzero(crossing, axis=1) & 1).astype(bool)
+                # Min point-segment distance over edges, the scalar
+                # point_to_segment_distance formula (degenerate edge -> p1).
+                apx = px - x1[None, :]
+                apy = py - y1[None, :]
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    t = np.clip((apx * ex[None, :] + apy * ey[None, :]) / len_sq[None, :],
+                                0.0, 1.0)
+                t = np.where(len_sq[None, :] < 1e-10, 0.0, t)
+                ddx = apx - t * ex[None, :]
+                ddy = apy - t * ey[None, :]
+                d2 = (ddx * ddx + ddy * ddy).min(axis=1)
+                out[s:s + _B] |= inside | (d2 <= tol_sq)
+        return out
+    # Rounded/rect/circle/oval path, the scalar point_to_pad_distance tail.
+    if pad.shape in ('circle', 'oval'):
+        corner_radius = min(pad.size_x, pad.size_y) / 2
+    elif pad.shape == 'roundrect':
+        corner_radius = pad.roundrect_rratio * min(pad.size_x, pad.size_y)
+    else:
+        corner_radius = 0.0
+    x, y = xs, ys
+    if pad.rect_rotation:
+        rad = math.radians(pad.rect_rotation)
+        cos_r, sin_r = math.cos(rad), math.sin(rad)
+        dx0 = xs - pad.global_x
+        dy0 = ys - pad.global_y
+        x = pad.global_x + dx0 * cos_r + dy0 * sin_r
+        y = pad.global_y - dx0 * sin_r + dy0 * cos_r
+    rel_x = np.abs(x - pad.global_x)
+    rel_y = np.abs(y - pad.global_y)
+    half_x, half_y = pad.size_x / 2, pad.size_y / 2
+    dxe = np.maximum(0.0, rel_x - half_x)
+    dye = np.maximum(0.0, rel_y - half_y)
+    dist = np.sqrt(dxe * dxe + dye * dye)
+    if corner_radius > 0:
+        inner_x = half_x - corner_radius
+        inner_y = half_y - corner_radius
+        corner = (rel_x > inner_x) & (rel_y > inner_y)
+        cdx = rel_x - inner_x
+        cdy = rel_y - inner_y
+        dist = np.where(
+            corner,
+            np.maximum(0.0, np.sqrt(cdx * cdx + cdy * cdy) - corner_radius),
+            dist)
+    return dist <= tol
+
+
 def _compute_net_tie_corridors(pcb_data, config, coord):
     """Per tied net: the (gx, gy) cells where KiCad's net-tie exemption lets
     that net's copper pass its PARTNER copper, plus the partner pad/net ids
@@ -2557,45 +2943,62 @@ def _compute_net_tie_corridors(pcb_data, config, coord):
                           if hasattr(config, 'get_net_track_width')
                           else config.track_width / 2)
                 entry = corridors.setdefault(
-                    own.net_id, {'cells': set(), 'partner_pad_ids': set(),
+                    own.net_id, {'cells': set(), 'safe_cells': set(),
+                                 'partner_pad_ids': set(),
                                  'partner_net_ids': set()})
                 for partner in partners:
                     pex = partner.size_x / 2 + partner.size_y / 2
                     x0, x1 = partner.global_x - pex, partner.global_x + pex
                     y0, y1 = partner.global_y - pex, partner.global_y + pex
-                    sx = np.arange(x0, x1 + fine, fine)
-                    sy = np.arange(y0, y1 + fine, fine)
-                    SX, SY = np.meshgrid(sx, sy)
-                    SXf, SYf = SX.ravel(), SY.ravel()
-                    in_p = np.fromiter(
-                        (point_to_pad_distance(float(a), float(b), partner) <= 1e-9
-                         for a, b in zip(SXf, SYf)), dtype=bool, count=SXf.size)
-                    if not in_p.any():
-                        continue
-                    px, py = SXf[in_p], SYf[in_p]
-                    out_o = np.fromiter(
-                        (point_to_pad_distance(float(a), float(b), own) > 1e-9
-                         for a, b in zip(px, py)), dtype=bool, count=px.size)
-                    bad_x, bad_y = px[out_o], py[out_o]
-                    # Memory: the dense cells x bad-points distance matrix hit
-                    # GB-scale temporaries (a 1.5mm pad sampled at 0.01mm is
-                    # ~20k points; 7GB footprint on hackrf's NT jumpers).
-                    # Split the test: (a) a cell whose disc CENTER falls in
-                    # the bad region fails by set membership (no distances
-                    # needed); (b) for the rest, the nearest bad point is on
-                    # the region BOUNDARY, so the distance matrix only needs
-                    # boundary points -- identical results, ~100x smaller.
-                    _bad_keys = None
-                    if bad_x.size > 256:
-                        _kx = np.round(bad_x / fine).astype(np.int64)
-                        _ky = np.round(bad_y / fine).astype(np.int64)
-                        _bad_keys = set(zip(_kx.tolist(), _ky.tolist()))
-                        _boundary = np.fromiter(
-                            (not ((kx + 1, ky) in _bad_keys and (kx - 1, ky) in _bad_keys
-                                  and (kx, ky + 1) in _bad_keys and (kx, ky - 1) in _bad_keys)
-                             for kx, ky in zip(_kx.tolist(), _ky.tolist())),
-                            dtype=bool, count=bad_x.size)
-                        bad_x, bad_y = bad_x[_boundary], bad_y[_boundary]
+                    # #625: the (bad_x, bad_y, bad_keys) sampling below is a
+                    # pure function of the two pads -- serve repeat builds
+                    # (rescue windows, finalize legs, reconcile sub-runs)
+                    # from the cache instead of re-sampling ~63k points
+                    # through custom-pad polygon distances every time.
+                    _ck = (_tie_pad_key(own), _tie_pad_key(partner))
+                    if _ck in _TIE_PAIR_SAMPLE_CACHE:
+                        _cv = _TIE_PAIR_SAMPLE_CACHE[_ck]
+                        if _cv is None:
+                            continue
+                        bad_x, bad_y, _bad_packed = _cv
+                    else:
+                        sx = np.arange(x0, x1 + fine, fine)
+                        sy = np.arange(y0, y1 + fine, fine)
+                        SX, SY = np.meshgrid(sx, sy)
+                        SXf, SYf = SX.ravel(), SY.ravel()
+                        in_p = _pad_dist_le_batch(SXf, SYf, partner, 1e-9)
+                        if not in_p.any():
+                            _TIE_PAIR_SAMPLE_CACHE[_ck] = None
+                            continue
+                        px, py = SXf[in_p], SYf[in_p]
+                        out_o = ~_pad_dist_le_batch(px, py, own, 1e-9)
+                        bad_x, bad_y = px[out_o], py[out_o]
+                        # Memory: the dense cells x bad-points distance matrix hit
+                        # GB-scale temporaries (a 1.5mm pad sampled at 0.01mm is
+                        # ~20k points; 7GB footprint on hackrf's NT jumpers).
+                        # Split the test: (a) a cell whose disc CENTER falls in
+                        # the bad region fails by set membership (no distances
+                        # needed); (b) for the rest, the nearest bad point is on
+                        # the region BOUNDARY, so the distance matrix only needs
+                        # boundary points -- identical results, ~100x smaller.
+                        _bad_packed = None
+                        if bad_x.size > 256:
+                            _kx = np.round(bad_x / fine).astype(np.int64)
+                            _ky = np.round(bad_y / fine).astype(np.int64)
+                            # Interior = all 4 lattice neighbors present; test
+                            # via packed int64 keys (np.isin) instead of 4 set
+                            # probes per point. The packed key array replaces
+                            # the old tuple set (item 13): its only other
+                            # consumer, the center-in-region kill below, is
+                            # an np.isin too.
+                            _pk = (_kx << 32) + _ky
+                            _bad_packed = np.sort(_pk)
+                            _boundary = ~(np.isin(_pk + (1 << 32), _bad_packed)
+                                          & np.isin(_pk - (1 << 32), _bad_packed)
+                                          & np.isin(_pk + 1, _bad_packed)
+                                          & np.isin(_pk - 1, _bad_packed))
+                            bad_x, bad_y = bad_x[_boundary], bad_y[_boundary]
+                        _TIE_PAIR_SAMPLE_CACHE[_ck] = (bad_x, bad_y, _bad_packed)
                     # Candidate cells: everything a stamp of this partner's
                     # copper could have blocked (bbox + keep-out reach + 1).
                     reach = half_w + config.clearance + coord.grid_step
@@ -2617,15 +3020,12 @@ def _compute_net_tie_corridors(pcb_data, config, coord):
                             d2 = ((cxm[_s:_s + _B, None] - bad_x[None, :]) ** 2 +
                                   (cym[_s:_s + _B, None] - bad_y[None, :]) ** 2).min(axis=1)
                             ok[_s:_s + _B] = d2 >= thr
-                        if _bad_keys is not None:
+                        if _bad_packed is not None:
                             # (a) center-in-region kill (boundary points alone
                             # under-measure distances for interior cells).
-                            _ck = np.round(cxm / fine).astype(np.int64)
-                            _cyk = np.round(cym / fine).astype(np.int64)
-                            _inside = np.fromiter(
-                                ((kx, ky) in _bad_keys
-                                 for kx, ky in zip(_ck.tolist(), _cyk.tolist())),
-                                dtype=bool, count=cxm.size)
+                            _ckx = np.round(cxm / fine).astype(np.int64)
+                            _cky = np.round(cym / fine).astype(np.int64)
+                            _inside = np.isin((_ckx << 32) + _cky, _bad_packed)
                             ok &= ~_inside
                     else:
                         ok = np.ones(cxm.shape, dtype=bool)
@@ -2633,6 +3033,16 @@ def _compute_net_tie_corridors(pcb_data, config, coord):
                         continue
                     entry['cells'].update(
                         zip(GX.ravel()[ok].tolist(), GY.ravel()[ok].tolist()))
+                    # #667: cells whose CENTER lies on the OWN pad are the
+                    # KiCad-waived approach (contact on the own pad); the
+                    # rest of the corridor is the segment-level hazard band
+                    # the #667 pricing steers away from. Uniform pricing was
+                    # measured INERT (no gradient = no steering).
+                    _on_own = _pad_dist_le_batch(cxm[ok], cym[ok], own, 1e-9)
+                    if _on_own.any():
+                        entry['safe_cells'].update(
+                            zip(GX.ravel()[ok][_on_own].tolist(),
+                                GY.ravel()[ok][_on_own].tolist()))
                     entry['partner_pad_ids'].add(id(partner))
                     entry['partner_net_ids'].add(partner.net_id)
     return {n: e for n, e in corridors.items() if e['cells']}
@@ -2648,6 +3058,9 @@ def _assemble_net_tie_lifts(corridors, recorded, layer_map):
         return lifts
     for net_id, entry in corridors.items():
         cells = entry['cells']
+        # Item 13: packed-int membership instead of a tuple-set probe per row.
+        packed_cells = np.sort(np.fromiter(
+            ((gx << 32) + gy for gx, gy in cells), dtype=np.int64, count=len(cells)))
         for kind, key, arr in recorded:
             if kind == 'pad' and key not in entry['partner_pad_ids']:
                 continue
@@ -2655,9 +3068,8 @@ def _assemble_net_tie_lifts(corridors, recorded, layer_map):
                 continue
             if not len(arr):
                 continue
-            mask = np.fromiter(
-                ((int(r[0]), int(r[1])) in cells for r in arr),
-                dtype=bool, count=len(arr))
+            a = np.asarray(arr, dtype=np.int64)
+            mask = np.isin((a[:, 0] << 32) + a[:, 1], packed_cells)
             if mask.any():
                 lifts.setdefault(net_id, []).append(arr[mask])
     return lifts

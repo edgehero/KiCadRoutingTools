@@ -85,7 +85,7 @@ When specifying multiple nets, each net is paired with its corresponding plane l
 |--------|---------|-------------|
 | `--grid-step` | 0.1 | Grid resolution in mm |
 | `--hole-to-hole-clearance` | 0.2 | Minimum clearance between drill holes in mm (fab floor) |
-| `--same-net-pad-clearance` | -1.0 | Edge-to-edge clearance (mm) between stitching vias and same-net pads. `-1` allows via-in-pad placement (the default for the CLI). Any value `>= 0` forces vias to be placed outside same-net pads with that clearance |
+| `--same-net-pad-clearance` | project record, else -1 | Edge-to-edge clearance (mm) between placed vias and same-net pads. `> 0` keeps **all** of this step's vias (stitching, taps, region joins) off same-net pads at that clearance, and records the value in the sibling `.kicad_pro` (`kicad_routing_tools.same_net_pad_clearance`) so later chain steps — `route.py`, `route_diff.py`, `bga_fanout`/`qfn_fanout`, `repair_planes` — inherit it (#581). `0` keeps its legacy stitching-only meaning; `-1` explicitly allows via-in-pad. Unset = use the project's recorded value if one exists |
 | `--layers`, `-l` | F.Cu + plane-layers + B.Cu | All copper layers for routing and via span (auto-computed) |
 | `--layer-costs` | 1.0 per layer (4+) or F.Cu=1.0/B.Cu=3.0 (2-layer) | Per-layer routing cost multipliers (1.0-1000) |
 
@@ -104,6 +104,8 @@ These options control MST-based routing between vias when multiple nets share th
 The `--plane-track-via-clearance` parameter ensures MST routes don't pass through narrow gaps between other nets' vias. A larger value ensures more room for polygon fill but may cause routing failures on dense boards.
 
 A net earns a Voronoi zone on a shared layer if it has **any** connection point there — a stitching via *or* a pad. A net whose pads are all through-hole or already on the layer places zero stitching vias, but its zone is still poured (seeded from those pads' positions); the partition is not gated on placing ≥1 via (issue #114).
+
+A net with **no copper at all** on the layer still earns one. Because pours run before routing (#562), a virgin *inner* layer carries neither vias nor pads — every pad is SMD on an outer layer — so a requested inner split plane used to produce **zero zones** for *both* nets, with only a buried `no vias or pads on layer, skipping zone` warning to show for it (issue #598). Such a net is now seeded from its pads **projected onto the layer** (their x/y, whatever layer the copper sits on, off-board pads excluded): those positions exist regardless of routing state, they are where the route step's pour-launch vias come down, and they partition the layer the way the components themselves are spread over the board. These are partition seeds only — they never enter the via list, so no MST edge or plane route is invented for them, and a net that has seeds of its own is untouched.
 
 ### Re-routing Options
 
@@ -317,7 +319,9 @@ For each via those consumers place, the algorithm:
 
 By default the CLI keeps the legacy "via-in-pad" behavior — `--same-net-pad-clearance -1` means same-net pads are not added as via-placement obstacles, so a stitching via lands on the pad center whenever possible (no trace needed). Set `--same-net-pad-clearance` to a non-negative value to force vias outside same-net pads with that edge-to-edge clearance. For example, `--same-net-pad-clearance 0.25` keeps the same edge-to-edge gap as the global `--clearance`.
 
-In the GUI Planes tab, the **Same-net Pad Clearance** spin control defaults to the main `Clearance` value (so the GUI default is to avoid via-in-pad). Tick **Allow via-in-pad (override clearance)** to restore the legacy behavior — this disables the spin control and passes `-1` to the CLI; unticking re-enables the spin control and resumes using its value.
+**Board-wide semantics (#581).** A value `> 0` is a *board-wide assembly constraint*, not just a stitching option: it is recorded in the sibling `.kicad_pro` and every later chain step keeps **all** of its vias — routing escape vias, the #189 via-in-pad rescue (disabled), layer-swap pad vias (declined), plane tap/join/reconnect vias, and the sub-grid via nudge — at that clearance from same-net **SMD** pads. BGA fanout runs its under-pad escapes in dog-bone mode and QFN fanout refuses via-in-pad. The same flag is accepted by `route.py`, `route_diff.py`, `repair_planes.py`, `bga_fanout.py` and `qfn_fanout.py`; unset means "use the project's recorded value". `0` and `-1` reproduce the pre-#581 behavior exactly.
+
+In the GUI, the **Allow via-in-pad** checkbox and **Same-net Pad Clearance** spin control live at the top of the **Route tab's Options box** (moved from the Planes tab) and apply to *every* step run from the dialog. The checkbox defaults to ticked (via-in-pad allowed, CLI parity); unticking enables the spin control. When the board's project already records a clearance (a CLI chain step set it), the dialog opens with the checkbox unticked and the recorded value loaded.
 
 **Hole-to-hole is separate from via-in-pad.** `--same-net-pad-clearance` governs only the *copper* clearance to same-net pads. The *drill-to-drill* (hole-to-hole) minimum is a physical fab constraint and is always enforced against every drilled hole regardless of net — so even with via-in-pad enabled (`-1`), stitching vias still keep `--hole-to-hole-clearance` away from same-net **through-hole** pad drills (and from other vias). This is why via-in-pad applies to same-net **SMD** pads (no drill), but a stitching via will never be placed within the hole-to-hole minimum of a same-net through-hole pad (issue #125).
 
@@ -345,7 +349,12 @@ step's in-run plane finalize calls -- with ripping OFF by default.
 
 ### Multi-Net Layer Zone Generation
 
-When multiple nets share the same plane layer (e.g., `--nets "VA19|VA11" --plane-layers In5.Cu`), the tool uses MST-based routing to ensure connected Voronoi zones:
+When multiple nets share the same plane layer (e.g., `--nets "VA19|VA11" --plane-layers In5.Cu`), the layer is composed as a **grammar pour** (#662, the default): the dominant net — largest board-wide reach × consumer pad count, scored on the net's full pad set — owns the layer as a **background sheet**, and every other net becomes **compact hull islands** (single-linkage 5 mm clusters, convex hull + 2 mm inflation). The nested islands outrank the sheet via zone fill priorities, so KiCad's fill performs the subtraction — no polygon booleans. Two connectivity invariants are enforced at composition time:
+
+- each island is one connected region containing all of its cluster's pads (by construction — convex hulls cover their cluster);
+- the background sheet must remain **one connected region after every carve**, checked on a coarse raster: an island that would sever the sheet (leaving a detached piece holding dominant-net pads/seeds, or ≥25% of the sheet) first shrinks its inflation, then **demotes to tracks** (printed; the route step carries every plane net in its `--nets`, so a demoted cluster is still served by copper — just not by a zone). A detached *source-less* sliver is not a severing — fill island removal culls it.
+
+Rationale (measured on orangecrab vs its human original): the previous pad-Voronoi partition scored 0.3–2.6 mm mean cell widths and split the dominant rail into 7 crumbs; the human's grammar is one deep sheet (15.8 mm mean width) plus compact islands. `KICAD_GRAMMAR_POUR=0` reverts to the Voronoi partition, which also remains the fallback when the grammar is degenerate (a single seeded net, or no identifiable dominant net). The Voronoi path uses MST-based routing to ensure connected zones:
 
 1. **Compute MST** - For each net, computes a Minimum Spanning Tree between all its vias
 2. **Route MST edges** - Routes each MST edge on the plane layer using A* pathfinding, avoiding other nets' vias and previously routed paths
@@ -677,6 +686,24 @@ Uses flood fill on a coarse grid (`--analysis-grid-step`) to identify disconnect
 3. Find all anchor points (vias + through-hole pads) for the target net
 4. Flood fill from each anchor to identify connected regions
 5. Group anchors by their connected region
+
+Pad-less **orphan islands** found by the fill model are classified by what
+KiCad's filler would do on refill (#609/#611): an island the filler ERASES
+(truly bare, `island_removal_mode` 0) is never strapped — that would ship
+copper that is never poured — but it is reported as a `Zone SPLIT` with its
+area, because a split reference plane is a return-path defect even when the
+copper disappears. An island the filler KEEPS (it carries a same-net
+track/via) is a real KiCad `Missing connection` and is **joined at any size**
+(≥1 mm²; the 25 mm² area bar only guards clutter joins for erased copper).
+On a multi-layer plane, every poured layer is scanned (#611): a kept island
+cut off on a non-primary layer is reported by the first pass, then joined by
+a **follow-up pass with that layer as the primary analysis layer**. An
+island whose same-net via reaches anchored fill on another poured layer is
+recognized as connected through the stack and left alone. This holds on both
+discovery paths (#612): the raster fallback (used when the fill models can't
+build) runs its own per-layer sweep, and the primary analysis layer is
+auto-swapped to a layer whose fill model built rather than silently dropping
+the whole net to the raster path.
 
 #### 2. MST-Based Region Selection
 

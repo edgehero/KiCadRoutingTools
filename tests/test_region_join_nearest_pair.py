@@ -342,9 +342,12 @@ def check_colocated_islands_are_one_region(verbose=False):
 
     def regions(pcb, anchors):
         models = get_fill_models(pcb, 1)
+        # _regions_from_fill_models returns 5 values on this tree (main's
+        # #611/#612 added `dropped` and `kept_report`); this check only needs
+        # the first three.
         return prc._regions_from_fill_models(
             1, pcb, GridCoord(0.5), 'F.Cu', {'F.Cu'}, models, anchors,
-            (0.0, 0.0, 20.0, 20.0), 0.5)
+            (0.0, 0.0, 20.0, 20.0), 0.5)[:3]
 
     # The SMALL zone is listed first, so `_comp_key_at` (first model with fill
     # wins) credits an anchor inside it to the patch island and an anchor

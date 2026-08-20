@@ -22,10 +22,16 @@ scripting segfaults when board work happens inside functions/loops.
 
 Availability: needs KiCad's bundled python (macOS/Windows) or a system
 python with pcbnew (Linux distro installs). All entry points degrade to
-None when unavailable; callers fall back to the raster model.
+None when unavailable; callers fall back to the raster model. That
+degradation is SILENT by design, so a discovery bug reads as a modelling
+quirk rather than a missing capability -- #647 shipped with the Windows
+interpreter unfindable, which cost every Windows user the exact fill in
+every consumer. Set `KICAD_PYTHON` to override the search, and print the
+reason (not just the symptom) when falling back.
 """
 from __future__ import annotations
 
+import glob
 import os
 import re
 import shutil
@@ -41,20 +47,203 @@ import sys
 import pcbnew
 src = sys.argv[1]
 dst = sys.argv[2]
+if len(sys.argv) > 3:
+    sys.path.insert(0, sys.argv[3])   # py_router, for kicad_exact_fill
 board = pcbnew.LoadBoard(src)
+if board is None:
+    # LoadBoard returns None (no exception) on a file it rejects;
+    # ZONE_FILLER(None) then SEGFAULTS in C++ -- a macOS crash-report popup
+    # per occurrence during test runs. Exit cleanly; the caller already
+    # degrades to the raster model on any non-REFILL_OK outcome.
+    print("REFILL_FAIL LoadBoard returned None")
+    sys.exit(3)
+# LoadBoard's net propagation REASSIGNS the netcode of a via/track that
+# touches a STALE fill (no knockout around it yet) to the zone's net, so
+# filling as-loaded keeps NO knockout around it -- phantom pour joins for
+# exactly the copper the fill was meant to pull back from. Restore the
+# FILE's stored netcodes before filling (mez_rx: 24 fanout vias per load).
+try:
+    from kicad_exact_fill import repin_netcodes_from_file
+    n = repin_netcodes_from_file(board, src)
+    if n:
+        print("REPIN", n)
+except Exception as e:
+    print("(net repin skipped:", e, ")")
 filler = pcbnew.ZONE_FILLER(board)
 zones = board.Zones()
 filler.Fill(zones)
-pcbnew.SaveBoard(dst, board)
+# aSkipSettings: dst is parsed for island polygons only; the settings save
+# aborts this subprocess (SIGABRT, degrading the fill to the raster model)
+# when the staged project predates KiCad 10.
+pcbnew.SaveBoard(dst, board, aSkipSettings=True)
 print("REFILL_OK", len(list(zones)))
 """
 
-_KICAD_PYTHONS = [
-    "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/"
-    "Versions/Current/bin/python3",
-    "/usr/bin/python3",
-    os.path.expandvars(r"C:\Program Files\KiCad\bin\python.exe"),
-]
+
+def _file_nets_by_uuid(board_path: str) -> Dict[str, object]:
+    """{uuid: stored net (str name or int code)} for every (segment ...)/
+    (via ...) in the file.
+
+    The FILE is the net-assignment truth: pcbnew.LoadBoard runs net
+    propagation, which silently reassigns items touching stale zone fills
+    (see repin_netcodes_from_file). This tool's writer stores item nets BY
+    NAME ((net "B19"), no numeric net table at all); stock KiCad stores
+    numeric codes. Light balanced-paren scan, no parser dependency."""
+    with open(board_path, encoding='utf-8') as f:
+        text = f.read()
+    out: Dict[str, object] = {}
+    for m in re.finditer(r'\((?:segment|via)\b', text):
+        depth_, i = 0, m.start()
+        while i < len(text):
+            c = text[i]
+            if c == '(':
+                depth_ += 1
+            elif c == ')':
+                depth_ -= 1
+                if depth_ == 0:
+                    break
+            i += 1
+        block = text[m.start():i + 1]
+        um = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\)', block)
+        if not um:
+            continue
+        nm = re.search(r'\(net\s+(\d+)\)', block)
+        if nm:
+            out[um.group(1).lower()] = int(nm.group(1))
+            continue
+        nn = re.search(r'\(net\s+"((?:[^"\\]|\\.)*)"\)', block)
+        if nn:
+            out[um.group(1).lower()] = nn.group(1).replace('\\"', '"')
+    return out
+
+
+def repin_netcodes_from_file(board, board_path: str) -> int:
+    """Restore every track/via netcode on a LOADED pcbnew board to what the
+    file actually stores. Returns the number of items re-pinned.
+
+    pcbnew.LoadBoard (and any bare BuildConnectivity) runs net propagation:
+    an item touching a STALE zone fill -- one poured before the item existed,
+    so it has no knockout -- gets the ZONE's netcode instead of its own
+    (measured on mez_rx: 24 of 125 fanout vias flipped to V3P3/V1P8/GND at
+    load). Matching is by item UUID, so position rounding cannot mispair;
+    net names resolve through the board's own net table."""
+    want = _file_nets_by_uuid(board_path)
+    if not want:
+        return 0
+    fixed = 0
+    for t in board.GetTracks():
+        u = getattr(t, 'm_Uuid', None)
+        if u is None:
+            continue
+        spec = want.get(str(u.AsString()).lower())
+        if spec is None:
+            continue
+        if isinstance(spec, int):
+            nid = spec
+        else:
+            net = board.FindNet(spec)
+            if net is None:
+                continue
+            nid = net.GetNetCode()
+        if t.GetNetCode() != nid:
+            t.SetNetCode(nid)
+            fixed += 1
+    return fixed
+
+
+def _win_version_key(path: str):
+    """Sort key for a versioned Windows KiCad dir, NEWEST first.
+
+    `C:\\Program Files\\KiCad\\<ver>\\bin\\python.exe` -> the numeric parts of
+    <ver>. Plain string sorting orders "9.0" above "10.0", which would hand a
+    KiCad 10 user their old KiCad 9 interpreter.
+
+    Matches BOTH separators instead of using os.path: off-Windows,
+    os.path.dirname does not split a backslash path, so an os.path-based key
+    collapses to a constant -- correct on the only platform that matters, and
+    untestable everywhere else.
+    """
+    m = re.search(r'[\\/]KiCad[\\/]([0-9][0-9.]*)[\\/]', path)
+    if not m:
+        return (0,)
+    return tuple(int(p) for p in re.findall(r'\d+', m.group(1))) or (0,)
+
+
+def _this_interpreter() -> str:
+    """Path of a REAL python interpreter for THIS process ('' if none found).
+
+    Inside KiCad's embedded python -- i.e. the GUI plugin -- `sys.executable`
+    is the HOST C++ BINARY (`.../MacOS/pcbnew`, `pcbnew.exe`), not python3.
+    Handing that to subprocess.run([exe, script, board, ...]) does not run a
+    script: pcbnew treats every argument as a FILE TO OPEN, so the exact-fill
+    refill re-launched the APPLICATION -- once per call -- and KiCad answered
+    "Pcbnew:OpenProjectFiles() takes a single filename" (the output path in
+    that argv does not exist yet, which is the empty filename in the message).
+
+    So reconstruct the interpreter from sys.prefix, the same way the plugin's
+    deps_check._find_python_executable does for `-m pip`. Returning '' is
+    correct when nothing is found: the caller then falls through to the
+    platform paths below rather than spawning the host binary.
+    """
+    exe = sys.executable or ""
+    if exe and os.path.basename(exe).lower().startswith('python'):
+        return exe                      # already a python (CLI, KiCad python3)
+    prefix = sys.prefix or getattr(sys, 'base_prefix', '') or ""
+    if not prefix:
+        return ""
+    v = sys.version_info
+    if sys.platform == 'win32':
+        cands = [os.path.join(prefix, 'python.exe'),
+                 os.path.join(prefix, 'Scripts', 'python.exe')]
+    else:
+        cands = [os.path.join(prefix, 'bin', n) for n in
+                 (f'python{v.major}.{v.minor}', f'python{v.major}',
+                  'python3', 'python')]
+    for c in cands:
+        if os.path.isfile(c):
+            return c
+    return ""
+
+
+def kicad_python_candidates() -> List[str]:
+    """Plausible pcbnew-capable interpreters, best first (unverified).
+
+    Shared with the other re-exec front-ends (`headless_plan`,
+    `py_tools/validate_pcb_data`) so a platform's install layout is described
+    ONCE. Each caller still verifies -- they want different modules (pcbnew
+    here, pcbnew + wx for the GUI launchers).
+    """
+    cands = [os.environ.get('KICAD_PYTHON') or '',
+             # THIS interpreter, when it is already KiCad's python (the GUI
+             # plugin) or a Linux system python with pcbnew installed.
+             # _this_interpreter(), NOT sys.executable: in the GUI the latter
+             # is the pcbnew HOST BINARY and spawning it opens the app instead
+             # of running a script (see _this_interpreter's docstring).
+             _this_interpreter(),
+             "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+             "Python.framework/Versions/Current/bin/python3"]
+    # Windows installs into a VERSIONED directory
+    # (C:\Program Files\KiCad\10.0\bin\python.exe). The unversioned path
+    # kept below exists on no KiCad >= 6, so globbing is the only thing that
+    # finds a real Windows install -- without it find_kicad_python() returned
+    # None for EVERY Windows user and every exact-fill consumer silently
+    # degraded to its raster approximation (#647).
+    for base in (r"C:\Program Files\KiCad", r"C:\Program Files (x86)\KiCad"):
+        base = os.path.expandvars(base)
+        cands.extend(sorted(glob.glob(os.path.join(base, '*', 'bin',
+                                                   'python.exe')),
+                            key=_win_version_key, reverse=True))
+        cands.append(os.path.join(base, 'bin', 'python.exe'))
+    cands.append("/usr/bin/python3")  # Linux distro KiCad ships pcbnew here
+    seen, out = set(), []
+    for c in cands:
+        if c and c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
+_KICAD_PYTHON_MEMO: List[Optional[str]] = []
 
 
 def _windows_versioned_pythons():
@@ -68,11 +257,42 @@ def _windows_versioned_pythons():
 
 
 def find_kicad_python() -> Optional[str]:
-    """Path of a python that can import pcbnew, or None."""
-    for cand in _KICAD_PYTHONS + _windows_versioned_pythons():
-        if cand and os.path.isfile(cand):
-            return cand
-    return None
+    """Path of a python that can import pcbnew, or None.
+
+    VERIFIES the candidate rather than trusting that the file exists: on a
+    macOS box with no KiCad, `/usr/bin/python3` exists and cannot import
+    pcbnew, so the unverified answer sent every caller down a subprocess that
+    could only fail. Memoized -- the probe is one subprocess per process.
+
+    Verification is deliberately OUT-OF-PROCESS even for sys.executable
+    (unless pcbnew is already loaded, which settles it for free): a distro
+    python that can import pcbnew is the common Linux case, and probing it
+    in-process would pull pcbnew's ~100MB into every routing run to answer a
+    question the subprocess answers anyway.
+    """
+    if _KICAD_PYTHON_MEMO:
+        return _KICAD_PYTHON_MEMO[0]
+    found = None
+    for cand in kicad_python_candidates():
+        # The free settle: this IS the running interpreter and pcbnew is
+        # already imported, so no probe can tell us anything new. Requires
+        # `cand is sys.executable` LITERALLY -- a path DERIVED from sys.prefix
+        # (the GUI case, see _this_interpreter) is a reconstruction, so it
+        # gets probed like any other candidate rather than trusted.
+        if cand and cand == sys.executable and 'pcbnew' in sys.modules:
+            found = cand           # the GUI plugin on a python-exe front
+            break
+        if not os.path.isfile(cand):
+            continue
+        try:
+            if subprocess.run([cand, '-c', 'import pcbnew'],
+                              capture_output=True, timeout=120).returncode == 0:
+                found = cand
+                break
+        except Exception:
+            continue
+    _KICAD_PYTHON_MEMO.append(found)
+    return found
 
 
 def live_fill_islands(board):
@@ -104,7 +324,12 @@ def live_fill_islands(board):
                 poly = [(pcbnew.ToMM(ol.CPoint(j).x),
                          pcbnew.ToMM(ol.CPoint(j).y))
                         for j in range(ol.PointCount())]
-                if len(poly) >= 3:
+                # Same degenerate-polygon guard as the file path
+                # (_MIN_ISLAND_AREA_MM2): KiCad's fracturing emits these on
+                # the live board too, and a guard on only one of the two
+                # fronts is exactly the CLI/GUI divergence class.
+                if len(poly) >= 3 \
+                        and _polygon_area(poly) >= _MIN_ISLAND_AREA_MM2:
                     out.setdefault((net, lname), []).append(poly)
     return out
 
@@ -140,6 +365,37 @@ _NET_NAME_RE = re.compile(r'\(net_name\s+"((?:[^"\\]|\\.)*)"\)')
 # KiCad 10 files reference zone nets BY NAME with no net table (#344 class):
 # (net "Earth") -- there is no numeric token and no net_name attribute.
 _NET_STR_RE = re.compile(r'\(net\s+"((?:[^"\\]|\\.)*)"\)')
+
+
+# Smallest fill polygon that can be real copper, mm^2. KiCad's fracturing
+# emits DEGENERATE polygons -- 3-5 collinear or ~coincident points enclosing
+# no area -- alongside the real islands, and they are indistinguishable from
+# real islands to anything that just counts (filled_polygon ...) blocks.
+# Measured on storm_tracker's routed board: 741 of 788 polygons enclose less
+# than 1e-3 mm^2 (verbatim examples: three points sharing a y to 6 decimals;
+# three points 2 um apart), and the real copper starts at 1.04e-2 mm^2 -- a
+# THREE-ORDER-OF-MAGNITUDE gap, so the exact cut is not load-bearing anywhere
+# in [2e-4, 1e-2].
+#
+# Deliberately NOT a KiCad island_removal_mode / island_area_min decision:
+# those choose which REAL islands the filler keeps (corpus values are ~5 mm^2,
+# 5000x this), and honoring them is plane_region_connector's job
+# (_island_kept_by_filler). This is strictly a "this polygon encloses no
+# copper" test, so it is correct under every removal mode. 1e-3 mm^2 is a
+# 32 um square -- an order of magnitude below the ~0.1 mm minimum feature any
+# fab will image.
+_MIN_ISLAND_AREA_MM2 = 1e-3
+
+
+def _polygon_area(poly) -> float:
+    """Absolute shoelace area of a closed polygon, mm^2."""
+    a = 0.0
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        a += x1 * y2 - x2 * y1
+    return abs(a) / 2.0
 
 
 _REFILL_MEMO: Dict[tuple, dict] = {}
@@ -213,7 +469,10 @@ def refill_islands(board_file: str, timeout: int = EXACT_FILL_TIMEOUT,
         with open(script, 'w') as f:
             f.write(_REFILL_SCRIPT)
         filled = os.path.join(tmpdir, stem + '_filled.kicad_pcb')
-        r = subprocess.run([kpy, script, staged, filled],
+        # 3rd arg: py_router dir, so the script can import kicad_exact_fill
+        # for the net re-pin (LoadBoard flips netcodes over stale fills).
+        r = subprocess.run([kpy, script, staged, filled,
+                            os.path.dirname(os.path.abspath(__file__))],
                            capture_output=True, text=True, timeout=timeout)
         if 'REFILL_OK' not in (r.stdout or '') or not os.path.isfile(filled):
             if verbose:
@@ -275,7 +534,8 @@ def parse_filled_islands(text: str
                 continue
             poly = [(float(a), float(b))
                     for a, b in _XY_RE.findall(fp_block)]
-            if len(poly) >= 3:
+            if len(poly) >= 3 \
+                    and _polygon_area(poly) >= _MIN_ISLAND_AREA_MM2:
                 out.setdefault((net_name, lm.group(1)), []).append(poly)
     return out
 
@@ -471,6 +731,50 @@ def exact_clusters(pcb_data, net_id: int, islands,
     return sorted(clusters.values(), key=lambda c: -len(c['points']))
 
 
+def nearest_pair(pa_pts, pb_pts, same_layer_within: float = 3.0):
+    """Nearest-approach pair between two point sets (items indexable as
+    (x, y, layer[, ...])); returns (pa, pb) or (None, None).
+
+    FULL point sets via KD-tree (#648): the old O(n*m) scan in
+    exact_unconnected capped the primary cluster at its first 1500 points --
+    island-ordered, so on the #589 champion the true 0.036mm gap to a
+    mid-list island sat beyond the cap and the link anchored at a 1.34mm
+    pair two ball-columns west; every downstream weld then fought the wrong
+    corridor.
+
+    LAYER-AWARE: the global nearest is often a CROSS-LAYER overlap
+    (distance ~0 where two layers' fills interpenetrate) whose only bond is
+    a via -- frequently infeasible in the very pocket that isolated the
+    cluster -- while a nearby same-layer gap takes a plain track weld.
+    Prefer a same-layer pair within `same_layer_within` mm; layer None
+    (via points) matches any layer."""
+    import numpy as _np
+    from scipy.spatial import cKDTree as _KD
+    if not pa_pts or not pb_pts:
+        return None, None
+    aa = _np.asarray([(p[0], p[1]) for p in pa_pts])
+    bb = _np.asarray([(p[0], p[1]) for p in pb_pts])
+    dq, jq = _KD(bb).query(aa, k=1)
+    i = int(_np.argmin(dq))
+    best = (pa_pts[i], pb_pts[int(jq[i])])
+    lay_best = None
+    for L in sorted({p[2] for p in pa_pts if len(p) > 2 and p[2]}):
+        ai = [k for k, p in enumerate(pa_pts)
+              if len(p) > 2 and (p[2] == L or p[2] is None)]
+        bi = [k for k, p in enumerate(pb_pts)
+              if len(p) > 2 and (p[2] == L or p[2] is None)]
+        if not ai or not bi:
+            continue
+        dq2, jq2 = _KD(bb[bi]).query(aa[ai], k=1)
+        k2 = int(_np.argmin(dq2))
+        d2 = float(dq2[k2])
+        if lay_best is None or d2 < lay_best[0]:
+            lay_best = (d2, pa_pts[ai[k2]], pb_pts[bi[int(jq2[k2])]])
+    if lay_best is not None and lay_best[0] <= same_layer_within:
+        return lay_best[1], lay_best[2]
+    return best
+
+
 def exact_unconnected(board_file: str, net_names=None, pcb_data=None,
                       verbose: bool = False, project_from: str = None):
     """Drop-in DETERMINISTIC replacement for kicad_oracle.kicad_unconnected:
@@ -516,14 +820,7 @@ def exact_unconnected(board_file: str, net_names=None, pcb_data=None,
 
     links = []
 
-    def _nearest(pa_pts, pb_pts):
-        best = (float('inf'), None, None)
-        for ax, ay, al in pa_pts:
-            for bx, by, bl in pb_pts:
-                d = (ax - bx) ** 2 + (ay - by) ** 2
-                if d < best[0]:
-                    best = (d, (ax, ay, al), (bx, by, bl))
-        return best[1], best[2]
+    _nearest = nearest_pair
 
     name_to_id = {net.name: nid for nid, net in pcb_data.nets.items()}
     for name in sorted(names):
@@ -534,10 +831,9 @@ def exact_unconnected(board_file: str, net_names=None, pcb_data=None,
         if len(cl) <= 1:
             continue
         primary = cl[0]
-        # cap point sets for the O(n*m) nearest scan
-        ppts = primary['points'][:1500]
+        ppts = primary['points']
         for c in cl[1:]:
-            a, b = _nearest(c['points'][:800], ppts)
+            a, b = _nearest(c['points'], ppts)
             if a is None:
                 continue
             kind_a = 'zone' if c['islands'] and not c['pads'] else \

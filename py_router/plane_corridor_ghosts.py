@@ -139,13 +139,13 @@ class CorridorGhosts:
                 n += len(lc)
             all_via_positions.extend(vp)
         if per_net:
-            merge_track_proximity_costs(obstacles, per_net)
+            merge_track_proximity_costs(obstacles, per_net, config=eff)
         if all_via_positions:
             coord = GridCoord(eff.grid_step)
             radius_grid = coord.to_grid_dist(eff.ripped_route_avoidance_radius)
             cost_grid = eff.cell_cost(eff.ripped_route_avoidance_cost)
             obstacles.add_stub_proximity_costs_batch(
-                all_via_positions, radius_grid, cost_grid, False)
+                all_via_positions, radius_grid, cost_grid)
             n += len(all_via_positions)
         if n:
             self.stamped += 1

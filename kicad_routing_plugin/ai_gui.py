@@ -73,7 +73,28 @@ def board_path_for_analysis(board_filename):
         base = os.path.basename(board_filename) if board_filename else "board.kicad_pcb"
         snapshot = os.path.join(tempfile.gettempdir(), f"kicadrt_analysis_{base}")
         try:
-            pcbnew.SaveBoard(snapshot, board)
+            # aSkipSettings: analysis snapshot; writing a .kicad_pro besides
+            # would crash on pre-KiCad-10 projects (uncaught C++ type_error
+            # in the .kicad_pro merge; see _stage_live_board in swig_gui.py).
+            pcbnew.SaveBoard(snapshot, board, aSkipSettings=True)
+            # Stage the on-disk project siblings beside the snapshot so the
+            # analysis sees the real netclasses and layer rules (#498) --
+            # the implicit settings save this replaced never carried the
+            # .kicad_dru at all. The snapshot path is deterministic, so a
+            # sibling left by an earlier snapshot of a DIFFERENT project
+            # must be removed, not inherited.
+            import shutil
+            for ext in ('.kicad_pro', '.kicad_dru'):
+                sib = (os.path.splitext(board_filename)[0] + ext
+                       if board_filename else None)
+                stale = os.path.splitext(snapshot)[0] + ext
+                try:
+                    if sib and os.path.isfile(sib):
+                        shutil.copy(sib, stale)
+                    elif os.path.isfile(stale):
+                        os.remove(stale)
+                except OSError:
+                    pass
             return snapshot
         except Exception as e:
             wx.MessageBox(
@@ -912,7 +933,16 @@ class AITab(wx.Panel):
                           "(or Load a plan file).", "AI",
                           wx.OK | wx.ICON_WARNING)
             return
+        # Default to <boardname>_plan.json next to the board.
+        default_dir = ""
+        default_file = "plan.json"
+        if self.board_filename:
+            default_dir = os.path.dirname(os.path.abspath(self.board_filename))
+            stem = os.path.splitext(os.path.basename(self.board_filename))[0]
+            if stem:
+                default_file = f"{stem}_plan.json"
         with wx.FileDialog(self, "Save plan (.json)", wildcard="*.json",
+                           defaultDir=default_dir, defaultFile=default_file,
                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as dlg:
             if dlg.ShowModal() != wx.ID_OK:
                 return
@@ -992,10 +1022,17 @@ class AITab(wx.Panel):
             self._log("AI plan: stop requested (cancelling current step)")
 
     def _on_plan_step_progress(self, index, step, label, value, rng,
-                               elapsed, is_busy):
+                               elapsed, is_busy, force_repaint=False):
         """Mirror the working tab's status bar here: same text, same gauge,
         plus which step and its elapsed time -- a route_diff step reads
-        exactly like the differential tab while it runs."""
+        exactly like the differential tab while it runs.
+
+        Two feeds land here: the executor's POLL (main loop alive, normal
+        paint) and the ui_thread_status PUSH-mirror (`force_repaint=True`) for
+        steps that run ON the main loop -- fanout, cap optimize, the apply
+        phases -- where only a forced Refresh+Update can make the text visible
+        (same narrow repaint as gui_utils.ui_thread_status: label only, never
+        Gauge.Pulse, inside an action plugin)."""
         if not self:
             return
         mins, secs = divmod(int(elapsed), 60)
@@ -1005,6 +1042,13 @@ class AITab(wx.Panel):
             text += f" - {label}"
         self.elapsed_label.SetLabel(text)
         self.Layout()
+        if force_repaint:
+            try:
+                self.elapsed_label.Refresh()
+                self.elapsed_label.Update()
+            except Exception:
+                pass
+            return  # gauge untouched: the value is meaningless mid-block
         try:
             if self.gauge.GetRange() != rng and rng > 0:
                 self.gauge.SetRange(rng)

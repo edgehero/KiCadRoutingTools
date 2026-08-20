@@ -311,6 +311,38 @@ src/
 
 ## Version History
 
+
+### 0.21.1 (2026-08-16)
+
+- PoseRouter (diff pairs): `layer_direction_preferences` +
+  `direction_preference_cost` -- the same per-layer H/V off-axis penalty
+  GridRouter has had, previously never forwarded to the diff engine
+  (#658 diff-step parity; measured 26mm of off-axis diff legs on
+  orangecrab walling single-ended corridors).
+
+### 0.21.0 (2026-08-16)
+- #656: `attraction_potential` parameter on `GridRouter` -- potential-based
+  path-attraction shaping. phi(x, y, layer) peaks at the lane on its layer,
+  quadratic falloff over `attraction_radius`, cross-layer states hold
+  `attraction_cross_layer_pct` percent. Lateral and VIA edges are charged
+  `cost - (phi(next) - phi(prev))` with positive floors: cycles always cost
+  > 0 (no loop farming), constant-potential travel earns nothing (no meander
+  reward), and a via onto the lane's layer collects a one-time jump that can
+  compete with `via_cost`. 0 (default) = bit-identical legacy behavior.
+- **0.20.1**: **`via_proximity_cost 0` = no extra cost, ban mode removed.**
+  0 used to hard-block vias in stub/BGA proximity zones -- the only knob whose
+  0 was its strongest setting (and a ~200x CPU hazard). 0 now means "no extra
+  via cost from proximity", matching every other knob's 0-is-off. Removed:
+  `add_stub_proximity_costs_batch`'s `block_vias` parameter (now 3 args), the
+  B2 `stub_via_block_cells` refcount ledger + its `clear_stub_proximity`
+  drain, and the pose router's `via_proximity_cost == 0` via-ban branch.
+  **Pose via-proximity penalty is now GRADED**, matching the single-ended
+  router: `(stub + dest-layer proximity) * via_proximity_cost` added to the
+  via cost, replacing the binary `via_cost * multiplier` cliff (~10x for any
+  via anywhere in the 7mm BGA ring / any stub-zone rim cell, ~a 90mm-detour
+  equivalent that effectively forbade diff-pair layer changes near escape
+  fields). BGA proximity rides the layer-proximity map, so
+  `--bga-proximity-cost 0` now truly disarms it for diff pairs too.
 - **0.20.0**: Removed `VisualRouter`/`SearchSnapshot` and `visual_router.rs` with the pygame visualizer (#569) -- the debugging workflow it served is covered by grading, manifest replay and the GUI. **#568 per-rung via legality** — `blocked_vias_small`, a second
   refcounted via-block map at the small fab-rung reserve (subset semantics:
   EMPTY = unpopulated, rung>=1 queries fall back to `blocked_vias`, so

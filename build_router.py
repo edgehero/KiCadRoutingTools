@@ -184,6 +184,29 @@ def try_download_prebuilt(script_dir, rust_dir, tag):
             print("ERROR: Could not reach GitHub: %s" % e)
         return False
 
+    # If this checkout's Cargo.toml is AHEAD of the published release (a crate
+    # bump whose binaries haven't shipped yet), the asset cannot satisfy the
+    # startup version guard -- skip the pointless download and let the caller
+    # fall back to a source build directly. An explicit --tag is honored
+    # as-given (the post-install version check below still self-heals it).
+    if tag is None:
+        want = _cargo_version(rust_dir)
+        rel_ver = (release.get('tag_name') or '').lstrip('v')
+        # Skip ONLY when Cargo.toml is genuinely AHEAD of the newest release: no
+        # published asset can satisfy the startup version guard, so the download
+        # is pointless. Cargo.toml BEHIND the release tag is normal and the asset
+        # is usually exactly right -- /VERSION may lead Cargo.toml, and a
+        # python-only release republishes the CURRENT crate binaries (v0.20.2
+        # ships crate 0.20.1). This used to be a plain `!=`, which also skipped
+        # the behind case and sent every such user to a source build -- the
+        # normal state right after any python-only release. Whatever we download
+        # is still verified by the post-install version check in main(), which
+        # self-heals a stale asset, so trying is cheap and never wrong.
+        if want and rel_ver and _ver_tuple(rel_ver) < _ver_tuple(want):
+            print("Latest release is v%s but rust_router/Cargo.toml is %s -- "
+                  "no matching prebuilt exists yet." % (rel_ver, want))
+            return False
+
     assets = release.get('assets', [])
     asset = next((a for a in assets if a.get('name') == asset_name), None)
     if asset is None:
@@ -306,18 +329,52 @@ def _remove_stale_copies(script_dir):
 
 
 def _verify_import(rust_dir):
-    """Import grid_router from rust_dir and print its version. Returns True on success."""
-    if rust_dir not in sys.path:
-        sys.path.insert(0, rust_dir)
-    if 'grid_router' in sys.modules:
-        del sys.modules['grid_router']
-    try:
-        import grid_router
-    except ImportError as e:
-        print("Import failed: %s" % e)
+    """Import grid_router from rust_dir in a FRESH interpreter and print its
+    version. Returns True on success.
+
+    Must be a subprocess: a compiled extension module cannot be re-imported
+    in-process (del sys.modules just hands back the cached extension), so
+    when the download path installs one binary and the source fallback then
+    replaces it, an in-process re-import would verify -- and report -- the
+    OLD library (the "v0.20.0 ready" line after a 0.20.1 source build).
+    """
+    ver = _import_version_subprocess(rust_dir)
+    if ver is None:
         return False
-    print("grid_router v%s ready." % getattr(grid_router, '__version__', 'unknown'))
+    print("grid_router v%s ready." % ver)
     return True
+
+
+def _import_version_subprocess(rust_dir):
+    """__version__ of rust_dir's grid_router, read in a fresh interpreter
+    (None on import failure)."""
+    code = ("import sys; sys.path.insert(0, {!r}); import grid_router; "
+            "print(getattr(grid_router, '__version__', 'unknown'))"
+            ).format(rust_dir)
+    try:
+        out = subprocess.run([sys.executable, '-c', code],
+                             capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as e:
+        print("Import check failed to run: %s" % e)
+        return None
+    if out.returncode != 0:
+        print("Import failed: %s" % (out.stderr.strip() or out.stdout.strip()))
+        return None
+    return out.stdout.strip() or 'unknown'
+
+
+def _ver_tuple(v):
+    """'0.20.10' -> (0, 20, 10) for ORDERED comparison.
+
+    Not a string compare: '0.20.10' < '0.20.9' lexically but is newer. Unparsable
+    components sort as 0, which makes an odd version compare as older and so
+    merely attempts a download the post-install check would reject anyway.
+    """
+    out = []
+    for part in str(v).split('.'):
+        digits = ''.join(c for c in part if c.isdigit())
+        out.append(int(digits) if digits else 0)
+    return tuple(out)
 
 
 def _crate_matches_release_source(script_dir):
@@ -381,16 +438,9 @@ def _cargo_version(rust_dir):
 
 
 def _installed_version(rust_dir):
-    """__version__ of the currently-importable grid_router (None if absent)."""
-    if rust_dir not in sys.path:
-        sys.path.insert(0, rust_dir)
-    if 'grid_router' in sys.modules:
-        del sys.modules['grid_router']
-    try:
-        import grid_router
-    except ImportError:
-        return None
-    return getattr(grid_router, '__version__', None)
+    """__version__ of the on-disk grid_router (None if absent). Subprocess
+    for the same extension-reload reason as _verify_import."""
+    return _import_version_subprocess(rust_dir)
 
 
 def main():
