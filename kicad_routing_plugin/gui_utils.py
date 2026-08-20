@@ -862,8 +862,12 @@ def run_kicad_oracle_on_live_board(board, net_names, *, clearance,
                                     if hole_to_hole_clearance is not None
                                     else defaults.HOLE_TO_HOLE_CLEARANCE),
             progress_callback=progress_callback)
-        for _p in (tmp, os.path.splitext(tmp)[0] + '.kicad_pro',
-                   os.path.splitext(tmp)[0] + '.kicad_prl'):
+        # ONE list, not a hand-written copy (test_411's sibling gate): the
+        # oracle's project staging can also leave a temp .kicad_dru beside
+        # the board, and a literal here silently drops it.
+        from copy_board import SIBLING_EXTS as _sib_exts
+        for _p in (tmp,) + tuple(os.path.splitext(tmp)[0] + _e
+                                 for _e in _sib_exts):
             try:
                 os.unlink(_p)
             except OSError:
