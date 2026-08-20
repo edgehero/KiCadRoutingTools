@@ -88,72 +88,16 @@ def test_partial_is_as_fatal_as_missing():
          '"is there a summary" is no longer a sufficient check')
 
 
-def _reconstruct(board, out, *extra):
-    return subprocess.run(
-        [sys.executable, '-X', 'utf8',
-         os.path.join(ROOT, 'py_placer', 'place_reconstruct.py'), board, out,
-         '--stages', 'legalize', *extra],
-        capture_output=True, text=True, encoding='utf-8',
-        errors='replace', cwd=ROOT, timeout=900)
-
-
-def _summaries(stdout):
-    return [json.loads(l.split('JSON_SUMMARY: ', 1)[1])
-            for l in stdout.splitlines() if l.startswith('JSON_SUMMARY: ')]
-
-
-def test_a_deadline_is_only_observable_when_there_is_work():
-    """A budget of 0 on a board with NOTHING to legalize still completes.
-
-    This is not a loophole, it is the contract: the check sits at the head of
-    the violator loop, so a board with no violators never reaches it and has
-    nothing to abandon. Worth pinning, because the obvious test ("--deadline 0
-    must always produce a partial") asserts the wrong thing and fails against
-    correct behaviour -- it did, when this file was first written.
-    """
-    board = os.path.join(ROOT, 'kicad_files', 'splitflap_driver.kicad_pcb')
-    if not os.path.isfile(board):
-        print('  SKIP  no corpus board'); return
-    with tempfile.TemporaryDirectory() as tmp:
-        out = os.path.join(tmp, 'o.kicad_pcb')
-        p = _reconstruct(board, out, '--deadline', '0')
-        want(p.returncode != 124,
-             'the tool chose its own exit code (124 would be the shell)')
-        want(len(_summaries(p.stdout)) == 1,
-             'exactly one JSON_SUMMARY, always')
-        doc = (_summaries(p.stdout) or [{}])[0]
-        want(doc.get('complete') is True,
-             'a healthy board with no violators COMPLETES at --deadline 0 -- '
-             'there was no work to abandon')
-        want(os.path.exists(out),
-             'and its output board is written normally')
-        want('DEADLINE:' in p.stdout,
-             'the DEADLINE: breadcrumb prints (its absence is the standing '
-             'diagnosis for a run with no budget)')
-
-
-def test_a_board_with_work_reports_the_partial():
-    """The case run 9 actually hit: violators exist and the clock runs out."""
-    board = os.path.join(ROOT, 'wk', 'run9', 'ottercast', 'board_recon.kicad_pcb')
-    if not os.path.isfile(board):
-        print('  SKIP  no damaged board on disk (wk/ is not committed)'); return
-    with tempfile.TemporaryDirectory() as tmp:
-        out = os.path.join(tmp, 'o.kicad_pcb')
-        p = _reconstruct(board, out, '--clearance', '0.2', '--deadline', '0')
-        doc = (_summaries(p.stdout) or [{}])[0]
-        want(doc.get('complete') is False,
-             'a board WITH violators reports complete:false')
-        want(doc.get('status') == 'deadline' and doc.get('stopped_in'),
-             'and says it was the deadline, and in which stage')
-        want(doc.get('partial', {}).get('deadline_skipped'),
-             'the untried violators are named -- NOT filed as unrepairable, '
-             'which would report an unfinished search as a measured failure')
-        want(not os.path.exists(out),
-             'the OUTPUT path is not written -- run-7 A11: it only ever holds '
-             'a complete board')
-        want(os.path.exists(out + '.staging.kicad_pcb'),
-             'the partial board is left at the staging path and named in the '
-             'summary, so it is findable without being mistaken for a result')
+# NOTE (#621 x run-23 merge): the two subprocess tests that used to sit here
+# drove `place_reconstruct --stages legalize --deadline ...`. Upstream #621
+# deleted place_reconstruct's wall-clock budget (passing --deadline there is
+# now an argparse error), so those tests assert a contract the tool no longer
+# offers and were removed in the integration merge. The budget facility
+# itself survives on route.py / place_seed / place_plan; its route.py
+# reserve + cancellable tail is pinned by tests/test_run23_deadline_reserve.py,
+# and the unit halves below (krt_deadline primitives, merge_summaries
+# stickiness, place_route_loop's partial rejection, --stages validation)
+# still bind.
 
 
 def test_stages_are_validated():
@@ -180,8 +124,6 @@ def test_stages_are_validated():
 
 if __name__ == '__main__':
     for fn in (test_deadline_primitives, test_partial_is_as_fatal_as_missing,
-               test_a_deadline_is_only_observable_when_there_is_work,
-               test_a_board_with_work_reports_the_partial,
                test_stages_are_validated):
         print(fn.__name__)
         fn()
