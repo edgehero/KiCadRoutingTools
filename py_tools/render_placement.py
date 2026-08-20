@@ -976,7 +976,10 @@ def write_review_sheet(path, panel_paths, fnd, conn_facts) -> None:
     lines.append(
         f"courtyard: {len(cs)} unwaived pair(s), census "
         f"{fnd.get('courtyard_overlap_mm2', 0)}mm2 total"
-        + ("  |  BLOCKING: " + ', '.join(
+        # '  |  '-separated, not comma: the strip wrapper breaks lines at
+        # that separator, and a comma-joined blocking list ran off the sheet
+        # unwrappable (found on the 10-pair run-23 board).
+        + ("  |  BLOCKING: " + '  |  '.join(
             f"{a}<->{b} {m}mm2/depth {dp}mm" for a, b, m, dp in cb)
            if cb else "  |  blocking: none"))
     if conn_facts:
