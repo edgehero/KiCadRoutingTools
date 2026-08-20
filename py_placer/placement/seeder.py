@@ -507,6 +507,73 @@ def count_legal_poses(state, ref: str, tx: float, ty: float,
     return n
 
 
+def near_miss_poses(state, ref: str, tx: float, ty: float,
+                    exclude: Set[str], *,
+                    radius: float = CENSUS_RADIUS_MM,
+                    step: float = CENSUS_STEP_MM,
+                    max_disp: Optional[float] = None,
+                    rotations: Optional[Sequence[float]] = None,
+                    forbid: Sequence = (), k: int = 3) -> List[Dict]:
+    """The K nearest-to-legal poses, for a census that just counted ZERO.
+
+    run-23: `count_legal_poses` == 0 was a dead end three times (J5 "0 legal
+    poses in a 20mm disc", U6, J1), and each dead end was resolved by an
+    UNCHECKED place_fixed assert that shipped an overlap. The information
+    that would have resolved it honestly -- "the best pose in budget overlaps
+    only SW1, by 0.8mm2; move SW1 and the seat exists" -- was never computed.
+
+    Report-only: never applies a move. One entry per DISTINCT blocker set
+    (three poses all blocked by the same part teach nothing extra), ranked by
+    residual overlap area, side-aware, off-outline poses skipped (an
+    off-board pose is a different problem, not a near-miss). Same lattice
+    family as count_legal_poses; runs only on its zero path, which is
+    already the slow case.
+    """
+    part = state.parts[ref]
+    from pose_score import _offsets
+    rots = list(rotations) if rotations is not None \
+        else [part.rot] + [(part.rot + d) % 360 for d in (90.0, 180.0, 270.0)]
+    obstacles = []
+    for other, p2 in state.parts.items():
+        if other == ref or other in exclude:
+            continue
+        if not (part.sides & p2.sides):
+            continue
+        obstacles.append((other, p2.rect(p2.x, p2.y, p2.rot)))
+    best = []
+    for dx, dy in _offsets(radius, step):
+        if max_disp is not None and math.hypot(dx, dy) > max_disp + 1e-9:
+            continue
+        x, y = round(tx + dx, 3), round(ty + dy, 3)
+        for rot in rots:
+            r = part.rect(x, y, rot)
+            if state.edge_gate.rect_outside_amount(r) > 1e-9:
+                continue
+            ov = 0.0
+            hits = set()
+            for other, r2 in obstacles:
+                w = min(r[2], r2[2]) - max(r[0], r2[0])
+                h = min(r[3], r2[3]) - max(r[1], r2[1])
+                if w > 0 and h > 0:
+                    ov += w * h
+                    hits.add(other)
+            if ov <= 1e-9:
+                continue      # legal: count_legal_poses' business, not ours
+            best.append((ov, x, y, rot, tuple(sorted(hits))))
+    best.sort(key=lambda t: (t[0], t[1], t[2]))
+    seen = set()
+    out: List[Dict] = []
+    for ov, x, y, rot, hits in best:
+        if hits in seen:
+            continue
+        seen.add(hits)
+        out.append({'pose': [x, y, rot], 'overlap_mm2': round(ov, 3),
+                    'hits': list(hits)})
+        if len(out) >= k:
+            break
+    return out
+
+
 def _try_place(state, ref: str, tx: float, ty: float, exclude: Set[str],
                constraint=None, tol: float = 0.5,
                max_disp: Optional[float] = None,

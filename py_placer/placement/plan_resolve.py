@@ -153,6 +153,14 @@ class Park:
     #: zone its own plan had confined it to, then reported a seat.
     constraint: Optional[Tuple[float, float, float, float]] = None
     tol: Optional[float] = None
+    #: run-23: when `baseline_poses` is 0, the K nearest-to-legal poses --
+    #: [{pose: [x, y, rot], overlap_mm2, hits: [refs]}], one per distinct
+    #: blocker set. A zero census was a dead end three times in run 23, and
+    #: each was resolved by an unchecked assert that shipped an overlap; this
+    #: is the information ("the best pose overlaps only SW1, by 0.8mm2") that
+    #: makes the honest move findable. Empty = measured, nothing near-legal
+    #: in budget; None = not measured.
+    near_miss: Optional[List[Dict]] = None
 
     def to_dict(self) -> Dict:
         return {'ref': self.ref, 'step': self.step, 'action': self.action,
@@ -166,7 +174,8 @@ class Park:
                 'census_radius_mm': self.census_radius_mm,
                 'constraint': (None if self.constraint is None
                                else [round(v, 4) for v in self.constraint]),
-                'tol': self.tol}
+                'tol': self.tol,
+                'near_miss': self.near_miss}
 
 
 @dataclass
@@ -177,6 +186,12 @@ class ResolveResult:
     lock_refs: List[str] = field(default_factory=list)
     indexes: Dict[str, Dict] = field(default_factory=dict)
     complete: bool = True
+    # run-23: every place_fixed whose ASSERTED pose failed the seat predicate,
+    # machine-readable -- {ref, pose, hits, acknowledged}. A prose note is
+    # what run 23 got, three times, and the notes were read by nobody: the
+    # asserted-then-locked poses shipped J4 0.90mm inside U6. Refused asserts
+    # land here with acknowledged=False; acknowledged ones with True.
+    fixed_illegal: List[Dict] = field(default_factory=list)
 
     @property
     def placements(self) -> List[Dict]:
@@ -194,6 +209,7 @@ class ResolveResult:
                                if 'relaxed clearance' in n),
                 'unmeasured_clearance': sum(1 for s in self.seats
                                             if s.clearance is None),
+                'fixed_illegal': self.fixed_illegal,
                 'complete': self.complete}
 
 
@@ -639,6 +655,23 @@ class _Resolver:
             park.census_step_mm = step
             park.census_radius_mm = radius
             park.censused = True
+            # run-23: a ZERO census gets the near-miss report -- which poses
+            # ALMOST seat and who blocks each -- so the next move can be
+            # "move SW1 2mm" instead of an unchecked assert. Disc censuses
+            # only: under a zone constraint the disc lattice would suggest
+            # poses the zone excludes.
+            if baseline == 0 and constraint is None:
+                park.near_miss = seeder.near_miss_poses(
+                    self.st, ref, tx, ty, base, max_disp=within,
+                    radius=radius, step=step, forbid=self.keepouts)
+                if park.near_miss:
+                    nm = park.near_miss[0]
+                    park.reason += (
+                        f"; nearest-to-legal pose ({nm['pose'][0]:g}, "
+                        f"{nm['pose'][1]:g}) rot {nm['pose'][2]:g} overlaps "
+                        f"only {', '.join(nm['hits'][:3])} by "
+                        f"{nm['overlap_mm2']:g}mm2 -- move that and the seat "
+                        f"exists")
             if constraint is not None:
                 # Say the counts are zone-scoped, or a reader compares them
                 # with an unconstrained park's and concludes the board got
@@ -775,7 +808,52 @@ class _Resolver:
             self.res.notes.append(
                 f"{ref}: is (locked yes) and already at the asserted pose; "
                 f"place_fixed recorded it and moved nothing")
-        self.st.apply_move(ref, round(x, 4), round(y, 4), rot)
+        # run-23 CONTRACT CHANGE: a fixed pose is CHECKED before it is
+        # applied, and an illegal one REFUSES unless the op carries
+        # `acknowledge: true`. The old shape ("asserted anyway, grade the
+        # output" as a prose note) is how run 23 shipped J4 0.90mm inside U6:
+        # three separate asserts were forced by the courtyard-strict seat
+        # gate, each noted, each note read by nobody, and the poses then
+        # LOCKED so no later pass could move them. A mechanical fact that
+        # genuinely overlaps (an enclosure standoff, a shield) is still
+        # expressible -- acknowledge it, and the acknowledgement is a
+        # recorded decision instead of a silent default.
+        tx, ty = round(x, 4), round(y, 4)
+        legal = seeder.pose_ok(self.st, ref, tx, ty, rot,
+                               self.pending - {ref}, forbid=self.keepouts)
+        hits = []
+        if not legal:
+            # Name WHAT it collides with. "not a legal pose" alone leaves the
+            # author to find the other part by eye, and the commonest cause is
+            # a part this same plan already seated there.
+            mine = part.rect(tx, ty, rot)
+            for other, op_part in self.st.parts.items():
+                if other == ref or other in self.pending:
+                    continue
+                r2 = op_part.rect(op_part.x, op_part.y, op_part.rot)
+                if (min(mine[2], r2[2]) - max(mine[0], r2[0]) > 0
+                        and min(mine[3], r2[3]) - max(mine[1], r2[1]) > 0):
+                    hits.append(other)
+            self.res.fixed_illegal.append({
+                'ref': ref, 'pose': [tx, ty, rot], 'hits': sorted(hits),
+                'acknowledged': bool(op.get('acknowledge'))})
+            # OUTLINE/keepout-only illegality stays assert-with-note: an edge
+            # receptacle's mouth and a corner mounting hole legitimately
+            # breach the outline gate -- that is the case this op exists for,
+            # and the intent's oob budget owns it. What refuses is a PART
+            # overlap: every one of run 23's three shipped defects was
+            # part-vs-part.
+            if hits and not op.get('acknowledge'):
+                self.res.parks.append(Park(
+                    ref=ref, step=step, action='place_fixed', target=(x, y),
+                    reason=f"the asserted pose ({tx:g}, {ty:g}) rot {rot:g} "
+                           f"overlaps {', '.join(sorted(hits)[:4])}. A "
+                           f"mechanical fact that genuinely overlaps is "
+                           f"expressed with `acknowledge: true` on this op, "
+                           f"which records the decision; an unchecked assert "
+                           f"is how run 23 locked J4 0.90mm inside U6"))
+                return
+        self.st.apply_move(ref, tx, ty, rot)
         self.pending.discard(ref)
         self.fixed_refs.add(ref)
         self.asserted_refs.add(ref)
@@ -785,31 +863,17 @@ class _Resolver:
             pose=(p.x, p.y, p.rot), clearance=None,
             moved_mm=math.hypot(p.x - home[0], p.y - home[1]),
             rot_requested=op.get('rot')))
-        # A fixed pose can still be illegal -- it is asserted, not checked --
-        # so say when it is, rather than letting the board carry a silent
-        # overlap that every later op then routes around.
-        if not seeder.pose_ok(self.st, ref, p.x, p.y, p.rot,
-                              self.pending - {ref}, forbid=self.keepouts):
-            # Name WHAT it collides with. "not a legal pose" alone leaves the
-            # author to find the other part by eye, and the commonest cause is
-            # a part this same plan already seated there.
-            hits = []
-            mine = p.rect(p.x, p.y, p.rot)
-            for other, op_part in self.st.parts.items():
-                if other == ref or other in self.pending:
-                    continue
-                r2 = op_part.rect(op_part.x, op_part.y, op_part.rot)
-                if (min(mine[2], r2[2]) - max(mine[0], r2[0]) > 0
-                        and min(mine[3], r2[3]) - max(mine[1], r2[1]) > 0):
-                    hits.append(other)
+        if not legal:
             where = (f" It overlaps {', '.join(sorted(hits)[:4])}."
                      if hits else
                      " Nothing overlaps it, so the outline or a keepout is "
                      "what refuses it.")
+            how = ('ACKNOWLEDGED by the plan, so asserted'
+                   if hits else 'asserted anyway, because a mechanical fact '
+                                'outranks the seat gate')
             self.res.notes.append(
                 f"{ref}: fixed at ({p.x:g}, {p.y:g}) rot {p.rot:g}, which is "
-                f"not a legal pose on this board -- asserted anyway, because a "
-                f"mechanical fact outranks the seat gate.{where} Grade the "
+                f"not a legal pose on this board -- {how}.{where} Grade the "
                 f"output.")
 
     def op_place_at(self, op, step):

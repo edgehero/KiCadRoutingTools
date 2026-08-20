@@ -104,7 +104,9 @@ _OP_FIELDS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
     'place_keepout':  (('rect',), ('reason', 'sides', 'allow', 'note')),
     # A MECHANICAL FACT, not a request: set the pose, never search, never
     # move it, and treat it as an obstacle from then on.
-    'place_fixed':    (('ref', 'at'), ('rot', 'note')),
+    # `acknowledge` (run-23): a fixed pose is checked against the seat
+    # predicate and an illegal one refuses without it -- see op_place_fixed.
+    'place_fixed':    (('ref', 'at'), ('rot', 'note', 'acknowledge')),
     'place_at':       (('ref', 'at'),
                        ('rot', 'rot_prefer', 'within', 'mirror', 'note')),
     'place_array':    (('refs', 'pitch', 'origin'),

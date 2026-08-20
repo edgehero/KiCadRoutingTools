@@ -257,8 +257,16 @@ check("a part fixed LATER in the plan is already an obstacle EARLIER",
       f"parks {[p.ref for p in res_order.parks]}")
 
 # --------------------------------------------------------------------------
-# 3. an illegal assertion is disclosed, not silently accepted
+# 3. an illegal assertion REFUSES without acknowledge (run-23 contract)
 # --------------------------------------------------------------------------
+# The OLD contract here was "both assertions are honoured -- a mechanical
+# fact outranks the gate", with a prose note. Run 23 is why it changed:
+# three part-overlap asserts were forced by the courtyard-strict seat gate,
+# each noted, each note read by nobody, and the poses then LOCKED -- J4
+# shipped 0.90mm inside U6. A part-overlap assert now PARKS unless the op
+# carries `acknowledge: true`; outline/keepout-only illegality (the edge
+# receptacle's overhang, the corner hole) still asserts with a note, because
+# that is the case this op exists for.
 pcb5 = piled()
 res5 = run(pcb5, [
     {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
@@ -267,17 +275,38 @@ res5 = run(pcb5, [
     {"action": "place_fixed", "ref": "C2", "at": list(TRUE['C1'][:2]),
      "rot": TRUE['C1'][2]},
 ])
-check("both assertions are honoured -- a mechanical fact outranks the gate",
-      len(res5.seats) == 2, str([s.ref for s in res5.seats]))
-check("and the illegal one is DISCLOSED in the notes",
-      any('not a legal pose' in n and 'C2' in n for n in res5.notes),
-      str(res5.notes[-2:]))
-# The note must NAME what it hit. "not a legal pose" alone leaves the author
-# to find the other part by eye, and the commonest cause is a part this same
-# plan seated there.
-check("the disclosure names the part it overlaps",
-      any('C2' in n and 'overlaps C1' in n for n in res5.notes),
-      str([n for n in res5.notes if 'C2' in n]))
+check("a part-overlap assert PARKS without acknowledge",
+      [s.ref for s in res5.seats] == ['C1']
+      and [p.ref for p in res5.parks] == ['C2'],
+      f"seats {[s.ref for s in res5.seats]}, "
+      f"parks {[p.ref for p in res5.parks]}")
+check("the refusal names the part it overlaps",
+      any('overlaps C1' in (p.reason or '') for p in res5.parks),
+      str([p.reason for p in res5.parks]))
+check("and the refusal is machine-readable in fixed_illegal",
+      res5.fixed_illegal and res5.fixed_illegal[0]['ref'] == 'C2'
+      and res5.fixed_illegal[0]['hits'] == ['C1']
+      and res5.fixed_illegal[0]['acknowledged'] is False,
+      str(res5.fixed_illegal))
+# The same op WITH acknowledge is a recorded decision: seated + disclosed.
+res5ack = run(piled(), [
+    {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2]},
+    {"action": "place_fixed", "ref": "C2", "at": list(TRUE['C1'][:2]),
+     "rot": TRUE['C1'][2], "acknowledge": True},
+])
+check("an ACKNOWLEDGED overlap assert is honoured",
+      len(res5ack.seats) == 2 and not res5ack.parks,
+      f"seats {[s.ref for s in res5ack.seats]}, "
+      f"parks {[(p.ref, p.reason) for p in res5ack.parks]}")
+check("and the acknowledged one is DISCLOSED in the notes, naming the hit",
+      any('C2' in n and 'ACKNOWLEDGED' in n and 'overlaps C1' in n
+          for n in res5ack.notes),
+      str([n for n in res5ack.notes if 'C2' in n]))
+check("and recorded machine-readably with acknowledged=True",
+      res5ack.fixed_illegal
+      and res5ack.fixed_illegal[-1]['acknowledged'] is True,
+      str(res5ack.fixed_illegal))
 # ...and it must NOT fire on a legal assertion, or it is noise.
 res5b = run(piled(), [
     {"action": "place_fixed", "ref": "C1", "at": list(TRUE['C1'][:2]),
