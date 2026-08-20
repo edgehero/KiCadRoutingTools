@@ -85,3 +85,18 @@ def add_tidiness_args(parser) -> None:
                              "airwire cost already uses exact pad positions, "
                              "but a ~1mm pad offset is noise against a ~20mm "
                              "net, so the signal needs its own weight. Try 1")
+    parser.add_argument("--density-weight", type=float, default=0.0,
+                        help="run-23 'breathing' term: price WINDOW fullness "
+                             "so a part prefers empty board over a packed "
+                             "belt. The halo term prices pairs; run 23 packed "
+                             "one belt solid while real estate sat empty, an "
+                             "imbalance no pairwise term sees. 0 = off "
+                             "(default); adoption gated on "
+                             "tests/test_placement_ab.py's measured verdict")
+    parser.add_argument("--density-bin-mm", type=float, default=4.0,
+                        metavar="MM",
+                        help="Window size for --density-weight (default 4.0)")
+    parser.add_argument("--density-cap", type=float, default=0.85,
+                        help="Fullness fraction where the density cost starts "
+                             "(default 0.85: a bin more than 85%% covered by "
+                             "courtyards starts charging)")

@@ -416,7 +416,17 @@ class QuenchState:
                  # built and the objective is bit-identical.
                  corridor_weight: float = 0.0,
                  corridor_specs: Optional[Sequence[Dict]] = None,
-                 corridor_max_fanout: int = 20):
+                 corridor_max_fanout: int = 20,
+                 # --- run-23 density ("breathing") term. Appended for the
+                 # same positional-binding reason as #548's four, and OFF by
+                 # default: at weight 0.0 no bin is ever built and the
+                 # objective is bit-identical. The halo term prices PAIRS;
+                 # this prices WINDOWS -- run 23 packed one belt solid while
+                 # board real estate sat empty, and no pairwise term sees
+                 # that imbalance.
+                 density_weight: float = 0.0,
+                 density_bin_mm: float = 4.0,
+                 density_cap: float = 0.85):
         bounds = pcb_data.board_info.board_bounds
         if bounds is None:
             raise ValueError("No board boundary (Edge.Cuts) found")
@@ -596,6 +606,16 @@ class QuenchState:
         if self.corridor_weight > 0.0 and corridor_specs:
             self._corridor_boxes = self._freeze_corridors(
                 pcb_data, corridor_specs, ignore, corridor_max_fanout)
+        # run-23 density term state: built LAZILY on first evaluation (weight
+        # 0.0 builds nothing, ever). `_dens_occ[(side,bx,by)]` is the summed
+        # part-rect area in that bin; `_dens_part[ref]` that part's own
+        # contributions, so an evaluator can subtract self/excluded and an
+        # apply can move a part between bins in O(touched bins).
+        self.density_weight = float(density_weight)
+        self.density_bin_mm = max(1.0, float(density_bin_mm))
+        self.density_cap = float(density_cap)
+        self._dens_occ = None
+        self._dens_part = None
 
     def _freeze_corridors(self, pcb_data, specs, ignore_net_ids, max_fanout):
         """Corridor rectangles, built ONCE and never rebuilt.
@@ -924,6 +944,84 @@ class QuenchState:
                 pen += self.edge_weight * short * short
         return pen
 
+    def _dens_contrib(self, part, x=None, y=None, rot=None):
+        """[( (side,bx,by), area )] of one part's rects, split over bins."""
+        m = self.density_bin_mm
+        out = []
+        rect, far = part.rects(x, y, rot)
+        far_side = 'B' if part.side == 'F' else 'F'
+        for side, r in ((part.side, rect), (far_side, far)):
+            if r is None:
+                continue
+            for bx in range(int(r[0] // m), int(r[2] // m) + 1):
+                for by in range(int(r[1] // m), int(r[3] // m) + 1):
+                    a = (max(0.0, min(r[2], (bx + 1) * m) - max(r[0], bx * m))
+                         * max(0.0, min(r[3], (by + 1) * m)
+                               - max(r[1], by * m)))
+                    if a > 0.0:
+                        out.append(((side, bx, by), a))
+        return out
+
+    def _dens_build(self):
+        self._dens_occ = {}
+        self._dens_part = {}
+        for ref, part in self.parts.items():
+            contrib = self._dens_contrib(part)
+            self._dens_part[ref] = contrib
+            for key, a in contrib:
+                self._dens_occ[key] = self._dens_occ.get(key, 0.0) + a
+
+    def _density_cost(self, ref, x=None, y=None, rot=None,
+                      exclude: Optional[Set[str]] = None):
+        """run-23: WINDOW-fullness cost of one part at a pose.
+
+        The halo term prices pairs; this prices bins -- the run-23 board
+        packed the U6/J4/RN7 belt solid while top-center sat empty, an
+        imbalance no pairwise term can see. Each bin the part touches costs
+        `weight * max(0, fullness - cap)^2 * bin_area`, fullness measured
+        with THIS part at the candidate pose and self/excluded subtracted --
+        so moving from a crowded window into an empty one pays off even when
+        every pairwise gap is already legal.
+        """
+        if self.density_weight <= 0.0:
+            return 0.0
+        if self._dens_occ is None:
+            self._dens_build()
+        part = self.parts[ref]
+        cand = self._dens_contrib(part, x, y, rot)
+        own = dict(self._dens_part.get(ref, ()))
+        ex_by_bin = {}
+        if exclude:
+            for er in exclude:
+                if er == ref:
+                    continue
+                for key, a in self._dens_part.get(er, ()):
+                    ex_by_bin[key] = ex_by_bin.get(key, 0.0) + a
+        bin_area = self.density_bin_mm * self.density_bin_mm
+        cost = 0.0
+        for key, a in cand:
+            occ = (self._dens_occ.get(key, 0.0) - own.get(key, 0.0)
+                   - ex_by_bin.get(key, 0.0) + a)
+            over = occ / bin_area - self.density_cap
+            if over > 0.0:
+                cost += over * over * bin_area
+        return self.density_weight * cost
+
+    def _dens_apply(self, ref):
+        """Re-bin one part at its LIVE pose (call after the pose changed)."""
+        if self._dens_occ is None:
+            return
+        for key, a in self._dens_part.get(ref, ()):
+            v = self._dens_occ.get(key, 0.0) - a
+            if v <= 1e-12:
+                self._dens_occ.pop(key, None)
+            else:
+                self._dens_occ[key] = v
+        contrib = self._dens_contrib(self.parts[ref])
+        self._dens_part[ref] = contrib
+        for key, a in contrib:
+            self._dens_occ[key] = self._dens_occ.get(key, 0.0) + a
+
     def part_geometry_cost(self, ref, x=None, y=None, rot=None,
                            exclude: Optional[Set[str]] = None):
         """Halo + edge penalty contributions of one part at a position."""
@@ -947,6 +1045,8 @@ class QuenchState:
         # so a default run is bit-identical and pays nothing.
         pen += self._align_cost(ref, rect, exclude)
         pen += self._orient_cost(ref, x, y, rot)
+        # run-23 density term: same hook, same zero-at-weight-0 contract.
+        pen += self._density_cost(ref, x, y, rot, exclude)
         return pen
 
     def violation(self, ref, x=None, y=None, rot=None,
@@ -1561,6 +1661,7 @@ class QuenchState:
         # #548: a move changes which pads other parts see, so every
         # net anchor computed against this part is now stale.
         self._anchors.clear()
+        self._dens_apply(ref)          # run-23 density bins follow the pose
         for net_id in part.nets:
             self.net_airwires[net_id] = self._build_net_airwires(net_id)
 
@@ -1578,6 +1679,7 @@ class QuenchState:
             part.x += dx
             part.y += dy
             nets.update(part.nets)
+            self._dens_apply(ref)      # run-23 density bins follow the pose
         self._inc_violation.clear()
         # #548: a move changes which pads other parts see, so every
         # net anchor computed against this part is now stale.
@@ -1839,7 +1941,11 @@ def quench(pcb_data: PCBData, pcb_file: str,
            corridor_weight: float = 0.0,
            corridor_specs: Optional[Sequence[Dict]] = None,
            cancel_check=None,
-           progress_callback=None) -> List[Dict]:
+           progress_callback=None,
+           # run-23 density term; appended, OFF by default (bit-identical).
+           density_weight: float = 0.0,
+           density_bin_mm: float = 4.0,
+           density_cap: float = 0.85) -> List[Dict]:
     """Greedy quench: iterate over parts, accept only cost-reducing moves.
 
     align_weight / align_radius / align_span, orient_weight: the #548 tidiness
@@ -1926,7 +2032,10 @@ def quench(pcb_data: PCBData, pcb_file: str,
                         pad_legality=pad_legality,
                         move_unconnected=move_unconnected,
                         corridor_weight=corridor_weight,
-                        corridor_specs=corridor_specs)
+                        corridor_specs=corridor_specs,
+                        density_weight=density_weight,
+                        density_bin_mm=density_bin_mm,
+                        density_cap=density_cap)
     state.build_neighbor_lists(max_displacement + grid_step)
 
     before = state.total_cost()

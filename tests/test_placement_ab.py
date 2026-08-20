@@ -130,7 +130,66 @@ ROWS = [
                 'a term that helps on one board of three is not a term, and '
                 'deleting the row that disagrees is how that gets forgotten.'),
     },
+    # --- run-23 density ('breathing') term: TRIED, MEASURED, REJECTED ----
+    #
+    # The claim was that pricing WINDOW fullness would stop legal-but-crammed
+    # layouts (run 23 packed one belt solid while real estate sat empty).
+    # Measured at w=10 / cap 0.85 (cap 0.55 was worse: it charged 42-60% of
+    # all occupied bins on real boards -- density is NORMAL -- and acted as
+    # hpwl noise): the independent pocket signal NEVER MOVED on any board,
+    # because quench's <=3mm nudges cannot migrate a part out of a packed
+    # belt into empty real estate -- that is RESEAT-scale work, which lives
+    # in place_plan/reconstruct and in the run-23 gates (courtyard blocking,
+    # near-miss reports, check_pockets), not in the nudge objective. The
+    # term's diffuse pressure still perturbed the trajectory enough to hurt
+    # the shipped objectives on 2 of 3 boards. Same lesson as the corridor
+    # rows: the deferral reasoning ('the gates remove the cause') is now
+    # measured rather than argued. The knobs stay (weight 0.0 = bit-identical)
+    # for future experiments at other scales.
+    {
+        'name': 'density-ulx3s',
+        'board': 'ulx3s.kicad_pcb',
+        'corridors': [],
+        'ignore_nets': ['GND', '+3V3', '+5V'],
+        'quench_on': {'density_weight': 10.0},
+        'signal': 'pocket_hot2',
+        'guard': ('crossings', 'hpwl'),
+        'expect': 'regress',
+        'rejected': True,
+        'why': ('MEASURED: pocket_hot2 5 -> 5 (inert) while the hpwl guard '
+                'worsened 7437.99 -> 7453.68; crossings unchanged 2477.'),
+    },
+    {
+        'name': 'density-orangecrab',
+        'board': 'orangecrab_ext_pll.kicad_pcb',
+        'corridors': [],
+        'ignore_nets': ['GND', '+3V3', '+1V1', 'VCC*'],
+        'quench_on': {'density_weight': 10.0},
+        'signal': 'pocket_hot2',
+        'guard': ('crossings', 'hpwl'),
+        'expect': 'neutral',
+        'rejected': True,
+        'why': ('MEASURED: byte-identical trajectory -- pocket_hot2 13 -> 13, '
+                'crossings 1063 -> 1063, hpwl 2117.85 -> 2117.85. At cap 0.85 '
+                'no candidate nudge ever crossed a charged bin differently.'),
+    },
+    {
+        'name': 'density-coldfire',
+        'board': 'kit-dev-coldfire-xilinx_5213.kicad_pcb',
+        'corridors': [],
+        'ignore_nets': ['GND', 'VCC*', '+3.3V', '+5V'],
+        'quench_on': {'density_weight': 10.0},
+        'signal': 'pocket_hot2',
+        'guard': ('crossings', 'hpwl'),
+        'expect': 'regress',
+        'rejected': True,
+        'why': ('MEASURED: the worst of the three -- pocket_hot2 0 -> 0 (the '
+                'board has no hot window AT ALL, so the term had nothing to '
+                'fix) while BOTH guards worsened: crossings 1379 -> 1382, '
+                'hpwl 7434.4 -> 7630.62.'),
+    },
 ]
+
 
 QUENCH_BASE = dict(
     max_displacement=3.0, step=1.0, grid_step=0.1, clearance=0.2,
@@ -181,12 +240,30 @@ def _run(board_path, out_path, intent, corridors, quench_kw):
     graded = parse_kicad_pcb(out_path)
     result = floorplan.grade(intent, graded, out_path, with_health=True)
     summary = floorplan.summary(result)
+
+    # run-23 density term's independent signal: the WINDOWED net-demand vs
+    # free-area census (check_pockets' kernel) on the WRITTEN board. The
+    # optimizer prices PART-AREA fullness at its own bin size; this grades
+    # NET DEMAND against free area at a different bin size -- different
+    # numerator, different grid, re-derived from the final poses, so a term
+    # that only games its own bins shows up here as "improved nothing".
+    from congestion_field import congestion_bins
+    _ign = set(quench_kw.get('ignore_nets') or ())
+    _ids = [nid for nid, n in graded.nets.items()
+            if nid > 0 and not any(
+                __import__('fnmatch').fnmatch(n.name, g) for g in _ign)]
+    _layers = list(getattr(graded.board_info, 'copper_layers', []) or ['F.Cu'])
+    _bins, _t = congestion_bins(graded, _ids, len(_layers), 2.0)
+    _ratios = [len(ow) / fa for fa, ow in _bins.values()
+               if len(ow) >= 2 and fa > 0]
     after = metrics.get('after') or {}
     return {
         'seconds': round(time.time() - t0, 1),
         'crossings': after.get('crossings'),
         'hpwl': round(float(after.get('hpwl') or 0.0), 2),
         'corridor_cut': round(float(after.get('corridor_cut') or 0.0), 2),
+        'pocket_hot2': sum(1 for r in _ratios if r >= 0.5),
+        'pocket_ratio_max': round(max(_ratios), 4) if _ratios else 0.0,
         'health_bus_foreign_crossings':
             summary.get('health_bus_foreign_crossings'),
         'health_blocks_displaced': summary.get('health_blocks_displaced'),
