@@ -364,7 +364,8 @@ def mark(report: Dict[str, Any], dl: Deadline, **partial: Any
 
 
 def stdout_progress(min_interval: float = 15.0,
-                    deadline: Optional[Deadline] = None):
+                    deadline: Optional[Deadline] = None,
+                    heartbeat_file: Optional[str] = None):
     """A throttled `(current, total, label)` callback for CLI progress.
 
     `route_disconnected_planes` already invokes `progress_callback` at ~9 sites;
@@ -374,8 +375,14 @@ def stdout_progress(min_interval: float = 15.0,
     Throttling matters: one of those sites fires per pad and would otherwise
     flood a 96-pad board's log. `PROGRESS:` is a distinct prefix that cannot
     match `route_summary.SUMMARY_RE`.
+
+    run-23: `heartbeat_file` (default $KRT_PROGRESS_FILE) additionally
+    rewrites one small JSON doc per tick, atomically -- a waiter or a
+    RUN_STATE reader polls one file for liveness instead of tailing a log
+    that only grows when something prints.
     """
     state = {'last': 0.0}
+    hb = heartbeat_file or os.environ.get('KRT_PROGRESS_FILE') or None
 
     def _progress(current=0, total=0, label='') -> None:
         now = time.monotonic()
@@ -390,6 +397,20 @@ def stdout_progress(min_interval: float = 15.0,
             print(f"PROGRESS: {frac}{label}{clock}", flush=True)
         except Exception:                                      # noqa: BLE001
             pass
+        if hb:
+            try:
+                doc = {'t': time.time(), 'current': current, 'total': total,
+                       'label': label,
+                       'elapsed_s': (round(deadline.elapsed(), 1)
+                                     if deadline is not None else None),
+                       'deadline_s': (deadline.seconds
+                                      if deadline is not None else None)}
+                tmp = hb + '.tmp'
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    json.dump(doc, f)
+                os.replace(tmp, hb)
+            except Exception:                                  # noqa: BLE001
+                pass
     return _progress
 
 

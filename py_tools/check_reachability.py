@@ -314,12 +314,69 @@ def main(argv=None):
                   f"{args.view!r}", file=sys.stderr)
             return 2
 
+    auto_widened = None
     try:
         r = reachability.pad_reachability(
             pcb, seed, net_name=args.net, net_id=net_id, layers=layers,
             view=view, track_mm=track, via_mm=via, base_clearance=clearance,
             net_clearances=net_clearances, step=args.step,
             margin_mm=args.margin)
+        # run-23: NO-TARGET at the default view means the net's other island
+        # sits beyond --margin, NOT that the question is unanswerable -- and
+        # the manual retry ladder measured badly (--margin 12 took 128s,
+        # --margin 18 306s, --margin 25 timed out at 10 minutes with NO
+        # data, because cells scale as (span/step)^2 at the fixed step).
+        # Locate the nearest other island by VECTOR union-find (no raster),
+        # widen the view to hold seed + its closest point, and coarsen the
+        # step so the grid stays ~1200^2 whatever the span. Coarse-locate;
+        # the step used rides in the result so readings stay comparable --
+        # re-measure a found throat on a small box at native step.
+        if (r.target_cells == 0 and view is None
+                and net_id is not None):
+            import math as _math
+            from net_forensics import _components
+            sx, sy = seed
+            best = None
+            own_d, own_i = None, None
+            comp_pts = []
+            for comp in _components(pcb, net_id):
+                pts = [p for _k, _o, ps in comp for p in ps]
+                if not pts:
+                    continue
+                d = min(_math.hypot(px - sx, py - sy) for px, py in pts)
+                comp_pts.append((d, pts))
+                if own_d is None or d < own_d:
+                    own_d, own_i = d, len(comp_pts) - 1
+            for i, (_d, pts) in enumerate(comp_pts):
+                if i == own_i:
+                    continue
+                for px, py in pts:
+                    dd = _math.hypot(px - sx, py - sy)
+                    if best is None or dd < best[0]:
+                        best = (dd, px, py)
+            if best is not None:
+                _d, px, py = best
+                x0 = min(sx, px) - args.margin
+                x1 = max(sx, px) + args.margin
+                y0 = min(sy, py) - args.margin
+                y1 = max(sy, py) + args.margin
+                span = max(x1 - x0, y1 - y0)
+                step2 = max(args.step, span / 1200.0)
+                print(f"  NO-TARGET at the default +/-{args.margin:g}mm "
+                      f"view; nearest other island of this net is "
+                      f"{best[0]:.2f}mm away -- auto-widening to "
+                      f"[{x0:.1f},{y0:.1f},{x1:.1f},{y1:.1f}] at step "
+                      f"{step2:g}mm")
+                r = reachability.pad_reachability(
+                    pcb, seed, net_name=args.net, net_id=net_id,
+                    layers=layers, view=[x0, y0, x1, y1], track_mm=track,
+                    via_mm=via, base_clearance=clearance,
+                    net_clearances=net_clearances, step=step2,
+                    margin_mm=args.margin)
+                auto_widened = {
+                    'view': [round(v, 2) for v in (x0, y0, x1, y1)],
+                    'step_mm': round(step2, 4),
+                    'nearest_island_mm': round(best[0], 2)}
     except reachability.ScipyRequired as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -359,15 +416,19 @@ def main(argv=None):
             except OSError as exc:
                 print(f"  could not write {args.defect_json}: {exc}",
                       file=sys.stderr)
+    _doc = r.to_dict()
+    if auto_widened:
+        # The reading is only comparable at its own step -- say which.
+        _doc['auto_widened'] = auto_widened
     if args.json_out:
         try:
             with open(args.json_out, 'w', encoding='utf-8') as fh:
-                json.dump(r.to_dict(), fh, indent=2)
+                json.dump(_doc, fh, indent=2)
             print(f"  JSON -> {args.json_out}")
         except OSError as exc:
             print(f"  could not write {args.json_out}: {exc}", file=sys.stderr)
     if args.json:
-        print(json.dumps(r.to_dict(), indent=2))
+        print(json.dumps(_doc, indent=2))
     else:
         print(f"board      {os.path.basename(args.board)}")
         print(f"knobs      clearance {clearance}mm, track {track}mm, "

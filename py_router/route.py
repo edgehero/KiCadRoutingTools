@@ -483,6 +483,7 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                 add_teardrops: bool = False,
                 collect_stats: bool = False,
                 cancel_check=None,
+                tail_cancel_check=None,
                 progress_callback=None,
                 return_results: bool = False,
                 pcb_data=None,
@@ -610,6 +611,12 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                # forwarding.
                'oracle_links'):
         _reconcile_kwargs.pop(_k, None)
+    # run-23: the TAIL closure. `cancel_check` may carry a reserve band
+    # (the routing loops stop early to leave room for the tail); the tail
+    # legs -- plane finalize, oracle reconnect, the reconcile sub-run -- run
+    # INSIDE that reserve and must therefore use a reserve-0 closure, or
+    # they would refuse to start in the very window reserved for them.
+    _tail_cc = tail_cancel_check or cancel_check
     # #572 lap-authority channel: cleared at ENTRY so an early return can
     # never leave a previous invocation's hints for the caller to harvest.
     batch_route._forced_link_hints = {}
@@ -3814,6 +3821,7 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                     _b4vias9 = list(pcb_data.vias)
                     _rdp_engine(
                         input_file or "", "", _zn, _zl,
+                        cancel_check=_tail_cc,
                         track_width=config.track_width,
                         clearance=config.clearance,
                         grid_step=config.grid_step,
@@ -3888,6 +3896,7 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                 else:
                     _rdp_engine(
                         output_file, output_file, _zn, _zl,
+                        cancel_check=_tail_cc,
                         track_width=config.track_width,
                         clearance=config.clearance,
                         grid_step=config.grid_step,
@@ -4050,6 +4059,7 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                     _orc_file9, _zna, _ocfg,
                     track_via_clearance=defaults.PLANE_TRACK_VIA_CLEARANCE,
                     hole_to_hole_clearance=config.hole_to_hole_clearance,
+                    cancel_check=_tail_cc,
                     project_from=input_file)
                 print(f"  [finalize timing] oracle leg: "
                       f"{_time9.time() - _t9:.1f}s")
@@ -4244,7 +4254,21 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
                 except OSError:
                     pass
 
+    # run-23: the reconcile is 1-3 laps, each paying a full re-parse + base
+    # obstacle map + per-net cache rebuild before its cancel_check is ever
+    # consulted -- minutes of unstoppable work entered AFTER the budget was
+    # spent (R4: 732s of 420, the tail was most of the overshoot). Entering
+    # on an expired deadline is refused HERE, with the reason printed, so
+    # the skip is a recorded fact instead of a mystery.
+    _rec_expired = bool(_tail_cc and _tail_cc())
+    if (_rec_expired and final_reconcile and not skip_routing
+            and (failed_single or failed_multipoint or _custody_nets9
+                 or _victim_retry_names or open_single)):
+        print(f"{RED}Final reconciliation SKIPPED: the deadline is spent. "
+              f"The failure lists above are the honest still-open set; rerun "
+              f"with a larger --deadline (or none) to retry them.{RESET}")
     if (final_reconcile and not skip_routing and not _ckpt_stop
+            and not _rec_expired
             and (output_file or return_results)
             and (failed_single or failed_multipoint or _custody_nets9
                  or _victim_retry_names or open_single)):
@@ -4274,7 +4298,12 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
             # THIS run; a forwarded flag would re-strip the retried nets'
             # partial copper (and thrash on a second failure).
             _rk.update(final_reconcile=False, skip_routing=False,
-                       force_reroute=False, rip_preexisting=False)
+                       force_reroute=False, rip_preexisting=False,
+                       # run-23: the sub-run IS the tail -- a reserve-banded
+                       # closure here would stop it in the window reserved
+                       # for it.
+                       cancel_check=_tail_cc)
+            _rk.pop('tail_cancel_check', None)
             # #572 (fix direction 2): hand the oracle's EXACT unroutable
             # links to the sub-run as forced edges. Without them the
             # sub-run's model-credited connectivity both skips the custody
@@ -5528,12 +5557,22 @@ For differential pair routing, use route_diff.py:
     # --preview: the engine already supports this -- return_results=True with
     # an empty output_file routes fully, mutates only the in-memory PCBData
     # and writes nothing. This just exposes it on the CLI (#459 follow-on).
+    # run-23: a RESERVE BAND, the repair_planes pattern. R4 overshot 732s of
+    # 420 because the routing loop consumed the whole budget and everything
+    # after it (write, plane finalize, oracle, 3 reconcile laps) was pure
+    # overshoot. The routing loops now stop at deadline-minus-reserve; the
+    # tail legs run inside the reserve and carry their own reserve-0 closure
+    # (threaded into plane finalize / oracle / reconcile below), so they stop
+    # AT the deadline instead of never.
+    _reserve = (max(30.0, (args.deadline or 0) * 0.2) if _dl else 0.0)
     _preview_out = batch_route(args.input_file,
                 "" if args.preview else args.output_file, net_names,
                 return_results=args.preview,
-                cancel_check=(_dl.cancel_check('routing') if _dl else None),
-                progress_callback=(krt_deadline.stdout_progress(deadline=_dl)
+                cancel_check=(_dl.cancel_check('routing', reserve=_reserve)
+                              if _dl else None),
+                tail_cancel_check=(_dl.cancel_check('finalize')
                                    if _dl else None),
+                progress_callback=krt_deadline.stdout_progress(deadline=_dl),
                 direction_order=args.direction,
                 ordering_strategy=args.ordering,
                 disable_bga_zones=args.no_bga_zones,
