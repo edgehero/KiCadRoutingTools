@@ -31,7 +31,7 @@ import sys
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BS = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'scripts',
+BS = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-placement-and-routing', 'scripts',
                   'board_score.py')
 CC = os.path.join(REPO, 'check_complete.py')
 

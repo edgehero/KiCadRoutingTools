@@ -32,7 +32,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(HERE)
-REFS = os.path.join(os.path.dirname(SKILL_DIR), 'plan-pcb-routing', 'references')
+REFS = os.path.join(os.path.dirname(SKILL_DIR), 'plan-pcb-placement-and-routing', 'references')
 
 
 # --------------------------------------------------------------------------

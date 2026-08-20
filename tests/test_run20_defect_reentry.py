@@ -240,7 +240,7 @@ check('and re-graded at HEAD, not quoted from the old score file',
 check('and the rule is "the comparison is VOID", not "pick the smaller number"',
       'comparison is\nVOID' in _txt or 'comparison is VOID' in _txt, '')
 
-_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'scripts',
+_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-placement-and-routing', 'scripts',
                    'board_score.py')
 p = subprocess.run([sys.executable, _bs, _BOARD, '--quiet'],
                    capture_output=True, text=True, timeout=900)

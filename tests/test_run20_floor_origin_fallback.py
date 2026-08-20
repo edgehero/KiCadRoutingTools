@@ -274,7 +274,7 @@ check('exactly one key is delegated, to a named instrument, with the floor '
 print('--- and the floor it graded at reaches the score payload ---')
 # The promotion above is only sound because board_score publishes what its
 # check_drc child graded at. It used to scrape one scalar out of stdout.
-_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'scripts',
+_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-placement-and-routing', 'scripts',
                    'board_score.py')
 _p = subprocess.run([sys.executable, _bs, _b, '--quiet'],
                     capture_output=True, text=True, timeout=900)

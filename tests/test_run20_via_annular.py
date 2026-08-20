@@ -415,7 +415,7 @@ check('and an explicit CLI floor wins over everything',
       rc == 1 and 'annular >= 0.2mm (cli)' in out, f'rc={rc}; ' + out[-300:])
 
 print('--- the score puts it in the right list ---')
-_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-routing', 'scripts',
+_bs = os.path.join(REPO, '.claude', 'skills', 'plan-pcb-placement-and-routing', 'scripts',
                    'board_score.py')
 _r = subprocess.run([sys.executable, _bs, _b, '--quiet'],
                     capture_output=True, text=True, timeout=900)
