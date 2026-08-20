@@ -4630,6 +4630,24 @@ def batch_route(input_file: str, output_file: str, net_names: List[str],
         except Exception as _e:
             print(f"  WARNING: could not write --json-out {json_out}: {_e}")
 
+    # run-23: ONE compact authoritative line per outermost run, CLI and GUI
+    # alike. The big JSON_SUMMARY lines are 6-20KB each and their scope
+    # semantics need the log's own warning paragraph; agents consuming them
+    # paid that in context per lap. `final_reconcile` is True only on the
+    # outermost call (every sub-run -- plane finalize, end-of-run reconcile --
+    # passes False, the #562 recursion guard), so nested passes never emit a
+    # second MIN line. Deliberately AFTER the reconcile block: this line
+    # carries the merged tally or it is a lie.
+    if final_reconcile:
+        try:
+            from route_summary import merge_summaries as _ms, summary_min
+            _m = _ms(list(_SUMMARY_SINK), _RECONCILE_RAISED[0])
+            if _m:
+                print("JSON_SUMMARY_MIN: "
+                      + json.dumps(summary_min(_m), sort_keys=True))
+        except Exception as _e:                                 # noqa: BLE001
+            print(f"  WARNING: could not emit JSON_SUMMARY_MIN: {_e}")
+
     from net_story import net_story_enabled, dump_net_story
     if net_story_enabled():
         try:

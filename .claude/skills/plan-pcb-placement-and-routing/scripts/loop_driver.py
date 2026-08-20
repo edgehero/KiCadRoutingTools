@@ -719,9 +719,75 @@ def _log_invocation(a, stage, out, code):
         _note_inner_half(p, row)
         with open(p, 'a', encoding='utf-8') as fh:
             fh.write(json.dumps(row, sort_keys=True) + '\n')
+        # run-23: stamp the stage onto the workdir's NOW view. The ledger-
+        # derived body of RUN_STATE.json is owned by converge.write_run_state
+        # (every `record` refreshes it); the driver only merges in what it
+        # alone knows -- the last stage and whether it refused -- so a fresh
+        # agent reorients from ONE file instead of tailing three logs.
+        try:
+            sp = os.path.join(d, 'RUN_STATE.json')
+            st = {}
+            if os.path.exists(sp):
+                with open(sp, encoding='utf-8') as sf:
+                    st = json.load(sf)
+            st.update({'last_stage': stage, 'stage_exit': code,
+                       'stage_refused': bool(code == 4),
+                       'stage_written_at': row['iso']})
+            tmp = sp + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as sf:
+                json.dump(st, sf, indent=1, sort_keys=True)
+            os.replace(tmp, sp)
+        except Exception:                                    # noqa: BLE001
+            pass
         return p
     except Exception:                                       # noqa: BLE001
         return None
+
+
+def _status(a) -> int:
+    """--status: the NOW view, one command (run-23).
+
+    Refreshes RUN_STATE.json from the ledger via converge (subprocess, the
+    same authority every record goes through), prints it, then the last 5
+    driver stages and timed commands. Degrades gracefully on an empty or
+    absent workdir: an honest 'nothing recorded yet' beats a traceback.
+    """
+    import subprocess
+    work = _work(a)
+    if a.ledger and os.path.exists(a.ledger):
+        subprocess.run([sys.executable, '-X', 'utf8',
+                        os.path.join(ROOT, 'py_placer', 'converge.py'),
+                        'status', '--ledger', os.path.abspath(a.ledger)],
+                       cwd=ROOT, capture_output=True, text=True)
+    sp = os.path.join(work, 'RUN_STATE.json')
+    if os.path.exists(sp):
+        with open(sp, encoding='utf-8') as f:
+            print(f.read())
+    else:
+        print(f'RUN_STATE: nothing recorded yet ({sp} does not exist -- no '
+              f'lap has been recorded and no stage has run against this '
+              f'workdir).')
+    for name, label in (('loop_driver.log', 'driver stages'),
+                        ('cmd_timing.jsonl', 'timed commands')):
+        p = os.path.join(work, name)
+        if not os.path.exists(p):
+            continue
+        try:
+            with open(p, encoding='utf-8') as f:
+                tail = [json.loads(ln) for ln in f.read().splitlines()[-5:]
+                        if ln.strip()]
+        except (OSError, ValueError):
+            continue
+        print(f'last {len(tail)} {label}:')
+        for r in tail:
+            if name == 'loop_driver.log':
+                print(f"  {r.get('iso')}  {r.get('stage')}  exit "
+                      f"{r.get('exit')}"
+                      + ('  REFUSED' if r.get('refused') else ''))
+            else:
+                print(f"  {r.get('iso_start')}  {r.get('label')}  exit "
+                      f"{r.get('exit')}  {r.get('wall_s')}s")
+    return 0
 
 
 #: How long two invocations of the same stage against the same ledger have to be
@@ -1237,9 +1303,15 @@ def l2(a):
             f'the board changed after the last lap was recorded -- and both '
             f'are the same problem for everything downstream, because the '
             f'ledger is what step-back, the film and the staleness list all '
-            f'read.\n\nRecord it:\n  python3 -X utf8 py_placer/converge.py record '
+            f'read.\n\nRecord it -- WITH a score, or the lap is invisible to '
+            f'the L5 plateau read (run-23: 17 score-less placement laps made '
+            f'the plateau NOT ANSWERABLE):\n'
+            f'  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/'
+            f'board_score.py \\\n      {a.board} --json {_work(a)}/score_place.json\n'
+            f'  python3 -X utf8 py_placer/converge.py record '
             f'--ledger {a.ledger} \\\n      --board {a.board} --kind placement '
-            f'--argv <the command that produced it>')
+            f'\\\n      --score-file {_work(a)}/score_place.json '
+            f'\\\n      --argv <the command that produced it>')
     # Deliberately NOT refusing on an empty or absent ledger. `_recorded`
     # returns None there, and this gate's own refusal text documents the case:
     # a board placed by someone else, handed straight to routing, has no
@@ -1276,8 +1348,11 @@ half wrote; do not re-derive it by diffing poses.
 
   python3 -X utf8 py_router/copy_board.py {a.board} {_frozen}
   ... stamp (locked yes) on the refs that file names ...
+  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/board_score.py \\
+      {_frozen} --json {work}/score_freeze.json
   python3 -X utf8 py_placer/converge.py record --ledger {a.ledger} \\
       --board {_frozen} --kind placement \\
+      --score-file {work}/score_freeze.json \\
       --lever "L2 freeze: <n> refs the placement half named as decisions"
 
 A later step that moves a decided pose silently undoes the placement work, and
@@ -2664,6 +2739,11 @@ def _args(argv=None):
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--dump-all', action='store_true')
     ap.add_argument('--self-test', action='store_true')
+    ap.add_argument('--status', action='store_true',
+                    help='the NOW view (run-23): print RUN_STATE.json '
+                         '(refreshing it from the ledger first), the last 5 '
+                         'driver stages and the last 5 timed commands. One '
+                         'command to reorient instead of tailing three logs.')
     ns = ap.parse_args(argv)
     # Fill the ledger from the work dir, preserving the old default exactly
     # when --workdir is not given.
@@ -2722,6 +2802,8 @@ def main(argv=None):
         for k in ('L1', 'L2', 'L3', 'L4', 'L5'):
             print(f'  {k}  {TITLES[k]}')
         return 0
+    if a.status:
+        return _status(a)
     if a.self_test:
         return _self_test()
     if a.dump_all:

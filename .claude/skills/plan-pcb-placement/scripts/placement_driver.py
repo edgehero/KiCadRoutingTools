@@ -400,9 +400,16 @@ you which one worked.
 VERIFY: re-run all four. A lap is ACCEPTED only if the finding it aimed at is
 gone and nothing above it got worse.
 
-Then record it, before starting the next lap:
+Then record it, before starting the next lap -- WITH a score, or the lap is
+invisible to every plateau read downstream (run-23: seventeen placement laps
+recorded score-less; converge's window dropped them all as 'unjudged', L5's
+plateau question came back NOT ANSWERABLE, and run_watch's lap comparison
+reset on every one):
+  python3 -X utf8 .claude/skills/plan-pcb-routing/scripts/board_score.py \\
+      {a.board} --json wk/score_lap<N>.json
   python3 -X utf8 py_placer/converge.py record --ledger wk/ledger.jsonl \\
       --board {a.board} --kind placement --lever "<what you changed and why>" \\
+      --score-file wk/score_lap<N>.json \\
       --argv <the real command that produced this board, as BARE TOKENS>
 
 --argv takes the rest of the line, unquoted, and it must REPLAY: converge
@@ -1190,6 +1197,54 @@ def _retarget(text, workdir):
     return ''.join(out)
 
 
+def _log_invocation(a, stage, out, code):
+    """Append this invocation to <workdir>/placement_driver.log (run-23).
+
+    loop_driver has journalled itself since run 15; this driver never did,
+    so a placement stage that ran, refused and was worked around left no
+    trace the audit could find. Same row shape, same never-breaks-a-stage
+    contract; also stamps the stage onto the workdir's RUN_STATE.json (the
+    ledger-derived body of that file is converge.write_run_state's).
+    """
+    import hashlib
+    import json as _json
+    import time as _time
+    try:
+        d = getattr(a, 'workdir', None) or 'wk'
+        if not os.path.isdir(d):
+            return None
+        row = {'t': round(_time.time(), 3),
+               'iso': _time.strftime('%Y-%m-%dT%H:%M:%S'),
+               'stage': stage, 'exit': code, 'refused': bool(code == 4),
+               'board': getattr(a, 'board', None),
+               'cwd': os.getcwd(), 'argv': list(sys.argv),
+               'out_sha': hashlib.sha256(
+                   (out or '').encode('utf-8')).hexdigest()[:16],
+               'out_lines': len((out or '').splitlines())}
+        with open(os.path.join(d, 'placement_driver.log'), 'a',
+                  encoding='utf-8') as fh:
+            fh.write(_json.dumps(row, sort_keys=True) + '\n')
+        try:
+            sp = os.path.join(d, 'RUN_STATE.json')
+            st = {}
+            if os.path.exists(sp):
+                with open(sp, encoding='utf-8') as sf:
+                    st = _json.load(sf)
+            st.update({'last_stage': f'placement:{stage}',
+                       'stage_exit': code,
+                       'stage_refused': bool(code == 4),
+                       'stage_written_at': row['iso']})
+            tmp = sp + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as sf:
+                _json.dump(st, sf, indent=1, sort_keys=True)
+            os.replace(tmp, sp)
+        except Exception:                                    # noqa: BLE001
+            pass
+        return d
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
 def main(argv=None):
     a = _args(argv)
     if a.list:
@@ -1205,8 +1260,10 @@ def main(argv=None):
               file=sys.stderr)
         return 2
     out = _retarget(STAGES[a.stage](a), getattr(a, 'workdir', None))
+    code = 4 if out.startswith('<error>') else 0
+    _log_invocation(a, a.stage, out, code)
     print(out)
-    return 4 if out.startswith('<error>') else 0
+    return code
 
 
 def _fake_render(board, halo=100.0, crossings=100.0, hpwl=1000.0, moved=3):

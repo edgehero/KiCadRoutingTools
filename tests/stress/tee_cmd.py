@@ -80,6 +80,14 @@ def main(argv):
         # humans and does not carry the EXIT= prefix any parser looks for.
         log.write('EXIT=%d' % code + chr(10))
         log.flush()
+    # run-23: ONE canonical completion signal. The exit line above lives in
+    # the log; the `[tee_cmd] ... exit=` line goes to stdout only -- and a
+    # waiter grepping the log for the stdout line cost 25 measured minutes.
+    # `<label>.done` holds the exit code and appears exactly when the child
+    # has exited; wait on os.path.exists of THIS, nothing else.
+    with open(path[:-4] + '.done' if path.endswith('.log')
+              else path + '.done', 'w', encoding='utf-8') as f:
+        f.write('%d\n' % code)
     t1 = time.time()
 
     with open(ledger, 'a', encoding='utf-8') as f:

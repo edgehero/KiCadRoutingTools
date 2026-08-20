@@ -521,6 +521,14 @@ def _fab_floor_disclosure(output_pcb: str, rules_before: dict, proj: dict,
                  "Confirm your fab supports it; if the original number was a "
                  "real process limit, re-route at that floor rather than "
                  "shipping this project.")
+    # run-23: the MACHINE line. The prose above was in run 23's log and the
+    # relaxation still needed a human to catch it -- JSON_SUMMARY_MIN cannot
+    # carry this (the writeback runs after the summary prints), so the
+    # contract is: read the MIN line AND grep this one. An absent line means
+    # the writeback did not run, never that floors held.
+    lines.append("FAB_FLOORS_RELAXED: " + json.dumps(
+        [{'key': k, 'was': w, 'now': n} for k, _l, w, n, _mv in relaxed],
+        sort_keys=True))
     lines.extend(_grading_floor_disclosure(rules_before, rules_after, origin))
     return lines
 
