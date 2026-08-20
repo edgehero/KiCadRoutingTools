@@ -63,12 +63,14 @@ class TestRun23Board(unittest.TestCase):
         self.assertEqual(r.returncode, 4, r.stdout[-600:])
         self.assertFalse(doc['buildable'])
         self.assertIn('NOT BUILDABLE', r.stdout)
-        self.assertEqual(doc['courtyard_blocking_gating'], 4)
+        self.assertEqual(doc['courtyard_blocking_gating'], 8)
         self.assertEqual(doc['courtyard_gating_basis'], 'moved-vs-baseline')
         gating = {(q['a'], q['b'])
                   for q in doc['courtyard_blocking_gating_pairs']}
         self.assertEqual(gating, {('J4', 'U6'), ('J3', 'R13'),
-                                  ('RN3', 'U5'), ('SW1', 'U1')})
+                                  ('RN3', 'U5'), ('SW1', 'U1'),
+                                  ('J1', 'SW1'), ('J1', 'SW2'),
+                                  ('J1', 'R5'), ('J4', 'R21')})
         # `blocking` (pad intersections) must NOT have moved -- it has three
         # consumers and this board has none.
         self.assertEqual(doc['blocking'], 0)
@@ -86,7 +88,7 @@ class TestRun23Board(unittest.TestCase):
         r, doc = _grade(PLACED)
         self.assertEqual(r.returncode, 0, r.stdout[-600:])
         self.assertTrue(doc['buildable'])
-        self.assertEqual(doc['courtyard_blocking'], 5)
+        self.assertEqual(doc['courtyard_blocking'], 9)
         self.assertIsNone(doc['courtyard_blocking_gating'])
         self.assertEqual(doc['courtyard_gating_basis'],
                          'no-baseline: report-only')
@@ -102,13 +104,19 @@ class TestRun23Board(unittest.TestCase):
         census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
         self.assertIn(('G***', 'J5'), census)
 
-    def test_floors_hold_the_sliver_out(self):
-        """J4<->R21 (0.445mm2) sits under the area floor: advisory only."""
+    def test_floors_hold_the_true_slivers_out(self):
+        """The RELATIVE floor (user finding): J4<->R21's 0.445mm2 slid
+        under the 0.5mm2 absolute floor while consuming 25.5% of R21's
+        courtyard -- it blocks now. The true slivers (D3<->SW1 0.059mm2 at
+        depth 0.02, frac 0.014) stay advisory: every floor must hold
+        SOMETHING out or it is not a floor."""
         _r, doc = _grade(PLACED, '--baseline', DAMAGED)
         blocked = {(q['a'], q['b']) for q in doc['courtyard_blocking_pairs']}
-        self.assertNotIn(('J4', 'R21'), blocked)
+        self.assertIn(('J4', 'R21'), blocked)
+        self.assertNotIn(('D3', 'SW1'), blocked)
+        self.assertNotIn(('D4', 'SW2'), blocked)
         census = {(q['a'], q['b']) for q in doc['courtyard_pairs']}
-        self.assertIn(('J4', 'R21'), census)
+        self.assertIn(('D3', 'SW1'), census)
 
     def test_dead_edge_waiver_does_not_hide_the_switches(self):
         """The user's own finding, pinned: SW1/SW2 collided with parts and
@@ -116,14 +124,18 @@ class TestRun23Board(unittest.TestCase):
         geometry -- waived every pair. The waiver now stands only for a
         member whose pose is edge-LIVE (overhanging, or within seat
         tolerance): SW1 sat 2.0mm interior, SW2 8.33mm, so SW1<->U1 and
-        FB1<->SW2 join the blocking census; J1<->SW1 stays waived because
-        J1 IS at the edge overhanging (its courtyard includes the mating
-        volume)."""
+        FB1<->SW2 join the blocking census. And a LIVE waiver covers only
+        the MATING ZONE (second user finding): J1 is legitimately at the
+        edge, but R5 sat 45.7% inside J1's INTERIOR courtyard -- under the
+        connector body, 1.5mm inside the outline -- so J1<->R5, J1<->SW1
+        and J1<->SW2 block too; only an overlap that leaves or hugs the
+        outline is mating volume."""
         _r, doc = _grade(PLACED, '--baseline', DAMAGED)
         blocked = {(q['a'], q['b']) for q in doc['courtyard_blocking_pairs']}
         self.assertIn(('SW1', 'U1'), blocked)
         self.assertIn(('FB1', 'SW2'), blocked)
-        self.assertNotIn(('J1', 'SW1'), blocked)
+        self.assertIn(('J1', 'R5'), blocked)
+        self.assertIn(('J1', 'SW1'), blocked)
         # FB1<->SW2 is the moved-currency's NAMED blind spot: the damage
         # placed both and the repair never touched either, so no movement
         # test can charge it without flipping pristine boards. It must stay
@@ -180,10 +192,14 @@ class TestRenderCourtyardTruth(unittest.TestCase):
                    cl['b_courtyard_blocking_pairs']}
         self.assertEqual(blocked, {('J4', 'U6'), ('J3', 'R13'),
                                    ('RN3', 'U5'), ('SW1', 'U1'),
-                                   ('FB1', 'SW2')})
+                                   ('FB1', 'SW2'), ('J1', 'SW1'),
+                                   ('J1', 'SW2'), ('J1', 'R5'),
+                                   ('J4', 'R21')})
         census = {(a, b) for a, b, _m, _d in cl['b_courtyard_overlap_pairs']}
-        self.assertIn(('J4', 'R21'), census)   # sub-floor sliver: listed,
-        self.assertNotIn(('J4', 'R21'), blocked)  # never blocking
+        # J4<->R21 blocks via the RELATIVE floor (25.5% of R21's courtyard);
+        # the true slivers stay out of the blocking list.
+        self.assertIn(('J4', 'R21'), census)
+        self.assertNotIn(('D3', 'SW1'), blocked)
         self.assertGreater(cl['b_courtyard_overlap_mm2'], 20.0)
 
     def test_the_defect_is_in_the_pixels(self):

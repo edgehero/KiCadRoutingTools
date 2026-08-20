@@ -347,8 +347,10 @@ def main():
             else f"REPORT-ONLY: pass --baseline <the board the run started "
                  f"from> to gate the pairs your moves created")
         print(f"  COURTYARD BLOCKING ({g['courtyard_blocking']}): unwaived "
-              f"courtyard interpenetration past both floors (area >= "
-              f"{legality.COURTYARD_BLOCKING_MIN_MM2}mm2 AND depth >= "
+              f"courtyard interpenetration past the floors (area >= "
+              f"{legality.COURTYARD_BLOCKING_MIN_MM2}mm2 OR >= "
+              f"{legality.COURTYARD_BLOCKING_MIN_FRAC:.0%} of the smaller "
+              f"courtyard, AND depth >= "
               f"{legality.COURTYARD_BLOCKING_MIN_DEPTH_MM}mm) -- {_gate_note}")
         for q in g['courtyard_blocking_pairs']:
             _mv = ''

@@ -123,6 +123,13 @@ CONTAINMENT_FRAC = 0.5
 #: footprint's fictional +/-0.5mm box manufactures phantom pairs).
 COURTYARD_BLOCKING_MIN_MM2 = 0.5
 COURTYARD_BLOCKING_MIN_DEPTH_MM = 0.3
+#: The RELATIVE floor (run-23, user finding #2): an absolute area floor is
+#: blind to small parts -- J4<->R21 measured 0.445mm2 (11% under the area
+#: floor) while a QUARTER of R21's courtyard sat inside J4's. A pair also
+#: gates when the overlap consumes this fraction of the SMALLER courtyard,
+#: the same denominator containment_frac uses and for the same reason: area
+#: is everything to a 0402 and nothing to a connector.
+COURTYARD_BLOCKING_MIN_FRAC = 0.25
 
 
 def containment_frac(area, ra, rb):
@@ -790,6 +797,13 @@ class BodyOverlapPair(NamedTuple):
     # run-23: D3<->SW1 0.059mm2 at depth 0.02 vs J4<->U6 5.56mm2 at depth
     # 0.90 -- and the courtyard blocking policy keys on this axis.
     depth_mm: float = 0.0
+    # WHERE the overlap is: the intersection rect (x0, y0, x1, y1), None =
+    # not measured. run-23 user finding #1: the edge-class waiver needs the
+    # REGION, not only the pair -- J1's mating overhang legitimately covers
+    # the strip at/over the outline, and nothing else, yet R5 sat 45.7%
+    # inside J1's INTERIOR courtyard (under the connector body, 1.5mm inside
+    # the board) behind the same waiver.
+    overlap_rect: Optional[Tuple[float, float, float, float]] = None
     # `contained_frac >= CONTAINMENT_FRAC`, **on the fab channel only**.
     #
     # Why fab-only, measured on the same 33 boards: the COURTYARD currency
@@ -835,14 +849,16 @@ def body_overlap_pairs(parts: Sequence[GradedPart]) -> List[BodyOverlapPair]:
                     worst_rects = (ra, rb)
             if worst > EPS:
                 ra, rb = worst_rects
-                _dx = min(ra[2], rb[2]) - max(ra[0], rb[0])
-                _dy = min(ra[3], rb[3]) - max(ra[1], rb[1])
+                ix = (max(ra[0], rb[0]), max(ra[1], rb[1]),
+                      min(ra[2], rb[2]), min(ra[3], rb[3]))
+                _dx, _dy = ix[2] - ix[0], ix[3] - ix[1]
                 out.append(BodyOverlapPair(
                     a=min(a.ref, b.ref), b=max(a.ref, b.ref),
                     kind='courtyard', area_mm2=round(worst, 4),
                     side=worst_side, waived=False, waiver='',
                     contained_frac=containment_frac(worst, *worst_rects),
-                    depth_mm=round(max(0.0, min(_dx, _dy)), 4)))
+                    depth_mm=round(max(0.0, min(_dx, _dy)), 4),
+                    overlap_rect=tuple(round(v, 4) for v in ix)))
     out.sort(key=lambda p: (-p.area_mm2, p.a, p.b))
     return out
 
@@ -1180,12 +1196,33 @@ def grade_body_overlap(pcb_data, clearance: float,
             return False
         if p.waiver != 'edge_class':
             return True
-        return _edge_waiver_live(p.a) or _edge_waiver_live(p.b)
+        if not (_edge_waiver_live(p.a) or _edge_waiver_live(p.b)):
+            return False
+        # run-23 user finding #1: an edge-LIVE part's waiver covers its
+        # MATING ZONE, never its whole courtyard. The overhang story is
+        # about the strip at/over the outline; an overlap sitting INSIDE
+        # the board is under the part's BODY, whoever is at the edge --
+        # R5 sat 45.7% inside J1's interior courtyard behind this waiver.
+        # The overlap region must leave the outline or hug the edge
+        # (within SEAT_TOL_MM); unmeasurable geometry never UN-waives.
+        r = p.overlap_rect
+        if r is None or not bb:
+            return True
+        try:
+            from .part_class import SEAT_TOL_MM
+            _og = BoardOutlineGate(pcb_data.board_info, 0.0)
+            return (_og.rect_outside_amount(r) > EPS
+                    or _og.edge_clearance(r) <= SEAT_TOL_MM)
+        except Exception:                                    # noqa: BLE001
+            return True
 
     courtyard_blocking = [
         p for p in pairs
         if p.kind == 'courtyard' and not _blocking_waived(p)
-        and p.area_mm2 >= COURTYARD_BLOCKING_MIN_MM2
+        # ABSOLUTE floor or RELATIVE floor (user finding #2: 0.445mm2 was
+        # 25.5% of R21's courtyard and slid under the absolute floor).
+        and (p.area_mm2 >= COURTYARD_BLOCKING_MIN_MM2
+             or (p.contained_frac or 0.0) >= COURTYARD_BLOCKING_MIN_FRAC)
         and p.depth_mm >= COURTYARD_BLOCKING_MIN_DEPTH_MM
         and p.a not in _synthetic_refs and p.b not in _synthetic_refs]
     return {'blocking': len(blocking),
