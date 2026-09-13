@@ -1,0 +1,46 @@
+{
+ "blocking": 261,
+ "budget": 100,
+ "flat": 5,
+ "improving": [],
+ "ledger_rows": 6,
+ "placement": {
+  "accepted": 1,
+  "accepted_laps": 1,
+  "declared_superseded": "AUDIT TEST declaration on placed fixture; deliberately not a real exhaustion claim",
+  "flat": false,
+  "laps": 1,
+  "rejected": 0,
+  "why": "too-few-laps"
+ },
+ "quality": {
+  "copper_mm": 0,
+  "segments": 0,
+  "vias": 0
+ },
+ "reason": "placement has run 1 recorded lap(s) (1 accepted + 0 rejected), fewer than the 5 this test needs, so whether it plateaued is NOT YET ANSWERABLE -- which is not the same as \"it is still improving\". A REJECTED lap counts here: it is exactly the evidence that a half tried and did not improve, and routing accepts only on strict improvement, so an exhausted half has no honest accepted lap left to give. Either give it something further to optimise and record the lap (accepted or rejected), or say on the record that there is nothing:\n    python3 -X utf8 py_placer/converge.py record --ledger C:\\Users\\rob\\Documents\\prive\\git\\KiCadRoutingTools\\wk\\astra-placement-audit\\wk\\astra-evidence\\workflow\\audit-ledger.jsonl \\\n        --board <the board> --kind systemic \\\n        --exhausted placement --exhausted-reason \"<what was tried and why nothing is left>\" \\\n        --lever \"declaration: placement has nothing further\"\n  Lowering --flat is not one of the options. Reaching blocking == 0 is the floor, not the finish -- keep pulling levers on quality until neither half can improve either key. UNEXAMINED, and not passed: floorplan, impedance, length, net_widths.",
+ "routing": {
+  "accepted": 1,
+  "accepted_laps": 1,
+  "declared": "AUDIT TEST declaration on placed fixture; deliberately not a real exhaustion claim",
+  "flat": true,
+  "laps": 1,
+  "rejected": 0,
+  "why": "declared-exhausted"
+ },
+ "scored_rows": 4,
+ "unanswerable": [
+  "placement"
+ ],
+ "ungraded": [
+  "floorplan",
+  "impedance",
+  "length",
+  "net_widths"
+ ],
+ "unknown": [],
+ "verdict": "CONTINUE",
+ "why": {
+  "placement": "too-few-laps"
+ }
+}

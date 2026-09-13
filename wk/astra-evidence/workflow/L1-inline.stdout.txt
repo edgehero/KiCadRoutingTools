@@ -1,0 +1,21 @@
+<stage_instructions stage="L1" name="place" of="5">
+INLINE: --no-delegate was passed, so this half runs here (89 parts, 85 nets for context).
+
+Place this board yourself, driven. Do not read the placement skill end to end:
+ask its driver for one stage at a time, so only one loop's rules are ever in
+front of you.
+
+  python3 -X utf8 .claude/skills/plan-pcb-placement/scripts/placement_driver.py \
+      --stage P0 --board C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\tests\fixtures\run23\tigard_placed.kicad_pcb
+
+Follow it to P-close, including its refusals. Record every accepted lap into
+C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\workflow\l1-inline\ledger.jsonl with converge.py.
+
+--delegate forces a teammate for this half whatever the size, and
+--no-delegate forces it inline. The guards below are identical either way,
+but delegating is a CORRECTNESS rule (run 14), not a context decision: both
+inner halves go to a teammate at every board size.
+
+Next: python3 -X utf8 C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\.claude\skills\plan-pcb-placement-and-routing\scripts\loop_driver.py --stage L2 --board <placed board> \
+          --ledger C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\workflow\l1-inline\ledger.jsonl --placement-report <its close-out json>
+</stage_instructions>

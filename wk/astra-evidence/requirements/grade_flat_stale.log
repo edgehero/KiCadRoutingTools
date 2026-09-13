@@ -1,0 +1,25 @@
+CMD: python.exe -X utf8 py_tools/check_floorplan.py C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\kicad_files\flat_hierarchy.kicad_pcb --intent C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\requirements\flat_stale.json --require-rules 1 --json C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\requirements\grade_flat_stale.json
+ENV KNOBS: none
+design brief: none beside this board (looked for flat_hierarchy.design-brief.json). Every `edge` below is INFERRED from the part's current pose by _nearest_edge; nothing here declares design intent.
+grading at clearance 0.2 (board netclass), edge 0.5 (board constraint)
+Copper-to-hole clearance 0.25mm (from the board's own min_hole_clearance, above the 0.2mm fab floor)
+Floorplan: flat_hierarchy.kicad_pcb vs flat_stale.json
+  64 footprints, 2 block(s), 64 part(s) covered
+  outline: 1 ring(s), 0 cutout(s), 0 milled contour(s)
+  INCOMPLETE: 5 rule(s) ran with no violations, but 1 budget_abstained -- this board was not fully graded
+  1 declared value(s) NOT DERIVABLE -- not graded, not passed:
+    - overlap_area: 83 blocking body pair(s) on the emitting board (controlled stale provenance)
+  9 rule(s) did not run:
+    - decap_distance: the intent declares no decaps.max_distance_mm
+    - decap_pin_distance: the intent declares no decaps.max_pin_distance_mm
+    - decap_ungraded: the intent declares no decaps.max_distance_mm
+    - edge_connector: the intent declares no edge_connectors
+    - keepout: the intent declares no keepouts
+    - must_lock: the intent declares no must_lock patterns
+    - pins_to_edge: the intent declares no edge_connectors
+    - proximity: the intent declares no proximity claims
+    - zone_exclusive: no block is marked exclusive
+  wrote C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\requirements\grade_flat_stale.json
+JSON_SUMMARY: {"blocks": 2, "blocks_resolved": 2, "board": "flat_hierarchy.kicad_pcb", "brief": null, "brief_absent": 0, "brief_declared": 0, "brief_drift": 0, "brief_unknown": 0, "brief_unknown_keys": [], "budget_abstained": 1, "budget_abstained_keys": ["overlap_area"], "clearance_used": {"source": "board netclass", "value": 0.2}, "complete": false, "cutouts": 0, "decap_pins_by_channel": {}, "decap_pins_graded": 0, "edge_clearance_used": {"source": "board constraint", "value": 0.5}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 0, "edge_seating_worst_offset_pct": null, "errors": 0, "hole_shortfall": 0.0, "hpwl": 1549.474, "intent": "flat_stale.json", "locked_contact_pairs": 0, "not_graded": {"budget_abstained": 1}, "oob_amount": 16.247, "oob_area": 351.091, "oob_count": 7, "oob_count_exempt": 0, "overlap_area": 0.0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "parts_covered": 64, "parts_total": 64, "pass": false, "rules_run": 5, "rules_skipped": 9, "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 0.1094, "state_partially_unplaced": false, "state_spread_ratio": 0.9444, "state_unplaced": false, "violations": 0, "violations_by_rule": {}, "warnings": 0}
+EXIT=4
+  NOT FULLY GRADED: 1 budget_abstained. A channel the intent asked for was never measured, so this is an absent verdict, not a clean one.

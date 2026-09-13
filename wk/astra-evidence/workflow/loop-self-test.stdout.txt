@@ -1,0 +1,209 @@
+  PASS  L1 emits a tagged block
+  PASS  L1 stays under 105 lines (body, 100)
+  PASS  L2 emits a tagged block
+  PASS  L2 stays under 225 lines (refusal, 9)
+  PASS  L3 emits a tagged block
+  PASS  L3 stays under 75 lines (refusal, 6)
+  PASS  L4 emits a tagged block
+  PASS  L4 stays under 45 lines (body, 44)
+  PASS  L5 emits a tagged block
+  PASS  L5 stays under 170 lines (refusal, 8)
+  PASS  every of= tag counts the stages the registry has (12 tag(s); wrong: none)
+  PASS  --dump-all renders an of= tag for every stage (12)
+  PASS  --list names every stage ([] missing, [] invented)
+  PASS  routing refuses to start without a placement close-out
+  PASS  classification refuses without a score
+  PASS  a re-entry refuses without a measured shape
+  PASS  routing refuses a placement that still has blocking pairs
+  PASS  ...and proceeds when the residue is explicitly accepted
+  PASS  routing refuses a blocking-0 placement with pads off the board
+  PASS  ...and names how a BY-DESIGN overhang is declared instead
+  PASS  ...and still proceeds when that is explicitly accepted
+  PASS  #788: 99 pad conflicts and 7 hole conflicts do NOT refuse (delegate=False)
+  PASS  ...and this iteration really rendered the inline body
+  PASS  ...and both counts are printed (delegate=False)
+  PASS  ...under the words saying so, and the floor they move with (delegate=False)
+  PASS  #788: 99 pad conflicts and 7 hole conflicts do NOT refuse (delegate=True)
+  PASS  ...and this iteration really rendered the delegated body
+  PASS  ...and both counts are printed (delegate=True)
+  PASS  ...under the words saying so, and the floor they move with (delegate=True)
+  PASS  #788: the advisory counts stayed OUT of the gate vocabulary
+  PASS  #788: a close-out predating the keys reads NOT REPORTED, not 0
+  PASS  #788: a string in an advisory count does not refuse
+  PASS  ...and reads as UNREADABLE (delegate default)
+  PASS  #788: a bool in an advisory count does not refuse
+  PASS  ...and reads as UNREADABLE (delegate default)
+  PASS  #788: a negative in an advisory count does not refuse
+  PASS  ...and reads as UNREADABLE (delegate default)
+  PASS  #788: a NaN in an advisory count does not refuse
+  PASS  ...and reads as UNREADABLE (delegate default)
+  PASS  #788: an infinity in an advisory count does not refuse
+  PASS  ...and reads as UNREADABLE (delegate default)
+  PASS  #788: a list in an advisory count does not refuse
+  PASS  ...and reads as UNREADABLE (delegate default)
+  PASS  #788: an explicit null in an advisory count does not refuse
+  PASS  ...and reads as NOT (delegate default)
+  PASS  #788: an int too big for a float in an advisory count does not refuse
+  PASS  ...and reads as 17976931348623 (delegate default)
+  PASS  #788: a count above 1e6 in an advisory count does not refuse
+  PASS  ...and reads as 1000001 (delegate default)
+  PASS  #788: a string clearance is not printed as a floor, and does not refuse
+  PASS  #788: a bool clearance is not printed as a floor, and does not refuse
+  PASS  #788: a NaN clearance is not printed as a floor, and does not refuse
+  PASS  #788: an infinity clearance is not printed as a floor, and does not refuse
+  PASS  #788: a negative clearance is not printed as a floor, and does not refuse
+  PASS  #788: an absurd but finite clearance prints verbatim
+  PASS  accepting `blocking` does NOT waive the oob_pad_count gate
+  PASS  a BARE --accept-residue is refused, not a blanket waiver
+  PASS  an unknown check name is refused by name
+  PASS  L2 refuses board_score's JSON BY SHAPE and names it
+  PASS  ...without firing the blocking check on the wrong number
+  PASS  ...and the shape refusal is NOT waivable by --accept-residue
+  PASS  an empty JSON does not satisfy the hand-off guard
+  PASS  an empty JSON does not satisfy the classification guard
+  PASS  a clean score has no failure to classify
+  PASS  parameter-shaped re-entry says what it costs
+  PASS  floorplan-shaped re-entry says what it costs
+  PASS  placement-shaped re-entry says what it costs
+  PASS  a recorded routed board is named stale by iteration and sha
+  PASS  a parameter re-entry refuses without a congestion comparison
+  PASS  a parameter re-entry refuses a poor read until it is dispositioned
+  PASS  the refusal says the numbers are not a verdict, and names the out
+  PASS  a written disposition lets the parameter re-entry proceed
+  PASS  a healthy congestion gain still PRINTS the measurement
+  PASS  ...and asks for no disposition, which is what the ratio decides
+  PASS  a crossings count with no baseline is not evidence
+  PASS  placement-shaped re-entry is NOT gated on congestion evidence
+  PASS  floorplan-shaped re-entry is NOT gated on congestion evidence
+  PASS  only the delegated form dispatches, and --no-delegate suppresses it
+  PASS  delegation names the agent-type constraint, not a folk rule
+  PASS  the retired claim that a subagent cannot spawn is gone
+  PASS  the delegated half is a FORK by default, so it inherits the context
+  PASS  --delegate-mode fresh emits `claude`, a real agent type
+  PASS  ...and the fresh arm still names the agent-type constraint
+  PASS  --no-delegate still suppresses the prompt in fork mode
+  PASS  --no-delegate still suppresses the prompt in fresh mode
+  PASS  the end-to-end verifier never consults the agent-type flag
+  PASS  ...while both halves do, so that check discriminates
+  PASS  L1 names both halves of the hand-off on disk
+  PASS  L2 carries the placement half's waivers onto the freeze row, on every rendered arm
+  PASS  L1 with EVERY context artifact present is 105 lines, at or under the cap of 105
+  PASS  and the populated arm really is the bigger one, so the cap is measured against the maximum rather than the minimum
+  PASS  the prompt names design-brief when it exists
+  PASS  the prompt names kicad_pro when it exists
+  PASS  the prompt names context.md when it exists
+  PASS  the prompt names mechanical.json when it exists
+  PASS  the prompt names before.json when it exists
+  PASS  the board can be sized at all
+  PASS  L1 delegates by default, whatever the board size
+  PASS  L1 still names the measured size, as context
+  PASS  L1 says the size did not decide it
+  PASS  L1: --no-delegate is the escape hatch and still works
+  PASS  L2 delegates by default, whatever the board size
+  PASS  L2 still names the measured size, as context
+  PASS  L2 says the size did not decide it
+  PASS  L2: --no-delegate is the escape hatch and still works
+  PASS  L2 refuses a placed board that no lap recorded
+  PASS  L2 does not turn "could not check" into "you failed"
+  PASS  an unreadable board still delegates, and says it could not size it
+  PASS  L3 refuses a focus render of another board
+  PASS  L3 refuses a focus render that clustered legality, not failures
+  PASS  L3 refuses a routed board whose parts moved, and names them
+  PASS  L1 emits instructions once its evidence exists
+  PASS  L2 emits instructions once its evidence exists
+  PASS  L3 emits instructions once its evidence exists
+  PASS  L4 emits instructions once its evidence exists
+  PASS  L5 emits instructions once its evidence exists
+  PASS  no hedging: 'you may want to'
+  PASS  no hedging: 'if you are not sure'
+  PASS  no hedging: 'usually skip'
+  PASS  the rule that only exists here is stated
+  PASS  close-out refuses without a score to decide on
+  PASS  close-out refuses a board that does not exist
+  PASS  blocking == 0 with the halves still moving does NOT close out
+  PASS  the CONTINUE branch is not gated on a close-out
+  PASS  the close-out refuses to ship a board no lap recorded
+  PASS  L5 refuses when the ledger does not exist at all
+  PASS  ...including on the ungated CONTINUE branch
+  PASS  ...while L2 still passes with no ledger (placed elsewhere)
+  PASS  close-out refuses to SHIP without a routing close-out
+  PASS  a plateaued solved board closes out, with the film
+  PASS  the terminal close-out does dispatch a verifier, so the next check is about a prompt that exists
+  PASS  the end-to-end verifier is spawned FRESH, never forked (fork mode)
+  PASS  the end-to-end verifier is spawned FRESH, never forked (fresh mode)
+  PASS  DONE-EXHAUSTED + UNSOUND is refused
+  PASS  DONE-EXHAUSTED + INCOMPLETE is refused
+  PASS  ...and --accept-unclosed agreement ships it, named
+  PASS  a plateaued UNSOLVED board says stuck, not done
+  PASS  STUCK + INCOMPLETE is a CONSISTENT pair and is NOT refused
+  PASS  a board_score JSON is refused BY SHAPE and named
+  PASS  a --skip-slow document is refused, and --skip-slow is named
+  PASS  a close-out that could not check the floors is refused
+  PASS  unexamined components are refused, and named
+  PASS  accepting `ungraded` does NOT waive `instruments`
+  PASS  a bare --accept-unclosed is refused
+  PASS  an unknown --accept-unclosed name is refused BY NAME
+  PASS  classification refuses a routed board nobody recorded
+  PASS  L5 catches a false lens on the CONTINUE branch, not only on DONE
+  PASS  ...and names the lens and the number that refutes it
+  PASS  a FAIL lens beside the same numbers is HONEST and is not refused
+  PASS  a non-final row is not a close-out claim and is not cross-checked
+  PASS  ...and --accept-unclosed agreement still waives it, named
+  PASS  an all-PASS final row against an INCOMPLETE close-out is refused
+  PASS  a later final row RETRACTS an earlier false one
+  PASS  an unrelated later final row does NOT bury a false lens
+  PASS  ...and a false one written LAST is still caught
+  PASS  the drc lens is checked too, not only connectivity
+  PASS  a capitalised lens name does not bypass the comparison
+  PASS  the cycle index is read off the ledger, not assumed
+  PASS  L1 counts the cycle it is about to OPEN; L2 the one it is in
+  PASS  L1 at the top of cycle 2 names cycle 2's board, not cycle 1's
+  PASS  a disposition row that re-records a known board is not a cycle
+  PASS  a routing-first ledger still starts at cycle 1
+  PASS  L1 cycle 1 keeps the bare artifact names
+  PASS  L1 cycle 2 names its OWN artifacts, and says which cycle
+  PASS  L2 cycle 1 keeps the bare artifact names
+  PASS  L2 cycle 2 names its OWN artifacts, and says which cycle
+  PASS  a second cycle is never told to WRITE cycle 1's frozen board
+  PASS  ...while its close-out still READS cycle 1's frozen baseline
+  PASS  the freeze copies the board it was HANDED, not a derived name
+  PASS  a named output already in the ledger is NAMED, not refused
+  PASS  ...and the note does not recommend destroying the baseline
+  PASS  ...and the warning rides INSIDE L2's subagent prompt
+  PASS  ...and stays silent when no named path collides
+  PASS  L1 names its own colliding artifacts too, not only L2's
+  PASS  ...inside L1's subagent prompt, which writes the placed board
+  PASS  the driver writes its own log beside the ledger
+  PASS  ...recording the stage and how it ended
+  PASS  ...with the argv and a digest of what it emitted
+  PASS  stdout is UNCHANGED, so an existing caller sees exactly what it saw
+  PASS  a REFUSAL is logged too -- that is the invocation worth detecting
+  PASS  the log is written BEFORE stdout, so a dying stage still logs
+  PASS  an unwritable log is never a refusal
+  PASS  ...and says on stderr that the invocation went unrecorded
+  PASS  PIN: L2 still refuses a board no lap recorded (caught 3x)
+  PASS  PIN: L3 still refuses a board no lap recorded (caught 3x)
+  PASS  PIN: L5 still refuses a board no lap recorded (caught 3x)
+  PASS  PIN: a `parameter` re-entry still needs a congestion measurement
+  PASS  ...and the L2 placement vocabulary does not waive it
+  PASS  PIN: L2 still refuses board_score JSON BY SHAPE, without firing the blocking check on the wrong number
+  PASS  D1: the printed --final command carries three --lens-file slots and no bare --lens
+  PASS  D1b: ...and a --lever, so the close-out row is not the one row every lap-renderer prints as a blank
+  PASS  D1c: it REFUSES to print a command with no verdict paths, rather than falling back to ones outside the run
+  PASS  D4: _verdict reads the caller-relative ledger from any cwd
+  PASS  D5: cycle-2 close-out grades against cycle 1's frozen baseline
+  PASS  D9: an unreadable score is a re-score refusal, not a ceremony
+  PASS  A1: repeated --accept-unclosed flags accumulate, never replace
+  PASS  A1: repeated --accept-residue flags accumulate, never replace
+  PASS  PIN: L2 refuses a close-out that graded a different board
+  PASS  PIN: a malformed blocking count ('3') is refused
+  PASS  PIN: a malformed blocking count (True) is refused
+  PASS  PIN: a malformed blocking count (nan) is refused
+  PASS  PIN: a malformed blocking count (-1) is refused
+  PASS  PIN: L2 refuses a close-out that says NOT BUILDABLE
+  PASS  PIN: L2 refuses a contact with a KiCad-LOCKED part
+  PASS  PIN: L3 refuses a score taken on a different board
+  PASS  PIN: L3 with blocking > 0 refuses to classify without the picture
+  PASS  PIN: L5 refuses a score taken on a different board
+  PASS  PIN: L5 refuses a close-out that names a different board
+OK

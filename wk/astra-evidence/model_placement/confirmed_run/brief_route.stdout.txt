@@ -1,0 +1,71 @@
+--track-width not given; using the fallback 0.3mm.
+--via-size not given; using the fallback 0.5mm.
+--via-drill not given; using the fallback 0.3mm.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! NO .kicad_pro NEXT TO 'esp_prog_base.kicad_pcb' (#441)
+!!
+!! The sibling project carries the board's DRC floor. Without it this
+!! step resolves clearances from the STOCK netclass, which can be LOOSER
+!! than the copper already on the board:
+!!   - KiCad will then report phantom sub-clearance DRC on correct copper
+!!   - CLI and GUI runs will route DIFFERENT copper from this same board
+!!
+!! If this board was copied or renamed, bring its .kicad_pro along:
+!!   python3 py_router/copy_board.py src.kicad_pcb dst.kicad_pcb
+!! (Ignore only if this is a pristine board that has never been routed.)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+--clearance not given; honoring net classes with base = the fallback clearance 0.25mm.
+--hole-to-hole-clearance not given; using 0.2mm [fixed default].
+--board-edge-clearance not given; using 0.0mm [fixed default].
+  WARNING: --board-edge-clearance 0.0 is below the floor 0.2 (the selected --fab-tier, or the board's own minimum under --escalation board); pinning up to 0.2. Pass --fab-overrides to declare a smaller fab capability, or raise the value to silence this.
+Loading C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\model_placement\confirmed_run\esp_prog_base.kicad_pcb to expand net patterns...
+Routing 1 nets: ['Net-(Q2-Pad1)']
+Loading C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\model_placement\confirmed_run\esp_prog_base.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=3.0x
+No BGA components detected - no exclusion zones needed
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: Net-(Q2-Pad1)
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.02s
+Found 17 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.01s (17 nets)
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing Net-(Q2-Pad1) (id=12)
+  SUCCESS: 4 segments, 0 vias, 16 iterations, length=1.60mm (stubs=0.00mm) (0.07s)
+
+Sync pcb_data: 11 -> 8 (kept stubs) -> 11 (after adding 3)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Total vias:    0
+  Total time:    0.07s
+  Iterations:    16
+JSON_SUMMARY: {"routed_single": ["Net-(Q2-Pad1)"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.07, "total_iterations": 16, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.25, "design_rules": {"escalation_policy": "off", "fab_tier": "standard", "board_floors": {}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "unsupported_rules": []}, "plane_fragility": {"source": "none", "islands": 0, "refill_status": null, "why": "the board has no zones", "machine_dependent": false}, "oracle_check": "disabled", "pad_pairs_connected": 1, "pad_pairs_total": 1, "scope": "run", "env_knobs": {"KRT_NO_BANNER": "1"}}
+
+Writing output to C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\model_placement\confirmed_run\brief_routed.kicad_pcb...
+  Kept 1 footprint copper shape(s) on copper (a part's own land pattern, not decoration)
+Successfully wrote C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\model_placement\confirmed_run\brief_routed.kicad_pcb
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": ["Net-(Q2-Pad1)"], "disconnected_pads_before": 46, "disconnected_pads_after": 45, "nets_compared": 17, "verdict": "accept"}
+JSON_SUMMARY_MIN: {"escalations": 0, "failed": 0, "failed_single": [], "main_loop_time_s": 0.07, "min_clearance_used": 0.25, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "routed": 1, "scope": "merged", "terminal_restores_broken": [], "vias": 0}
+  DRC settings: wrote 9 value(s) to C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\model_placement\confirmed_run\brief_routed.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_clearance: None -> 0.0508 mm
+      rules.min_hole_clearance: None -> 0.25 mm
+      rules.min_hole_to_hole: None -> 0.2 mm
+      rules.min_copper_edge_clearance: None -> 0.2 mm (fab-edge pin)
+      rules.min_track_width: None -> 0.3 mm
+      rules.min_via_diameter: None -> 0.5 mm
+      rules.min_through_hole_diameter: None -> 0.3 mm
+      rules.min_via_drill: None -> 0.3 mm
+      net_class[Default]: created (project had none), clearance 0.25 mm
+PROJECT_WRITES_JSON: {"project": "C:\\Users\\rob\\Documents\\prive\\git\\KiCadRoutingTools\\wk\\astra-placement-audit\\wk\\astra-evidence\\model_placement\\confirmed_run\\brief_routed.kicad_pro", "writes": ["rules.min_clearance: None -> 0.0508 mm", "rules.min_hole_clearance: None -> 0.25 mm", "rules.min_hole_to_hole: None -> 0.2 mm", "rules.min_copper_edge_clearance: None -> 0.2 mm (fab-edge pin)", "rules.min_track_width: None -> 0.3 mm", "rules.min_via_diameter: None -> 0.5 mm", "rules.min_through_hole_diameter: None -> 0.3 mm", "rules.min_via_drill: None -> 0.3 mm", "net_class[Default]: created (project had none), clearance 0.25 mm"]}

@@ -1,0 +1,28 @@
+  OK   L1 emits agent="fork" in --delegate-mode fork
+  OK   L1 emits agent="claude" in --delegate-mode fresh
+  OK   ...and fork is the DEFAULT, with no flag at all
+  OK   L2 emits agent="fork" in --delegate-mode fork
+  OK   L2 emits agent="claude" in --delegate-mode fresh
+  OK   l5 does not consult _agent, so no flag can fork the verifier
+  OK   ...while l1 and l2 both do, so the check discriminates
+  OK   L5 has a hand-off prompt name of its own
+  OK   --no-delegate suppresses the L1 prompt in fork mode
+  OK   --no-delegate suppresses the L1 prompt in fresh mode
+  OK   the DRIVER (not the helper) writes the L1 hand-off prompt
+  OK   ...and stdout still carries the stage, unchanged by the write
+  OK   the helper writes it beside the ledger
+  OK   ...and it is the PROMPT BODY, byte-identical to what was emitted
+  OK   ...not the whole stage
+  OK   ...and it starts where the prompt starts
+  OK   --no-delegate writes no prompt file at all
+  OK   a refusing stage archives nothing
+  OK   the hand-off names carry the cycle suffix like every other artifact
+  OK   and place_return.md is registered beside it
+  OK   a missing ledger dir writes no prompt file
+  OK   ...and does not create the directory
+  OK   the context block always names board_brief.py, even with no artifacts
+  OK   it names the artifacts that exist
+  OK   ...and NOT the ones that do not
+
+25 passed, 0 failed
+890 coverage: 25 rows (agent-type, L2, verifier-pinned, handoff-via-main, inline, context)

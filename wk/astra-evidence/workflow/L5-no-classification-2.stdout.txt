@@ -1,0 +1,31 @@
+<stage_instructions stage="L5" name="not done yet" of="5">
+The loop is NOT over: whether placement, routing plateaued is NOT ANSWERABLE -- which is not the same as "it is still improving".
+
+placement has run 0 recorded lap(s) (0 accepted + 0 rejected), fewer than the 5 this test needs, so whether it plateaued is NOT YET ANSWERABLE -- which is not the same as "it is still improving". A REJECTED lap counts here: it is exactly the evidence that a half tried and did not improve, and routing accepts only on strict improvement, so an exhausted half has no honest accepted lap left to give. Either give it something further to optimise and record the lap (accepted or rejected), or say on the record that there is nothing:
+    python3 -X utf8 py_placer/converge.py record --ledger C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\workflow\audit-ledger.jsonl \
+        --board <the board> --kind systemic \
+        --exhausted placement --exhausted-reason "<what was tried and why nothing is left>" \
+        --lever "declaration: placement has nothing further"
+  Lowering --flat is not one of the options; routing has run 1 recorded lap(s) (1 accepted + 0 rejected), fewer than the 5 this test needs, so whether it plateaued is NOT YET ANSWERABLE -- which is not the same as "it is still improving". A REJECTED lap counts here: it is exactly the evidence that a half tried and did not improve, and routing accepts only on strict improvement, so an exhausted half has no honest accepted lap left to give. Either give it something further to optimise and record the lap (accepted or rejected), or say on the record that there is nothing:
+    python3 -X utf8 py_placer/converge.py record --ledger C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\workflow\audit-ledger.jsonl \
+        --board <the board> --kind systemic \
+        --exhausted routing --exhausted-reason "<what was tried and why nothing is left>" \
+        --lever "declaration: routing has nothing further"
+  Lowering --flat is not one of the options. Reaching blocking == 0 is the floor, not the finish -- keep pulling levers on quality until neither half can improve either key. UNEXAMINED, and not passed: floorplan, impedance, length, net_widths.
+
+Go round again, or make the unanswered half answerable. A board that merely
+routes is the floor -- keep pulling levers until neither half can improve
+either key.
+
+  placement still improving -> --stage L1 --board C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\tests\fixtures\run23\tigard_placed.kicad_pcb --ledger C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\workflow\audit-ledger.jsonl
+  routing still improving   -> the lever is pulled INSIDE the routing half
+                               (its own convergence stages -- quality passes,
+                               via count, copper length), not by this driver:
+                               re-enter it on the routed board, record the
+                               lap, then --stage L3 --board C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\tests\fixtures\run23\tigard_placed.kicad_pcb \
+                                   --score <the new score> --ledger C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\workflow\audit-ledger.jsonl
+
+Record the lap you are about to run, accepted or rejected. A rejected lap is
+data: it is what makes the plateau detectable, and without it this stage cannot
+tell a finished run from a stalled one.
+</stage_instructions>

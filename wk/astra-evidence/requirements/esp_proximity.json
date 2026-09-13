@@ -1,0 +1,179 @@
+{
+ "assembly": {
+  "sides": "F",
+  "why": "observed: 18 pad-bearing part(s) on F and 0 on B, 1 reflow pass(es). every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix and counted separately. `pad_bearing` restricts that to blocks carrying at least one pad, and it is the count the populated-side verdict is taken from -- a zero-pad graphic on the back does not make a board double-sided."
+ },
+ "blocks": [],
+ "board": "esp_prog.kicad_pcb",
+ "context": {
+  "brief": {
+   "absent": [
+    "interfaces"
+   ],
+   "contradictions": [],
+   "counts": {
+    "fixed": 0,
+    "interfaces": 0,
+    "keepouts": 0,
+    "proximity": 3,
+    "proximity_claims": 4,
+    "proximity_dropped": 0,
+    "proximity_expanded": 1
+   },
+   "declared": [
+    "product.form_factor",
+    "product.held_by",
+    "product.primary_axis",
+    "product.user_top_side",
+    "proximity[0:Y1~U1].max_mm",
+    "proximity[1:C1~U2].max_mm",
+    "proximity[1:C3~U2].max_mm",
+    "proximity[2:Q1~Q2].max_mm"
+   ],
+   "fixed": [],
+   "not_graded": [
+    "product.form_factor",
+    "product.user_top_side"
+   ],
+   "path": "C:\\Users\\rob\\Documents\\prive\\git\\KiCadRoutingTools\\wk\\astra-placement-audit\\tests\\fixtures\\902\\esp_prog_proximity.design-brief.json",
+   "product": {
+    "form_factor": "usb_stick",
+    "held_by": "hand; plugs directly into a host USB-A port",
+    "primary_axis": "east-west",
+    "user_top_side": "F"
+   },
+   "unknown": [],
+   "unmatched": [],
+   "unmatched_checked": true
+  },
+  "budget_withheld": {},
+  "cutouts": [],
+  "decap_census": {
+   "beyond_radius": 1,
+   "beyond_radius_refs": [
+    "C1"
+   ],
+   "ics": 2,
+   "max_mm": 2.125,
+   "max_mm_display": 2.125,
+   "median_mm": 1.12,
+   "metric": "cap footprint centroid to IC bounding box, clamped to 0 inside (placement.groups.decap_tethers)",
+   "no_rail_chip": 0,
+   "no_rail_chip_refs": [],
+   "population": 4,
+   "search_radius_mm": 5.0,
+   "seeder_pin_scope": 4,
+   "source": "auto-tethers",
+   "tethers": 3,
+   "unaccounted": 0,
+   "worst_beyond_mm": 17.24
+  },
+  "edge_contours": 0,
+  "file_locked": [],
+  "keepouts_note": "empty because a keep-out is a mechanical fact -- an enclosure rib, a standoff, a battery, a display window, an antenna clearance -- and none of those can be read off a board. \"[]\" here means NONE DECLARED, never \"not considered\". Declare them by hand; since #701 the seat search honours them, not only the grade.",
+  "note": "read-only, describing the board as it is. The outline is not editable by this toolchain: size, cutouts and slots are mechanical decisions the user owns",
+  "proximity_note": "4 proximity claim(s) DECLARED by the design brief esp_prog_proximity.design-brief.json. \"These two named parts, this far apart\" is a SPEC fact: the board supplies the distance but never the claim, so the emitter writes none and these came from the one channel that can state one. They are graded from the intent, not by any seat search, so a violation is a finding to act on rather than a pose the engine will refuse."
+ },
+ "decaps": {},
+ "defaults": {
+  "zone_tolerance_mm": 0.5
+ },
+ "edge_connectors": [],
+ "envelope": {
+  "rect": [
+   114.0,
+   91.0,
+   145.75,
+   105.5
+  ],
+  "tolerance_mm": 0.5
+ },
+ "keepouts": [],
+ "kind": "floorplan-intent",
+ "legality_budget": {
+  "oob_count": 0,
+  "overlap_area": 1.1401
+ },
+ "min_reader": 4,
+ "must_lock": [],
+ "proximity": [
+  {
+   "basis": "pad_edge",
+   "context": {
+    "brief_row": 0,
+    "requirement": "PROG-CLK01",
+    "why": "the crystal loop is the oscillator's stability; both legs must reach XI/XO, not just the nearer one"
+   },
+   "max_mm": 2.0,
+   "near": "U1",
+   "pads": {
+    "U1": [
+     "9",
+     "10"
+    ],
+    "Y1": [
+     "1",
+     "2"
+    ]
+   },
+   "ref": "Y1",
+   "source": "brief"
+  },
+  {
+   "basis": "pad_edge",
+   "context": {
+    "brief_row": 1,
+    "requirement": "PROG-PWR01",
+    "why": "U2 is a 3-pad SOT89 and can never be a decap tether target, so its bulk caps are ungradable by any decap rule"
+   },
+   "max_mm": 2.0,
+   "near": "U2",
+   "pads": {
+    "C1": [
+     "1"
+    ],
+    "U2": [
+     "2",
+     "3"
+    ]
+   },
+   "ref": "C1",
+   "source": "brief"
+  },
+  {
+   "basis": "pad_edge",
+   "context": {
+    "brief_row": 1,
+    "requirement": "PROG-PWR01",
+    "why": "U2 is a 3-pad SOT89 and can never be a decap tether target, so its bulk caps are ungradable by any decap rule"
+   },
+   "max_mm": 2.0,
+   "near": "U2",
+   "pads": {
+    "C3": [
+     "1"
+    ],
+    "U2": [
+     "2",
+     "3"
+    ]
+   },
+   "ref": "C3",
+   "source": "brief"
+  },
+  {
+   "basis": "body",
+   "context": {
+    "brief_row": 2,
+    "requirement": "PROG-RST01",
+    "why": "the auto-reset pair shares no net, so there is no pad pair to measure -- only their bodies"
+   },
+   "max_mm": 3.0,
+   "near": "Q2",
+   "ref": "Q1",
+   "source": "brief"
+  }
+ ],
+ "schema": 1,
+ "units": "mm"
+}

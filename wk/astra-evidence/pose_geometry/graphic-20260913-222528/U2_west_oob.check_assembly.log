@@ -1,0 +1,28 @@
+CMD: python.exe -X utf8 C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\py_tools\check_assembly.py C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\pose_geometry\graphic-20260913-222528\U2_west_oob.kicad_pcb --json C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\pose_geometry\graphic-20260913-222528\U2_west_oob.check_assembly.json
+ENV KNOBS: none
+  grading at clearance 0.25mm  [fixed default]
+  NOTE: this board declares NO net class and NO board constraint (no sibling .kicad_pro, no (net_class) block), so 0.25mm is a FALLBACK rather than the board's own floor. Pass --clearance <the value the copper was routed to> if you know it; the pad/hole ECHO counts move with it, `blocking` usually does not.
+Assembly audit of C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\pose_geometry\graphic-20260913-222528\U2_west_oob.kicad_pcb (clearance 0.25):
+  DUPLICATE REFERENCES (advisory): 2 footprint block(s) share 1 reference(s) -- Ref* x2
+    Every block is audited (21 parts): the later ones are keyed with an ordinal suffix, so `coincident_origins` above compares them. Legal in KiCad, but rename them if they are meant to be distinct parts -- two parts answering to one name cannot be told apart on a BOM, on a pick-and-place file, or by `--lock`.
+  blocking 0  advisory 2  waived 3  contained 0  courtyard_blocking 0
+    Q1 <-> R4  courtyard  0.07mm2 side F  advisory
+    Q2 <-> R3  courtyard  0.07mm2 side F  advisory
+    U2 <-> USB1  courtyard  2.02mm2 side F  waived:edge_class
+    #00000000-0000-0000-0000-00005d8c51dd <-> USB1  courtyard  1.0mm2 side B  waived:edge_class
+    Ref*~2 <-> USB1  courtyard  1.0mm2 side F  waived:marker_class
+  pad/hole/oob echo: 0 pad pair(s), 0 hole conflict(s), 0 part(s) with pad copper off-board
+  BODY COVERAGE: 14 of 21 part(s) draw a body the containment channel can judge (10 fab, 4 silk)
+    A silk body is the LAST resort and never gates: a library may draw an assembly outline there rather than the part (esp_prog's SOT89 draws corner brackets 5.2mm apart around a 4.5mm part). Such pairs are reported, with their source, and excluded from the blocking channels.
+    7 part(s) draw no body at all (no .Fab, no usable silk), so the channel cannot judge them: #00000000-0000-0000-0000-00005a3b5201, #00000000-0000-0000-0000-00005d8c51dd, #00000000-0000-0000-0000-00005e7dd057, Q1, Q2, Ref*, Ref*~2
+  ASSEMBLY SIDES: F 18 / B 0 pad-bearing part(s) of 21 block(s); 1 reflow pass(es), 3 through-hole part(s)
+    3 B-side block(s) carry NO pads and are excluded from the verdict: #00000000-0000-0000-0000-00005a3b5201 (LOGO_RECYCLEBIN_1), #00000000-0000-0000-0000-00005d8c51dd (LOGO_PBFREE), #00000000-0000-0000-0000-00005e7dd057 (OLIMEX_LOGO_TB)
+    Through-hole F 3 / B 0 (plated barrels only), counted and never folded in: a drilled part on the front needs wave, selective or hand soldering, not a second reflow pass.
+      (`sides_occupied` answers the OBSTRUCTION question instead, and would call this board two-sided.)
+    observed policy: sides=F -- counted per footprint BLOCK, verdict from the pad-bearing subset (parts_by_side_basis in --json has the rule in full)
+  VERDICT: buildable (blocking 0)
+  JSON -> C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\pose_geometry\graphic-20260913-222528\U2_west_oob.check_assembly.json
+EXIT=0
+
+STDERR:
+WARNING: 2 footprint block(s) share 1 reference(s) -- Ref* x2. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 21 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.

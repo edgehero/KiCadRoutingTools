@@ -1,0 +1,11 @@
+<error>
+The routing close-out (--routing-close) not provided.
+
+L5 is where the run ships, so it is where the routing half has to have closed out. Produce it:
+
+  python3 -X utf8 check_complete.py C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\tests\fixtures\run23\tigard_damaged.kicad_pcb \
+      --authored-from <the CYCLE-1 wk/frozen.kicad_pcb, NOT the original board> \
+      --json wk/routing_close.json
+
+--authored-from is not optional bookkeeping: without it the floor check cannot run at all, and UNSOUND becomes unreachable. The chain rewrites the floors in place, so the original project is the only thing left to compare against.
+</error>

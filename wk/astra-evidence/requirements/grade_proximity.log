@@ -1,0 +1,29 @@
+CMD: python.exe -X utf8 py_tools/check_floorplan.py C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\kicad_files\esp_prog.kicad_pcb --intent C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\requirements\esp_proximity.json --brief C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\tests\fixtures\902\esp_prog_proximity.design-brief.json --require-brief-coverage --json C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\requirements\grade_proximity.json
+ENV KNOBS: none
+design brief esp_prog_proximity.design-brief.json: 0 interface(s), 0 keep-out(s), 3 proximity row(s) -> 4 claim(s), 1 tier-0 field(s) not declared
+  carried, NOT graded: product.form_factor, product.user_top_side
+grading at clearance 0.25 (fixed default), edge 0.55 (fixed default)
+  WARNING [quench]: 18 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: C1, C2, C3, C4, CON1, CON2, Q1, Q2, R1, R2, R3, R4, ...
+Floorplan: esp_prog.kicad_pcb vs esp_proximity.json
+  21 footprints, 0 block(s), 0 part(s) covered
+  outline: 0 ring(s), 0 cutout(s), 0 milled contour(s)
+  3 error(s), 0 warning(s) from 4 rule(s)
+    [ERROR] proximity: C1 pad 1 is 4.41mm from U2 pad 2 on Net-(C1-Pad1), past the declared 2.00mm proximity limit
+    [ERROR] proximity: Y1 pad 1 is 4.74mm from U1 pad 9 on Net-(C4-Pad1), past the declared 2.00mm proximity limit
+    [ERROR] proximity: Y1 pad 2 is 2.52mm from U1 pad 10 on Net-(C2-Pad1), past the declared 2.00mm proximity limit
+  10 rule(s) did not run:
+    - decap_distance: the intent declares no decaps.max_distance_mm
+    - decap_pin_distance: the intent declares no decaps.max_pin_distance_mm
+    - decap_ungraded: the intent declares no decaps.max_distance_mm
+    - edge_connector: the intent declares no edge_connectors
+    - keepout: the intent declares no keepouts
+    - must_lock: the intent declares no must_lock patterns
+    - pins_to_edge: the intent declares no edge_connectors
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  brief clause coverage: 4 graded, 0 uncovered, 0 abstained, 0 declared unknown, 4 carried
+  wrote C:\Users\rob\Documents\prive\git\KiCadRoutingTools\wk\astra-placement-audit\wk\astra-evidence\requirements\grade_proximity.json
+JSON_SUMMARY: {"blocks": 0, "blocks_resolved": 0, "board": "esp_prog.kicad_pcb", "brief": "C:\\Users\\rob\\Documents\\prive\\git\\KiCadRoutingTools\\wk\\astra-placement-audit\\tests\\fixtures\\902\\esp_prog_proximity.design-brief.json", "brief_absent": 1, "brief_clauses": 8, "brief_clauses_abstained": 0, "brief_clauses_carried": 4, "brief_clauses_drifted": 0, "brief_clauses_graded": 4, "brief_clauses_not_claimed": 0, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 8, "brief_drift": 0, "brief_unknown": 0, "brief_unknown_keys": [], "budget_abstained": 0, "budget_abstained_keys": [], "clearance_used": {"source": "fixed default", "value": 0.25}, "complete": true, "cutouts": 0, "decap_pins_by_channel": {}, "decap_pins_graded": 0, "edge_clearance_used": {"source": "fixed default", "value": 0.55}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 0, "edge_seating_worst_offset_pct": null, "errors": 3, "hole_shortfall": 0.0, "hpwl": 253.9809, "intent": "esp_proximity.json", "locked_contact_pairs": 0, "not_graded": {}, "oob_amount": 0.0, "oob_area": 0.0, "oob_count": 0, "oob_count_exempt": 0, "overlap_area": 1.14, "pad_conflict_pairs": 1, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.066, "parts_covered": 0, "parts_total": 21, "pass": false, "rules_run": 4, "rules_skipped": 10, "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 0.0, "state_partially_unplaced": false, "state_spread_ratio": 0.8051, "state_unplaced": false, "violations": 3, "violations_by_rule": {"proximity": 3}, "warnings": 0}
+EXIT=4
+WARNING: 2 footprint block(s) share 1 reference(s) -- Ref* x2. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 21 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
