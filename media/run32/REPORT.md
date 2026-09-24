@@ -22,7 +22,7 @@ Open joins, BY NAME: +3V3 ×3, /D2, /~{ALERT}, /PKTEND, /xVBUS, Net-(U3-A1), Net
 |---|---|---|
 | connectivity | **FAIL** | the 19 joins above, re-derived |
 | drc | **FAIL** | 2 track-to-NPTH-hole at J5's hole against the declared 0.25 mm copper-to-hole (Z1_P B.Cu short 0.049, QA6 In2 short 0.038). No route.py flag routes to this dimension |
-| spec | **FAIL** | **net_widths: all 5 declared power nets run below their requested `--power-nets-widths` over 49.6–82.4 % of their length** (GND 49.9 %, +3V3 49.6 %, +1V2 82.4 %). The endgame laps re-neck power copper. floorplan 11 real. impedance/length UNGRADED (no target) |
+| spec | **FAIL** | **net_widths: all 5 declared power nets run below their requested `--power-nets-widths` over 49.6–82.4 % of their SEGMENTS** (GND 49.9 %, +3V3 49.6 %, +1V2 82.4 %). This comes from the bulk route, not the endgame (finding 3). floorplan 11 real. impedance/length UNGRADED (no target) |
 | record (boundary) | PASS | ledger timestamps monotone; poses byte-identical placed_v3 → frozen_c3 → routed_c3 |
 
 ## The run, in one paragraph
@@ -57,7 +57,7 @@ run31 (same input, published v0.22.1 router asset) ended its endgame at oracle ~
 
 1. **Rule-area keepouts are invisible to placement.** check_assembly, place_pose legality, the render checklist, check_reachability, place_optimize and place_portfolio all ignore `board_info.keepouts`. 17 signal pads sat in the band with every gate green. It cost a whole routing cycle.
 2. **Scoped laps without GND in `--nets` are judged on damage they may not heal.** The in-run finalize skips GND by plan, but the improvement gate counts the GND pads the lap cut. Every scoped signal lap before batch 5 was penalised this way.
-3. **Power-net width is not durable across endgame laps** (verifier). 50–82 % of the power copper is below the requested width.
+3. **The bulk route does not honour `--power-nets-widths`** (verifier finding; attribution CORRECTED after the report was first published). The shortfall is already there on the bulk-route board `K3C_route`, before any endgame lap: +3V3 has 561 of 1143 segments under 0.3 mm, including 209.6 mm at the plain signal width 0.127 (≈34 % of its length), and GND has 226.6 mm at 0.127. The 0.0889 escape necks are expected; the 0.127 runs are not. The endgame laps changed it little (+3V3 574/1157 on the shipped board). The verifier pointed at the endgame laps, and so did the first version of this report; both were wrong.
 4. **The ledger's `parent_sha` is wrong under parallel lineages.** `record` takes the last accepted row as the parent, so interleaved lineages chain across each other. The movie's lineage was rebuilt from the chain scripts instead (`movie_chain.txt`).
 5. **A lap script silently shifted arguments** (bash `read` collapses empty tab fields). 24 laps ran with the grid value as the rip set, and all 24 were recorded INVALID. `assert_cmd.py` now re-reads each lap's CMD line before judging it.
 6. The placement half's forks report they **cannot dispatch subagents**, so every placement close-out was verified single-agent.
