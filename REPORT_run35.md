@@ -64,3 +64,15 @@ them.
 - band record labels printed under the caption: fixed there too;
 - U2's footprint-owned tab copper flashes red as a rip at the pile after U2
   moves: open, #1092.
+- every part was a box: esp_prog names its models flat
+  (${KISYS3DMOD}/R_0402_1005Metric.wrl); fixed in the follow-up (found by
+  file name in KiCad's library: 11 of 18 parts; 7 have no KiCad model).
+
+## The human benchmark
+
+The human placement (kicad_files/esp_prog.kicad_pcb) has no routing:
+blocking 22 (17 unrouted), 0 vias. Routed with the run's own recipe
+(GND pour, USB pair, route.py --grid-step 0.05, repair_planes, prune) it is
+fully connected and DRC-clean at 35 vias / 279.66 mm / 227 segments, with
+blocking 5, all floorplan: the human placement breaks 5 of the brief's claims.
+The run's final board: 36 vias / 339.41 mm / 250 segments, blocking 0.
