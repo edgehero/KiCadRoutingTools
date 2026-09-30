@@ -57,9 +57,10 @@ them.
 - Re-route variants: via-cost 500/1000/200, layer-costs, grid 0.05: all
   blocking > 0 on their own; grid 0.05 + a scoped /EN re-route was the win.
 
-## Tool gaps (for the film, fixed in PR #1091)
+## Tool gaps (the film)
 
 - the stage3d camera fitted the whole film at once, so the board filled a
-  third of its box;
-- band record labels printed under the caption;
-- U2's footprint-owned tab copper flashed red as a rip at the pile.
+  third of its box: fixed in the #1091 follow-up (per-state fit);
+- band record labels printed under the caption: fixed there too;
+- U2's footprint-owned tab copper flashes red as a rip at the pile after U2
+  moves: open, #1092.
