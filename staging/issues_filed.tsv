@@ -1,0 +1,64 @@
+X1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1155	A reversed edge-mount connector (shell lying over the board) passes edge_connector, check_assembly and board_score
+G2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1156	route.py rips out-of-scope routed nets without --rip-existing-nets, and a failed victim ships with its BGA via-in-pad escape stripped
+H1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1157	Connectivity graph joins two same-net pads that are 15 um apart, so route.py never routes the link KiCad reports open
+H13	https://github.com/drandyhaas/KiCadRoutingTools/issues/1158	kicad_parser: a segment or arc whose `(locked yes)` is not at one of two fixed positions vanishes from the model, silently
+C2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1159	route.py's terminal neck fires on copper that is exactly at clearance: 0.4 mm terminals shipped at 0.3998, and refused as a "short" under --escalation off
+C3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1160	One net's rescue lowers the Default class clearance in the project, and the next step routes every net there even under --escalation off
+E1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1161	The connection_width web test treats every oval pad as empty, so check_weird flags a phantom narrow-pad-joint and misses real ones
+G1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1162	The floorplan legality budget sums courtyard overlap on bounding rects, so a round courtyard counts as its square (check_assembly measures the drawn outline)
+S3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1163	make_unplaced: the pile keeps each part's text-to-part angle, so an upright human label hands back the human rotation
+S1_S2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1164	strip_copper_only keeps teardrop zones and length-tuning generators, which are routing output that locates every part
+E2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1165	place_seed refuses a pile as "already PLACED" once the fixed parts are placed and locked, the order the skill prescribes
+H3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1166	route.py never removes a dangling via, or the dead branch it ends, even when the via's net is in --nets
+X3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1167	check_orphan_stubs does not credit a stub's own half-width against tracks, so check_complete refuses a tap that KiCad, check_connected and check_weird call connected
+X4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1168	The KiCad-oracle's exact-fill strap ends inside the board-edge clearance: it seeds from a refill made under the board's 0.01 mm edge rule while the run routes at the pinned 0.2 mm
+C1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1169	Oracle reconnect ships power straps at the class width: the exact-fill tier has no width ladder, and the main path's ladder is all-or-nothing
+C5	https://github.com/drandyhaas/KiCadRoutingTools/issues/1170	Oracle reconnect drops to hardcoded 0.45/0.2 vias under --escalation off, outside escalation_rungs and design_rules
+G12	https://github.com/drandyhaas/KiCadRoutingTools/issues/1171	route.py's Type VII stamp skips a via it re-laid 0.1 mm onto a paste opening ("kept as the input had it"), and board_score keeps it advisory even with --baseline
+G6	https://github.com/drandyhaas/KiCadRoutingTools/issues/1172	Seeder stage 1 seats an undeclared-rotation edge connector at the pile's arbitrary angle, and checks only pads against connectors it already seated
+H6	https://github.com/drandyhaas/KiCadRoutingTools/issues/1173	route.py --json-out describes the rejected attempt when the improvement gate reverts the output, and carries no improvement_gate key
+S4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1174	check_floorplan --emit-intent writes zones its own grade rejects on the emitting board: zone rounded past the envelope, and an edge connector's overhang clamped out of its zone
+S6	https://github.com/drandyhaas/KiCadRoutingTools/issues/1175	--decaps-from writes the reference board's path into the emitted intent; the basis records only its basename
+S7	https://github.com/drandyhaas/KiCadRoutingTools/issues/1176	part_class reads a DSUB named `..._MountingHolesOffset...` as a mounting hole, so its edge claim is never emitted
+H12	https://github.com/drandyhaas/KiCadRoutingTools/issues/1177	measure.py measures the newest transcript in the project dir, so a run in a worktree or a subagent run gets a refusal or another session's numbers
+S5	https://github.com/drandyhaas/KiCadRoutingTools/issues/1178	--decaps-from rejects a placed reference when two footprints share an origin: it gates on partially_unplaced, not #1109's pile predicate
+X6	https://github.com/drandyhaas/KiCadRoutingTools/issues/1179	Plane finalize pad repair drops a through via for an SMD pad that sits on the pour's own layer, so the via joins one layer (KiCad via_dangling)
+H2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1157#issuecomment-6032403012	comment on #1157
+X4_comment_984	https://github.com/drandyhaas/KiCadRoutingTools/issues/984#issuecomment-6032403654	comment on #984
+comment_162	https://github.com/drandyhaas/KiCadRoutingTools/issues/162#issuecomment-6032404121	comment on #162
+comment_1116	https://github.com/drandyhaas/KiCadRoutingTools/issues/1116#issuecomment-6032404425	comment on #1116
+A1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1180	check_connected grades net 0 as a broken net on a KiCad 9 board once footprint copper gives it segments, so board_score can never reach blocking 0
+A1b	https://github.com/drandyhaas/KiCadRoutingTools/issues/1181	A FILLED copper graphic is modelled by its outline only, so the router puts a foreign via inside it and check_drc grades the short clean
+A2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1182	On a courtyard-less library the seeder, --repair and --reseat work on pad boxes while check_assembly --baseline gates fab bodies, so every seed is NOT BUILDABLE and no mover can see why
+A3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1183	board_score --baseline and the free-agent grader never arm check_assembly's courtyard gate, so a seed with 22 gating body pairs scores assembly 0 and buildable
+A3b	https://github.com/drandyhaas/KiCadRoutingTools/issues/1184	The seeder exempts a "container" from every courtyard check even when it is locked, while check_assembly gates it, so DC1 is seeded wholly inside a locked 18650 holder
+A4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1185	Plane finalize region joins get the chain's layer costs for only two layers, so on a 4-layer board they lay power straps up to 2.0 mm on the GND plane layer, even when it is forbidden (-1)
+A6b	https://github.com/drandyhaas/KiCadRoutingTools/issues/1186	check_weird calls a T-junction near a long segment's end a "free end": the shared T test excludes the outer 2 % of the segment's LENGTH, not a distance
+C4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1187	check_weird's narrow-pad-joint floor is the thinnest track on the board, not the project floor the KiCad connection_width grade uses, so re-routing one net flips the verdict on others
+G4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1188	--repair-decaps tries one cap per decap_pin_distance finding, the nearest; when that cap is nearest to several failing pins every move reverts, and no other cap on the rail is tried
+G7	https://github.com/drandyhaas/KiCadRoutingTools/issues/1189	bga_fanout's under-pad A* never tests its exit cell against the obstacle map, so an escape ends inside a foreign via's keep-out and ships with only a JSON counter
+G11	https://github.com/drandyhaas/KiCadRoutingTools/issues/1190	Routing writers still drop the `.design-brief.json` sibling: #964 item 1 was closed without a fix, because fix_project_for_output carries only .kicad_pro and .kicad_dru
+X7_H5	https://github.com/drandyhaas/KiCadRoutingTools/issues/1191	compare_seeds and rank_rotations ignore the probe's via count when every probe routes, and compare_seeds cannot rank a pile whose intent arms the decap rule
+H8	https://github.com/drandyhaas/KiCadRoutingTools/issues/1192	route.py tells the user to "name a net exactly to override" a KiCad lock, which has no override, and a nothing-to-route run drops the refusal from --json-out
+H11	https://github.com/drandyhaas/KiCadRoutingTools/issues/1193	place_seed --repair charges a locked part on its pads' bounding box and exits 4: on StickHub's notched outline, no pad is off the board
+G3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1162#issuecomment-6037364879	comment on #1162
+A11+G9+H9	https://github.com/drandyhaas/KiCadRoutingTools/issues/1194	papercuts
+I7	https://github.com/drandyhaas/KiCadRoutingTools/issues/1195	qfn_fanout lowers the via and hole floors on a run that places no via, and finds 0 pads on a single-row part yet exits 0
+I4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1196	No tool checks whether the class track width can cross a through-hole pin row, and check_channels tells a THT PGA's inner pins to take vias
+E4	https://github.com/drandyhaas/KiCadRoutingTools/issues/1197	board_brief and board_context never mention an existing copper pour: a board with a GND zone reads "copper no" and nothing names the zone
+E7_C8	https://github.com/drandyhaas/KiCadRoutingTools/issues/1198	check_complete --authored-from can never say DONE on a project that declares min_hole_clearance, and calls via floors "NOT measured" on a board with no vias
+C9	https://github.com/drandyhaas/KiCadRoutingTools/issues/1199	make_film --from-ledger plays rows in record order, so interleaved lineages render as the whole board jumping between placements (the film half of #1034)
+A8	https://github.com/drandyhaas/KiCadRoutingTools/issues/1200	No tool writes a copper keep-out rule area, and a design-brief keep-out never reaches the router
+S8	https://github.com/drandyhaas/KiCadRoutingTools/issues/1201	A 0.06 mm F.Fab pin-1 circle is taken as a part's drawn body, so an edge receptacle's seat is graded on a point
+I2_comment_592	https://github.com/drandyhaas/KiCadRoutingTools/issues/592#issuecomment-6040047537	comment on #592
+I3_comment_1160	https://github.com/drandyhaas/KiCadRoutingTools/issues/1160#issuecomment-6040048250	comment on #1160
+A6_comment_1166	https://github.com/drandyhaas/KiCadRoutingTools/issues/1166#issuecomment-6040048834	comment on #1166
+papercuts2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1202	Eight papercuts: rank_rotations baseline and serial arms, beautify_labels silk and allow-routed text, board_score poured_nets, make_film title, converge stop 3, route.py progress line
+M1	https://github.com/drandyhaas/KiCadRoutingTools/issues/1203	check_impedance counts each net's own via antipad as a reference-plane crossing, so every layer-changing impedance net fails (40 of 41 on the designer's own board)
+M2	https://github.com/drandyhaas/KiCadRoutingTools/issues/1204	check_assembly's coincident-origin channel has no waiver and no geometry test, so two connector halves that share an origin by library design read NOT BUILDABLE, on the designer's own board too
+M5	https://github.com/drandyhaas/KiCadRoutingTools/issues/1205	render_placement paints each zone's outline polygon over the board edge, so a notched board renders as its bounding box; board_brief's text calls the bounding box the "outline"
+M6	https://github.com/drandyhaas/KiCadRoutingTools/issues/1206	A through-hole part's far-side footprint is one box over all its drilled pads, so two mounting holes 48 mm apart become a 3 x 51 mm phantom courtyard on the other side
+M7	https://github.com/drandyhaas/KiCadRoutingTools/issues/1207	route_diff places its GND return vias at the base clearance from the pair, not at the pair's class clearance, so they land inside it
+M10	https://github.com/drandyhaas/KiCadRoutingTools/issues/1208	Net patterns match case-insensitively on Windows only: net_pattern_matches uses fnmatch.fnmatch, while netclass membership uses fnmatchcase
+M11	https://github.com/drandyhaas/KiCadRoutingTools/issues/1209	place_pose --near: when every snap candidate fails the re-grade, the refusal recommends the refused pose itself, "0.000 mm away -- try it with --snap"
+M3	https://github.com/drandyhaas/KiCadRoutingTools/issues/1202#issuecomment-6041943451	comment on #1202
