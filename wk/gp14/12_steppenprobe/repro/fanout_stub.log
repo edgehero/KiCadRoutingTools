@@ -1,0 +1,40 @@
+ENV KNOBS: none
+--board-edge-clearance not given; using the board min_copper_edge_clearance 0.3mm.
+  --escalation board: the board's declared minimum via_diameter 0.6 mm is above the requested via size 0.45 mm; treating that minimum as stale for this run (descents bound at the fab floor for it)
+  --escalation board: the board's declared minimum via_drill 0.3 mm is above the requested via drill 0.25 mm; treating that minimum as stale for this run (descents bound at the fab floor for it)
+Parsing wk/gp14/12_steppenprobe/repro/v3_step1.kicad_pcb...
+
+Found U1: Package_QFP:LQFP-64_10x10mm_P0.5mm
+  Position: (124.55, 74.24)
+  Rotation: 90.0deg
+  Pads: 64
+  Layer: F.Cu (from footprint)
+QFN/QFP Layout Analysis for U1:
+  Center: (0.00, 0.00)
+  Bounding box: X[-5.67, 5.67], Y[-5.67, 5.67]
+  Size: 11.35 x 11.35 mm
+  Detected pad pitch: 0.50 mm
+  Edge tolerance: 1.14 mm
+  Stub length: pad_width / 2 + extension (clears pad before bend)
+  Layer: F.Cu
+  Found 34 pads to fanout:
+    bottom: 10 pads
+    left: 10 pads
+    right: 6 pads
+    top: 8 pads
+  Sample pad geometry: 0.30 x 1.55 mm
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  Pad-clearance: shortened 17 fan(s), 0 straight escape(s) near the board edge (#513); dropped 0 stub(s) grazing a foreign pad (issue #123)
+  Generated 65 track segments (34 stubs x 2 segments)
+  NOTE: 0.50 mm pitch keeps adjacent fan stubs only 0.354 mm apart (pitch/sqrt2).
+  Routing these nets needs clearance below 0.20 mm (with 0.15 mm track) plus grid-quantization margin; the default 0.25 clearance / 0.1 grid will fail to escape.
+  Suggested: route.py --grid-step 0.05 --clearance 0.15 --track-width 0.15 for this component's nets.
+  Validated: No endpoint collisions
+
+Writing 65 tracks and 0 vias to wk/gp14/12_steppenprobe/repro/v3_step1b_out.kicad_pcb...
+Done!
+  DRC settings already consistent (wk/gp14/12_steppenprobe/repro/v3_step1b_out.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.15 mm, unchanged by this step but still below the board's ORIGINAL 0.25mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+JSON_SUMMARY: {"component": "U1", "requested": 31, "escaped": 31, "failed": 0, "unescaped_nets": [], "clearance": 0.15, "track_width": 0.15, "escape_method": "stub", "via_size": 0.45, "via_drill": 0.25, "layer": "F.Cu", "drc_grazes": {"pad_via": 0, "via_segment": 0, "pad_segment": 0, "segment_segment": 0, "total": 0}, "min_clearance_used": 0.15, "allow_via_in_pad": false, "env_knobs": {}}

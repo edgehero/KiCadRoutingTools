@@ -1,0 +1,234 @@
+{
+ "schema": 1,
+ "board": "imx6ulz_4l.kicad_pcb",
+ "groups": [
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U1",
+    "U2",
+    "Y1",
+    "C11",
+    "C15",
+    "FB2",
+    "FB3",
+    "R1",
+    "R13",
+    "R14",
+    "R15",
+    "R16",
+    "C36",
+    "C38",
+    "C39",
+    "C40",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C12",
+    "C13",
+    "C14",
+    "C18",
+    "C23",
+    "C31",
+    "C32",
+    "C33",
+    "C34",
+    "C35",
+    "C41",
+    "C42",
+    "C61",
+    "C62",
+    "C63",
+    "C64",
+    "C37",
+    "C46",
+    "C47",
+    "C48",
+    "C52",
+    "C53",
+    "C65",
+    "C66",
+    "C67",
+    "C68",
+    "C69",
+    "C72",
+    "C73",
+    "C74",
+    "C75",
+    "C76",
+    "C60"
+   ],
+   "anchor": "U1",
+   "near": [
+    "power",
+    "straps"
+   ],
+   "why": "i.MX6ULZ U1 and DDR3 U2 (both seated by fixed_poses) with every decap on their rails (VDD_SOC/ARM/HIGH/SNVS/USB caps, PLL, +3V3 NVCC caps, VMEM caps for both chips' DRAM rails), the DRAM VREF divider R13/R14 with C36/C38-C40, the ZQ resistors R15/R16, the CLK0 termination R1, the supply ferrites FB2/FB3 at the SoC, and the 24 MHz crystal Y1 with its load caps C11/C15. One group so each VMEM cap is matched to whichever chip's VMEM pin is nearest"
+  },
+  {
+   "name": "straps",
+   "role": "config",
+   "refs": [
+    "R18",
+    "R19",
+    "R20",
+    "R21",
+    "R25",
+    "R26",
+    "R27",
+    "R28",
+    "R29",
+    "R30",
+    "R31",
+    "R32",
+    "R33",
+    "R34",
+    "R35",
+    "R36",
+    "R37",
+    "R38",
+    "R39",
+    "R40",
+    "R41",
+    "R42",
+    "R43",
+    "R44",
+    "R45",
+    "R46",
+    "R47",
+    "R48",
+    "R49",
+    "R50",
+    "R51",
+    "R52",
+    "R53",
+    "R54",
+    "R55",
+    "R56",
+    "R57",
+    "R58",
+    "R59",
+    "R60",
+    "R61",
+    "R62",
+    "R63",
+    "R64"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "BOOT_CFG1/2/4 pull-up/pull-down strap resistors (all on B), each wired only to a U1 BOOT_CFG ball on U1's east face; strap resistors sit at the SoC pins"
+  },
+  {
+   "name": "boot_sw",
+   "role": "ui",
+   "refs": [
+    "SW2",
+    "R17",
+    "R22",
+    "R23",
+    "R24"
+   ],
+   "near": [
+    "straps"
+   ],
+   "edge": "E",
+   "why": "SW2 BOOT_CFG1 DIP switch with its +3V3 pull-ups R17/R22/R23/R24 on the switched nets; top-actuated slide DIP, user-set, toward the east edge beside the BOOT_CFG straps"
+  },
+  {
+   "name": "reset",
+   "role": "ui",
+   "refs": [
+    "SW3",
+    "C17",
+    "R3",
+    "U7",
+    "R67",
+    "C16",
+    "R2",
+    "SW1",
+    "R65",
+    "R66"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "reset: SW3 push button, LM809 supervisor U7 with its +3V3 decap C16 and RST_DLY pull-down R67, R3 into SOC_RST_L with C17; SOC_ONOFF pull-up R2; boot-mode DIP SW1 with pull-ups R65/R66. All their U1 balls (P8 RST, R8 ONOFF, T10/U10 BOOT_MODE) are on U1's west face"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "refs": [
+    "J1",
+    "U4",
+    "U5",
+    "U6",
+    "U8",
+    "L1",
+    "L2",
+    "L3",
+    "C19",
+    "C20",
+    "C21",
+    "C22",
+    "C25",
+    "C26",
+    "C27",
+    "C28",
+    "R4",
+    "R5",
+    "R6",
+    "R7",
+    "R8",
+    "R9",
+    "R10",
+    "R11",
+    "R12"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "+5V entry header J1, three TLV62568 bucks (U5 +3V3 with L1, U4 +1V2 with L2, U6 VMEM with L3) with their input caps C19/C21/C25/C27, output caps C22/C26/C28, FB dividers R5-R8/R10/R11 and PG pull-ups R4/R9/R12, and the MCP1700 SNVS LDO U8 with C20"
+  },
+  {
+   "name": "debug",
+   "role": "interface",
+   "refs": [
+    "J2",
+    "J3",
+    "R68",
+    "R69",
+    "J6",
+    "R72",
+    "R73",
+    "J7",
+    "R70",
+    "R71"
+   ],
+   "near": [
+    "core"
+   ],
+   "edge": "S",
+   "why": "debug/IO connectors whose U1 balls are all on U1's south face: JTAG J2, FTDI UART1 J3 with series R68/R69, UART2 J6 with series R72/R73, I2C2 J7 with pull-ups R70/R71"
+  },
+  {
+   "name": "qspi",
+   "role": "interface",
+   "refs": [
+    "J5"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "QSPI header J5; its U1 balls (A3/A4/B5/C5/D5/E6) are at U1's north-east corner"
+  }
+ ]
+}

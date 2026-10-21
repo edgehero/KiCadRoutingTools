@@ -1,0 +1,159 @@
+{
+ "schema": 1,
+ "board": "fixed.kicad_pcb",
+ "groups": [
+  {
+   "name": "upstream",
+   "role": "interface",
+   "refs": [
+    "J1",
+    "D22",
+    "D23"
+   ],
+   "anchor": "J1",
+   "near": [
+    "power",
+    "core"
+   ],
+   "why": "the USB-A PCB plug (host side, declared pose) with the two ESD diodes on its D-/D+ lines, which belong right behind its pins"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "refs": [
+    "U2",
+    "C21",
+    "C28",
+    "D24",
+    "JP1",
+    "J9",
+    "D25",
+    "C36",
+    "C37"
+   ],
+   "anchor": "U2",
+   "near": [
+    "upstream",
+    "core"
+   ],
+   "why": "power entry and switch: JP1 bridges the plug's VBUS to VIN, J9 is the external GND pad beside it, U2 (SLG5NT1487V load switch, D=VIN, S=+5V) with its VIN cap C21, its CAP-pin cap C28, the VIN and +5V TVS D24/D25 and two 22uF output bulk caps at its S pin"
+  },
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U1",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R5",
+    "R6",
+    "Y1"
+   ],
+   "anchor": "U1",
+   "why": "the XR22417 hub with its VCC5/VCC33/VCC18 and regulator-output decaps, the VBUS_SENSE divider R1/R2/C2 at pin 41, the EXT_RST#/TEST pull-ups R3-R5, REXT R6 and the 12 MHz crystal (no load caps on this board)"
+  },
+  {
+   "name": "ports_east",
+   "role": "interface",
+   "refs": [
+    "J2",
+    "J3",
+    "J4",
+    "J5",
+    "D1",
+    "D2",
+    "D3",
+    "D4",
+    "D5",
+    "D6",
+    "D7",
+    "D8",
+    "C14",
+    "C15",
+    "C16",
+    "C17",
+    "C22",
+    "C23",
+    "C24",
+    "C25",
+    "C26",
+    "C27",
+    "C29"
+   ],
+   "anchor": "J3",
+   "near": [
+    "core"
+   ],
+   "why": "downstream ports 1-4 (JST-SH, declared poses on the east edge) with their D-/D+ ESD pairs, each port's 0.1uF VBUS cap on the front and two 22uF VBUS bulk caps per port on the back"
+  },
+  {
+   "name": "ports_west",
+   "role": "interface",
+   "refs": [
+    "J6",
+    "J7",
+    "J8",
+    "D9",
+    "D10",
+    "D11",
+    "D12",
+    "D13",
+    "D14",
+    "C18",
+    "C19",
+    "C20",
+    "C30",
+    "C31",
+    "C32",
+    "C33",
+    "C34",
+    "C35"
+   ],
+   "anchor": "J7",
+   "near": [
+    "core"
+   ],
+   "why": "downstream ports 5-7 (JST-SH, declared poses on the west edge) with their ESD pairs, VBUS 0.1uF caps on the front and 22uF bulk caps on the back"
+  },
+  {
+   "name": "leds",
+   "role": "ui",
+   "refs": [
+    "D15",
+    "D16",
+    "D17",
+    "D18",
+    "D19",
+    "D20",
+    "D21",
+    "R7",
+    "R8",
+    "R9",
+    "R10",
+    "R11",
+    "R12",
+    "R13"
+   ],
+   "anchor": "D15",
+   "near": [
+    "core"
+   ],
+   "why": "the seven bicolour port-status LEDs (common LED_CTL net /LC) on the front with their 470R series resistors on the back"
+  }
+ ]
+}

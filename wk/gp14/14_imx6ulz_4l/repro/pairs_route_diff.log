@@ -1,0 +1,276 @@
+CMD: Python -X utf8 py_router/route_diff.py wk/gp14/14_imx6ulz_4l/final_route/s1c_caps.kicad_pcb wk/gp14/14_imx6ulz_4l/final_route/s2a_diff.kicad_pcb --nets "/DRAM/DRAM_DQS0_*" "/DRAM/DRAM_DQS1_*" "/DRAM/DRAM_CLK0_*" --track-width 0.1 --diff-pair-gap 0.1 --clearance-ceiling 0.1 --via-size 0.45 --via-drill 0.25 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 6.0 1.5 1.0 --no-bga-zones
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1mm.
+--clearance-ceiling 0.1: every net class is capped at it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gp14/14_imx6ulz_4l/final_route/s1c_caps.kicad_pcb to expand net patterns...
+Pattern '/DRAM/DRAM_DQS0_*' matched 2 nets
+Pattern '/DRAM/DRAM_DQS1_*' matched 2 nets
+Pattern '/DRAM/DRAM_CLK0_*' matched 2 nets
+Pattern '/DRAM/DRAM_DQS0_*' matched 2 nets
+Pattern '/DRAM/DRAM_DQS1_*' matched 2 nets
+Pattern '/DRAM/DRAM_CLK0_*' matched 2 nets
+Routing 6 nets as differential pairs: ['/DRAM/DRAM_DQS0_N', '/DRAM/DRAM_DQS0_P', '/DRAM/DRAM_DQS1_N', '/DRAM/DRAM_DQS1_P', '/DRAM/DRAM_CLK0_N']...
+Netclass clearances for 32 net(s), capped at --clearance-ceiling 0.1 (mm: [0.1]); diff-pair routing respects cross-class max(A,B). Override with --net-clearances.
+Loading wk/gp14/14_imx6ulz_4l/final_route/s1c_caps.kicad_pcb...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=6.0x, In2.Cu=1.5x, B.Cu=1.0x
+BGA exclusion zones disabled (all)
+Found 3 differential pair(s)
+  Polarity swaps disabled (no --polarity-swap-nets; pass '*' to allow all pairs)
+  .kicad_dru rule 'byte0 delay matching': parsed, but length has no consumer in this tool yet
+  .kicad_dru rule 'target length and skew': parsed, but length has no consumer in this tool yet
+
+Analyzing layer swaps for 3 diff pair(s)...
+  Solo source switch: /DRAM/DRAM_CLK0 (In2.Cu->B.Cu)
+    Solo source switch validation failed for /DRAM/DRAM_DQS0: stub (82.8,107.8)-(82.4,108.2) overlaps /Boot Config, Clock, Reset/SOC_ONOFF at (82.5,107.9)-(82.7,108.0) on In2.Cu
+Applied 1 solo source layer switch(es)
+    Solo target switch skipped for /DRAM/DRAM_DQS0: would move to F.Cu (top layer)
+    Solo target switch validation failed for /DRAM/DRAM_DQS1: overlaps with /DRAM/DRAM_DQS1 on In2.Cu
+  No swap found: /DRAM/DRAM_DQS0 (F.Cu->In2.Cu) - will need via
+  No swap found: /DRAM/DRAM_DQS1 (In2.Cu->F.Cu) - will need via
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 3 diff pairs + 0 single nets = 3 units with 1 crossing conflicts
+MPS Round 1: 2 units: /DRAM/DRAM_CLK0, /DRAM/DRAM_DQS0
+MPS Round 2: 1 units: /DRAM/DRAM_DQS1
+
+Routing 3 differential pair(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.11s
+Building diff pair obstacle map (extra clearance: 0.100mm)...
+Diff pair obstacle map built in 0.03s
+Blocking connector regions for 3 diff pair(s)...
+Found 134 unrouted nets in PCB for stub proximity
+GND net: 'GND' (id 13) (GND vias will be added as obstacles)
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.10s (134 nets)
+Plane fragility: exact-fill geometry (2 filled island(s) from KiCad refill)
+Plane fragility field: 122328 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, static)
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/3] Routing diff pair /DRAM/DRAM_CLK0
+  P: /DRAM/DRAM_CLK0_P (id=27)
+  N: /DRAM/DRAM_CLK0_N (id=28)
+  Multi-point pair: 3 terminals, 2 legs
+  Chain: U2:J7/K7 -> R1:1/2 -> U1:P1/P2
+  Leg 1/2: U2:J7/K7 -> R1:1/2
+  Error: source - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: target - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Both directions stuck (forward=0, backward=0 < 5000)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1026, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1031, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1024, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1029, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 26.9 -> 13.8)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1024, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1029, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1026, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1031, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1024, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1029, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1026, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1031, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      leg couple: best plan still ships 3.9mm uncoupled leg copper
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 38.1 -> 13.8)
+  DIRECT HYBRID: coupled middle on In2.Cu + 15 leg seg(s) (19044 iters)
+  Leg 1 via hybrid (coupled middle + single-ended escapes)
+  Leg 2/2: R1:1/2 -> U1:P1/P2
+  Error: source - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: target - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Both directions stuck (forward=0, backward=0 < 5000)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1024, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (827, 1029, layer=3): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_N(2 track)
+        backward cell (828, 1030, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (828, 1028, layer=2): ok, 8/8 neighbors blocked
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1022, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (829, 1029, layer=3): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_P(3 track)
+        backward cell (828, 1028, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 45.8 -> 18.7)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1022, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (827, 1029, layer=3): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_N(2 track)
+        backward cell (828, 1028, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1024, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (829, 1029, layer=3): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_P(3 track)
+        backward cell (828, 1030, layer=2): ok, 7/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_P(1 track)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1022, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (827, 1029, layer=3): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_N(2 track)
+        backward cell (828, 1028, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (693, 1024, layer=2): ok, 5/8 neighbors blocked (margin=1)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (829, 1029, layer=3): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_P(3 track)
+        backward cell (828, 1030, layer=2): ok, 7/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_CLK0_P(1 track)
+      leg couple: best plan still ships 3.8mm uncoupled leg copper
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 54.1 -> 18.7)
+  DIRECT HYBRID: coupled middle on In2.Cu + 24 leg seg(s) (16343 iters)
+  Leg 2 via hybrid (coupled middle + single-ended escapes)
+  SUCCESS: 2 legs, 35 segments, 35387 iterations (0.63s)
+
+[2/3] Routing diff pair /DRAM/DRAM_DQS0
+  P: /DRAM/DRAM_DQS0_P (id=130)
+  N: /DRAM/DRAM_DQS0_N (id=131)
+  Error: source - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: source - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: source - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: source - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: target - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: target - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: target - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Error: target - no valid position at any setback/direction (ladder 0.40, 0.60, 0.80mm x full sweep)
+  Both directions stuck (forward=0, backward=0 < 5000)
+  FAILED: Could not find route (0.02s)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1085, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (748, 1086, layer=0): ok, 7/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1087, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (689, 1103, layer=2): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_DQS0_P(2 track)
+        backward cell (746, 1088, layer=0): ok, 8/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1085, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (748, 1086, layer=0): ok, 7/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1087, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (689, 1103, layer=2): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_DQS0_P(2 track)
+        backward cell (746, 1088, layer=0): ok, 8/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      leg couple: best plan still ships 35.8mm uncoupled leg copper
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 176.2 -> 100.4)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1087, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (746, 1088, layer=0): ok, 8/8 neighbors blocked (margin=1)
+      backward stuck (1160 < 5000), forward=5000
+        backward cell (792, 1085, layer=0): ok, 6/8 neighbors blocked
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1085, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (689, 1103, layer=2): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_DQS0_P(2 track)
+        backward cell (748, 1086, layer=0): ok, 7/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      No route found after 200000 iterations (forward), trying backward...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1087, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1171 < 5000), forward=5000
+        backward cell (792, 1085, layer=0): ok, 6/8 neighbors blocked
+      backward stuck (1 < 5000), forward=5000
+        backward cell (792, 1085, layer=0): ok, 5/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (689, 1103, layer=2): ok, 5/8 neighbors blocked (margin=1)
+          Blocking obstacles: /DRAM/DRAM_DQS0_P(2 track)
+        backward cell (748, 1086, layer=0): ok, 7/8 neighbors blocked (margin=1)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      No route found after 200000 iterations (forward), trying backward...
+      leg couple: best plan still ships 37.7mm uncoupled leg copper
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 185.0 -> 100.4)
+  DIRECT HYBRID: coupled middle on F.Cu + 38 leg seg(s) (240074 iters)
+  HYBRID ESCAPE: direct coupled middle + point-to-point terminal legs
+
+[3/3] Routing diff pair /DRAM/DRAM_DQS1
+  P: /DRAM/DRAM_DQS1_P (id=145)
+  N: /DRAM/DRAM_DQS1_N (id=146)
+      target: escape direction blocked at every setback - launching rotated +90deg at 0.80mm
+      target: F.Cu corridor jammed - launching on In1.Cu (reachable through the endpoint via)
+      source: escape direction blocked at every setback - launching rotated +90deg at 0.80mm
+      source: F.Cu corridor jammed - launching on In1.Cu (reachable through the endpoint via)
+Route found in 5839 iterations, path: 51 poses -> 51 points -> 11 simplified
+  SUCCESS: 26 segments, 4 vias, 5839 iterations (0.03s)
+    Centerline length: 7.007mm, stub length: 1.263mm, total: 8.269mm
+
+Sync pcb_data: 1788 -> 1709 (kept stubs) -> 1788 (after adding 79)
+Diff-pair Graze prune: removed 1 grazing segment(s) across 1 net(s)
+Diff-pair Cycle prune: removed 1 redundant loop segment(s) across 1 net(s)
+Diff-pair Strict collapse: removed 10 redundant segment(s) (superseded parallel/buried/in-pad copper)
+Diff-pair Dead-end sweep: trimmed 25 dead-end segment(s) and 0 unsupported via(s)
+Diff-pair Merged 7 collinear joint(s) on 5 net(s): -7 redundant segment(s) (#811)
+MEMBER AUDIT MISMATCH: /DRAM/DRAM_DQS1 reported 'coupled' but member(s) with disconnected pads: /DRAM/DRAM_DQS1_P, /DRAM/DRAM_DQS1_N -> outcome 'incomplete'
+
+============================================================
+Routing complete
+============================================================
+  Diff pairs:    2/3 routed
+  Partial:       1 pair(s) whose coupled route left member pads disconnected (see MEMBER AUDIT): /DRAM/DRAM_DQS1
+  Member-incomplete: 1 pair(s) with disconnected member pads at this step (/DRAM/DRAM_DQS1) — JSON_SUMMARY.member_incomplete_pairs
+  Hybrid escape: 2 pair(s) routed as a coupled middle + point-to-point terminal legs (terminals NOT coupled): /DRAM/DRAM_CLK0, /DRAM/DRAM_DQS0 — JSON_SUMMARY.pair_reports[].coupled_terminals
+  Total vias:    4
+  Total time:    0.69s
+  Iterations:    281,300
+JSON_SUMMARY: {"routed_diff_pairs": ["/DRAM/DRAM_CLK0", "/DRAM/DRAM_DQS0"], "failed_diff_pairs": [], "partial_diff_pairs": ["/DRAM/DRAM_DQS1"], "member_incomplete_pairs": ["/DRAM/DRAM_DQS1"], "single_ended_diff_pairs": [], "ripup_success_pairs": [], "rerouted_pairs": [], "polarity_swapped_pairs": [], "polarity_swap_denied_pairs": [], "single_ended_followup_nets": [], "skipped_bad_fanout": [], "target_swaps": [], "layer_swaps": 1, "intra_pair_matching": [], "successful": 2, "failed": 0, "total_time": 0.69, "total_iterations": 281300, "total_vias": 4, "min_clearance_used": 0.1, "pair_reports": [{"pair": "/DRAM/DRAM_CLK0", "p_net": "/DRAM/DRAM_CLK0_P", "n_net": "/DRAM/DRAM_CLK0_N", "outcome": "coupled", "failure_reason": null, "failure_stage": null, "incomplete_members": [], "member_audit_mismatch": false, "no_coupled_trunk": false, "coupled_terminals": false, "escape": "hybrid"}, {"pair": "/DRAM/DRAM_DQS0", "p_net": "/DRAM/DRAM_DQS0_P", "n_net": "/DRAM/DRAM_DQS0_N", "outcome": "coupled", "failure_reason": null, "failure_stage": null, "incomplete_members": [], "member_audit_mismatch": false, "no_coupled_trunk": false, "coupled_terminals": false, "escape": "hybrid"}, {"pair": "/DRAM/DRAM_DQS1", "p_net": "/DRAM/DRAM_DQS1_P", "n_net": "/DRAM/DRAM_DQS1_N", "outcome": "incomplete", "failure_reason": null, "failure_stage": null, "incomplete_members": ["/DRAM/DRAM_DQS1_P", "/DRAM/DRAM_DQS1_N"], "member_audit_mismatch": true, "no_coupled_trunk": false}], "casualty_reconcile": {"attempted": 0, "restored": [], "rerouted": [], "partial": [], "unrecovered": []}, "single_ended_fallback": {"attempted": [], "routed": [], "partial": [], "failed": []}, "plane_fragility": {"source": "kicad_refill", "islands": 2, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gp14/14_imx6ulz_4l/final_route/s2a_diff.kicad_pcb...
+Removed 69 dead-end input segment(s) from the output
+Applied 5 segment layer modifications (layer switching)
+Removed 5 layer/net-swapped input segment(s) from the output (post-transform strip)
+Successfully wrote wk/gp14/14_imx6ulz_4l/final_route/s2a_diff.kicad_pcb
+
+  FAB NOTE (route_diff): 59 via(s) in a pad or paste opening [C12 B.Paste (paste_only_pad), C13 B.Paste (paste_only_pad), C18 B.Paste (paste_only_pad), C2 B.Paste (paste_only_pad), C3 B.Paste (paste_only_pad), C33.2, C34.2, C4.1 B.Paste (pad), +50 more] -- 0 stamped (capping yes) (filling yes), 0 already filled+capped, 59 shipped WITHOUT Type VII. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 59, "sites": ["C12 B.Paste (paste_only_pad)", "C13 B.Paste (paste_only_pad)", "C18 B.Paste (paste_only_pad)", "C2 B.Paste (paste_only_pad)", "C3 B.Paste (paste_only_pad)", "C33.2", "C34.2", "C4.1 B.Paste (pad)", "C41 B.Paste (paste_only_pad)", "C42.1 B.Paste (pad)", "C7 B.Paste (paste_only_pad)", "C8.1 B.Paste (pad)", "C8.2 B.Paste (pad)", "R36.2 B.Paste (pad)", "R54.1 B.Paste (pad)", "U1.C11 F.Paste (pad)", "U1.C7 F.Paste (pad)", "U1.D10 F.Paste (pad)", "U1.E11 F.Paste (pad)", "U1.E7 F.Paste (pad)", "U1.F10 F.Paste (pad)", "U1.F7 F.Paste (pad)", "U1.F9 F.Paste (pad)", "U1.G12 F.Paste (pad)", "U1.G15 F.Paste (pad)", "U1.G3 F.Paste (pad)", "U1.G7 F.Paste (pad)", "U1.H13 F.Paste (pad)", "U1.J12 F.Paste (pad)", "U1.J13 F.Paste (pad)", "U1.J5 F.Paste (pad)", "U1.J7 F.Paste (pad)", "U1.K12 F.Paste (pad)", "U1.L12 F.Paste (pad)", "U1.L3 F.Paste (pad)", "U1.L7 F.Paste (pad)", "U1.M10 F.Paste (pad)", "U1.M7 F.Paste (pad)", "U1.M8 F.Paste (pad)", "U1.M9 F.Paste (pad)", "U1.N3 F.Paste (pad)", "U1.N7 F.Paste (pad)", "U1.R11 F.Paste (pad)", "U1.R5 F.Paste (pad)", "U1.R7 F.Paste (pad)", "U1.T4 F.Paste (pad)", "U1.T6 F.Paste (pad)", "U1.T7 F.Paste (pad)", "U1.U14 F.Paste (pad)", "U1.U6 F.Paste (pad)", "U1.U8 F.Paste (pad)", "U2.A3 F.Paste (pad)", "U2.B7 F.Paste (pad)", "U2.C3 F.Paste (pad)", "U2.D3 F.Paste (pad)", "U2.F2 F.Paste (pad)", "U2.G3 F.Paste (pad)", "U2.P2 F.Paste (pad)"], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [{"site": "U1.T6 F.Paste (pad)", "x": 81.2, "y": 107.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.A3 F.Paste (pad)", "x": 72.05, "y": 109.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.C3 F.Paste (pad)", "x": 72.25, "y": 107.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.U6 F.Paste (pad)", "x": 80.4, "y": 107.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.T4 F.Paste (pad)", "x": 81.2, "y": 106.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.D3 F.Paste (pad)", "x": 71.85, "y": 107.25, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.T7 F.Paste (pad)", "x": 81.2, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.U8 F.Paste (pad)", "x": 80.4, "y": 109.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R36.2 B.Paste (pad)", "x": 90.4, "y": 114.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C42.1 B.Paste (pad)", "x": 81.6, "y": 113.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C8.1 B.Paste (pad)", "x": 81.6, "y": 114.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C2 B.Paste (paste_only_pad)", "x": 88.0, "y": 109.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C3 B.Paste (paste_only_pad)", "x": 86.4, "y": 109.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C12 B.Paste (paste_only_pad)", "x": 88.8, "y": 112.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C4.1 B.Paste (pad)", "x": 84.8, "y": 110.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C4.1 B.Paste (pad)", "x": 84.8, "y": 111.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C7 B.Paste (paste_only_pad)", "x": 82.4, "y": 115.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.G7 F.Paste (pad)", "x": 88.4, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.J7 F.Paste (pad)", "x": 86.8, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.L7 F.Paste (pad)", "x": 85.2, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C34.2", "x": 89.6, "y": 106.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.F7 F.Paste (pad)", "x": 89.2, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.F9 F.Paste (pad)", "x": 89.2, "y": 110.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.F10 F.Paste (pad)", "x": 89.2, "y": 111.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.G12 F.Paste (pad)", "x": 88.4, "y": 112.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C13 B.Paste (paste_only_pad)", "x": 87.6, "y": 112.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.J12 F.Paste (pad)", "x": 86.8, "y": 112.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.K12 F.Paste (pad)", "x": 86.0, "y": 112.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.L12 F.Paste (pad)", "x": 85.2, "y": 112.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.M7 F.Paste (pad)", "x": 84.4, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.M8 F.Paste (pad)", "x": 84.4, "y": 109.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.M9 F.Paste (pad)", "x": 84.4, "y": 110.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.M10 F.Paste (pad)", "x": 84.4, "y": 111.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C41 B.Paste (paste_only_pad)", "x": 84.4, "y": 112.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.E7 F.Paste (pad)", "x": 90.0, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R54.1 B.Paste (pad)", "x": 90.4, "y": 112.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.E11 F.Paste (pad)", "x": 90.0, "y": 111.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C33.2", "x": 89.6, "y": 107.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.H13 F.Paste (pad)", "x": 87.6, "y": 113.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.J5 F.Paste (pad)", "x": 86.8, "y": 107.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.J13 F.Paste (pad)", "x": 86.8, "y": 113.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.N7 F.Paste (pad)", "x": 83.6, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C18 B.Paste (paste_only_pad)", "x": 92.0, "y": 105.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.C7 F.Paste (pad)", "x": 91.6, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.C11 F.Paste (pad)", "x": 91.6, "y": 111.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.G3 F.Paste (pad)", "x": 88.4, "y": 105.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.G15 F.Paste (pad)", "x": 88.4, "y": 115.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.L3 F.Paste (pad)", "x": 85.2, "y": 105.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.N3 F.Paste (pad)", "x": 83.6, "y": 105.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.R5 F.Paste (pad)", "x": 82.0, "y": 107.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.R7 F.Paste (pad)", "x": 82.0, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.R11 F.Paste (pad)", "x": 82.0, "y": 111.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C8.2 B.Paste (pad)", "x": 81.2, "y": 114.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.U14 F.Paste (pad)", "x": 80.4, "y": 114.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.B7 F.Paste (pad)", "x": 68.8, "y": 108.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.G3 F.Paste (pad)", "x": 72.0, "y": 104.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.F2 F.Paste (pad)", "x": 72.8, "y": 105.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.P2 F.Paste (pad)", "x": 72.8, "y": 99.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.D10 F.Paste (pad)", "x": 90.9525, "y": 110.8475, "why": "at the spot of an input via, kept as the input had it"}], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+  Route trace written to wk/gp14/14_imx6ulz_4l/final_route/s2a_diff_routetrace.json (4 events)
+  DRC settings: wrote 2 value(s) to wk/gp14/14_imx6ulz_4l/final_route/s2a_diff.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_track_width: 0.1 -> 0.0996 mm
+      rules.min_connection: 0.1 -> 0.0996 mm
+PROJECT_WRITES_JSON: {"project": "wk/gp14/14_imx6ulz_4l/final_route/s2a_diff.kicad_pro", "writes": ["rules.min_track_width: 0.1 -> 0.0996 mm", "rules.min_connection: 0.1 -> 0.0996 mm"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    track width: 0.1 -> 0.0996 mm; 17 of 1744 object(s) on this board are below the ORIGINAL 0.1mm
+    via diameter: 0.3 mm, unchanged by this step but still below the board's ORIGINAL 0.45mm; 175 of 191 object(s) on this board are below the ORIGINAL 0.45mm
+    hole diameter: 0.15 mm, unchanged by this step but still below the board's ORIGINAL 0.25mm
+    copper-to-hole clearance: 0.1 mm, unchanged by this step but still below the board's ORIGINAL 0.15mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  Protected nets (not ripped by later steps): 13 recorded in s2a_diff.kicad_pro (+6 this step)
+EXIT=0

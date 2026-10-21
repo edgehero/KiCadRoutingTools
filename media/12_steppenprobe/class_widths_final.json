@@ -1,0 +1,232 @@
+{
+  "advisory": {
+    "drc_rule_pairs": 0,
+    "drc_via_in_paste": 0
+  },
+  "blocking": 5,
+  "blocking_by": {
+    "assembly": 0,
+    "broken": 0,
+    "drc": 0,
+    "floorplan": null,
+    "impedance": null,
+    "length": null,
+    "net_widths": 5,
+    "undersized": 0,
+    "unrouted": 0
+  },
+  "board": "wk/gp14/12_steppenprobe/final.kicad_pcb",
+  "board_sha": "4c7c27a8998e93d5575f176c78e7d5c00d930d2ab4d214e68c3a60a9d12b9656",
+  "components": {
+    "assembly": {
+      "advisory_pairs": 0,
+      "buildable": true,
+      "coincident_origin_groups": [],
+      "coincident_origin_groups_count": 0,
+      "coincident_origin_groups_truncated": 0,
+      "conjuncts": {
+        "blocking": 0,
+        "body_edge_band_gating": 0,
+        "coincident_origins": 0,
+        "containment_blocking": 0,
+        "courtyard_blocking_gating": null,
+        "graphic_pad_gating": null,
+        "locked_contacts": 0,
+        "mating_keepout_count": 0,
+        "oob_pad_copper_gating_count": 0,
+        "pin_in_courtyard": 0,
+        "testpoint_covered_gating": null
+      },
+      "conjuncts_fired": [],
+      "conjuncts_unmeasured": [
+        "courtyard_blocking_gating",
+        "graphic_pad_gating",
+        "testpoint_covered_gating"
+      ],
+      "containments": [],
+      "containments_count": 0,
+      "containments_truncated": 0,
+      "count": 0,
+      "count_basis": "blocking (buildable)",
+      "courtyard_gating_armed": false,
+      "courtyard_gating_basis": "no-baseline: report-only",
+      "courtyard_gating_reason": "no --baseline was passed, so check_assembly's fifth conjunct (moved-vs-baseline courtyard interpenetration) is unarmed and publishes null, and so is its ninth (a test point a move left under a body, #1250). Pass --baseline <the board this one was derived from> to arm it (#1183)",
+      "live_conjuncts_fired": [],
+      "locked_contact_pairs": [],
+      "locked_contact_pairs_count": 0,
+      "locked_contact_pairs_truncated": 0,
+      "pairs": [],
+      "pairs_count": 0,
+      "pairs_truncated": 0,
+      "ran": true,
+      "verdict": "buildable (blocking 0)",
+      "waived_pairs": 0
+    },
+    "broken": {
+      "count": 0,
+      "nets": {},
+      "poured_nets": [
+        "+3V3",
+        "GND"
+      ],
+      "poured_nets_meaning": "nets with at least one zone on the board. A broken one of these is fixed by route.py with the net inside its --nets: the step's in-run plane finalize (#562) taps and joins it at that step's own track and via sizes, checked against KiCad's exact fill, and runs even when the step has nothing else to route (#1112). This is NOT a list of plane/power nets and is NOT a safe --ignore-nets population: a board that pours signal nets puts them in here too (measured: 332 of 545 pads).",
+      "ran": true
+    },
+    "drc": {
+      "by_type": {},
+      "count": 0,
+      "graded_at": 0.15,
+      "graphic_grazes_unverified": 0,
+      "ran": true,
+      "via_in_paste": {
+        "by_type": {},
+        "count": 0,
+        "ran": true,
+        "undeclarable": 62
+      }
+    },
+    "drc_rule_pairs": {
+      "by_type": {},
+      "count": 0,
+      "ran": true
+    },
+    "drc_via_in_paste": {
+      "by_type": {},
+      "count": 0,
+      "ran": true,
+      "undeclarable": 62
+    },
+    "floorplan": {
+      "count": null,
+      "ran": false,
+      "reason": "no --intent given; the floorplan is ungraded"
+    },
+    "impedance": {
+      "count": null,
+      "ran": false,
+      "reason": "no --impedance-nets given; impedance is ungraded"
+    },
+    "length": {
+      "count": null,
+      "ran": false,
+      "reason": "no --length-groups given; length matching is ungraded"
+    },
+    "net_widths": {
+      "count": 5,
+      "nets": {
+        "+1V8": {
+          "length_total_mm": 45.39,
+          "length_under_mm": 8.13,
+          "length_under_share": 0.179,
+          "narrowest_mm": 0.15,
+          "required_mm": 0.3,
+          "segments_total": 53,
+          "segments_under": 20
+        },
+        "+3V3": {
+          "length_total_mm": 1.64,
+          "length_under_mm": 0.3,
+          "length_under_share": 0.1828,
+          "narrowest_mm": 0.15,
+          "required_mm": 0.3,
+          "segments_total": 3,
+          "segments_under": 1
+        },
+        "/VPHY": {
+          "length_total_mm": 5.74,
+          "length_under_mm": 1.08,
+          "length_under_share": 0.1887,
+          "narrowest_mm": 0.15,
+          "required_mm": 0.3,
+          "segments_total": 7,
+          "segments_under": 2
+        },
+        "/VPLL": {
+          "length_total_mm": 9.16,
+          "length_under_mm": 1.9,
+          "length_under_share": 0.2074,
+          "narrowest_mm": 0.15,
+          "required_mm": 0.3,
+          "segments_total": 8,
+          "segments_under": 1
+        },
+        "GND": {
+          "length_total_mm": 71.82,
+          "length_under_mm": 17.6,
+          "length_under_share": 0.245,
+          "narrowest_mm": 0.15,
+          "required_mm": 0.3,
+          "segments_total": 197,
+          "segments_under": 35
+        }
+      },
+      "patterns_matching_no_routed_net": [],
+      "ran": true
+    },
+    "undersized": {
+      "by_type": {},
+      "count": 0,
+      "ran": true
+    },
+    "unrouted": {
+      "count": 0,
+      "nets": [],
+      "open": [],
+      "placement_blocked": {},
+      "placement_blocked_refs": [],
+      "ran": true
+    }
+  },
+  "connectivity_nets": [],
+  "floors": {
+    "board": {
+      "min_clearance": 0.0,
+      "min_copper_edge_clearance": 0.3,
+      "min_hole_to_hole": 0.25,
+      "min_through_hole_diameter": 0.3,
+      "min_track_width": 0.15,
+      "min_via_annular_width": 0.049999999999999996,
+      "min_via_diameter": 0.6
+    },
+    "declares_no_floor": false,
+    "default_netclass": {
+      "clearance": 0.15,
+      "track_width": 0.15,
+      "via_diameter": 0.6,
+      "via_drill": 0.3
+    },
+    "requested": {},
+    "source": "wk/gp14/12_steppenprobe/final.kicad_pro"
+  },
+  "kind": "board-score",
+  "label": "",
+  "net_name_audit": {
+    "board_nets": 83,
+    "checked": 7,
+    "fields_checked": [
+      "components.broken.poured_nets",
+      "components.net_widths.nets"
+    ],
+    "ran": true,
+    "unknown": {},
+    "unknown_count": 0
+  },
+  "quality": {
+    "copper_mm": 962.4,
+    "segments": 693,
+    "vias": 110
+  },
+  "schema": 1,
+  "tool_seconds": {
+    "check_assembly.py": 0.37,
+    "check_connected.py": 1.17,
+    "check_drc.py": 0.23
+  },
+  "ungraded": [
+    "assembly.courtyard_gating",
+    "floorplan",
+    "impedance",
+    "length"
+  ],
+  "unknown": []
+}

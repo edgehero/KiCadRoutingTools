@@ -1,0 +1,44 @@
+ENV KNOBS: none
+  qfn_fanout: --clearance-ceiling 0.15: no cap applied -- --clearance 0.1 is already at or below it; the output project's classes are still clamped to the routed floor.
+--board-edge-clearance not given; using the board min_copper_edge_clearance 0.3mm.
+Parsing wk/gp14/12_steppenprobe/repro/r2_s0.kicad_pcb...
+
+Found U1: Package_QFP:LQFP-64_10x10mm_P0.5mm
+  Position: (124.55, 74.24)
+  Rotation: 90.0deg
+  Pads: 64
+  Layer: F.Cu (from footprint)
+QFN/QFP Layout Analysis for U1:
+  Center: (0.00, 0.00)
+  Bounding box: X[-5.67, 5.67], Y[-5.67, 5.67]
+  Size: 11.35 x 11.35 mm
+  Detected pad pitch: 0.50 mm
+  Edge tolerance: 1.14 mm
+  Stub length: pad_width / 2 + extension (clears pad before bend)
+  Layer: F.Cu
+  Found 34 pads to fanout:
+    bottom: 10 pads
+    left: 10 pads
+    right: 6 pads
+    top: 8 pads
+  Sample pad geometry: 0.30 x 1.55 mm
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  Pad-clearance: shortened 16 fan(s), 0 straight escape(s) near the board edge (#513); dropped 0 stub(s) grazing a foreign pad (issue #123)
+  Generated 68 track segments (34 stubs x 2 segments)
+  NOTE: 0.50 mm pitch keeps adjacent fan stubs only 0.354 mm apart (pitch/sqrt2).
+  Routing these nets needs clearance below 0.20 mm (with 0.15 mm track) plus grid-quantization margin; the default 0.25 clearance / 0.1 grid will fail to escape.
+  Suggested: route.py --grid-step 0.05 --clearance 0.15 --track-width 0.15 for this component's nets.
+  Validated: No endpoint collisions
+
+Writing 68 tracks and 0 vias to wk/gp14/12_steppenprobe/repro/r2_s0_fan_default.kicad_pcb...
+Done!
+  DRC settings: wrote 4 value(s) to wk/gp14/12_steppenprobe/repro/r2_s0_fan_default.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_hole_clearance: 0.25 -> 0.1 mm
+      net_class[Default].clearance: 0.15 -> 0.1 mm
+      net_class[Power].clearance: 0.15 -> 0.1 mm
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gp14/12_steppenprobe/repro/r2_s0_fan_default.kicad_pro", "writes": ["rules.min_hole_clearance: 0.25 -> 0.1 mm", "net_class[Default].clearance: 0.15 -> 0.1 mm", "net_class[Power].clearance: 0.15 -> 0.1 mm", "kicad_routing_tools.fab_floor_origin: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.25 -> 0.1 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+JSON_SUMMARY: {"component": "U1", "requested": 31, "escaped": 31, "failed": 0, "unescaped_nets": [], "clearance": 0.1, "track_width": 0.15, "escape_method": "stub", "via_size": 0.45, "via_drill": 0.25, "layer": "F.Cu", "drc_grazes": {"pad_via": 0, "via_segment": 0, "pad_segment": 0, "segment_segment": 0, "total": 0}, "min_clearance_used": 0.1, "allow_via_in_pad": false, "env_knobs": {}}

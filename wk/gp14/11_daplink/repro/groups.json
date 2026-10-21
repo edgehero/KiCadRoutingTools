@@ -1,0 +1,22 @@
+{"schema": 1,
+ "board": "fixed.kicad_pcb",
+ "groups": [
+  {"name": "usb_in", "role": "interface", "refs": ["P1", "R1", "R14", "R12", "R13"],
+   "anchor": "P1", "near": ["power", "core"],
+   "why": "USB-C receptacle (west edge, declared) with its CC1/CC2 5k1 pull-downs at the CC pins and the 33R D-/D+ series pair at the connector end (a chip-to-connector series R has no preferred end; kept at the connector so the pair leaves P1 as one touching pair)"},
+  {"name": "power", "role": "power", "refs": ["U1", "C1", "C2", "C3"],
+   "anchor": "U1", "near": ["usb_in", "core"],
+   "why": "AMS1117-3.3 LDO from VBUS (+5V) with its +5V input caps C1 10nF / C2 10uF and its +3.3V output cap C3 10uF (the LDO needs its output cap for stability; it is also the only +3.3V cap on the board). Sits between the USB entry and the MCU; no edge hint for power"},
+  {"name": "core", "role": "core", "refs": ["U2", "Y1", "C5", "C6", "C4", "R2", "R3", "R4", "R9", "R10", "R5", "C7", "C9", "R15"],
+   "anchor": "U2",
+   "why": "STM32F103CB (the probe MCU) with: its 8MHz crystal Y1 and 20pF load caps C5/C6 (place_simple claims these at PD0/PD1); its NRST RC (R2 10k pull-up, C4 10nF); BOOT0 pull-down R3; PC13 pull-down R4; the PA0 4k7/4k7 strap divider R9/R10; R5 100R source termination on TGT_SWDIO at its driver pin PB12; C7/C9 18pF and the R15 1k5 D+ pull-up on the MCU side of the USB series pair (PA11/PA12)"},
+  {"name": "target", "role": "interface", "refs": ["J3", "J2"],
+   "anchor": "J3", "near": ["core"],
+   "why": "the two Harwin M20-89005 right-angle SMD 1x5 headers to the target: J3 (top face) carries 3V3/SWDIO/SWCLK/nRST/GND, J2 (bottom face) GND/-/RX/TX/3V3 (UART). Right-angle, mating face out of the edge, so they belong on an edge; declared east (opposite the USB) in intent_edges.json"},
+  {"name": "ui", "role": "ui", "refs": ["RST1", "R11", "C8", "D1", "R6", "D2", "R7", "D3", "R8"],
+   "anchor": "RST1", "near": ["core"],
+   "why": "user interface along the north edge: the target-reset button RST1 (north edge, declared) with its TGT_RST 10k pull-up R11 and 10nF cap C8 (a reset RC goes beside its button), and the three status LEDs with their series resistors (D1 green/R6 and D2 blue/R7 sink into PB5/PB6, D3 red/R8 driven from PA9)"},
+  {"name": "prog", "role": "interface", "refs": ["J1"],
+   "anchor": "J1", "near": ["core"],
+   "why": "1x4 vertical 2.54mm SWD header that programs the probe MCU itself (IF_SWDIO/IF_SWCLK = PA13/PA14, 3V3, GND); a short vertical header has no edge rule, so only near the core"}
+ ]}

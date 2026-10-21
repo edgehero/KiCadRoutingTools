@@ -1,0 +1,100 @@
+CMD: Python -X utf8 py_router/route_planes.py wk/gp14/04_multichannel_mixer/repro/pile.kicad_pcb wk/gp14/04_multichannel_mixer/repro/pour_dup.kicad_pcb --nets GND GND --plane-layers F.Cu B.Cu --clearance 0.3
+ENV KNOBS: none
+--track-width not given; using the board Default net-class 0.2mm.
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance 0.3: the Default net class at it this run; other classes honoured (pass --clearance-ceiling to cap every class).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.5mm [board constraint].
+Loading PCB from wk/gp14/04_multichannel_mixer/repro/pile.kicad_pcb...
+Zone clearance: following routed clearance 0.3mm (--zone-clearance to override)
+Found net 'GND' with ID 1
+Found net 'GND' with ID 1
+WARNING: net 'GND' already has a pour on F.Cu, but it is ONE multi-layer zone that also covers B.Cu, so it cannot be replaced for F.Cu alone without destroying that copper. Keeping it and pouring the new plane over it at a higher fill priority (same net, so no short). To replace it outright, run those layers together or delete the pour in KiCad.
+WARNING: net 'GND' already has a pour on B.Cu, but it is ONE multi-layer zone that also covers F.Cu, so it cannot be replaced for B.Cu alone without destroying that copper. Keeping it and pouring the new plane over it at a higher fill priority (same net, so no short). To replace it outright, run those layers together or delete the pour in KiCad.
+Board bounds: (89.46, 43.66) to (199.46, 154.66)
+  Layer costs: F.Cu=1.0x, B.Cu=3.0x
+
+============================================================
+Processing net 'GND' on layer F.Cu
+============================================================
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 0
+  SMD pads on F.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 0
+  Pads OUTSIDE the board outline (unreachable, skipped, #291): 28
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 154.9 mm (diagonal)
+    Avg width:   77.9 mm
+    Resistance:  0.955 mΩ
+    Max current: not rated -- 4224 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 56.22 A by extrapolation
+
+Results for 'GND':
+  Zone created on F.Cu
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+Processing net 'GND' on layer B.Cu
+============================================================
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 0
+  SMD pads on B.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 0
+  Pads OUTSIDE the board outline (unreachable, skipped, #291): 28
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 154.9 mm (diagonal)
+    Avg width:   77.9 mm
+    Resistance:  0.955 mΩ
+    Max current: not rated -- 4224 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 56.22 A by extrapolation
+
+Results for 'GND':
+  Zone created on B.Cu
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+OVERALL TOTALS
+============================================================
+  Nets processed: 2
+  Total new vias placed: 0
+  Total traces added: 0
+
+Writing output to wk/gp14/04_multichannel_mixer/repro/pour_dup.kicad_pcb...
+Output written to wk/gp14/04_multichannel_mixer/repro/pour_dup.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+
+============================================================
+GEOMETRIC VERIFICATION (re-parsed output)
+============================================================
+  GND: 18/28 pads connected to plane on F.Cu
+      unconnected pad J5 on 'GND' at (141.15, 168.13) [F.Cu]
+      unconnected pad C1 on 'GND' at (140.20, 163.71) [F.Cu]
+      unconnected pad C2 on 'GND' at (140.20, 164.81) [F.Cu]
+      unconnected pad IC5 on 'GND' at (136.23, 166.22) [B.Cu]
+      unconnected pad C20 on 'GND' at (138.54, 164.81) [B.Cu]
+      unconnected pad C21 on 'GND' at (139.65, 164.81) [B.Cu]
+      unconnected pad C12 on 'GND' at (140.75, 163.71) [B.Cu]
+      unconnected pad C30 on 'GND' at (138.54, 165.92) [B.Cu]
+      unconnected pad C3 on 'GND' at (137.43, 165.92) [B.Cu]
+      unconnected pad C11 on 'GND' at (139.65, 163.71) [B.Cu]
+
+  10 pad(s) are not connected to their plane by the pour alone -- EXPECTED (#562): the plane step places no taps. They are welded during the route step's normal routing (pour-launch); its in-run finalize then verifies against KiCad's exact fill and repairs any residue. Grade the board AFTER the route step, not here (see per-net breakdown above).
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  DRC settings: wrote 5 value(s) to wk/gp14/04_multichannel_mixer/repro/pour_dup.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_track_width: 0.3 -> 0.2 mm
+      rules.min_connection: 0.3 -> 0.2 mm
+      rules.min_via_diameter: 1.5 -> 0.6 mm
+      rules.min_via_drill: None -> 0.3 mm
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gp14/04_multichannel_mixer/repro/pour_dup.kicad_pro", "writes": ["rules.min_track_width: 0.3 -> 0.2 mm", "rules.min_connection: 0.3 -> 0.2 mm", "rules.min_via_diameter: 1.5 -> 0.6 mm", "rules.min_via_drill: None -> 0.3 mm", "kicad_routing_tools.fab_floor_origin: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    track width: 0.3 -> 0.2 mm
+    via diameter: 1.5 -> 0.6 mm
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+JSON_SUMMARY: {"complete": true, "env_knobs": {}, "min_clearance_used": 0.3, "pads": {"failed_pads": 0, "geometric_failed": 10, "pads_needing_vias": 0}, "pads_scope": "all zones in this run, summed -- not per zone; see plane_zones for what was poured", "plane_nets": ["GND"], "plane_resistance": [{"avg_width_mm": 77.856, "copper_oz": 1.0, "max_current_a": 56.22, "max_current_ipc2152_a": 56.22, "net": "GND", "path_basis": "route", "path_length_mm": 154.86, "resistance_ohms": 0.000955, "temp_rise_c": 10.0}], "plane_zones": [{"layer": "F.Cu", "net": "GND"}, {"layer": "B.Cu", "net": "GND"}], "status": "ok"}
+EXIT=0

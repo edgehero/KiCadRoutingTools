@@ -1,0 +1,203 @@
+{
+  "assembly": {
+    "sides": "both",
+    "why": "observed: 24 pad-bearing part(s) on F and 1 on B, 2 reflow pass(es). every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix and counted separately. `pad_bearing` restricts that to blocks carrying at least one pad that is not a paste/mask aperture (#1143), and it is the count the populated-side verdict is taken from -- a zero-pad graphic on the back does not make a board double-sided."
+  },
+  "blocks": [],
+  "board": "sonde_xilinx.kicad_pcb",
+  "context": {
+    "basis": {
+      "assembly.sides": "observed_baseline",
+      "defaults.zone_tolerance_mm": "derived_default",
+      "edge_connectors[J1].edge": "declared",
+      "edge_connectors[J2].edge": "declared",
+      "envelope.tolerance_mm": "derived_default"
+    },
+    "brief": {
+      "absent": [
+        "product.form_factor",
+        "product.primary_axis"
+      ],
+      "consequences": [],
+      "contradictions": [],
+      "counts": {
+        "fixed": 0,
+        "interfaces": 2,
+        "keepouts": 0
+      },
+      "declared": [
+        "interfaces[J1].edge",
+        "interfaces[J2].edge"
+      ],
+      "fixed": [],
+      "not_graded": [],
+      "path": "wk/gp14/02_sonde_xilinx/sonde_xilinx.design-brief.json",
+      "product": {},
+      "unknown": [
+        "interfaces[J1].along_edge",
+        "interfaces[J2].along_edge"
+      ],
+      "unmatched": [],
+      "unmatched_checked": true
+    },
+    "budget_withheld": {
+      "decaps.max_distance_mm": "the reference board <the source board, withheld>: no decap is within 5.0mm of its owner, so nothing was measured (1 rail-sharing cap(s) lie beyond it, worst 5.85mm)",
+      "oob_count": "the board is a pile: its off-board count is staging, not a baseline (#1103)",
+      "overlap_area": "the board is a pile: its overlap is staging, not a baseline (#1103)"
+    },
+    "cutouts": [],
+    "decap_census": {
+      "beyond_radius": 1,
+      "beyond_radius_refs": [
+        "C1"
+      ],
+      "ics": 0,
+      "metric": "cap footprint centroid to IC bounding box, clamped to 0 inside (placement.groups.decap_tethers)",
+      "no_rail_chip": 0,
+      "no_rail_chip_refs": [],
+      "pin_limit_withheld": "the reference board <the source board, withheld>: 2 supply pin(s) have a cap on their net (at least 3 needed)",
+      "population": 1,
+      "reference_board": "<the source board, withheld>",
+      "reference_board_sha256": "fe8c35933b5c7aa77a5b9a9380cbabfe936c639d1d2c936a71029bc921149ce0",
+      "reference_part_match": 1.0,
+      "reference_pin_census": {
+        "covered": 2,
+        "max_mm": 12.878,
+        "max_raw": 12.878020034151211,
+        "pins": 2,
+        "uncovered": 0
+      },
+      "reference_tethers": 0,
+      "search_radius_mm": 5.0,
+      "source": "auto-tethers",
+      "tethers": 0,
+      "unaccounted": 0,
+      "worst_beyond_mm": 5.9532
+    },
+    "edge_contours": 0,
+    "file_locked": [],
+    "keepouts_note": "empty because a keep-out is a mechanical fact -- an enclosure rib, a standoff, a battery, a display window, an antenna clearance -- and none of those can be read off a board. \"[]\" here means NONE DECLARED, never \"not considered\". Declare them by hand; since #701 the seat search honours them, not only the grade.",
+    "note": "read-only, describing the board as it is. The outline is not editable by this toolchain: size, cutouts and slots are mechanical decisions the user owns",
+    "pose_claims_withheld": {
+      "kept": "KiCad-locked parts; a brief / mechanical.json merged after this",
+      "reason": "the board is a pile (footprints span 10.0% of the board diagonal; 100% of footprints lie outside the board outline): staging poses are not claims",
+      "refs_off_board": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5",
+        "D1",
+        "D2",
+        "J1",
+        "J2",
+        "P1",
+        "R1",
+        "R10",
+        "R11",
+        "R12",
+        "R13",
+        "R14",
+        "R2",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9",
+        "U1",
+        "U2"
+      ],
+      "withheld": [
+        "edge_connectors[].edge read off a pose",
+        "blocks[].zone",
+        "legality_budget.oob_count"
+      ]
+    },
+    "reconciliation": [
+      {
+        "field": "edge",
+        "id": "J1:edge",
+        "kind": "drift",
+        "ref": "J1",
+        "values": {
+          "board": {
+            "authority": "inferred",
+            "source": "wk/gp14/02_sonde_xilinx/sonde_xilinx.kicad_pcb",
+            "value": "south"
+          },
+          "brief": {
+            "authority": "declared",
+            "source": "wk/gp14/02_sonde_xilinx/sonde_xilinx.design-brief.json (sha256 0e4c5f1794cc103d5d067eba2d67696c464c3c213547802e851b7246d6a2d9af)",
+            "value": "west"
+          }
+        },
+        "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+        "winner": "brief"
+      },
+      {
+        "field": "edge",
+        "id": "J2:edge",
+        "kind": "drift",
+        "ref": "J2",
+        "values": {
+          "board": {
+            "authority": "inferred",
+            "source": "wk/gp14/02_sonde_xilinx/sonde_xilinx.kicad_pcb",
+            "value": "south"
+          },
+          "brief": {
+            "authority": "declared",
+            "source": "wk/gp14/02_sonde_xilinx/sonde_xilinx.design-brief.json (sha256 0e4c5f1794cc103d5d067eba2d67696c464c3c213547802e851b7246d6a2d9af)",
+            "value": "east"
+          }
+        },
+        "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+        "winner": "brief"
+      }
+    ]
+  },
+  "decaps": {},
+  "defaults": {
+    "zone_tolerance_mm": 0.5
+  },
+  "edge_connectors": [
+    {
+      "context": {
+        "basis": {},
+        "brief_row": 0,
+        "compiled_from": {},
+        "why": "fa10-decl-v1: edge_receptacle (DSUB) seated at the west edge in the source"
+      },
+      "edge": "west",
+      "ref": "J1",
+      "source": "brief"
+    },
+    {
+      "context": {
+        "basis": {},
+        "brief_row": 1,
+        "compiled_from": {},
+        "why": "fa10-decl-v1: edge_receptacle (DSUB) seated at the east edge in the source"
+      },
+      "edge": "east",
+      "ref": "J2",
+      "source": "brief"
+    }
+  ],
+  "envelope": {
+    "rect": [
+      103.3,
+      67.31,
+      183.7,
+      110.49
+    ],
+    "tolerance_mm": 0.5
+  },
+  "keepouts": [],
+  "kind": "floorplan-intent",
+  "legality_budget": {},
+  "must_lock": [],
+  "schema": 1,
+  "units": "mm"
+}

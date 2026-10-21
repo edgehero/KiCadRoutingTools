@@ -1,0 +1,52 @@
+CMD: Python -X utf8 py_tools/check_floorplan.py wk/gp14/01_ecc83-pp_v2/final.kicad_pcb --intent wk/gp14/01_ecc83-pp_v2/intent.json --allow-routed
+ENV KNOBS: none
+check_floorplan: this board carries 30 segment(s) and 0 via(s); proceeding with the copper left as it is.
+design brief final.design-brief.json: 0 interface(s), 0 keep-out(s), 3 tier-0 field(s) not declared
+mechanical declaration wk/gp14/01_ecc83-pp_v2/mechanical.json: 4 pose(s), 0 edge(s)
+grading at clearance 0.508 (board netclass), edge 0.2 (board constraint)
+Floorplan: final.kicad_pcb vs intent.json
+  15 footprints, 0 block(s), 0 part(s) covered
+  outline: 0 ring(s), 0 cutout(s), 0 milled contour(s)
+  INCOMPLETE: 2 rule(s) ran with no violations, but 3 budget_abstained, 3 rules_skipped_armed -- this board was not fully graded
+  pad stacks: 0 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule)
+  3 declared value(s) NOT DERIVABLE -- not graded, not passed:
+    - decaps.max_distance_mm: the reference board <the source board, withheld>: no decap is within 5.0mm of its owner, so nothing was measured
+    - oob_count: the board is a pile: its off-board count is staging, not a baseline (#1103)
+    - overlap_area: the board is a pile: its overlap is staging, not a baseline (#1103)
+  15 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - decap_distance: the intent declares no decaps.max_distance_mm; the emitter WITHHELD decaps.max_distance_mm (the reference board <the source board, withheld>: no decap is within 5.0mm of its owner, so nothing was measured)
+    - decap_pin_distance: the intent declares no decaps.max_pin_distance_mm
+    - decap_ungraded: the intent declares no decaps.max_distance_mm; the emitter WITHHELD decaps.max_distance_mm (the reference board <the source board, withheld>: no decap is within 5.0mm of its owner, so nothing was measured)
+    - edge_connector: the intent declares no edge_connectors
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - legality: the intent declares no legality_budget; the emitter WITHHELD oob_count (the board is a pile: its off-board count is staging, not a baseline (#1103)), overlap_area (the board is a pile: its overlap is staging, not a baseline (#1103))
+    - must_lock: the intent declares no must_lock patterns
+    - pins_to_edge: the intent declares no edge_connectors
+    - proximity: the intent declares no proximity claims
+    - replicate: the intent declares no replicate copies
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  rule roster: 2 armed, 15 not; 2 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [not applicable] zone_side: every part with pads is on F face, so no block can be on the wrong one
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [not applicable] edge_connector: no part classifies as an edge receptacle or actuator, so nothing has an edge to claim
+    [not applicable] decap_distance: no decoupling cap shares a rail with any IC, so no cap has anything to be near
+    [not applicable] decap_ungraded: no decoupling cap shares a rail with any IC, so no cap has anything to be near
+    [not applicable] decap_pin_distance: the board carries no decoupling capacitor (no cap from ground to a rail some chip other than a connector has a supply pin on), so no supply pin can be graded against one
+    [policy] proximity: a design relation between two named parts; nothing on the board, and nothing in a design brief, says which parts must be near which
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [not applicable] pins_to_edge: no part classifies as an edge receptacle or actuator, so nothing has an edge to claim
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+JSON_SUMMARY: {"blocks": 0, "blocks_resolved": 0, "board": "final.kicad_pcb", "brief": "wk/gp14/01_ecc83-pp_v2/final.design-brief.json", "brief_absent": 3, "brief_declared": 0, "brief_drift": 0, "brief_unknown": 0, "brief_unknown_keys": [], "budget_abstained": 3, "budget_abstained_keys": ["decaps.max_distance_mm", "oob_count", "overlap_area"], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.508}, "complete": false, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 0, "decap_pins_by_channel": {}, "decap_pins_graded": 0, "derived_default_clauses": [], "edge_clearance_used": {"source": "board constraint", "value": 0.2}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 0, "edge_seating_worst_offset_pct": null, "errors": 0, "hole_shortfall": 0.0, "hpwl": 200.5287, "intent": "intent.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"dark": 2, "graded_pass": 6, "inapplicable": 8, "policy": 5}, "locked_contact_pairs": 0, "mechanical": "wk/gp14/01_ecc83-pp_v2/mechanical.json", "not_graded": {"budget_abstained": 3, "rules_skipped_armed": 3}, "oob_amount": 3.064, "oob_area": 18.1036, "oob_count": 4, "overlap_area": 0.0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "pad_stack_count": 0, "parts_covered": 0, "parts_total": 15, "pass": false, "rules_dark_undispositioned": ["zone_containment", "legality"], "rules_run": 2, "rules_skipped": 15, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": true, "state_outside_fraction": 0.0, "state_partially_unplaced": false, "state_spread_ratio": 0.8683, "state_unplaced": false, "unmeasured_facts": [], "violations": 0, "violations_by_rule": {}, "warnings": 0}
+  NOT FULLY GRADED: 3 budget_abstained, 3 rules_skipped_armed. A channel the intent asked for was never measured, so this is an absent verdict, not a clean one.
+EXIT=4

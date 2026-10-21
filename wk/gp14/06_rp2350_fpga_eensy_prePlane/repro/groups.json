@@ -1,0 +1,147 @@
+{
+ "schema": 1,
+ "board": "fixed.kicad_pcb",
+ "groups": [
+  {
+   "name": "usb_in",
+   "role": "interface",
+   "refs": [
+    "J1",
+    "U3",
+    "R1",
+    "R2",
+    "D2"
+   ],
+   "anchor": "J1",
+   "near": [
+    "power",
+    "mcu"
+   ],
+   "why": "USB-C receptacle (north edge, declared) with its CC1/CC2 5.1k pull-downs, the USBLC6 ESD array right behind the D+/D- pins, and the VBUS Schottky D2 into the 5 V rail Net-(D2-K)"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "refs": [
+    "U5",
+    "R11",
+    "R12",
+    "R13",
+    "U7",
+    "L2",
+    "C1",
+    "C26",
+    "C27"
+   ],
+   "anchor": "U7",
+   "near": [
+    "usb_in"
+   ],
+   "why": "power entry and the 3V3 buck: LM73100 ideal-diode/eFuse from the Teensy-pin /VIN with its UVLO/OVLO divider R11/R12/R13, ORed with VBUS into Net-(D2-K); TPS62162 buck U7 with inductor L2, its input caps C1/C26 on Net-(D2-K) and the 22 uF output cap C27 on +3V3"
+  },
+  {
+   "name": "mcu",
+   "role": "core",
+   "refs": [
+    "U6",
+    "L1",
+    "C5",
+    "C6",
+    "C28",
+    "C29",
+    "C30",
+    "R3",
+    "R4",
+    "R5",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C19",
+    "C20",
+    "C21",
+    "Y1",
+    "C14",
+    "C15"
+   ],
+   "anchor": "U6",
+   "near": [
+    "usb_in",
+    "fpga",
+    "psram"
+   ],
+   "why": "RP2354A with its core-regulator inductor L1 and the /RP2354A/1V1 caps (DVDD x3 + VREG_FB), the VREG_AVDD RC (R3 33R + C5), ten 3V3 caps for its ten 3V3 supply pins (IOVDD x6, QSPI_IOVDD, USB_OTP_VDD, ADC_AVDD, VREG_VIN), and the USB 27R series pair R4/R5, which on an RP2040/RP2350 sits at the chip; the 12 MHz crystal Y1 and its load caps are claimed at XIN/XOUT by place_simple"
+  },
+  {
+   "name": "psram",
+   "role": "memory",
+   "refs": [
+    "U1",
+    "C2"
+   ],
+   "anchor": "U1",
+   "near": [
+    "mcu"
+   ],
+   "why": "APS1604M QSPI PSRAM on the back face with its (DNP) back-face decap C2; its six QSPI nets are on U6's north pin row"
+  },
+  {
+   "name": "debug",
+   "role": "interface",
+   "refs": [
+    "J2",
+    "J3"
+   ],
+   "anchor": "J2",
+   "near": [
+    "mcu"
+   ],
+   "why": "back-face Tag-Connect SWD pads (SWCLK/SWDIO/RUN on U6's south row) and the back-face Qwiic JST-SH I2C connector (SDA/SCL on U6's east row): both talk only to the RP2354A"
+  },
+  {
+   "name": "fpga",
+   "role": "core",
+   "refs": [
+    "U2",
+    "C3",
+    "C16",
+    "C17",
+    "C18",
+    "C22",
+    "C23",
+    "C24",
+    "C25",
+    "U4",
+    "Y2",
+    "R6",
+    "RN1",
+    "RN2"
+   ],
+   "anchor": "U2",
+   "near": [
+    "mcu",
+    "ui"
+   ],
+   "why": "Efinix T8F49 WLCSP FPGA with its +1V1 core caps (VCC x2 + PLL) and four 3V3 caps for its four VCCIO balls, the TPS7A20 1V1 LDO U4 whose output feeds only the FPGA (point-of-load), the 32 MHz oscillator Y2 on PLLIN with its enable pull-down R6, and the two 10k arrays: RN2 the configuration pull-ups/downs (DONE, CS, RESET, PIN.11) and RN1 pull-ups on four FPGA pins"
+  },
+  {
+   "name": "ui",
+   "role": "ui",
+   "refs": [
+    "D1",
+    "R7",
+    "R8",
+    "R9",
+    "SW1"
+   ],
+   "anchor": "D1",
+   "near": [
+    "fpga"
+   ],
+   "why": "RGB LED D1 with its three series resistors R7/R8/R9 (driven by FPGA R/G/B) and the side-actuated button SW1 on the FPGA's CSO pin"
+  }
+ ]
+}

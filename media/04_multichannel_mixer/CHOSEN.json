@@ -1,0 +1,15 @@
+{
+ "round": 1,
+ "seed": 2,
+ "start": "scattered",
+ "place_args": [],
+ "after": [
+  "place_pose set C5 151.394 75.815 --rot 0",
+  "place_pose set C22 132.5 147.339 --rot 90",
+  "place_pose set C2 172.705 81.371 --rot 0",
+  "place_pose set C13 135.5 141.148 --rot 90",
+  "place_pose rotate C8 180 --relative",
+  "place_pose rotate R39 180 --relative"
+ ],
+ "after_note": "applied in order to r1/s2.kicad_pcb, every call with --clearance 0.3 (the board min_clearance). The 'set' entries are the accepted moves of helpers/fix_body_overlaps.py (place_pose set REF --near X Y --rot R --clearance 0.3; the pose listed is where the snap landed) clearing check_assembly's body overlaps of the courtyard-less electrolytics -> r1/s2_fixc.kicad_pcb; the two RELATIVE 180-degree turns are route_review's 'two-pad parts turned against their wiring' on s2's full route (C8 180->0, R39 270->90) -> opt/rot/s2t.kicad_pcb = kept_placement_final.kicad_pcb, the input of final_route/."
+}

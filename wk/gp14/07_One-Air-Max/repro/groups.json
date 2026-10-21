@@ -1,0 +1,358 @@
+{
+ "schema": 1,
+ "board": "One-Air-Max.kicad_pcb",
+ "groups": [
+  {
+   "name": "usb_in",
+   "role": "interface",
+   "refs": [
+    "USB1",
+    "R1",
+    "R2",
+    "C1",
+    "R3",
+    "C71",
+    "C72",
+    "R62",
+    "R63"
+   ],
+   "anchor": "USB1",
+   "near": [
+    "core",
+    "pwr5v"
+   ],
+   "why": "USB-C receptacle (declared pose, south edge) with its CC1/CC2 5.1k pull-downs (R1,R2), shield RC (C1,R3), D+/D- 1nF caps (C71,C72) and the 22R D+/D- series pair (R62,R63) that borders the ESP32's USB pins"
+  },
+  {
+   "name": "pwr5v",
+   "role": "power",
+   "refs": [
+    "U6",
+    "L2",
+    "C46",
+    "C47",
+    "C48",
+    "C49",
+    "C42",
+    "C43",
+    "C44",
+    "C45",
+    "R39",
+    "R40",
+    "TP2",
+    "R42",
+    "TP1",
+    "R72",
+    "R73",
+    "U7",
+    "R43",
+    "R44",
+    "R45",
+    "F1",
+    "FB1"
+   ],
+   "anchor": "U6",
+   "near": [
+    "charger",
+    "buck3v3",
+    "usb_in"
+   ],
+   "why": "TPS62903 buck from the battery/SYS rail (VIN = Net-(U6-EN), selected by 0R R72/R73) to +5VBAT: input caps C46-C48, SS cap C49, inductor L2, FB divider R39/R40 + TP2, MODE R42, PG TP1; +5VBAT output caps C42-C45 which the decap rule ties to U7 (TPS2117 power mux, +5VUSB vs +5VBAT -> VMUX) with its PR1 divider R43/R44, ST pull-up R45 and the VMUX->+5V fuse F1; FB1 ties GND to PGND"
+  },
+  {
+   "name": "buck3v3",
+   "role": "power",
+   "refs": [
+    "U2",
+    "L3",
+    "C4",
+    "R52",
+    "R56",
+    "R57",
+    "C2",
+    "C14",
+    "C68",
+    "C3",
+    "C6"
+   ],
+   "anchor": "U2",
+   "near": [
+    "pwr5v",
+    "core"
+   ],
+   "why": "TPS62902 buck +5V -> +3V3: input caps C2/C14/C68 (C68 is board_context's Cin), SS C4, FB divider R52/R56, MODE R57, inductor L3, +3V3 22uF output caps C3/C6"
+  },
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U1",
+    "C9",
+    "C10",
+    "C13",
+    "C53",
+    "C7",
+    "C73",
+    "R4",
+    "R5",
+    "C8",
+    "R6",
+    "C67",
+    "TP9",
+    "U3",
+    "R7",
+    "R74",
+    "R71",
+    "C51",
+    "SW1",
+    "LED2",
+    "JP2",
+    "JP3"
+   ],
+   "anchor": "U1",
+   "near": [
+    "usb_in",
+    "ext_io"
+   ],
+   "why": "ESP32-C6-WROOM-1 (declared pose, antenna at the south edge) with its +3V3 decaps (C9,C7,C53,C73 and the F-side C10/C13), IO8 strap R4, BOOT pull-up R5 + C8 with the BOOT button SW1, EN RC R6/C67 + TP9, the TPL5010 watchdog U3 (drives EN, DONE=WD_RST) with its DELAY R7, IO22 pull-up R74, and the LED2 driver R71 + C51; the CE1 UART/I2C select solder jumpers JP2/JP3 at U1's RXD0/TXD0 pins (2 of their 3 links are U1 and the I2C bus)"
+  },
+  {
+   "name": "ext_io",
+   "role": "interface",
+   "refs": [
+    "IO1",
+    "R76",
+    "R77",
+    "R78",
+    "I2C3",
+    "U12",
+    "R28",
+    "R29",
+    "R32",
+    "R49",
+    "C63"
+   ],
+   "anchor": "IO1",
+   "near": [
+    "core"
+   ],
+   "why": "the I2C bus parts: the 8-pin IO1 expansion connector (IO18-20 with pull-ups R76-R78, SCL/SDA, +5V/+3V3), the 4-pin I2C3 connector, the AT24CM02 EEPROM U12 with its decap C63, and the two SCL/SDA pull-up pairs R28/R29, R32/R49 (I2C1/I2C2 headers are declared poses on the south edge)"
+  },
+  {
+   "name": "pm",
+   "role": "interface",
+   "refs": [
+    "PM1",
+    "PM2",
+    "U13",
+    "R64",
+    "R60",
+    "C11",
+    "C32",
+    "C52",
+    "C74",
+    "C5"
+   ],
+   "anchor": "PM1",
+   "near": [
+    "uart_exp"
+   ],
+   "why": "the two PM-sensor connectors (UART + switched 5V): TPS27081 load switch U13 (+5V -> VOUT1) with its R1/C1 pull-up R64 and EN_PM pull-down R60, VOUT1 caps C11/C32/C52 and +5V input caps C74/C5"
+  },
+  {
+   "name": "uart_exp",
+   "role": "interface",
+   "refs": [
+    "U8",
+    "X1",
+    "C54",
+    "C55",
+    "R46",
+    "C56",
+    "R47",
+    "R48",
+    "R25",
+    "R41",
+    "D4",
+    "D5",
+    "D6",
+    "D7",
+    "C65"
+   ],
+   "anchor": "U8",
+   "near": [
+    "pm",
+    "core"
+   ],
+   "why": "WK2132 I2C-to-dual-UART bridge for the PM sensors: 14.7456 MHz crystal X1 with load caps C54/C55 and R46, reset RC R47/C56, IRQ pull-up R48, address straps R25/R41, the B5817 diodes D4-D7 in the PM1/PM2 TX/RX lines, decap C65"
+  },
+  {
+   "name": "co2",
+   "role": "interface",
+   "refs": [
+    "CO2",
+    "U14",
+    "R65",
+    "R58",
+    "C12",
+    "C59",
+    "C50"
+   ],
+   "anchor": "CO2",
+   "near": [
+    "core"
+   ],
+   "why": "CO2-sensor connector (UART to the ESP32) with its TPS27081 load switch U14 (+5V -> VOUT2), R1/C1 pull-up R65, EN_CO2 pull-down R58, VOUT2 caps C12/C59, +5V cap C50"
+  },
+  {
+   "name": "ce",
+   "role": "interface",
+   "refs": [
+    "CE1",
+    "U15",
+    "U16",
+    "R66",
+    "R69",
+    "R61",
+    "C60",
+    "C62",
+    "R8",
+    "R75",
+    "C57",
+    "C66"
+   ],
+   "anchor": "CE1",
+   "near": [
+    "core"
+   ],
+   "why": "CE1 sensor connector: two TPS27081 load switches U15 (+3V3 -> VOUT3) and U16 (+5V -> VOUT4) with R1/C1 pull-ups R66/R69, shared EN_CE pull-down R61, VOUT caps C60/C62, input caps C66 (+3V3) and C57 (+5V); IO23/IO21 pull-ups R8/R75"
+  },
+  {
+   "name": "no2",
+   "role": "interface",
+   "refs": [
+    "NO2",
+    "U17",
+    "U18",
+    "R67",
+    "R70",
+    "R59",
+    "C61",
+    "C64",
+    "C58",
+    "C70"
+   ],
+   "anchor": "NO2",
+   "near": [
+    "core"
+   ],
+   "why": "NO2 sensor connector (I2C): load switches U17 (+3V3 -> VOUT5) and U18 (+5V -> VOUT6) with R1/C1 pull-ups R67/R70, shared EN_NO2 pull-down R59, VOUT caps C61/C64, input caps C70 (+3V3) and C58 (+5V)"
+  },
+  {
+   "name": "charger",
+   "role": "power",
+   "refs": [
+    "U5",
+    "L1",
+    "C28",
+    "C29",
+    "C23",
+    "C30",
+    "C26",
+    "C27",
+    "C36",
+    "C37",
+    "C38",
+    "C39",
+    "C40",
+    "C41",
+    "R16",
+    "R33",
+    "R31",
+    "R34",
+    "R35",
+    "R37",
+    "R38",
+    "R50",
+    "R36",
+    "TP7",
+    "TP8",
+    "Battery1",
+    "F2",
+    "LED3",
+    "R30"
+   ],
+   "anchor": "U5",
+   "near": [
+    "solar_in",
+    "batt_prot",
+    "pwr5v"
+   ],
+   "why": "BQ25672 solar buck-boost charger: inductor L1 (SW1-SW2) with bootstrap caps C28/C29, PMID caps C37-C40, SYS caps C26/C27 + TP7, VBAT caps C23/C30 + TP8 + BATP R36, REGN cap C36, SDRV C41, PROG R16/R33, CE R31, TS divider R34/R38/R50, ILIM R35/R37, the charge LED3 + R30, the VBAT 2-pin header Battery1 and the 5A fuse F2 from the power switch"
+  },
+  {
+   "name": "solar_in",
+   "role": "interface",
+   "refs": [
+    "DC1",
+    "Solarpower1",
+    "D3",
+    "C31",
+    "C33",
+    "C34",
+    "C35"
+   ],
+   "anchor": "DC1",
+   "near": [
+    "charger"
+   ],
+   "why": "the solar input: DC jack DC1 (declared pose, east edge) and the 2-pin solar header Solarpower1 (F side), SMBJ24A TVS D3 and the Solar+ input caps C31/C33/C34/C35 ahead of the charger's VBUS/VAC pins"
+  },
+  {
+   "name": "batt_prot",
+   "role": "power",
+   "refs": [
+    "U4",
+    "Q1",
+    "Q2",
+    "R9",
+    "R10",
+    "R11",
+    "R12",
+    "R13",
+    "R14",
+    "R15",
+    "R17",
+    "R18",
+    "R19",
+    "R20",
+    "R21",
+    "R22",
+    "R23",
+    "R24",
+    "R26",
+    "R27",
+    "R51",
+    "C15",
+    "C16",
+    "C17",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "C22",
+    "C24",
+    "C25",
+    "D1",
+    "D2",
+    "NTC1",
+    "PWR_SW1"
+   ],
+   "anchor": "U4",
+   "near": [
+    "charger"
+   ],
+   "why": "BQ77905 3-cell protector for the BAT1 3x18650 holder: cell-tap RC filters R9/C16, R12/C18, R14/C20, R15/C21, sense filter R10/R13/C15/C17/C19 across the 10 mOhm shunt R11, CSD18534 FETs Q1 (DSG, gate R17/R18) and Q2 (CHG, D1/D2/R19-R21 gate network), LD R24, AVDD R23/C22, config 0R R26/R27/R51, NTC1 (F side) with R22, C24/C25; the slide power switch PWR_SW1 (declared pose, east edge) on VBAT+"
+  }
+ ]
+}
