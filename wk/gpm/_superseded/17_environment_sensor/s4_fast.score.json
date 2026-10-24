@@ -1,0 +1,123 @@
+{
+ "blocking": 0,
+ "blocking_by": {
+  "unrouted": 0,
+  "broken": 0,
+  "nets": [],
+  "floorplan": 0,
+  "assembly": 0
+ },
+ "joins_needed": 0,
+ "poured": {
+  "unrouted": 0,
+  "broken": 18,
+  "nets": [
+   "+3V3",
+   "GND"
+  ]
+ },
+ "quality": {
+  "vias": 106,
+  "copper_mm": 748.22,
+  "segments": 1143
+ },
+ "ungraded": [
+  "connectivity.poured_nets",
+  "drc",
+  "impedance",
+  "length",
+  "net_widths",
+  "undersized"
+ ],
+ "components": {
+  "floorplan": {
+   "ran": true,
+   "count": 0,
+   "rules_run": 9,
+   "rules_skipped": [
+    "array_formation",
+    "keep_away",
+    "keepout",
+    "legality",
+    "must_lock",
+    "replicate",
+    "template",
+    "zone_exclusive",
+    "zone_side"
+   ],
+   "violations": [],
+   "warnings": 5,
+   "warning_rules": [
+    "decap_pin_uncovered",
+    "pins_to_edge",
+    "proximity"
+   ]
+  },
+  "assembly": {
+   "ran": true,
+   "count": 0,
+   "count_basis": "blocking (buildable)",
+   "buildable": true,
+   "verdict": "buildable (blocking 0)",
+   "conjuncts": {
+    "blocking": 0,
+    "locked_contacts": 0,
+    "coincident_origins": 0,
+    "containment_blocking": 0,
+    "courtyard_blocking_gating": 0,
+    "oob_pad_copper_gating_count": 0,
+    "mating_keepout_count": 0,
+    "pin_in_courtyard": 0,
+    "testpoint_covered_gating": 0,
+    "body_edge_band_gating": 0,
+    "graphic_pad_gating": 0,
+    "own_pad_shorts": 0
+   },
+   "conjuncts_unmeasured": [],
+   "conjuncts_fired": [],
+   "live_conjuncts_fired": [],
+   "courtyard_gating_armed": true,
+   "courtyard_gating_basis": "moved-vs-baseline",
+   "courtyard_gating_reason": null,
+   "advisory_pairs": 0,
+   "waived_pairs": 0,
+   "pairs": [],
+   "locked_contact_pairs": [],
+   "coincident_origin_groups": [],
+   "containments": [],
+   "pairs_count": 0,
+   "locked_contact_pairs_count": 0,
+   "coincident_origin_groups_count": 0,
+   "containments_count": 0,
+   "pairs_truncated": 0,
+   "locked_contact_pairs_truncated": 0,
+   "coincident_origin_groups_truncated": 0,
+   "containments_truncated": 0
+  },
+  "connectivity.poured_nets": {
+   "ran": false,
+   "reason": "--quick 2 skips the plane finalize that joins a poured net's pads, so their open pads are reported as `poured`, not graded"
+  },
+  "drc": {
+   "ran": false,
+   "reason": "--quick 2 leaves the grazes for the full route's cleanup; DRC is graded on the full route"
+  },
+  "impedance": {
+   "ran": false,
+   "reason": "quick_score grades no impedance"
+  },
+  "length": {
+   "ran": false,
+   "reason": "quick_score grades no length matching"
+  },
+  "net_widths": {
+   "ran": false,
+   "reason": "quick_score grades no per-net widths"
+  },
+  "undersized": {
+   "ran": false,
+   "reason": "--quick 2 leaves the copper polish for the full route; sizes are graded on the full route"
+  }
+ },
+ "score": "quick_score: connectivity of the nets without a zone (route.py --quick 2), and the floorplan, and the assembly"
+}

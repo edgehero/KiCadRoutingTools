@@ -331,3 +331,10 @@
 - **Two verifier subagents for two calls** (the teammate spawned a fresh one for call 2), within the 3-call cap; disclosed.
 - **Films:** film_seed 0 of 84 differ. film_flow SKIPPED correctly: the judge's quick best s8, kept s11 on full routes (133-136 vs 143-155 vias), G09.
 - iso 75/75. measure wall 1:28:17. fence CLEAN. Repo untouched.
+
+## 17 environment_sensor, RE-RUN (teammate: DONE, verifier PASS on call 1) -- first run (now _superseded/): DONE, PASS, 101 vias
+- **Why re-run:** the 2026-10-24 mounting-hole audit found MP1-MP3 (`MP_Pad5.4mm_Drill2.7mm`) undeclared: derive_decl recognised holes by name only. The rule now also recognises them by drill (`_drilled_mount`; on the 20 boards it adds exactly these three). The re-staged inputs differ only in mechanical.json and intent.json (three fixed poses).
+- **My compare grade agrees exactly:** done true, blocking 0, 147 vias, 847.36 mm, 834 segments. check_complete DONE; authored UNSOUND (fab-tier auto escalation and route_planes' 0.15 -> 0.119 writeback, #1369). MP1-MP3 at the declared poses (0.0000 mm), with no other-net copper within 1.3 mm.
+- The USB pair is routed at 90 ohm (route_diff --impedance 90) and graded with --impedance-nets; the quick judge cannot grade impedance, so the kept seed is s5 (the judge's last pick), not s3.
+- **Films:** film_seed 0 of 107 differ; film_flow SKIPPED correctly (judge's best s3, kept s5).
+- iso 69/93. measure wall 0:58:30. fence CLEAN. Repo untouched.

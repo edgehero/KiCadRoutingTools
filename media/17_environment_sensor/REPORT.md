@@ -1,187 +1,230 @@
-# REPORT -- gpm board 17 environment_sensor, `/plan-pcb-placement full`
+# REPORT: gpm board 17, environment_sensor (`/plan-pcb-placement full`)
 
-**DONE.** The delivered board is `wk/gpm/17_environment_sensor/delivered.kicad_pcb`, sha256 `4dc62b18dc40ab44616e3c7d94581355ed2d0b52b19b889d4c92efd34b384381`. It is labelled and filled with KiCad's zone filler, and it passed the independent verifier on its first call. Stop condition 1 (done). Wall time from FIRST_CMD (14:01:52Z) is about 1 h 25 min.
-
-**Skills followed by hand** (none could be invoked), each from its SKILL.md:
-- `/plan-pcb-placement`: the whole workflow.
-- `/plan-pcb-routing`: §3.8, Steps 0-10, including the plan file and `route_plan_check`.
-- `/analyze-power-nets`: Step 4 of the routing skill.
-- I also used the methods the routing skill describes for `/find-high-speed-nets`, `/recommend-plane-mappings` and `/review-routed-board`.
+I followed `.claude/skills/plan-pcb-placement/SKILL.md` by hand, with `references/verifier.md`, `part-roles.md` and `placement-lessons.md`. §3.8 was followed by hand from `.claude/skills/plan-pcb-routing/SKILL.md`, and the power-net sizing by hand from `.claude/skills/analyze-power-nets/SKILL.md`. No skill was invoked.
 
 ## 1. Result
 
+**DONE.** The delivered board is `wk/gpm/17_environment_sensor/delivered.kicad_pcb` (sha256 `cd9d523c22e43970172ada8ad99f19c19255c5ded1b2231c0eef3f08f8b4ddd0`, with its `.kicad_pro`), filled by `fill_for_delivery`.
+
+The spec flag graded is `--impedance-nets '/USB_D_*'`. The USB pair was routed with `route_diff --impedance 90`, which records `net_impedance` in the project.
+
 | DONE condition (full mode) | measured on delivered.kicad_pcb |
 |---|---|
-| `board_score` blocking (with `--impedance-nets '/USB_D_*'`) | **0** |
-| unrouted / broken | **0 / 0** |
-| `check_complete` | **DONE** (UNEXAMINED, not passed: diff_pairs, length, net_widths) |
-| `check_assembly --baseline` | buildable (blocking 0) |
-| `check_floorplan --intent intent_run.json` | 0 errors, 5 warnings |
-| `check_connected` | ALL NETS FULLY CONNECTED (KiCad refill cross-check agrees) |
-| `check_drc --baseline --clearance-margin 0.1` | 0 violations (3 same-net self-crossing warnings) |
-| KiCad DRC (`kicad-cli pcb drc --refill-zones`) | 0 copper violations, 0 unconnected. Also: 1 `footprint_type_mismatch` on J1 (inherited from the input board), 24 silk warnings, 107 `lib_footprint_issues` (no library configured) |
-| `grade.py --mode full --spec impedance-nets='/USB_D_*'` | `"done": true, "blocking": 0` |
+| board_score blocking | **0** |
+| unrouted / broken | 0 / 0 |
+| check_complete (with the spec flag) | **DONE** |
+| check_connected | ALL NETS FULLY CONNECTED |
+| check_drc (`--baseline` input, margin 0.1) | 0 violations (also 0 without the margin) |
+| check_assembly | buildable (blocking 0) |
+| check_floorplan --intent | 0 errors, 6 warnings |
+| off-outline pad, graphic or keep-out copper | none |
+| mechanical facts (MP1-3 and TP1-6 poses, J1 on the west edge) | all met, 0.0000 mm deviation (verifier) |
 
-- **`blocking_by`:** assembly 0, broken 0, drc 0, drc_via_in_paste 0, floorplan 0, impedance 0, undersized 0, unrouted 0. diff_pairs, length and net_widths are null (ungraded).
-- **Quality:** 101 vias, 933.23 mm copper, 881 segments. The first DONE board had 156 vias and 879.75 mm. The 933.23 mm includes 11.2 mm of MP-tab joins.
-- **Spec flags:** `--impedance-nets '/USB_D_*'`. The routing declared 90 Ω differential on the USB pair, following the board's own `90Ohm-diff_USB` net class, which has no member nets.
-  - The board declares nothing else: no net is in a non-Default class, there is no `.kicad_dru`, no length group and no per-net width spec.
-  - `check_impedance` finds 0 crossings and 0 mm over a void: the pair runs on F.Cu over the intact In1 GND plane.
-  - Z0 measures 7-8 % low because of the coplanar ground. That is immaterial for USB Full-Speed (the FT232R).
+- **check_floorplan exit code:** it exits 4, "NOT FULLY GRADED", because the given intent withheld the `oob_count`/`overlap_area` budgets for a pile (TOOL_GAPS 11).
+- **blocking_by:** assembly 0, broken 0, drc 0, drc_via_in_paste 0, floorplan 0, impedance 0, undersized 0, unrouted 0.
+- **Ungraded:** diff_pairs, length and net_widths. The board declares no `.kicad_dru` skew rule, no length groups and no per-net width spec.
 
-## 2. Groups and judgement calls
+| quality | value |
+|---|---|
+| vias | **147** |
+| copper_mm | **847.36** |
+| segments | **834** |
+| joins_needed | 0 |
 
-Nine groups, written to `groups.json`; `check_groups` reports 0 errors. TP1-TP6 are placed by `fixed_poses[]` from mechanical.json, and MP1-MP3 by rows I added.
+`scripts/grade.py` (output in `grade/grade_delivered.json`) agrees:
+- done true, blocking 0, check_complete DONE;
+- check_complete_authored UNSOUND (see §7, floors);
+- floorplan_errors 0, with `floorplan_pass` false only because of the exit-4 abstention.
 
-- **usb_in:** J1, D1-D5, R1, R3, R4, C2, C4, FB1, FB2. The USB-C connector with its ESD, CC pull-downs, shield RC and VBUS ferrite.
-- **ftdi:** U1, C5-C8, R2.
-- **bridge:** the 0R jumper bank R5-R11 and R13-R16, between the FT232R and the STM32.
-- **power:** U2 (AP7370 LDO), C1, C3, C9, C10, TP9, TP10.
-- **mcu:** U3 with its decaps, the VDDA filter, the VREF caps, crystals Y1 and Y2 with their caps and resistors, the straps, the I2C series resistors, and BAT1 on the back.
-- **fram:** U4, C25, R26, TP7, R31-R34.
-- **sensors:** U5, U6, C26-C28, R35, R36.
-- **i2c_conn:** J2, J3, D6-D9, R37, R38, TP11, TP12, C13.
-- **ui:** LD1/R12 and LD2/R17, edge S.
+## 2. Inputs, intent, and the rows I added
 
-Judgement calls (the user was not available):
-- **Thermal tongue.** The NE corner of the outline is a 10 x 8 mm tongue, cut off by a notch, an L-slot and a second notch so it joins the board only through two 2 mm bridges. I read it as the sensors' thermal island and added the `blocks[]` row `sensor_tongue`, zone [200, 113.5, 210, 121.65]. All 7 sensor parts are inside it on the delivered board.
-- **MP1-MP3.** These M2.5 mounting pads are not declared anywhere. I put them in the NW, SW and SE corners, inset 3.2 mm (`fixed_poses`, `basis: derived_default`). The NE corner is the tongue.
-- **J2/J3.** Both are side-entry JST-SH, so their cables must leave over an edge. I put both on the south edge. The `mating_face` values (J2 `+y`, J3 `-y`) come from the JST eSH side-entry drawing.
-- **J1 overhang.** The GCT USB4105 drawing puts the PCB edge and the shell front both 2.60 mm from the front pegs, so the connector sits flush and needs no extra row. The verifier confirms overhang 0 and the opening facing west.
-- **Templates.** None: there is no switching stage or RF front end, and `check_groups` printed 0 hints. No EMC limits were given, and I invented none.
-- **Hand moves after place_simple** (CHOSEN.json `after`):
-  - D1 to (162.0, 132.5, 0°) and D2 to (161.5, 133.6, 0°).
-  - Why: these VBUS ESD diodes sat in the USB D+/D- corridor, and D1's VBUS via voided the ground reference under D+.
-  - Effect: impedance blocking went from 1 to 0, and vias from 134 to 129.
-- **Rows added to `intent_run.json`:**
-  - `edge_connectors[]`: J2 and J3.
-  - `fixed_poses[]`: MP1-MP3.
-  - `blocks[]`: sensor_tongue.
+- **`intent_run.json`** is `intent.json` (read-only) plus ONE row I added:
+  - `blocks[] sensor_island`: refs U5 and U6, zone `[199.95, 113.5, 210.0, 121.65]`.
+  - Reason (my judgment): the outline cuts a slotted NE island (a north notch, an internal L cutout and an east notch), and both designer pours stop short of it.
+  - Sensirion's SHTxx/STSxx Design Guide recommends milled slits around a humidity/temperature sensor to cut heat conduction from the rest of the board. So the SHT45 and the BME280 belong on the island.
+- **`waive_locked_overlaps.py`** found 0 pairs (nothing is locked), so it added no row. I added no `proximity[]`, `overlap_waivers[]` or template rows.
+- **EMC rows: none were given.** No `emc_roles` proximity limits and no `keep_away` rules were supplied, and I invented none.
+- **J1 (GCT USB4105-GF-A):**
+  - Its edge (west) comes from the brief; I left its position along the edge free.
+  - The datasheet's recommended layout (rev B4) puts the PCB edge flush with the shell front, so the default overhang band of 0 stands and I wrote no `overhang_mm` row.
+  - I read that figure through a `qlmanage` PNG render, because poppler is not installed (TOOL_GAPS 6).
+- **Fixed poses:** MP1-3 and TP1-6 reached place_simple through `fixed_poses[]`. Nothing was locked.
+- **Input hashes:** all five pinned inputs re-checked at the end and are unchanged.
 
-## 3. Placement and route
+## 3. Groups and judgement calls
 
-- **Placement:** one pass of 12 seeds, `place_args` `[]`. Seeds 5 and 7 each had one decap-distance floorplan error, so I judged only seeds 4, 6, 2 and 8. Seed 4 (scattered) won: blocking 0, 106 vias, 748 mm on the fast route. Seed 6 had blocking 1, seed 2 blocking 2, seed 8 blocking 5.
-- **Routing chain** (`final_route/final_plan.sh`; `route_plan_check` passes 17/17):
-  1. `kicad-cli pcb upgrade` on a copy of the input board.
-  2. `route_diff` on the USB pair, 90 Ω, F.Cu only.
-  3. `route.py` on the pair's leftover legs, F.Cu only.
-  4. `route.py '*'` with the Step 2c environment settings and `--via-cost 300`.
-  5. Two more `route.py '*'` iterations with the same flags.
-  6. Two `check_join` hand joins.
+`groups.json` has 8 groups. check_groups reported 0 errors, 0 warnings and 0 template hints.
 
-  Every routing step ran at edge clearance 0.22 mm, with clearance ceiling 0.15, track 0.15 and via 0.5/0.2. The board's own pours were kept: GND on F.Cu, In1 and B.Cu; +3V3 on In2. There is no fanout step and no extra ground-via step, because the board is low-speed.
-- **Optimisation after DONE:**
+| group | anchor | members | judgement |
+|---|---|---|---|
+| usb_in | J1 | D1-D5, R3, R4, C4, FB1, R1, C2, FB2 | the power and data entry: VBUS and CC ESD, the CC pull-downs, the D+/D- ESD array, VBUS bulk cap, the VBUS→+5V bead and the shield network |
+| ftdi | U1 | C5-C8, R2, R5-R11, R13-R16 | the FT232R with its decaps and RESET# pull-up; the 0R option jumpers bridging to the STM32 sit on the FTDI side |
+| power | U2 | C1, C3, C9-C11, TP9, TP10, LD1, R12 | the AP7370 LDO with its caps, the rail test points and the +5V LED |
+| core | U3 | VDD/VDDA/VREF caps, FB3, Y1/Y2 with their load caps and 1M bias resistors, R19, R24, R20, R29, R30, TP8, the 100R I2C series resistors (at the driver), BAT1 (back), LD2/R17; TP1-6 fixed | the STM32G474; C13 is a spare 100n placed here |
+| fram | U4 | C18, R26, TP7, R31-R34, R37, R38, TP11, TP12 | the FRAM with its WP and address straps; the bus pull-ups sit as a pair at a peripheral end |
+| sensors | U6 | U5, C25-C28, R35, R36 | the BME280 and SHT45, held to the island by the block zone |
+| qwiic_f | J2 | D6, D7 | front JST-SH port, given an `edge: E` hint (judgment) |
+| qwiic_b | J3 | D8, D9 | back JST-SH port, given an `edge: S` hint (judgment) |
 
-  | change | vias | copper | note |
-  |---|---|---|---|
-  | first chain | 156 | 879.8 mm | |
-  | USB pair on F.Cu only | 134 | 818.7 mm | |
-  | D1/D2 moved | 129 | 828.0 mm | impedance clean |
-  | via cost 250 | 106 | 907.3 mm | |
-  | env settings + via cost 300 | 101 | 917.0 mm | |
+- **No template candidates.** The board has no inductor, transformer, flying cap or RF part, and U2 is an LDO. No datasheet template was fitted.
+- **Crystal claims:** the claims at U3 end as warnings. C23 is 2.58 mm from Y2 against a 2.2 mm claim, and Y2's far leg is 8.40 mm from U3 against an 8.1 mm claim.
+- **J2/J3:** the anneal did not honour their edge hints. Both ended near the north edge, inboard of MP1, and nothing grades their mating direction because no edge was declared for them.
 
-  I stopped when a sweep around the best via cost found nothing better. Rejected arms: no via-in-pad, diff gap 0.2, the pair on F.Cu+B.Cu, a forced VBUS reroute, D5 moved, other layer costs, ripup 5, and `--escalation board`/`off` (neither was DONE).
-- **Hand copper:** two 0.25 mm tracks, each checked CLEAN with `check_join`:
-  - J2's MP tabs, on F.Cu: (197.65, 138.855) to (203.25, 138.855).
-  - J3's MP tabs, on B.Cu: (190.34, 138.855) to (195.94, 138.855).
-- **Power widths:** the tool recommended GND 2.0 mm and +3V3 1.0 mm, but it counts current once per power pin (TOOL_GAPS 5).
-  - I applied its own width table once per part to about 190 mA: GND, +3V3, +5V and VBUS at 0.7 mm; VDDA, VBAT and GNDREF at 0.3 mm.
-  - The currents are estimates: FT232R 15 mA, STM32G474 60 mA, Qwiic 50 mA per port, sensors 1 mA each.
-  - These are routing requests, not a board spec.
+## 4. Placement, judging, and the kept seed
 
-## 4. Stop rule and remaining items
+- **Pass 1** was the only pass, with default arguments, 12 seeds and `--jobs 4`; it took about 1.5 min.
+  - Seeds 0, 3 and 5 were floorplan-clean; the other nine carried decap or decap-pin errors.
+  - Per §3.6 only the clean seeds were fast-routed: `judge_seeds --seeds 5,3,0 --jobs 3` with `KICAD_ROUTE_TRACE=1`.
+- **Fast routes:**
 
-Stop condition **1 (done)**; nothing is blocking. Non-gating warnings that remain:
-- The Y1 32 kHz crystal leg is 8.49 mm against an 8.10 mm warning limit.
-- Net-(U3-VBAT) has no decoupling cap.
-- `pins_to_edge` warnings on BAT1 and U2.
-- The verifier's advisory: the USB pair has 3.27 mm skew and 10 mm uncoupled. It is Full-Speed and no skew rule is declared.
-- `check_cycles` counts 11 pad-local loops on the USB nets.
-- 68 vias sit in pads or paste openings, declared IPC-4761 Type VII (filled and capped). The fab drawing must carry that.
+| seed | blocking | vias |
+|---|---|---|
+| 3 (judge keeps) | 0 | 108 |
+| 0 | 0 | 120 |
+| 5 | 1 | 112 |
 
-## 5. Floors
+- **Judgment: I changed the kept placement from seed 3 to seed 5.**
+  - **Seed 3:** its full route (in `final_route_old1/`) ended at blocking 2, all impedance. route_diff could not couple the USB pair out of U1 (a 0.5 mm-pitch QFN). Its single-ended fallback laid the pair on B.Cu over voids in the In2 plane, with 11 crossings.
+  - **Three attempts did not clear seed 3:** turning D5 to 0°, routing the diff pair on F.Cu only, and adding `qfn_fanout` stubs on U1's USB pins.
+  - **Seeds 0 and 5:** the same full chain on seed 0 also ended at impedance 2. On seed 5 it was DONE, with the pair coupled (1/1).
+  - The quick judge cannot grade the impedance spec at all (TOOL_GAPS 1).
+- **CHOSEN.json:** seed 5, scattered, pass 1, intent `intent_run.json`, place_args [], after [].
+- **No hand repair.** route_review's two suggested turns (R5, R6) were tried and rejected: 151 vias.
 
-`check_complete --authored-from` says UNSOUND (not gating). The router's default escalation took some copper below the board's authored floors:
-- track 0.15 → 0.0889 mm (12 segments of /USB_D_P at its pads);
-- via 0.5/0.2 → 0.28/0.15 mm (5 vias on the advanced fab tier);
-- Default clearance 0.15 → 0.1187 mm.
+## 5. Routing (§3.8, plan-pcb-routing followed by hand)
 
-The edge clearance became 0.22 mm because I set it (the board declared 0.0). With `--escalation board` or `off` the board was not DONE (3-4 broken nets), so the escalation stays. The fab needs to confirm it can make 0.0889 mm track, 0.28 mm vias and 0.1187 mm clearance.
+**Board and analysis**
+- **Step 0 gate:** check_assembly says buildable. The board_score baseline is unrouted 48, broken 49.
+- **Board:** 4 layers, a deliberate stackup (0.12 / 1.2 / 0.12 mm, εr 4.5), 89 nets. That is the STANDARD tier.
+- **Diff pair:** one, the USB 2.0 Full Speed pair from the FT232R.
+- **Speed:** the high-speed scan found medium tier at most (USB FS, SWD/JTAG, I2C, UART, 8 MHz and 32 kHz crystals). So there is no GND-return-via or stitching step, and no keep-away rule.
 
-## 6. Silkscreen
+**Plane map (a deviation from the skill, and a judgment)**
+- The skill's STANDARD map is inner-only pours. Here the GND pour is ONE zone spanning F.Cu, B.Cu and In1.Cu, which the README calls design intent, and no chain tool can split it (TOOL_GAPS 7).
+- So I kept the designer's pours as drawn (`--skip-existing-zones`), with +3V3 on In2 and `--layer-costs 1.0 3.0 3.0 1.0`.
 
-KiCad silk warnings: 109 before the label tidy, 24 after. I kept `labelled.kicad_pcb`; its copper is identical to the routed board. `beautify_labels` exited 4 because it found no legal spot for U6's label.
+**Power widths (`/analyze-power-nets` by hand)**
+- **Tool recommendation:** GND 2.0, +3V3 1.0, +5V 0.7, VBUS 0.5, and VDDA/VBAT/GNDREF 0.7 mm (TOOL_GAPS 5, #1377).
+- **Current estimates:**
+  - J1 is a 500 mA source and U2 a 300 mA LDO.
+  - U1 draws 15 mA, U3 about 60 mA (estimate), U5 about 60 mA with its heater on (estimate), U4 and U6 under 1 mA, and the LEDs 5 mA.
+  - J2 and J3 are budgeted 100 mA each (estimate).
+- **Widths used (my judgment):** GND, +3V3, +5V and VBUS at 0.5 mm; VDDA, VBAT and GNDREF at 0.3 mm. These fit the 0.5 mm-pitch pins and the 2 mm bridge onto the sensor island.
 
-## 7. Fill
+**Design rules:** the Default class is 0.15/0.15 with 0.5/0.2 vias, passed as `--clearance-ceiling 0.15`.
 
-`fill_for_delivery` ran: KiCad's unconnected count without a refill went from 45 to 0, and all 4 net classes were kept. Nothing was routed after the fill.
+**Chain** (`final_route/final_plan.sh`)
+- route_plan_check passed 17/17 rules. The manifest is `final_route/redo_commands.sh`, and the GUI plan `final_route/final_plan.json` was converted from that manifest.
+- Steps:
+  0. `kicad-cli pcb upgrade` on `in.kicad_pcb`: KiCad 9 → 10 format, so the route steps can declare Type VII on vias under solder (TOOL_GAPS 3). I added this line to the manifest by hand, because the recorder does not record kicad-cli.
+  1. `route_planes`, keeping the existing zones and adding the U1 exposed-pad thermal array (9 vias).
+  2. `route_diff` on the USB pair at 90 Ω, fab-floor geometry: coupled 1/1.
+  3. `route.py --nets '*'`.
+  4. and 5. Two Step-2d iterations with the same flags.
+- No fanout step: U1 and U3 are perimeter parts and plain routing completed them.
 
-## 8. Timeline (UTC)
+`routed.kicad_pcb` is the chain's last board (`final_route/5_iter2.kicad_pcb`).
+
+## 6. Stop rule
+
+**Stop condition 1 (DONE).** DONE was first reached at about 07:07Z on the KiCad 9 chain. It held through delivery once the file-format problem was fixed. After DONE, four via-reduction approaches were measured:
+
+| approach | result |
+|---|---|
+| route.py `--via-cost 150` | 142 vias, but impedance blocking 1 |
+| route.py `--track-width 0.127` | 145 vias, but impedance blocking 1 |
+| route_review turns of R5/R6, full chain | DONE, but 151 vias |
+| route.py `--same-net-pad-clearance 0.1` (no via-in-pad) | 137 vias, but broken 1 and impedance 1 |
+
+**Remaining blockers: none.** These non-gating findings remain on the delivered board, each measured:
+- **KiCad DRC, edge clearance:**
+  - 3 `copper_edge_clearance` errors at 0.1978 mm against 0.2000 mm, at the cutout arc at (198.95, 118.45). Two are GND tracks on F.Cu and one is I2C_1_SDA on B.Cu.
+  - check_drc accepts them as quantization (2.2 µm). A re-route at `--board-edge-clearance 0.22` moved no copper and raised the project's edge floor, so I did not keep it (TOOL_GAPS 9).
+- **KiCad, unconnected items:** KiCad reports 2. They are the mounting-tab pairs of J2 and of J3, each pair sharing one `unconnected-(Jx-PadMP)` net. This is a design condition already in the input, left unrouted.
+- **KiCad, other items:**
+  - `footprint_type_mismatch` on J1, inherited from the footprint library;
+  - one `track_dangling` warning, a 0.057 mm GND stub at (189.44, 124.14);
+  - one `connection_width` on Net-(U3-VBAT).
+- **Fab note:** 99 vias sit in pads or paste openings. route.py declared all of them IPC-4761 Type VII (filled and capped), which must go on the fab drawing and costs extra.
+
+## 7. Floors
+
+`check_complete --authored-from` the input grades the board **UNSOUND**: it carries copper below floors the project declared.
+- Track width 0.15 → 0.0889 mm (28 SWCLK-JTCK segments; USB necks at 0.1 mm).
+- Via diameter 0.5 → 0.28 mm (7 small vias; 21 fab-tier escalations to the advanced tier).
+- Hole diameter 0.20 → 0.15 mm.
+- Default clearance 0.15 → 0.10 mm, from automatic descents on GND, U1-RESET#, U1-RI#, U1-RXD, U3-VBAT, U6-SDO and SWCLK-JTCK.
+  - The first lowering, 0.15 → 0.119, came from route_planes (TOOL_GAPS 2).
+  - route.py step 3 reports 84 features on 12 nets below the requested size.
+
+The project floors written back match the copper, so KiCad grades what was routed. Confirm the fab supports a 0.0889 mm track, 0.1 mm clearance and a 0.15 mm drill before ordering.
+
+## 8. Silkscreen
+
+`beautify_labels` produced `labelled.kicad_pcb`, graded with KiCad's own silk classes:
+
+| | silk_edge_clearance | silk_overlap | silk_over_copper | total |
+|---|---|---|---|---|
+| routed.kicad_pcb (before) | 9 | 40 | 55 | 104 |
+| labelled.kicad_pcb (after) | 3 | 7 | 5 | 15 |
+
+**The labelled board was kept.**
+
+## 9. Fill
+
+`fill_for_delivery` ran and exited 0: 22 filled polygons, 4 net classes preserved, and plain-DRC unconnected went from 64 to 2 (the J2/J3 mounting tabs). The first delivery, from the KiCad 9 chain, graded blocking 96 after this step's KiCad 10 re-save. I re-ran the chain from a KiCad 10 input, and the second delivery grades DONE.
+
+## 10. Timeline and where the time went (UTC, 2026-10-24)
 
 | time | step |
 |---|---|
-| 14:01-14:12 | reading, datasheets (helper written), intent rows, groups |
-| 14:13-14:14 | place_simple |
-| 14:18-14:20 | judge_seeds |
-| 14:21-14:23 | first full chain: DONE at about 21 min |
-| 14:23-14:57 | USB impedance and via optimisation probes; final chains 2-3 |
-| 14:57-15:05 | KiCad-only findings (edge arcs, MP tabs); chain 4 |
-| 15:05-15:15 | fill/via-in-pad format issue; upgrade-first chain 5; delivery |
-| 15:15-15:19 | escalation probes |
-| 15:19-15:25 | verifier |
-| 15:25-15:30 | grading and report |
+| 06:36:48 | FIRST_CMD |
+| 06:37-06:46 | skills read; board brief and context; datasheets; groups; sensor-island zone; check_groups |
+| 06:46-06:48 | place_simple, pass 1, 12 seeds |
+| 06:48-06:50 | check and render seeds; power-net analysis; judge chain |
+| 06:50-06:52 | judge_seeds on 5, 3, 0 |
+| 06:52-06:54 | full route of seed 3: blocking 2 (impedance) |
+| 06:55-07:05 | impedance experiments on seed 3; full chains on seeds 5 and 0 |
+| 07:06-07:08 | final chain on seed 5: DONE |
+| 07:08-07:16 | four post-DONE via approaches; KiCad DRC compare; edge re-route attempt |
+| 07:16-07:22 | delivery hits blocking 96 (file format); re-chain from KiCad 10; second delivery DONE |
+| 07:24-07:34 | verifier, grade.py, TOOL_GAPS, measure.py |
 
-`measure.py --self --evidence` reports 1:23:58 wall, 37 min of model time, 45 min of tool time and 1.8 min waiting on jobs. Placement and judging took about 3 min of compute. Most of the time went to probe routes after DONE (about 50 at 1-2 min each, 3 at a time) and to the three KiCad-only findings.
+Most of the time went to the USB impedance problem the quick judge could not see (about 15 min) and to the delivery-format problem (about 6 min). Routing itself is fast on this board: about 80 s for a full chain and 30 s for a fast route. `measure.py` reports a wall clock of 0:57:12 and 325 s spent waiting on jobs.
 
-## 9. Tool gaps
+## 11. Tool gaps
 
-Details and repro commands are in TOOL_GAPS.md.
-1. `fill_for_delivery` re-saves the board as KiCad 10, which turns 68 accepted via-in-pad vias into blocking errors. The skill has no step for it.
-2. Tracks land 2 µm inside the edge floor at arcs; `check_drc` and `kicad_drc_compare` hide it ("#408"), while KiCad reports 5 errors.
-3. KiCad requires the MP-tab joins; the repo's connectivity checkers miss them.
-4. route.py is not run-to-run deterministic with the Step 2c settings: identical input gave 1183 or 1188 copper items.
-5. `analyze_power_paths` multiplies current by the number of power pins.
-6. There is no poppler for the PDF steps, so I wrote `helpers/pdfpage.swift`.
-7. `route_planes --skip-existing-zones` tightens the clearance for a via lattice that does not exist.
-8. Bare `kicad-cli` is not on PATH.
-9. `place_pose` prints `legal: false` with zero conflicts on an outline with arcs.
-10. `check_cycles` counts pad-local back-tracks as loops.
+`TOOL_GAPS.md` has 11 entries. These are the tools that said "fine" about something that was not:
+- judge_seeds and quick_score (1);
+- route_planes' "tightened" clearance (2);
+- fill_for_delivery exiting 0 on a board it had just made blocking 96 (3, #1367);
+- kicad_drc_compare printing kicad=0 CONSISTENT over 3 KiCad errors (9, #1404);
+- place_pose printing `legal: false` for a move that made nothing worse (10, #1326);
+- check_floorplan exiting 4 at 0 errors (11, #1420).
 
-Tools that said "fine" when it was not: gap 1 (`fill_for_delivery` exited 0, and the routed board graded blocking 0), gap 2 (`check_drc` clean, `kicad_drc_compare` "CONSISTENT"), and gap 3 (`check_connected`, `board_score` and `check_complete` all reported full connection).
+## 12. Verifier
 
-## 10. Verifier
+There was one call, verdict_1: **VERDICT=PASS**, and the connectivity, drc and spec lens files are all PASS.
+- **What it measured:** the sha matches; check_assembly buildable; floorplan 0 errors; no off-outline copper; mechanical deviation 0.0000 mm; board_score blocking 0; check_complete DONE; check_connected clean; check_drc 0; check_impedance 0 crossings.
+- **Hand review:** USB skew 2.16 mm on a USB Full Speed pair, which it did not flag.
+- **The judgment the PASS rests on:** it read the rule "a declared class left ungraded → FAIL" as applying to a declared requirement. The pair's one declared requirement, 90 Ω impedance, is graded and clean; diff_pairs is ungraded only because no skew rule exists anywhere. If a bare diff-pair record in protected_nets counts as a declared class, the verdict would be FAIL, and that would be the only defect.
+- **Isolation slip:** one stale file from another board (`wk/gpm/05_interf_u`) was printed from the shared scratchpad, then discarded and re-run; nothing from it entered the verdict.
 
-One subagent, one call: `verdict_1.txt` is `VERDICT=PASS`, and the connectivity, drc and spec lens files are all PASS. Its note: it treated `diff_pairs` as unexamined rather than a FAIL, because the pair's only declared requirement is the 90 Ω impedance, which grades clean, and no skew rule exists.
-
-## 11. Files
-
-All in `wk/gpm/17_environment_sensor/`:
-- **Boards:** `delivered.kicad_pcb` (with its siblings), `DELIVERED.sha256`, `DONE`, `routed.kicad_pcb`, `labelled.kicad_pcb`, `final.kicad_pcb`.
-- **Inputs to the placement:** `groups.json`, `intent_run.json`, `CHOSEN.json`, `placed_from/`.
-- **Routing:** `final_route/`, with the earlier chains in `final_route_old1` to `final_route_old4`.
-- **Records and grades:**
-  - `ledger.jsonl`: 45 rows, closed `--final --stop-condition 1`.
-  - `grade_output.txt` and `grade_delivered.json`.
-  - `measure_output.txt`.
-  - `verdict_1*.txt`.
-  - `silk_before.json` and `silk_after.json`.
-- **Gap material:** `TOOL_GAPS.md`, `repro/`, `helpers/pdfpage.swift`.
-- **To delete:** the datasheets, moved to `old/datasheets/`.
+The ledger (`ledger.jsonl`, 17 rows) is closed with `--final --stop-condition 1` and the three lens files. The datasheet folder was moved to `old/datasheets/`.
 
 ---
 
 ## The teammate's final summary (saved with the report by the orchestrator)
 
-**DONE**: board 17 is placed, routed, and passed the verifier on its first call.
+**DONE**
 
-- **Delivered board:** `wk/gpm/17_environment_sensor/delivered.kicad_pcb`, sha256 `4dc62b18dc40ab44616e3c7d94581355ed2d0b52b19b889d4c92efd34b384381`. `DONE` and `DELIVERED.sha256` are written.
-- **Score:** blocking 0, joins_needed 0, 101 vias, 933.23 mm copper, 881 segments. `grade.py` says done and `check_complete` says DONE, with `--impedance-nets '/USB_D_*'`. KiCad's own DRC finds 0 copper errors and 0 unconnected items.
-- **Stop rule:** condition 1, done. After DONE I kept cutting vias; I stopped when a further via-cost sweep improved nothing.
-- **Wall time:** about 1 h 25 min from FIRST_CMD (14:01:52Z); first DONE came at about 21 min.
-- **Input hashes:** the five given files are unchanged.
-- **TOOL_GAPS.md:** 10 entries. The top three:
-  1. `fill_for_delivery` re-saves the board in KiCad 10 format, which turns 68 accepted via-in-pad vias into 68 blocking `drc_via_in_paste` errors (grade.py then says `done: false`). The fix was to upgrade the input with `kicad-cli pcb upgrade` before routing, so route.py marks those vias filled and capped itself. The skill has no step for this.
-  2. Five tracks sat about 2 µm inside the 0.2 mm edge clearance at the slot's arcs. `check_drc` said clean and `kicad_drc_compare` filed KiCad's 5 errors as "#408 intentional edge" and reported CONSISTENT. Fixed by routing every step at 0.22 mm.
-  3. KiCad requires the two `MP` tabs of J2 and J3 to be joined; `check_connected`, `board_score` and `check_complete` all said fully connected. Fixed with two hand-checked joins (`check_join`, CLEAN).
+- **Delivered board:** `wk/gpm/17_environment_sensor/delivered.kicad_pcb`, sha256 `cd9d523c22e43970172ada8ad99f19c19255c5ded1b2231c0eef3f08f8b4ddd0`. It is filled, and its `.kicad_pro`, `DELIVERED.sha256` and the `DONE` marker are beside it.
+- **Scores:** blocking 0, joins_needed 0, vias 147, copper_mm 847.36, segments 834. These are graded with `--impedance-nets '/USB_D_*'`; `check_complete` says DONE and the verifier (1 call) passed all three lenses.
+- **Stop rule:** condition 1, DONE. After DONE I measured four ways to cut vias and none was better.
+- **Wall time:** about 57 min from FIRST_CMD (06:36:48Z to 07:34Z; `measure.py` reports 0:57:12).
+- **TOOL_GAPS:** 11 entries. The top three:
+  1. `judge_seeds`/`quick_score` cannot grade the declared impedance spec. The judge kept seed 3, whose full route ends at blocking 2 (impedance), so I switched by hand to seed 5, the judge's last pick, which is DONE.
+  2. `route_planes` lowered the board's Default clearance from 0.15 to 0.119 "for U6's via lattice" in a step that kept every zone and poured nothing. U6 sits where no pour reaches, and every later step then routed at 0.119.
+  3. The KiCad 10 re-save inside `fill_for_delivery` turned a DONE board into blocking 96 (vias in paste, #1367). The workaround was `kicad-cli pcb upgrade` on the chain input before routing; the copper came out identical and all 96 vias were declared Type VII.
 
-The harness refused the REPORT.md write ("Subagents should return findings as text"), so REPORT_DONE was not created. The full report follows.
+**Not done:** the harness refused to write REPORT.md ("Subagents should return findings as text"), so REPORT_DONE was not created. The full REPORT.md content follows.

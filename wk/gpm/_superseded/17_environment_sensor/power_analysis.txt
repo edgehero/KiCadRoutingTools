@@ -1,0 +1,83 @@
+Loading wk/gpm/17_environment_sensor/fixed.kicad_pcb...
+Extracting components...
+Found 107 components:
+  Auto-classified: 76
+  Needs AI analysis: 31
+======================================================================
+POWER PATH ANALYSIS REPORT
+======================================================================
+
+## Component Classification Summary
+
+  current_sink: 9 components
+  pass_through: 3 components
+  power_source: 3 components
+  shunt: 92 components
+
+## Power Sources
+
+  U2: AP7370-33SA-7
+    Notes: AP7370-33 LDO, 300 mA max output (distributor parametrics)
+  J1: USB-C_GCT_USB4105-GF-A
+    Notes: USB-C receptacle (GCT USB4105), USB 2.0 default 500 mA budget; no PD controller
+  BAT1: BAT-HLD-012-SMT-TR
+    Notes: CR1220 coin-cell holder for STM32 VBAT (RTC backup, uA)
+
+## Current Sinks (ICs requiring power)
+
+  U1: FT232R_QFN (15mA)
+  J2: JST_SH_1x4_SM04B-SRSS-TB-LF-SN (50mA)
+  U5: SHT45 (1mA)
+  U4: MB85RC1MTPNF-G (1mA)
+  LD1: LED_G_0603_KP-1608ZGC (6mA)
+  U3: STM32G474CET6 (60mA)
+  U6: BME280 (1mA)
+  LD2: LED_G_0603_KP-1608ZGC (3mA)
+  J3: JST_SH_1x4_SM04B-SRSS-TB-LF-SN (50mA)
+
+## Traced Power Paths
+
+  Path 1: J1 -> U6
+    Current: 1mA
+    Nets: GND -> GNDREF
+    Via: FB1
+  Path 2: J1 -> U1
+    Current: 15mA
+    Nets: +5V -> /VBUS
+    Via: FB2
+  Path 3: U2 -> U1
+    Current: 15mA
+    Nets: +5V -> +3V3
+    Via: U2
+  Path 4: J1 -> U6
+    Current: 1mA
+    Nets: +3V3 -> +5V -> /VBUS
+    Via: U2, FB2
+  Path 5: U2 -> U3
+    Current: 60mA
+    Nets: Net-(U3-VDDA) -> +3V3
+    Via: FB3
+  Path 6: J1 -> U3
+    Current: 60mA
+    Nets: Net-(U3-VDDA) -> +3V3 -> +5V -> /VBUS
+    Via: FB3, U2, FB2
+
+## Power Net Recommendations
+
+  Net Name                          | Width (mm)
+  --------------------------------------------------
+  +3V3                                | 1.00
+  +5V                                 | 0.70
+  /VBUS                               | 0.50
+  GND                                 | 2.00
+  GNDREF                              | 0.70
+  Net-(U3-VBAT)                       | 0.50
+  Net-(U3-VDDA)                       | 0.70
+
+## Routing Configuration
+
+  --power-nets "GND" "+5V" "/VBUS" "+3V3" "Net-(U3-VDDA)" "Net-(U3-VBAT)" "GNDREF"
+  --power-nets-widths 2.0 0.7 0.5 1.0 0.7 0.5 0.7
+
+======================================================================
+REC {'GND': 2.0, '+5V': 0.7, '/VBUS': 0.5, '+3V3': 1.0, 'Net-(U3-VDDA)': 0.7, 'Net-(U3-VBAT)': 0.5, 'GNDREF': 0.7}

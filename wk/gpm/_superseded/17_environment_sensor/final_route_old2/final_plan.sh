@@ -1,0 +1,19 @@
+cd ~/Documents/git/krt-gpm
+# Routing plan for wk/gpm/17_environment_sensor/final.kicad_pcb (plan-pcb-routing, followed by hand)
+# STANDARD tier (4 layers, 90 nets, no BGA). The board's own pours are kept as drawn: GND on F.Cu/In1.Cu/B.Cu (one zone), +3V3 on In2.Cu.
+# No route_planes step: both pours already exist; a --skip-existing-zones pour would only add a 9-via thermal array under U1's EP
+#   (and it tightens the zone clearance to 0.119 for a via lattice that does not exist, see TOOL_GAPS).
+# No fanout: U1 (QFN-32 0.5) and U3 (LQFP-48 0.5) are perimeter parts; the judging route reached blocking 0 without one.
+# Step 2a: the USB pair, 90 ohm differential (the board's 90Ohm-diff_USB class), on F.Cu only so it keeps the In1 GND reference.
+python3 -X utf8 py_router/route_diff.py wk/gpm/17_environment_sensor/final_route/in.kicad_pcb wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pcb --nets '/USB_D_*' --impedance 90 --diff-pair-gap 0.15 --clearance-ceiling 0.15 --via-size 0.5 --via-drill 0.2 --layers F.Cu
+# Step 2a': the pair's peeled terminal legs (USB-C A6/B6, A7/B7 and D5), single-ended, F.Cu only.
+python3 -X utf8 py_router/route.py wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pcb wk/gpm/17_environment_sensor/final_route/s2a_usb.kicad_pcb --nets /USB_D_P /USB_D_N --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --layers F.Cu
+# Step 2: all nets, plane nets included (#562); via cost 250 measured best of 150..1000 on this placement.
+python3 -X utf8 py_router/route.py wk/gpm/17_environment_sensor/final_route/s2a_usb.kicad_pcb wk/gpm/17_environment_sensor/final_route/s2_route.kicad_pcb --nets '*' --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --power-nets GND +3V3 +5V /VBUS 'Net-(U3-VDDA)' 'Net-(U3-VBAT)' GNDREF --power-nets-widths 0.7 0.7 0.7 0.7 0.3 0.3 0.3 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 --via-cost 250 --json-out wk/gpm/17_environment_sensor/final_route/s2_route.json
+# Step 2d: two iterations, the Step 2 flags verbatim.
+python3 -X utf8 py_router/route.py wk/gpm/17_environment_sensor/final_route/s2_route.kicad_pcb wk/gpm/17_environment_sensor/final_route/s2d_iter1.kicad_pcb --nets '*' --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --power-nets GND +3V3 +5V /VBUS 'Net-(U3-VDDA)' 'Net-(U3-VBAT)' GNDREF --power-nets-widths 0.7 0.7 0.7 0.7 0.3 0.3 0.3 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 --via-cost 250 --json-out wk/gpm/17_environment_sensor/final_route/s2d_iter1.json
+python3 -X utf8 py_router/route.py wk/gpm/17_environment_sensor/final_route/s2d_iter1.kicad_pcb wk/gpm/17_environment_sensor/final_route/s2d_iter2.kicad_pcb --nets '*' --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --power-nets GND +3V3 +5V /VBUS 'Net-(U3-VDDA)' 'Net-(U3-VBAT)' GNDREF --power-nets-widths 0.7 0.7 0.7 0.7 0.3 0.3 0.3 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 --via-cost 250 --json-out wk/gpm/17_environment_sensor/final_route/s2d_iter2.json
+# Verification (read-only, commented so the plan's exit code is the chain's):
+# python3 -X utf8 py_router/check_drc.py wk/gpm/17_environment_sensor/final_route/s2d_iter2.kicad_pcb
+# python3 -X utf8 py_router/check_connected.py wk/gpm/17_environment_sensor/final_route/s2d_iter2.kicad_pcb
+# python3 -X utf8 py_tools/check_orphan_stubs.py wk/gpm/17_environment_sensor/final_route/s2d_iter2.kicad_pcb

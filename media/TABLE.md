@@ -16,7 +16,7 @@
 | 14 | imx6ulz_4l | DONE (PASS) | DONE (FAIL) | - | 377 / 349 / 315 / 354 (ctl blocking 9) | 2496.77 / 3145.14 / 2579.1 / 2773.17 | 680 / 807 | 4.6 h / 3.1 h | 1.2 h / 2.9 h / 28 min |
 | 15 | am32_esc | DONE (PASS) | - | - | 104 / - / 292 / 133 | 954.42 / - / 1036.6 / 1012.23 | 190 / 252 | 1.9 h / - | 40 min / 13 min / 1.0 h |
 | 16 | esp_rust_board | DONE (PASS) | - | - | 81 / - / 216 / 104 (ctl blocking 2) | 985.55 / - / 878.6 / 1085.75 | 134 / 156 | 53 min / - | 29 min / 7 min / 17 min |
-| 17 | environment_sensor | DONE (PASS) | - | - | 101 / - / 144 / 118 (ctl blocking 1) | 933.23 / - / 1000.4 / 929.37 | 186 / 279 | 1.4 h / - | 40 min / 45 min / 2 min |
+| 17 | environment_sensor | DONE (PASS) | - | - | 147 / - / 144 / 118 (ctl blocking 1) | 847.36 / - / 1000.4 / 929.37 | 205 / 279 | 59 min / - | 32 min / 21 min / 5 min |
 | 18 | uecg | DONE (PASS) | - | - | 139 / - / 147 / 150 (ctl blocking 3) | 928.45 / - / 914.1 / 1149.24 | 133 / 167 | 1.2 h / - | 36 min / 23 min / 15 min |
 | 19 | icebreaker_v10e | DONE (PASS) | - | - | 266 / - / 157 / 238 | 2688.88 / - / 2024.3 / 2061.18 | 602 / 680 | 2.1 h / - | 51 min / 20 min / 57 min |
 | 20 | sam9g25 | DONE (PASS) | - | - | 355 / - / 440 / 589 (ctl blocking 22) | 4076.04 / - / 5845.9 / 5458.08 | 1291 / 1826 | 2.6 h / - | 49 min / 43 min / 1.1 h |

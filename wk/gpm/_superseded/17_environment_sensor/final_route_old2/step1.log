@@ -1,0 +1,148 @@
+CMD: Python -X utf8 py_router/route_diff.py wk/gpm/17_environment_sensor/final_route/in.kicad_pcb wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pcb --nets "/USB_D_*" --impedance 90 --diff-pair-gap 0.15 --clearance-ceiling 0.15 --via-size 0.5 --via-drill 0.2 --layers F.Cu
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--track-width not given; using the board Default net-class diff-pair-width 0.2mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.0mm [fixed default].
+  WARNING: --board-edge-clearance 0.0 is below the physical fab floor 0.2 (the advanced rung, or your --fab-overrides); pinning up to 0.2. Pass --fab-overrides to declare a smaller fab capability, or raise the value to silence this.
+Loading wk/gpm/17_environment_sensor/final_route/in.kicad_pcb to expand net patterns...
+WARNING: 2 'unconnected-*' net(s) with >=2 pads excluded from the wildcard: 'unconnected-(J2-PadMP)' (2 pads), 'unconnected-(J3-PadMP)' (2 pads). If these are a reversible footprint's doubled pins they DO need a trace -- route them explicitly by naming them in --nets. Shield/mounting tabs joined mechanically can stay unrouted (#513 item 7).
+Pattern '/USB_D_*' matched 2 nets
+WARNING: 2 'unconnected-*' net(s) with >=2 pads excluded from the wildcard: 'unconnected-(J2-PadMP)' (2 pads), 'unconnected-(J3-PadMP)' (2 pads). If these are a reversible footprint's doubled pins they DO need a trace -- route them explicitly by naming them in --nets. Shield/mounting tabs joined mechanically can stay unrouted (#513 item 7).
+Pattern '/USB_D_*' matched 2 nets
+Routing 2 nets as differential pairs: ['/USB_D_N', '/USB_D_P']
+Loading wk/gpm/17_environment_sensor/final_route/in.kicad_pcb...
+Using 1 routing layers: ['F.Cu']
+  Full-stack: appended 3 unrequested copper layer(s) as FORBIDDEN obstacles: In1.Cu, In2.Cu, B.Cu
+  Layer costs: F.Cu=1.0x, In1.Cu=-1x, In2.Cu=-1x, B.Cu=-1x
+
+Calculating trace widths for 90.0Ω differential impedance...
+Using diff pair spacing: 0.15mm (5.91 mil)
+  --track-width not given: solved widths floor at the fab-tier track minimum 0.0889mm, not the default pair width (#610)
+
+Impedance-Controlled Routing Plan: 90.0Ω differential
+Differential pair spacing: 0.15mm (5.91 mil)
+================================================================================
+Layer        Type         Width(mm)    Width(mil)   Verified Z     
+--------------------------------------------------------------------------------
+F.Cu         Microstrip   0.1950       7.68         89.9 Ω diff
+In1.Cu       Stripline    0.1322       5.20         90.1 Ω diff
+In2.Cu       Stripline    0.1322       5.20         90.1 Ω diff
+B.Cu         Microstrip   0.1950       7.68         89.9 Ω diff
+================================================================================
+Auto-detected 1 BGA exclusion zone(s):
+  U6: (202.4, 115.9) to (205.0, 118.2), edge_tol=0.71mm
+Found 1 differential pair(s)
+  Polarity swaps disabled (no --polarity-swap-nets; pass '*' to allow all pairs)
+
+Analyzing layer swaps for 1 diff pair(s)...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 diff pairs + 0 single nets = 1 units with 0 crossing conflicts
+MPS Round 1: 1 units: /USB_D
+
+Routing 1 differential pair(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.02s
+Building diff pair obstacle map (extra clearance: 0.175mm)...
+Diff pair obstacle map built in 0.01s
+Blocking connector regions for 1 diff pair(s)...
+Found 52 unrouted nets in PCB for stub proximity
+GND net: 'GND' (id 1) (GND vias will be added as obstacles)
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.03s (52 nets)
+Plane fragility: exact-fill geometry (4 filled island(s) from KiCad refill)
+Plane fragility field: 168997 cells near the edges of 4 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, static)
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing diff pair /USB_D
+  P: /USB_D_P (id=6)
+  N: /USB_D_N (id=7)
+  Multi-point pair: 4 terminals, 3 legs
+  Chain: U1:14/15 -> D5:1/2 -> J1:B6/A7 -> J1:A6/B7
+  Leg 1/3: U1:14/15 -> D5:1/2
+    electrically short (< 3.5mm coupled) - deferring leg to single-ended
+  Leg 2/3: D5:1/2 -> J1:B6/A7
+  Probe backward blocked at target after 638 iterations
+      Both directions stuck (forward=376, backward=1 < 5000)
+        forward cell (1676, 1326, layer=0): ok, 4/8 neighbors blocked (margin=2)
+        backward cell (1674, 1325, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_D_N(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1674, 1253, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(J1-SBU_{1}-PadA8)(1 pad), /USB_D_N(1 pad)
+        backward cell (1675, 1302, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1670, 1325, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_D_P(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1674, 1248, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_D_P(2 pad)
+        backward cell (1671, 1302, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=376, backward=1 < 5000)
+        forward cell (1676, 1326, layer=0): ok, 4/8 neighbors blocked (margin=2)
+        backward cell (1674, 1325, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_D_N(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1674, 1253, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(J1-SBU_{1}-PadA8)(1 pad), /USB_D_N(1 pad)
+        backward cell (1675, 1302, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1670, 1325, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_D_P(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1674, 1248, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_D_P(2 pad)
+        backward cell (1671, 1302, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      leg couple: best plan still ships 12.7mm uncoupled leg copper
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      #444 seam re-ask: joint whole-connection A* replaces composed pair (score 60.9 -> 21.4)
+  DIRECT HYBRID: coupled middle on F.Cu + 36 leg seg(s) (30012 iters)
+  Leg 2 via hybrid (coupled middle + single-ended escapes)
+  Leg 3/3: J1:B6/A7 -> J1:A6/B7
+    electrically short (< 3.5mm coupled) - deferring leg to single-ended
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      #444 chain seam re-ask: leg replaced (score 21.4 -> 21.0)
+  SUCCESS: 1 legs, 27 segments, 30012 iterations (0.23s)
+
+============================================================
+2 net(s) have far-apart terminal pads peeled from the coupled chain - route them single-ended next:
+  /USB_D_N
+  /USB_D_P
+  e.g.  route.py <this_output> <out2> --nets '/USB_D_N' '/USB_D_P'
+============================================================
+
+Sync pcb_data: 27 -> 0 (kept stubs) -> 27 (after adding 27)
+
+============================================================
+Routing complete
+============================================================
+  Diff pairs:    1/1 routed
+  Member-incomplete: 1 pair(s) with disconnected member pads at this step (/USB_D) — JSON_SUMMARY.member_incomplete_pairs
+  Hybrid escape: 1 pair(s) routed as a coupled middle + point-to-point terminal legs (terminals NOT coupled): /USB_D — JSON_SUMMARY.pair_reports[].coupled_terminals
+  Total vias:    0
+  Total time:    0.23s
+  Iterations:    30,012
+JSON_SUMMARY: {"routed_diff_pairs": ["/USB_D"], "failed_diff_pairs": [], "partial_diff_pairs": [], "member_incomplete_pairs": ["/USB_D"], "uncoupled_diff_pairs": [], "single_ended_diff_pairs": [], "ripup_success_pairs": [], "rerouted_pairs": [], "polarity_swapped_pairs": [], "polarity_swap_denied_pairs": [], "single_ended_followup_nets": ["/USB_D_N", "/USB_D_P"], "skipped_bad_fanout": [], "target_swaps": [], "layer_swaps": 0, "intra_pair_matching": [], "successful": 1, "failed": 0, "total_time": 0.23, "total_iterations": 30012, "total_vias": 0, "min_clearance_used": 0.15, "pair_reports": [{"pair": "/USB_D", "p_net": "/USB_D_P", "n_net": "/USB_D_N", "outcome": "partial", "failure_reason": null, "failure_stage": null, "incomplete_members": ["/USB_D_P", "/USB_D_N"], "member_audit_mismatch": false, "no_coupled_trunk": false, "copper": {"coupled_mm": 2.8142, "length_p_mm": 10.0783, "length_n_mm": 10.8954, "uncoupled_mm": 8.0812, "coupled_by_layer": {"F.Cu": 2.8142}, "layers_p": ["F.Cu"], "layers_n": ["F.Cu"], "arc_chords": 0, "match_p_mm": null, "match_n_mm": null, "skew_mm": null, "gap_mm": 0.15, "gap_window_mm": [null, 0.225], "coupled_floor_mm": 0.35, "coupled": true}, "coupled_terminals": false, "escape": "hybrid"}], "casualty_reconcile": {"attempted": 0, "restored": [], "rerouted": [], "partial": [], "unrecovered": []}, "single_ended_fallback": {"attempted": [], "routed": [], "partial": [], "failed": []}, "gnd_vias_not_placed": [], "plane_fragility": {"source": "kicad_refill", "islands": 4, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "env_knobs": {"KICAD_ROUTE_TRACE": "1"}, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.15, "track_width": 0.15, "via_diameter": 0.5, "via_drill": 0.19999999999999998, "hole_to_hole": 0.25, "annular": 0.049999999999999996}, "count": 2, "nets": [6, 7], "narrowed": [{"net": 6, "net_name": null, "kind": "track_width", "requested": 0.195, "delivered": 0.0889, "site": "terminal neck", "count": 1}, {"net": 7, "net_name": null, "kind": "track_width", "requested": 0.195, "delivered": 0.0889, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.0889}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced"}}
+
+Writing output to wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pcb...
+Successfully wrote wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pcb
+  Route trace written to wk/gpm/17_environment_sensor/final_route/s2a_diff_routetrace.json (3 events)
+  DRC settings: wrote 3 value(s) to wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_copper_edge_clearance: 0.0 -> 0.2 mm (fab-edge pin)
+      rules.min_via_drill: None -> 0.2 mm
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/17_environment_sensor/final_route/s2a_diff.kicad_pro", "writes": ["rules.min_copper_edge_clearance: 0.0 -> 0.2 mm (fab-edge pin)", "rules.min_via_drill: None -> 0.2 mm", "kicad_routing_tools.fab_floor_origin: recorded"]}
+  Protected nets (not ripped by later steps): 2 recorded in s2a_diff.kicad_pro (+2 this step)
+  Net impedance specs (reapplied on redo): 2 recorded in s2a_diff.kicad_pro (+2 this step)
+  Design rules [--escalation fab, --fab-tier auto]: 2 feature(s) on 2 net(s) delivered below the requested size (smallest track width 0.0889 mm). Details: JSON_SUMMARY design_rules.
+EXIT=0

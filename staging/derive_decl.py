@@ -7,7 +7,8 @@
 Rule `fa10-decl-v1`, read off the HUMAN board, one channel per part:
 
   * mechanical.json `fixed[]` (exact x, y, rot): every part with pads that the
-    human LOCKED, every `MountingHole*` footprint, and the per-board
+    human LOCKED, every `MountingHole*` footprint, every part that is a mounting hole by its
+    drill (`_drilled_mount`, added after the gpm hole audit), and the per-board
     judgments passed with --fix (recorded with --why). The part still starts
     in the pile -- a declared pose is a target, not a placement.
   * <stem>.design-brief.json `interfaces[]` (EDGE only, along_edge unknown):
@@ -21,6 +22,7 @@ exits 2 in the loader). Prints the table the board README records.
 """
 import argparse
 import json
+import re
 import os
 import sys
 
@@ -38,6 +40,16 @@ RULE = 'fa10-decl-v1'  # unchanged in gp14, so the declarations compare
 
 def _fp_name(fp):
     return (fp.footprint_name or '').split(':')[-1]
+
+
+def _drilled_mount(fp):
+    """A mounting hole whatever its library calls it (environment_sensor's `MP_Pad5.4mm_Drill2.7mm`): at most
+    9 pads, every one drilled >= 2.0 mm, and none on a signal net (no net, `unconnected-*`, or a GND net).
+    Added 2026-10-24 after the mounting-hole audit; on the 20 gpm boards it adds exactly environment_sensor's
+    MP1-MP3, which the name test alone missed."""
+    pads = fp.pads
+    return (bool(pads) and len(pads) <= 9 and all(p.drill and p.drill >= 2.0 for p in pads)
+            and not any(p.net_name and not re.match(r'(unconnected-|.*GND)', p.net_name, re.I) for p in pads))
 
 
 def derive(path, fix=(), why=''):
@@ -58,6 +70,8 @@ def derive(path, fix=(), why=''):
             reason = f'{RULE}: locked in the human board'
         elif name.lower().startswith('mountinghole'):
             reason = f'{RULE}: MountingHole footprint'
+        elif _drilled_mount(fp):
+            reason = f'{RULE}: mounting part by drill (every pad drilled >= 2.0 mm, no signal net)'
         if reason:
             fixed.append({'ref': ref, 'x': round(fp.x, 4), 'y': round(fp.y, 4),
                           'rot': round((fp.rotation or 0.0) % 360.0, 3),

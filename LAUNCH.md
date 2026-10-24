@@ -54,3 +54,6 @@ Queue empty: all 20 launched (19:25).
 First runs kept in _superseded/ (both DONE, verifier PASS). Prompts byte-identical to the first runs'. docs/floorplan-intent.md is locally modified (hide_doc_daplink.py) until daplink finishes.
 11 daplink (redo) finished 23:09 (DONE, verifier PASS on call 2; 22 vias, 411.74 mm; authored DONE; wall 0:56; REPORT.md saved). docs/floorplan-intent.md restored (git checkout) at 23:09.
 12 steppenprobe (redo) finished 23:40 (DONE, verifier PASS on call 2; 123 vias, 1066.84 mm; Power class 0.3 met; USB skew 0.63; authored DONE; wall 1:27; REPORT.md saved; two verifier subagents for two calls, disclosed).
+| 17 | environment_sensor (redo: MP1-MP3 now declared by the drill rule in derive_decl.py, after the 2026-10-24 hole audit) | | 2026-10-24 08:36 | a8c382543f032fe9a |
+First run kept in _superseded/17_environment_sensor (DONE, verifier PASS, 101 vias; MP1-MP3 placed by the teammate's own judgment, 0.4-0.7 mm off the designer's holes).
+17 environment_sensor (redo) finished 09:35 (DONE, verifier PASS on call 1; 147 vias, 847.36 mm; MP1-MP3 at the declared poses; wall 0:57; REPORT.md saved).

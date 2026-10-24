@@ -1,0 +1,179 @@
+== 0 worktree bda59fa0, source wk/gpm/_src/environment_sensor/environment-sensor.kicad_pcb
+== 1 copy source
+Copied 2 file(s): human.kicad_pcb, human.kicad_pro
+== 2 strip copper (segments, arcs, vias, fills, teardrops, tuning patterns)
+dropped 1007 copper form(s) (segment/arc/via), 29 zone fill(s), 0 teardrop zone(s), 0 generated form(s) (tuning patterns), 0 group(s); 6304899 -> 5593539 chars
+== 2b strip board text, drawings off Edge.Cuts, padless artwork
+strip_drawings: dropped footprint (padless artwork) 2, gr_circle 6, gr_line 82, gr_rect 2, gr_text 23; kept 19 Edge.Cuts graphic(s)
+== 3 pile (every part with pads moved south of the outline, every lock removed)
+Modified 107 footprint positions
+Successfully wrote wk/gpm/17_environment_sensor/environment_sensor.kicad_pcb
+board      50.00 x 26.50 mm
+moved      107 pad-bearing part(s) to a pile at (185.00, 149.10); closest to the outline: BAT1 at 2.00 mm below it
+unlocked   6: TP1, TP2, TP3, TP4, TP5, TP6
+held       0 locked part(s), 0 padless artwork block(s)
+texts      1138 of 1138 text(s) on 107 moved part(s) at absolute 0
+zones      2 of 9 board-level zone(s)/rule area(s) kept; dropped 7 that cover under 25% of the bounding box and held a pad of 32 moved part(s) (BAT1, C10, C14, C16, C2, C23, C25, C26 ...): their outlines traced the placement (#1163). Declare what they meant in the design brief, or pass --keep-local-zones
+siblings   ['.kicad_pro']
+verdict    unplaced=True partially_unplaced=False has_copper=False
+sanitize: {"carried": true, "sanitized_keys": ["meta.filename", "board.design_settings.drc_exclusions", "pcbnew.last_paths"], "dropped_prl": false, "sha256": "11e3a3f6505744df6dd1829b6088cf77ea15b4b648e54cef37914ad42dee6440", "floors": {"clearance": {"value": 0.15, "source": "board netclass"}, "board_edge_clearance": {"value": 0.55, "source": "fixed default"}}, "kicad_dru": false, "kicad_prl": false}
+== 3b sanitize the pile (local zones under 25 %, text angles)
+zones kept 2: pour GND (100.00% of the board); pour +3V3 (80.40% of the board)
+zones dropped 0: 
+text angles reset: 0
+== 4 declarations (rule fa10-decl-v1)
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+fa10-decl-v1: 6 posed, 1 edge claim(s)
+| ref | channel | footprint | why |
+|---|---|---|---|
+| J1 | brief.edge=west | USB-C_Receptacle_GCT_USB4105-GF-A | edge_receptacle, seat -1.20 mm from the edge |
+| TP1 | mechanical.fixed | TP_SMD_1.5mm | fa10-decl-v1: locked in the human board |
+| TP2 | mechanical.fixed | TP_SMD_1.5mm | fa10-decl-v1: locked in the human board |
+| TP3 | mechanical.fixed | TP_SMD_1.5mm | fa10-decl-v1: locked in the human board |
+| TP4 | mechanical.fixed | TP_SMD_1.5mm | fa10-decl-v1: locked in the human board |
+| TP5 | mechanical.fixed | TP_SMD_1.5mm | fa10-decl-v1: locked in the human board |
+| TP6 | mechanical.fixed | TP_SMD_1.5mm | fa10-decl-v1: locked in the human board |
+== 5a validate on the human board
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/_truth/environment_sensor/human_stripped.kicad_pcb --brief wk/gpm/17_environment_sensor/environment_sensor.design-brief.json --mechanical wk/gpm/17_environment_sensor/mechanical.json --emit-intent wk/gpm/_truth/environment_sensor/human_intent.json --decaps-from wk/gpm/_truth/environment_sensor/human_stripped.kicad_pcb
+ENV KNOBS: none
+design brief environment_sensor.design-brief.json: 1 interface(s), 0 keep-out(s), 1 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/17_environment_sensor/mechanical.json: 6 pose(s), 0 edge(s)
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  merged the design brief into the emitted intent: declared claims OUTRANK the edge this tool infers from a part's current pose
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  6 mechanical ref(s) the grade anchors at their declared pose (compiled from the file at grade time; each must be locked there, or seated by a fixed_poses entry)
+  6 of them compiled into fixed_poses[] for place_simple to seat
+Wrote wk/gpm/_truth/environment_sensor/human_intent.json
+  0 block(s), 0 with a zone, 4 edge connector(s), 0 locked part(s)
+  envelope [160.0, 113.5, 210.0, 140.0] -- read from the board. The outline is not editable by this toolchain
+  decaps: max_distance_mm 4.726 from 19 tether(s) on the reference human_stripped.kicad_pcb
+  decaps: max_pin_distance_mm 2.0295 from 10 supply pin(s) on the reference
+  decaps: decap_ungraded promoted to error -- per cap, for the 19 cap(s) the reference keeps within 5 mm of their chip; the 1 it keeps beyond (C13) stay warn; a cap the reference lacks, or carries under another footprint, stays warn
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  rule roster: 9 armed, 9 not; 2 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+EXIT=0
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/_truth/environment_sensor/human_stripped.kicad_pcb --intent wk/gpm/_truth/environment_sensor/human_intent.json --brief wk/gpm/17_environment_sensor/environment_sensor.design-brief.json --mechanical wk/gpm/17_environment_sensor/mechanical.json --require-brief-coverage --json wk/gpm/_truth/environment_sensor/human_grade.json
+ENV KNOBS: none
+design brief environment_sensor.design-brief.json: 1 interface(s), 0 keep-out(s), 1 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/17_environment_sensor/mechanical.json: 6 pose(s), 0 edge(s)
+grading at clearance 0.15 (board netclass), edge 0.2 (fab edge floor (what routing writes))
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  NOTE [placement]: 15 footprint(s) draw no courtyard and are seated on an ESTIMATED one, what they occupy (body and pads, #1300) -- pad_bbox: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, ...
+Floorplan: human_stripped.kicad_pcb vs human_intent.json
+  107 footprints, 0 block(s), 0 part(s) covered
+  outline: 1 ring(s), 1 cutout(s), 0 milled contour(s)
+  0 error(s), 6 warning(s) from 9 rule(s)
+    [warn ] decap_pin_uncovered: BAT1 rail Net-(U3-VBAT) (e.g. pin P1) has NO decoupling capacitor on it anywhere on the board
+    [warn ] decap_pin_uncovered: U3 rail Net-(U3-VBAT) (e.g. pin 1) has NO decoupling capacitor on it anywhere on the board
+    [warn ] decap_ungraded: C13 is 5.69mm from U3, the IC it decouples -- beyond the 5.00mm tether search radius, so decap_distance never measured it against the 4.73mm limit. That limit was derived from the caps INSIDE the radius, so it says nothing about this one
+    [warn ] pins_to_edge: U5: 2 of 4 connected pads sit on a row facing the east edge (1.45mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: U6: 5 of 8 connected pads sit on a row facing the east/north edge (1.48mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] proximity: C23 pad 2 is 3.90mm from Y2 pad 3 on Net-(U3-PF0-OSC_IN), past the declared 2.20mm proximity limit
+  pad stacks: 0 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule)
+  along-edge seating (measured, not a verdict -- a violation needs a declared center_on_edge or along_edge_band):
+    J1 west: +0.00mm (+0.0% of the 26.50mm edge, ring)
+  edge connector overhang (measured; the band's own currency is named):
+    J1 west: overhang 3.7440mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured; facing west [courtyard+fab, weak] pass
+    J2 east: overhang 0.5265mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm fail
+    J3 east: overhang 0.3000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm fail
+    Y2 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+  decap pins: 13 on 7 of 8 candidate IC(s) -- pintype 9, role 4
+    2 chip(s) where a lower channel would have named a DIFFERENT pin set (BAT1, U3)
+  9 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - must_lock: the intent declares no must_lock patterns
+    - replicate: the intent declares no replicate copies
+    - template: the intent declares no templates
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  rule roster: 9 armed, 9 not; 2 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+  brief clause coverage: 1 graded, 0 uncovered, 0 abstained, 1 declared unknown, 0 carried
+  wrote wk/gpm/_truth/environment_sensor/human_grade.json
+JSON_SUMMARY: {"blocks": 0, "blocks_resolved": 0, "board": "human_stripped.kicad_pcb", "brief": "wk/gpm/17_environment_sensor/environment_sensor.design-brief.json", "brief_absent": 2, "brief_clauses": 2, "brief_clauses_abstained": 0, "brief_clauses_carried": 0, "brief_clauses_drifted": 0, "brief_clauses_graded": 1, "brief_clauses_not_claimed": 1, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 1, "brief_drift": 0, "brief_unknown": 1, "brief_unknown_keys": ["interfaces[J1].along_edge"], "budget_abstained": 0, "budget_abstained_keys": [], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.15}, "complete": true, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 1, "decap_pins_by_channel": {"pinfunction": 0, "pintype": 9, "rail_net": 0, "role": 4}, "decap_pins_graded": 13, "derived_default_clauses": [], "edge_clearance_used": {"source": "fab edge floor (what routing writes)", "value": 0.2}, "edge_contours": 0, "edge_seating_abstained": 2, "edge_seating_declared": 0, "edge_seating_rows": 3, "edge_seating_worst_offset_pct": 0.0, "errors": 0, "hole_shortfall": 0.0, "hpwl": 820.5095, "intent": "human_intent.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"dark": 2, "graded_pass": 19, "inapplicable": 2, "policy": 5, "unknown": 1}, "locked_contact_pairs": 0, "mechanical": "wk/gpm/17_environment_sensor/mechanical.json", "not_graded": {}, "oob_amount": 6.744, "oob_area": 19.7007, "oob_count": 3, "oob_count_exempt": 3, "overlap_area": 0.0, "overlap_area_exact": 0.0, "overlap_area_excluded": 0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "pad_stack_count": 0, "parts_covered": 0, "parts_total": 107, "pass": true, "rules_dark_undispositioned": ["zone_containment", "zone_side"], "rules_run": 9, "rules_skipped": 9, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 0.028, "state_partially_unplaced": false, "state_spread_ratio": 0.9, "state_unplaced": false, "unmeasured_facts": [], "violations": 6, "violations_by_rule": {"decap_pin_uncovered": 2, "decap_ungraded": 1, "pins_to_edge": 2, "proximity": 1}, "warnings": 6}
+EXIT=0
+== 5b emit the run intent on the pile
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/17_environment_sensor/environment_sensor.kicad_pcb --emit-intent wk/gpm/17_environment_sensor/intent.json --allow-unplaced --decaps-from wk/gpm/_truth/environment_sensor/human_stripped.kicad_pcb
+ENV KNOBS: none
+check_floorplan: this board does not look PLACED (107 footprints at 107 distinct position(s)).
+  - footprints span 10.0% of the board diagonal
+  - 100% of footprints lie outside the board outline
+  Its poses are not a placement yet: py_placer/place_simple.py places a board from a pile.
+  To see what the file currently contains:  python3 -X utf8 py_tools/render_placement.py <board> -o state.png
+design brief environment_sensor.design-brief.json: 1 interface(s), 0 keep-out(s), 1 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/17_environment_sensor/mechanical.json: 6 pose(s), 0 edge(s)
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  merged the design brief into the emitted intent: declared claims OUTRANK the edge this tool infers from a part's current pose
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  DRIFT J1:edge: brief 'west' [declared]; board 'south' [inferred] -> brief wins
+  DRIFT TP1:pose: mechanical (191.0, 116.0, 0.0) [recorded_fact]; board (186.1115, 150.3011, 0.0) [inferred] -> mechanical wins
+  DRIFT TP2:pose: mechanical (193.5, 116.0, 0.0) [recorded_fact]; board (183.4439, 150.7013, 0.0) [inferred] -> mechanical wins
+  DRIFT TP3:pose: mechanical (186.0, 116.0, 0.0) [recorded_fact]; board (183.8885, 150.7013, 0.0) [inferred] -> mechanical wins
+  DRIFT TP4:pose: mechanical (188.5, 116.0, 0.0) [recorded_fact]; board (184.3331, 150.7013, 0.0) [inferred] -> mechanical wins
+  DRIFT TP5:pose: mechanical (183.5, 116.0, 0.0) [recorded_fact]; board (184.7777, 150.7013, 0.0) [inferred] -> mechanical wins
+  DRIFT TP6:pose: mechanical (181.0, 116.0, 0.0) [recorded_fact]; board (185.2223, 150.7013, 0.0) [inferred] -> mechanical wins
+  6 mechanical ref(s) the grade anchors at their declared pose (compiled from the file at grade time; each must be locked there, or seated by a fixed_poses entry)
+  6 of them compiled into fixed_poses[] for place_simple to seat
+Wrote wk/gpm/17_environment_sensor/intent.json
+  0 block(s), 0 with a zone, 1 edge connector(s), 0 locked part(s)
+  envelope [160.0, 113.5, 210.0, 140.0] -- read from the board. The outline is not editable by this toolchain
+  pile: the board is a pile (footprints span 10.0% of the board diagonal; 100% of footprints lie outside the board outline): staging poses are not claims -- withheld edge_connectors[].edge read off a pose, blocks[].zone, legality_budget.oob_count for 107 unlocked part(s) off the board; kept: KiCad-locked parts; a brief / mechanical.json merged after this
+  decaps: max_distance_mm 4.726 from 19 tether(s) on the reference human_stripped.kicad_pcb
+  decaps: max_pin_distance_mm 2.0295 from 10 supply pin(s) on the reference
+  decaps: decap_ungraded promoted to error -- per cap, for the 19 cap(s) the reference keeps within 5 mm of their chip; the 1 it keeps beyond (C13) stay warn; a cap the reference lacks, or carries under another footprint, stays warn
+  WARNING [placement]: 15 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: MP1, MP2, MP3, TP1, TP10, TP11, TP12, TP2, TP3, TP4, TP5, TP6, ...
+  rule roster: 8 armed, 10 not; 3 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+EXIT=0
+redact_intent: 12 string(s) rewritten; remaining source markers: none
+== 6 record
+{
+ "environment_sensor.design-brief.json": "c7f5224fe4592fefd610fabd486abbc3fd8e77491158a466d01936e4b3bd4b82",
+ "environment_sensor.kicad_pcb": "911653c24108c47013457b7f814ee1b55b834b2b77b7def923f638b0d12c9d62",
+ "environment_sensor.kicad_pro": "11e3a3f6505744df6dd1829b6088cf77ea15b4b648e54cef37914ad42dee6440",
+ "intent.json": "715f77fb6936dce0ea0193195e5aeae024b2889418fb2691b2a6de91db9ffb77",
+ "mechanical.json": "bf9e81bdd83d59c7603b2cc17307fa941e87a8f3dd58b32f9dbfa90a91af5792"
+}
+== 7 gate
+stage_gate environment_sensor: PASS {"copper": 0, "fills": 0, "teardrops": 0, "tuning": 0, "drawings": 0, "artwork": 0, "locked_text": 0, "text_angles": 0, "locked": 0, "on_board": 0, "pads_turned": 0, "leaks": 0, "gate_touched_inputs": 0} load {"pcbnew_footprints": 107, "parser_footprints": 107, "pcbnew_ok": true, "kicad_cli_drc_exit": 0}

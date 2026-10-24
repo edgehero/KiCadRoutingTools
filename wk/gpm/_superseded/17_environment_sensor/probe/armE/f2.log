@@ -1,0 +1,394 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/17_environment_sensor/probe/armE/in.kicad_pcb wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pcb --nets /VBUS GND +3V3 --force-reroute --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --power-nets GND +3V3 +5V /VBUS "Net-(U3-VDDA)" "Net-(U3-VBAT)" GNDREF --power-nets-widths 0.7 0.7 0.7 0.7 0.3 0.3 0.3 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 --same-net-pad-clearance 0.1 --json-out wk/gpm/17_environment_sensor/probe/armE/f2.json
+ENV KNOBS: none
+  Default class clearance 0.1125 mm, unchanged by this step but below the 0.15 mm an earlier step asked for: an automatic descent on /USB_D_P, GND, Net-(U1-CBUS0), Net-(U1-DCD#), Net-(U1-DSR#), Net-(U3-PF1-OSC_OUT) (+1 more) lowered it.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.15 to route the other nets at 0.15 again.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1125mm.
+--clearance-ceiling 0.15: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/17_environment_sensor/probe/armE/in.kicad_pcb to expand net patterns...
+WARNING: 2 'unconnected-*' net(s) with >=2 pads excluded from the wildcard: 'unconnected-(J2-PadMP)' (2 pads), 'unconnected-(J3-PadMP)' (2 pads). If these are a reversible footprint's doubled pins they DO need a trace -- route them explicitly by naming them in --nets. Shield/mounting tabs joined mechanically can stay unrouted (#513 item 7).
+Routing 3 nets: ['/VBUS', 'GND', '+3V3']
+Loading wk/gpm/17_environment_sensor/probe/armE/in.kicad_pcb...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=3.0x, In2.Cu=3.0x, B.Cu=1.0x
+Auto-detected 1 BGA exclusion zone(s):
+  U6: (202.4, 115.9) to (205.0, 118.2), edge_tol=0.71mm
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (7 nets):
+  0.3mm: GNDREF, Net-(U3-VBAT), Net-(U3-VDDA)
+  0.7mm: GND, +3V3, +5V, /VBUS
+--force-reroute: skipping 2 plane (zone-owning) net(s) -- planes belong to route_planes: GND, +3V3
+--force-reroute: stripped 15 segment(s) / 6 via(s) from 1 net(s) for a from-scratch re-route
+
+Skipping 2 already-routed net(s): Already fully connected
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /VBUS
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+43 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.06s
+Found 52 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.10s (52 nets)
+Plane fragility: exact-fill geometry (15 filled island(s) from KiCad refill)
+Plane fragility field: 265018 cells near the edges of 4 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /VBUS (id=27)
+  Detected multi-point net with 8 pads (Phase 1: main route only)
+  Existing copper joins 8 terminals into 6 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 6 and 4, length=4.80mm)
+  Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+  Phase 1 routed in 21650 iterations, 23 segments
+  SUCCESS: 23 segments, 2 vias, 21650 iterations, length=13.30mm (stubs=0.00mm) (0.04s)
+
+Sync pcb_data: 822 -> 799 (kept stubs) -> 822 (after adding 23)
+
+============================================================
+Multi-point Phase 3: Routing 4 tap connections
+============================================================
+
+/VBUS (net 27):
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [1/4] Routing MST edge: pad 6 -> pad 3 (length=4.26mm) target=(166.40, 130.21)
+  WARNING: plane tap D1.2: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+           NOTE: --via-size cannot prevent this. The via is re-derived from min(pad.size_x, pad.size_y) floored at the fab ladder, so RAISING --via-size makes the clamp fire more readily, never less. A hard tier or --fab-overrides is what forbids the escalation.
+      Via-in-pad unblock: dropped 1 fab-floor via(s) to reach a boxed endpoint (1 off-pad escape stub(s), #535)
+      Routed in 581 iterations (0.12s)
+    [2/4] Routing MST edge: pad 3 -> pad 2 (length=1.64mm) target=(165.92, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5677 iterations (0.02s)
+    [3/4] Routing MST edge: pad 2 -> pad 0 (length=1.74mm) target=(164.18, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 12446 iterations (0.03s)
+    [4/4] Routing MST edge: pad 0 -> pad 1 (length=1.32mm) target=(164.22, 132.64)
+      Routed in 7 iterations (0.00s)
+  Phase 3 routing complete: 4 edges, 63 total segments, 5 total vias
+  Added 40 tap segments, 3 tap vias
+  #444 seam re-ask: /VBUS tree is 1.85x its MST bound -- re-asking whole
+
+  Re-routing /VBUS (net 27)...
+  Existing copper joins 8 terminals into 6 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 6 and 4, length=4.80mm)
+  Both directions stuck (forward=1, backward=1 < 5000)
+    forward cell (1674, 1269, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(2 pad), /USB_CC2(1 track, 1 pad)
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  Both directions stuck (forward=39, backward=45 < 5000)
+    forward cell (1674, 1269, layer=0): ok, 8/8 neighbors blocked (margin=3)
+      Blocking obstacles: GND(2 pad), /USB_CC2(1 track, 1 pad)
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=3)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+  Phase 1 routed in 21650 iterations, 23 segments
+    Re-routed main path: 23 segments, 2 vias
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 6 -> pad 3 (length=4.26mm) target=(166.40, 130.21)
+      Via-in-pad unblock: dropped 1 fab-floor via(s) to reach a boxed endpoint (1 off-pad escape stub(s), #535)
+      Routed in 581 iterations (0.07s)
+    [2/0] Routing MST edge: pad 3 -> pad 2 (length=1.64mm) target=(165.92, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5677 iterations (0.02s)
+    [3/0] Routing MST edge: pad 2 -> pad 0 (length=1.74mm) target=(164.18, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 12446 iterations (0.02s)
+    [4/0] Routing MST edge: pad 0 -> pad 1 (length=1.32mm) target=(164.22, 132.64)
+      Routed in 7 iterations (0.00s)
+  Phase 3 routing complete: 4 edges, 63 total segments, 5 total vias
+    Re-routed 40 tap segments, 3 tap vias
+  Net total time: 0.49s, 40361 iterations
+Closed 1 stub gap(s) to same-net copper
+Cycle prune: removed 4 redundant loop segment(s) across 1 net(s)
+Dead-end sweep: trimmed 1 dead-end segment(s) and 0 unsupported via(s)
+Octolinear smoothing: collapsed 2 staircase span(s) on 1 net(s), -0.08 mm of copper (#536)
+Merged 4 collinear joint(s) on 1 net(s): -4 redundant segment(s) (#811)
+Stripped 15 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+Stripping 6 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   8/8 pads connected (1 nets)
+  Total vias:    5
+  Total time:    0.04s
+  Iterations:    21,650
+  Fragility refresh (#466): 8 windows, 0.19s total
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3V3: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5V: 0.95A max (0.280mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.95A)
+  /VBUS: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  GND: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  GNDREF: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Net-(U3-VBAT): 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  Net-(U3-VDDA): 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": ["/VBUS"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 1, "multipoint_pads_connected": 8, "multipoint_pads_total": 8, "multipoint_edges_routed": 5, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.04, "total_iterations": 21650, "total_vias": 5, "cleanup_disconnected": [], "min_clearance_used": 0.1094, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.1125, "track_width": 0.0889, "via_diameter": 0.28, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.2}, "count": 22, "nets": [27], "narrowed": [{"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.573, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6796, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6568, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.573, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6796, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6568, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.15, "via_diameter": 0.325, "clearance": 0.1094}, "fab_tier_escalations": 2, "fab_tier_contexts": ["plane tap D1.2", "plane tap D1.2"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 15, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "oracle_check": "disabled", "pad_pairs_connected": 7, "pad_pairs_total": 7, "power_trace_ampacity": [{"net": "+3V3", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 82.1}, {"net": "+5V", "bottleneck_width_mm": 0.28, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.95, "max_current_ipc2152_a": 0.95, "temp_rise_c": 10.0, "trace_length_mm": 18.6}, {"net": "/VBUS", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 22.9}, {"net": "GND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 113.1}, {"net": "GNDREF", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 28.2}, {"net": "Net-(U3-VBAT)", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 21.1}, {"net": "Net-(U3-VDDA)", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 10.1}], "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pcb...
+Removed 16 dead-end input segment(s) from the output
+Removed 6 stale input via(s) from the output
+Successfully wrote wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pcb
+
+Plane finalize (#562): repairing 1 zone net(s) in-run (rip authority over blockers): GND
+  Plane finalize: snapped 125 in-memory coordinate(s) onto the nm grid
+Board bounds: (160.00, 113.50) to (210.00, 140.00)
+  Same-net pad via clearance 0.1mm (#581): repair vias stay off same-net pads
+Routing layers: F.Cu, In1.Cu, In2.Cu, B.Cu
+
+============================================================
+Routing disconnected plane regions
+============================================================
+  2 PROTECTED net(s) excluded from blocker rip-up (/USB_D_N, /USB_D_P)
+    fill-model: pad J1.A12 reaches only a pinched fill island -- queued for repair
+  (#517 ordering: net repair order = GND[1])
+
+[GND] on B.Cu, F.Cu, In1.Cu (clearances: B.Cu=0.25mm, F.Cu=0.25mm, In1.Cu=0.25mm):
+    fill-model: pad J1.A12 reaches only a pinched fill island -- queued for repair
+  Pad repair: 1 pad(s) with no connection to the GND plane:
+    Pad J1.A12 (F.Cu)... (needs rip - deferred to phase 2)
+    (#517 ordering: phase 2 -- 1 rip-requiring pad(s) [adaptive: immediate])
+    Pad J1.A12 (F.Cu)... blocked by /VBUS - ripping... reused via at (169.87, 126.31), 33 trace segment(s)
+    (#517 ordering: immediate reconnect of 1 ripped net(s): /VBUS)
+Using provided PCB data...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=3.0x, In2.Cu=3.0x, B.Cu=1.0x
+Auto-detected 1 BGA exclusion zone(s):
+  U6: (202.4, 115.9) to (205.0, 118.2), edge_tol=0.71mm
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (7 nets):
+  0.3mm: GNDREF, Net-(U3-VBAT), Net-(U3-VDDA)
+  0.7mm: GND, +3V3, +5V, /VBUS
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /VBUS
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+43 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.01s
+Found 52 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.06s (52 nets)
+Plane fragility: exact-fill geometry (15 filled island(s) from KiCad refill)
+Plane fragility field: 265018 cells near the edges of 4 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /VBUS (id=27)
+  Detected multi-point net with 8 pads (Phase 1: main route only)
+  Existing copper joins 8 terminals into 6 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 6 and 4, length=4.80mm)
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+  Via-in-pad unblock: dropped 2 fab-floor via(s) to reach a boxed endpoint (2 off-pad escape stub(s), #535)
+  Phase 1 routed in 7173 iterations, 47 segments
+  SUCCESS: 47 segments, 2 vias, 7173 iterations, length=10.42mm (stubs=0.00mm) (0.12s)
+
+Sync pcb_data: 878 -> 831 (kept stubs) -> 877 (after adding 46)
+
+============================================================
+Multi-point Phase 3: Routing 4 tap connections
+============================================================
+
+/VBUS (net 27):
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [1/4] Routing MST edge: pad 6 -> pad 3 (length=4.26mm) target=(166.40, 130.21)
+      Via-in-pad unblock: dropped 1 fab-floor via(s) to reach a boxed endpoint (1 off-pad escape stub(s), #535)
+      Routed in 1342 iterations (0.10s)
+    [2/4] Routing MST edge: pad 3 -> pad 2 (length=1.64mm) target=(165.92, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5631 iterations (0.02s)
+    [3/4] Routing MST edge: pad 2 -> pad 0 (length=1.74mm) target=(164.18, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 12446 iterations (0.03s)
+    [4/4] Routing MST edge: pad 0 -> pad 1 (length=1.32mm) target=(164.22, 132.64)
+      Routed in 7 iterations (0.00s)
+  Phase 3 routing complete: 4 edges, 87 total segments, 5 total vias
+  Added 41 tap segments, 3 tap vias
+  #444 seam re-ask: /VBUS tree is 1.72x its MST bound -- re-asking whole
+
+  Re-routing /VBUS (net 27)...
+  Existing copper joins 8 terminals into 6 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 6 and 4, length=4.80mm)
+  Both directions stuck (forward=1, backward=1 < 5000)
+    forward cell (1674, 1269, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(10 track, 2 pad), /USB_CC2(1 track, 1 pad)
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  Both directions stuck (forward=38, backward=45 < 5000)
+    forward cell (1674, 1269, layer=0): ok, 8/8 neighbors blocked (margin=3)
+      Blocking obstacles: GND(2 pad), /USB_CC2(1 track, 1 pad)
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=3)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  forward stuck (546 < 5000), backward=5000
+    forward cell (1674, 1269, layer=0): ok, 3/8 neighbors blocked (margin=2)
+      Blocking obstacles: /USB_CC2(1 pad)
+  forward stuck (834 < 5000), backward=5000
+    forward cell (1674, 1269, layer=0): ok, 0/8 neighbors blocked
+  Both directions stuck (forward=1, backward=1 < 5000)
+    forward cell (1674, 1269, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(10 track, 2 pad), /USB_CC2(1 track, 1 pad)
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  Both directions stuck (forward=38, backward=45 < 5000)
+    forward cell (1674, 1269, layer=0): ok, 8/8 neighbors blocked (margin=3)
+      Blocking obstacles: GND(2 pad), /USB_CC2(1 track, 1 pad)
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=3)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  forward stuck (546 < 5000), backward=5000
+    forward cell (1674, 1269, layer=0): ok, 3/8 neighbors blocked (margin=2)
+      Blocking obstacles: /USB_CC2(1 pad)
+  forward stuck (834 < 5000), backward=5000
+    forward cell (1674, 1269, layer=0): ok, 0/8 neighbors blocked
+  backward stuck (5 < 5000), forward=5000
+    backward cell (1674, 1221, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: GND(2 pad), unconnected-(J1-SBU_{2}-PadB8)(1 pad)
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+  Via-in-pad unblock: dropped 2 fab-floor via(s) to reach a boxed endpoint (2 off-pad escape stub(s), #535)
+  Phase 1 routed in 7173 iterations, 47 segments
+    Re-routed main path: 46 segments, 2 vias
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 6 -> pad 3 (length=4.26mm) target=(166.40, 130.21)
+      Via-in-pad unblock: dropped 1 fab-floor via(s) to reach a boxed endpoint (1 off-pad escape stub(s), #535)
+      Routed in 1342 iterations (0.08s)
+    [2/0] Routing MST edge: pad 3 -> pad 2 (length=1.64mm) target=(165.92, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5637 iterations (0.02s)
+    [3/0] Routing MST edge: pad 2 -> pad 0 (length=1.74mm) target=(164.18, 131.36)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 12446 iterations (0.03s)
+    [4/0] Routing MST edge: pad 0 -> pad 1 (length=1.32mm) target=(164.22, 132.64)
+      Routed in 7 iterations (0.00s)
+  Phase 3 routing complete: 4 edges, 87 total segments, 5 total vias
+    Re-routed 41 tap segments, 3 tap vias
+  Net total time: 0.56s, 26599 iterations
+Dropped 1 orphan routed segment(s) from the board (rip/reroute copper no result references)
+Cycle prune: removed 6 redundant loop segment(s) across 1 net(s)
+Octolinear smoothing: collapsed 3 staircase span(s) on 1 net(s), -0.17 mm of copper (#536)
+Bridged 2 same-net soft joint(s) with a tiny connector
+Merged 34 collinear joint(s) on 1 net(s): -34 redundant segment(s) (#811)
+
+WARNING: 2 stacked-copper finding(s) on the write model (same-net duplicates KiCad will not flag):
+  GND F.Cu: 2 duplicate segments stacked on (169.866, 126.310)-(169.900, 126.300)
+  /VBUS F.Cu: 2 duplicate segments stacked on (167.400, 126.948)-(168.350, 126.900)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   8/8 pads connected (1 nets)
+  Total vias:    5
+  Total time:    0.12s
+  Iterations:    7,173
+  Fragility refresh (#466): 9 windows, 0.25s total
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3V3: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5V: 0.95A max (0.280mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.95A)
+  /VBUS: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  GND: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  GNDREF: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Net-(U3-VBAT): 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  Net-(U3-VDDA): 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": ["/VBUS"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 1, "multipoint_pads_connected": 8, "multipoint_pads_total": 8, "multipoint_edges_routed": 5, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.12, "total_iterations": 7173, "total_vias": 5, "cleanup_disconnected": [], "min_clearance_used": 0.1094, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.1125, "track_width": 0.0889, "via_diameter": 0.28, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.2}, "count": 51, "nets": [1, 27], "narrowed": [{"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.573, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6796, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6568, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6776, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.573, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6796, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6568, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6568, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6568, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}, {"net": 27, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6748, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.15, "via_diameter": 0.325, "clearance": 0.1094}, "fab_tier_escalations": 4, "fab_tier_contexts": ["plane tap D1.2", "plane tap D1.2", "plane tap D1.2", "plane tap D1.2"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 15, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "stacked_copper": [{"category": "stacked-copper", "net": "GND", "layer": "F.Cu", "x": 169.866, "y": 126.31, "detail": "2 duplicate segments stacked on (169.866, 126.310)-(169.900, 126.300)", "size": 0.03544009029333229}, {"category": "stacked-copper", "net": "/VBUS", "layer": "F.Cu", "x": 167.4, "y": 126.948, "detail": "2 duplicate segments stacked on (167.400, 126.948)-(168.350, 126.900)", "size": 0.9512118586308611}], "oracle_check": "skipped (in-memory board)", "pad_pairs_connected": 7, "pad_pairs_total": 7, "power_trace_ampacity": [{"net": "+3V3", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 82.1}, {"net": "+5V", "bottleneck_width_mm": 0.28, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.95, "max_current_ipc2152_a": 0.95, "temp_rise_c": 10.0, "trace_length_mm": 18.6}, {"net": "/VBUS", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 22.9}, {"net": "GND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 116.6}, {"net": "GNDREF", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 28.2}, {"net": "Net-(U3-VBAT)", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 21.1}, {"net": "Net-(U3-VDDA)", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 10.1}], "scope": "reconciliation-subset", "board_scoped_keys": ["stacked_copper", "power_trace_ampacity", "min_clearance_used"], "env_knobs": {}}
+    (#517 ordering: /VBUS reconnected in place)
+  Building obstacle map... done
+  Region discovery from fill model: 14 region(s) (2 fill island(s), 13 off-fill anchor(s), 0 orphan island(s))
+  Zone SPLIT: 2 island(s) (5.8 mm^2) on F.Cu carry same-net copper, so KiCad KEEPS them on refill and flags the missing connection (#611)
+    - F.Cu near (165.6, 127.0): 3.5 mm^2
+    - F.Cu near (181.0, 123.9): 2.2 mm^2
+    Joins from this call seed from the primary analysis layer (B.Cu); a follow-up join runs with each flagged layer primary (#611).
+  14 model region(s) already bridged by existing copper per the fill-aware grader -- skipping joins (idempotent rerun, #513 item 8)
+  #611 follow-up join with F.Cu primary (kept island(s) reported there):
+  Region discovery from fill model: 16 region(s) (22 fill island(s), 13 off-fill anchor(s), 2 orphan island(s))
+  Found 16 disconnected regions (91 total anchors)
+  Joining 16 regions incrementally (closest components first, 15 join(s) needed)...
+    [1/15] Component 6 (1 region(s), 1 pts) <-> Component 9 (1 region(s), 1 pts)... COINCIDENT (same copper at (206.90,118.10) -- merged, no join needed)
+    [2/15] Component 3 (1 region(s), 1 pts) <-> Component 11 (1 region(s), 1 pts)... COINCIDENT (same copper at (202.70,118.10) -- merged, no join needed)
+    [3/15] Component 4 (1 region(s), 1 pts) <-> Component 12 (1 region(s), 1 pts)... COINCIDENT (same copper at (204.70,117.40) -- merged, no join needed)
+    [4/15] Component 5 (1 region(s), 1 pts) <-> Component 13 (1 region(s), 1 pts)... OK width=0.40mm, length=0.7mm, 1 seg(s)
+    [5/15] Component 2 (1 region(s), 1 pts) <-> Component 7 (1 region(s), 1 pts)... OK width=0.40mm, length=0.7mm, 1 seg(s)
+    [6/15] Component 4 (2 region(s), 3 pts) <-> Component 5 (2 region(s), 4 pts)... OK width=1.60mm, length=1.7mm, 3 seg(s)
+    [7/15] Component 6 (2 region(s), 3 pts) <-> Component 8 (1 region(s), 1 pts)... OK width=2.00mm, length=1.5mm, 2 seg(s), 2 layer(s), 1 via(s)
+    [8/15] Component 4 (4 region(s), 11 pts) <-> Component 6 (3 region(s), 7 pts)... OK width=0.20mm, length=2.6mm, 8 seg(s)
+    [9/15] Component 1 (1 region(s), 1 pts) <-> Component 10 (1 region(s), 1 pts)... OK width=0.40mm, length=2.4mm, 3 seg(s)
+    [10/15] Component 2 (2 region(s), 4 pts) <-> Component 3 (2 region(s), 3 pts)... OK width=0.80mm, length=2.6mm, 3 seg(s)
+    [11/15] Component 2 (4 region(s), 11 pts) <-> Component 4 (7 region(s), 27 pts) (seed 11x16)... OK width=0.20mm, length=2.3mm, 7 seg(s)
+    [12/15] Component 0 (1 region(s), 408 pts) <-> Component 14 (1 region(s), 1 pts) (seed 23x1)... retry-full budget-x5 narrow-map narrow-width 0.150 FAILED
+    [13/15] Component 1 (2 region(s), 6 pts) <-> Component 2 (11 region(s), 46 pts) (seed 6x16)... OK width=0.40mm, length=3.5mm, 8 seg(s)
+    [14/15] Component 0 (1 region(s), 408 pts) <-> Component 1 (13 region(s), 61 pts) (seed 23x16)... OK width=0.40mm, length=3.3mm, 4 seg(s)
+  Result: 10/15 join(s) succeeded, 1 attempt(s) failed, 3 coincident pair(s) merged without copper
+  Dead-end sweep: trimmed 2 orphaned repair segment(s)
+
+============================================================
+SUMMARY
+============================================================
+  Zones processed: 3
+  Total routes added: 10
+  Total vias added: 1
+  Pad repair: 1/1 unconnected pad(s) reconnected
+  Closed 2 soft joint(s) in repair copper
+
+Writing output to wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pcb...
+Output written to wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+  [finalize timing] engine leg: 3.3s
+Plane Closed 4 stub gap(s) to same-net copper
+Plane Merged 28 collinear joint(s) on 1 net(s): -28 redundant segment(s) (#811)
+  [finalize timing] cleanup leg: 0.6s
+  Plane finalize cleanup: closed 4 stub gap(s), trimmed 32 dead-end segment(s)
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: source union -- 2 exact link(s) dropped (KiCad does not demand them), 0 kicad-cli link(s) added (unseen by the exact source)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 2.8s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+  Strict collapse (#1063, end of run): removed 9 redundant segment(s) on 3 net(s)
+  Stacked copper (#162, end of run): removed 7 duplicate segment(s) on 1 net(s)
+
+  FAB NOTE (route): 95 via(s) in a pad or paste opening [BAT1.P1 B.Paste (pad), BAT1.P2 B.Paste (pad), C10.1 F.Paste (pad), C11.1 F.Paste (pad), C12.2 F.Paste (pad), C15.1 F.Paste (pad), C17.2 F.Paste (pad), C18.2 F.Paste (pad), +87 more] -- 0 stamped (capping yes) (filling yes), 0 already filled+capped, 1 NOT stampable (the file format cannot declare it per via: put it on the fab drawing), 95 shipped WITHOUT Type VII. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 95, "sites": ["BAT1.P1 B.Paste (pad)", "BAT1.P2 B.Paste (pad)", "C10.1 F.Paste (pad)", "C11.1 F.Paste (pad)", "C12.2 F.Paste (pad)", "C15.1 F.Paste (pad)", "C17.2 F.Paste (pad)", "C18.2 F.Paste (pad)", "C19.2 F.Paste (pad)", "C23.2 F.Paste (pad)", "C25.1 F.Paste (pad)", "C26.2 F.Paste (pad)", "C27.2 F.Paste (pad)", "C28.2 F.Paste (pad)", "C5.2 F.Paste (pad)", "C6.1 F.Paste (pad)", "C6.2 F.Paste (pad)", "C7.1 F.Paste (pad)", "C8.1 F.Paste (pad)", "D1.1 F.Paste (pad)", "D2.1 F.Paste (pad)", "D5.3 F.Paste (pad)", "D6.1 F.Paste (pad)", "D7.2 F.Paste (pad)", "D8.1 F.Paste (pad)", "D8.3 F.Paste (pad)", "FB2.2 F.Paste (pad)", "FB3.2 F.Paste (pad)", "J2.2 F.Paste (pad)", "J2.3 F.Paste (pad)", "J3.2 B.Paste (pad)", "R1.1 F.Paste (pad)", "R10.2 F.Paste (pad)", "R11.1 F.Paste (pad)", "R13.1 F.Paste (pad)", "R14.1 F.Paste (pad)", "R15.1 F.Paste (pad)", "R16.1 F.Paste (pad)", "R19.1 F.Paste (pad)", "R2.1 F.Paste (pad)", "R20.1 F.Paste (pad)", "R21.1 F.Paste (pad)", "R22.2 F.Paste (pad)", "R23.1 F.Paste (pad)", "R23.2 F.Paste (pad)", "R24.1 F.Paste (pad)", "R24.2 F.Paste (pad)", "R25.1 F.Paste (pad)", "R25.2 F.Paste (pad)", "R28.1 F.Paste (pad)", "R29.2 F.Paste (pad)", "R30.2 F.Paste (pad)", "R31.1 F.Paste (pad)", "R31.2 F.Paste (pad)", "R33.1 F.Paste (pad)", "R37.1 F.Paste (pad)", "R37.2 F.Paste (pad)", "R38.2 F.Paste (pad)", "R4.1 F.Paste (pad)", "R6.2 F.Paste (pad)", "R7.1 F.Paste (pad)", "R8.1 F.Paste (pad)", "R8.2 F.Paste (pad)", "R9.1 F.Paste (pad)", "R9.2 F.Paste (pad)", "TP10.1", "TP2.1", "TP7.1", "U1 F.Paste (graphic)", "U1.1 F.Paste (pad)", "U1.16 F.Paste (pad)", "U1.17 F.Paste (pad)", "U1.22 F.Paste (pad)", "U1.6 F.Paste (pad)", "U1.7 F.Paste (pad)", "U1.8 F.Paste (pad)", "U2.1 F.Paste (pad)", "U3.1 F.Paste (pad)", "U3.36 F.Paste (pad)", "U3.37 F.Paste (pad)", "U3.47 F.Paste (pad)", "U3.6 F.Paste (pad)", "U4.3 F.Paste (pad)", "U4.5 F.Paste (pad)", "U4.6 F.Paste (pad)", "U4.7 F.Paste (pad)", "U5.1 F.Paste (pad)", "U5.3 F.Paste (pad)", "U6.1 F.Paste (pad)", "U6.3 F.Paste (pad)", "U6.4 F.Paste (pad)", "U6.7 F.Paste (pad)", "Y1.1 F.Paste (pad)", "Y1.2 F.Paste (pad)", "Y2.1 F.Paste (pad)"], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 1, "site_created": 0, "unprotected": [{"site": "R7.1 F.Paste (pad)", "x": 171.9, "y": 126.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.6 F.Paste (pad)", "x": 171.897, "y": 129.8703, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R21.1 F.Paste (pad)", "x": 192.8, "y": 125.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.22 F.Paste (pad)", "x": 173.398, "y": 134.8213, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R11.1 F.Paste (pad)", "x": 178.4273, "y": 132.6432, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R28.1 F.Paste (pad)", "x": 188.5, "y": 121.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.8 F.Paste (pad)", "x": 170.6, "y": 130.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R9.1 F.Paste (pad)", "x": 176.4, "y": 132.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "FB2.2 F.Paste (pad)", "x": 165.8, "y": 133.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R2.1 F.Paste (pad)", "x": 168.0, "y": 135.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C8.1 F.Paste (pad)", "x": 173.8, "y": 135.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C7.1 F.Paste (pad)", "x": 174.8, "y": 135.9, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D5.3 F.Paste (pad)", "x": 167.2, "y": 133.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U6.1 F.Paste (pad)", "x": 202.7, "y": 118.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U6.7 F.Paste (pad)", "x": 204.7, "y": 117.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C28.2 F.Paste (pad)", "x": 206.9, "y": 118.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D1.1 F.Paste (pad)", "x": 165.5, "y": 130.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D2.1 F.Paste (pad)", "x": 165.0, "y": 131.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R4.1 F.Paste (pad)", "x": 170.2, "y": 126.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "TP10.1", "x": 169.2564, "y": 139.1682, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C23.2 F.Paste (pad)", "x": 172.5, "y": 124.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R25.2 F.Paste (pad)", "x": 177.0, "y": 125.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R19.1 F.Paste (pad)", "x": 182.3, "y": 119.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R8.2 F.Paste (pad)", "x": 174.2, "y": 125.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "Y2.1 F.Paste (pad)", "x": 175.2, "y": 120.9, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R25.1 F.Paste (pad)", "x": 176.4, "y": 123.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U3.6 F.Paste (pad)", "x": 179.3, "y": 125.15, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R24.2 F.Paste (pad)", "x": 174.2, "y": 124.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C18.2 F.Paste (pad)", "x": 181.0, "y": 120.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R29.2 F.Paste (pad)", "x": 190.1, "y": 119.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C11.1 F.Paste (pad)", "x": 191.0, "y": 121.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U3.36 F.Paste (pad)", "x": 187.7, "y": 122.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C17.2 F.Paste (pad)", "x": 189.4, "y": 126.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "FB3.2 F.Paste (pad)", "x": 189.5, "y": 129.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C25.1 F.Paste (pad)", "x": 192.3, "y": 129.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R31.2 F.Paste (pad)", "x": 197.8, "y": 130.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R38.2 F.Paste (pad)", "x": 200.4, "y": 131.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "J2.2 F.Paste (pad)", "x": 199.9, "y": 134.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R37.2 F.Paste (pad)", "x": 201.8, "y": 130.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U5.3 F.Paste (pad)", "x": 202.0, "y": 119.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D7.2 F.Paste (pad)", "x": 204.8, "y": 130.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C12.2 F.Paste (pad)", "x": 181.5, "y": 117.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C27.2 F.Paste (pad)", "x": 203.5, "y": 119.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "J3.2 B.Paste (pad)", "x": 193.6, "y": 135.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R22.2 F.Paste (pad)", "x": 191.1, "y": 126.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U4.6 F.Paste (pad)", "x": 195.5, "y": 125.9, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D8.1 F.Paste (pad)", "x": 201.7, "y": 125.9, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R23.2 F.Paste (pad)", "x": 193.6, "y": 120.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U6.4 F.Paste (pad)", "x": 202.7, "y": 116.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R37.1 F.Paste (pad)", "x": 202.3, "y": 129.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D6.1 F.Paste (pad)", "x": 201.7, "y": 132.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.16 F.Paste (pad)", "x": 170.3, "y": 134.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C6.2 F.Paste (pad)", "x": 172.5, "y": 129.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.1 F.Paste (pad)", "x": 174.5, "y": 129.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C5.2 F.Paste (pad)", "x": 169.2, "y": 133.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "TP2.1", "x": 192.8, "y": 116.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R24.1 F.Paste (pad)", "x": 173.3, "y": 123.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "BAT1.P1 B.Paste (pad)", "x": 186.1, "y": 124.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "BAT1.P2 B.Paste (pad)", "x": 184.9, "y": 136.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U3.1 F.Paste (pad)", "x": 180.0, "y": 122.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R16.1 F.Paste (pad)", "x": 175.4, "y": 128.9, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R14.1 F.Paste (pad)", "x": 176.2, "y": 127.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "J2.3 F.Paste (pad)", "x": 201.0, "y": 135.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U4.5 F.Paste (pad)", "x": 194.3, "y": 125.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U5.1 F.Paste (pad)", "x": 201.4, "y": 120.9, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U6.3 F.Paste (pad)", "x": 202.7, "y": 116.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R1.1 F.Paste (pad)", "x": 170.2, "y": 125.1, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R30.2 F.Paste (pad)", "x": 188.8, "y": 119.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R23.1 F.Paste (pad)", "x": 191.9, "y": 119.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "Y1.2 F.Paste (pad)", "x": 175.7, "y": 117.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "Y1.1 F.Paste (pad)", "x": 177.8, "y": 115.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R31.1 F.Paste (pad)", "x": 199.1, "y": 130.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R33.1 F.Paste (pad)", "x": 196.9, "y": 129.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U4.3 F.Paste (pad)", "x": 198.0, "y": 126.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U4.7 F.Paste (pad)", "x": 193.1, "y": 127.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "TP7.1", "x": 194.6, "y": 130.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R13.1 F.Paste (pad)", "x": 177.5, "y": 128.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R15.1 F.Paste (pad)", "x": 178.1, "y": 125.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R10.2 F.Paste (pad)", "x": 174.4, "y": 127.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R20.1 F.Paste (pad)", "x": 178.1, "y": 120.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R9.2 F.Paste (pad)", "x": 176.9, "y": 131.2, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R6.2 F.Paste (pad)", "x": 178.1, "y": 129.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U3.37 F.Paste (pad)", "x": 186.4, "y": 120.7, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.7 F.Paste (pad)", "x": 171.397, "y": 129.8703, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R8.1 F.Paste (pad)", "x": 173.7009, "y": 126.6546, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C19.2 F.Paste (pad)", "x": 186.9, "y": 130.8694, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U3.47 F.Paste (pad)", "x": 181.3, "y": 120.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "D8.3 F.Paste (pad)", "x": 201.6, "y": 126.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C15.1 F.Paste (pad)", "x": 186.7, "y": 132.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1.17 F.Paste (pad)", "x": 170.6, "y": 135.0, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C10.1 F.Paste (pad)", "x": 169.3, "y": 135.6, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U1 F.Paste (graphic)", "x": 172.9, "y": 130.8, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C6.1 F.Paste (pad)", "x": 170.9, "y": 128.4, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U2.1 F.Paste (pad)", "x": 172.5, "y": 136.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "C26.2 F.Paste (pad)", "x": 206.9, "y": 116.6, "why": "file format 20241229 predates per-via capping/filling (KiCad 10)"}], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: GND 53.5/133.5 mm under the requested 0.7 (min 0.15); +3V3 12.9/82.1 mm under the requested 0.7 (min 0.15); +5V 2.5/18.6 mm under the requested 0.7 (min 0.28); /VBUS 8.9/20.5 mm under the requested 0.7 (min 0.15); Net-(U3-VBAT) 3.0/21.1 mm under the requested 0.3 (min 0.15) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.1094, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.1125, "track_width": 0.0889, "via_diameter": 0.28, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.2}, "count": 15, "nets": [1, 2, 27], "narrowed": [{"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 27, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.325, "site": "via-in-pad clamp", "count": 1}, {"net": 27, "net_name": "/VBUS", "kind": "clearance", "requested": 0.1125, "delivered": 0.1094, "site": "fine-pitch plane tap", "count": 1}, {"net": 1, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 53.55}, {"net": 2, "net_name": "+3V3", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 12.94}, {"net": 27, "net_name": "/VBUS", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 8.9}], "min_delivered": {"via_diameter": 0.325, "clearance": 0.1094, "track_width": 0.15}, "fab_tier_escalations": 4, "fab_tier_contexts": ["plane tap D1.2", "plane tap D1.2", "plane tap D1.2", "plane tap D1.2"], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 2, "seconds": 0.52, "routed_single": ["/VBUS"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 8, "multipoint_pads_connected": 8, "successful": 1, "failed": 0, "unowned_broken": [], "recovered": [], "pad_pairs": {}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (2 net(s), 0.5s)
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   8/8 pads connected
+  route summary written to wk/gpm/17_environment_sensor/probe/armE/f2.json
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": [], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 2, "disconnected_pads_after": 2, "nets_compared": 52, "verdict": "accept"}
+  Design rules [--escalation fab, --fab-tier auto]: 15 feature(s) on 3 net(s) delivered below the requested size (smallest clearance 0.1094 mm, smallest track width 0.15 mm, smallest via diameter 0.325 mm); 4 fab-tier escalation(s) to advanced. Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 19, "failed": 0, "failed_single": [], "main_loop_time_s": 0.16, "min_clearance_used": 0.1094, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "regraded_nets": 2, "routed": 1, "scope": "merged", "terminal_restores_broken": [], "vias": 10}
+  Min clearance used: 0.1094 mm (below nominal 0.1125) - grading at this floor
+  DRC settings: wrote 7 value(s) to wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_clearance: 0.1125 -> 0.1094 mm
+      rules.min_hole_clearance: 0.1125 -> 0.1094 mm
+      net_class[Default].clearance: 0.1125 -> 0.1094 mm
+      net_class[90Ohm-diff_USB].clearance: 0.1125 -> 0.1094 mm
+      net_class[I2C].clearance: 0.1125 -> 0.1094 mm
+      net_class[Power].clearance: 0.1125 -> 0.1094 mm
+      kicad_routing_tools.class_clearance_relaxed: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/17_environment_sensor/probe/armE/f2.kicad_pro", "writes": ["rules.min_clearance: 0.1125 -> 0.1094 mm", "rules.min_hole_clearance: 0.1125 -> 0.1094 mm", "net_class[Default].clearance: 0.1125 -> 0.1094 mm", "net_class[90Ohm-diff_USB].clearance: 0.1125 -> 0.1094 mm", "net_class[I2C].clearance: 0.1125 -> 0.1094 mm", "net_class[Power].clearance: 0.1125 -> 0.1094 mm", "kicad_routing_tools.class_clearance_relaxed: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    track width: 0.0889 mm, unchanged by this step but still below the board's ORIGINAL 0.15mm; 12 of 872 object(s) on this board are below the ORIGINAL 0.15mm
+    via diameter: 0.28 mm, unchanged by this step but still below the board's ORIGINAL 0.5mm; 6 of 134 object(s) on this board are below the ORIGINAL 0.5mm
+    hole diameter: 0.15 mm, unchanged by this step but still below the board's ORIGINAL 0.2mm
+    copper-to-hole clearance: 0.15 -> 0.1094 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  DEFAULT CLASS CLEARANCE LOWERED BY A DESCENT -- 0.15 -> 0.1094 mm: an automatic clearance descent on /USB_D_P, /VBUS, GND, Net-(U1-CBUS0), Net-(U1-DCD#), Net-(U1-DSR#) (+2 more) routed at 0.1094 mm, and the writeback stores the run's smallest clearance as the Default class.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.15 to route the other nets at 0.15 again.
+  Same-net pad via clearance 0.1mm recorded in f2.kicad_pro (later steps keep vias off same-net pads)
+EXIT=0

@@ -1,0 +1,182 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/17_environment_sensor/probe/armD/a.kicad_pcb wk/gpm/17_environment_sensor/probe/armD/b.kicad_pcb --nets /USB_D_P /USB_D_N --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --layers F.Cu
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/17_environment_sensor/probe/armD/a.kicad_pcb to expand net patterns...
+WARNING: 2 'unconnected-*' net(s) with >=2 pads excluded from the wildcard: 'unconnected-(J2-PadMP)' (2 pads), 'unconnected-(J3-PadMP)' (2 pads). If these are a reversible footprint's doubled pins they DO need a trace -- route them explicitly by naming them in --nets. Shield/mounting tabs joined mechanically can stay unrouted (#513 item 7).
+Routing 2 nets: ['/USB_D_P', '/USB_D_N']
+Loading wk/gpm/17_environment_sensor/probe/armD/a.kicad_pcb...
+Using 1 routing layers: ['F.Cu']
+  Full-stack: appended 3 unrequested copper layer(s) as FORBIDDEN obstacles (no routing, vias respect their copper): In1.Cu, In2.Cu, B.Cu
+  Layer costs: F.Cu=1.0x, In1.Cu=-1x, In2.Cu=-1x, B.Cu=-1x
+  WARNING: In1.Cu calculated width 0.1322mm < min 0.1500mm, using min -- this trace will be ~85 ohm, not 90
+           (the width floor is --track-width; lower it to reach the target)
+  WARNING: In2.Cu calculated width 0.1322mm < min 0.1500mm, using min -- this trace will be ~85 ohm, not 90
+           (the width floor is --track-width; lower it to reach the target)
+  Reapplying stored 90 ohm differential impedance widths to 2 net(s) (recorded in .kicad_pro by an earlier --impedance step)
+Auto-detected 1 BGA exclusion zone(s):
+  U6: (202.4, 115.9) to (205.0, 118.2), edge_tol=0.71mm
+
+Analyzing layer swaps for 2 multi-point net(s) spanning layers...
+  No common layer found for 2 multi-point net(s) (left as-is)
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 2 nets with 0 crossing conflicts detected
+MPS Round 1: 2 units: /USB_D_N, /USB_D_P
+
+Routing 2 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Pour guard (#1260): +3V3 pour on In2.Cu: islands left crossable -- 1 hold a routed net's terminal; 1 are below the minimum island area on one anchor
+Pour guard (#1260): GND pour on B.Cu: islands left crossable -- 1 hold a routed net's terminal; 1 are below the minimum island area on one anchor
+Pour guard (#1260): GND pour on F.Cu: islands left crossable -- 1 hold a routed net's terminal
+Pour guard (#1260): GND pour on In1.Cu: islands left crossable -- 1 hold a routed net's terminal
+Base obstacle map built in 1.35s
+Found 52 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.04s (52 nets)
+Plane fragility: exact-fill geometry (6 filled island(s) from KiCad refill)
+Plane fragility field: 166079 cells near the edges of 4 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/2] Routing /USB_D_N (id=7)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=12.57mm)
+  Wide route blocked - retrying at default track width (neck-down)
+  Phase 1 routed in 33661 iterations, 62 segments
+  SUCCESS: 62 segments, 0 vias, 33661 iterations, length=42.34mm (stubs=19.55mm) (0.02s)
+
+[2/2] Routing /USB_D_P (id=6)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=11.57mm)
+  WARNING: plane tap U1.14: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+           NOTE: --via-size cannot prevent this. The via is re-derived from min(pad.size_x, pad.size_y) floored at the fab ladder, so RAISING --via-size makes the clamp fire more readily, never less. A hard tier or --fab-overrides is what forbids the escalation.
+  WARNING: plane tap J1.A6: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 1,2) failed after 5050 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/2) (pads 0 and 1, length=1.96mm)
+  Wide power route blocked - routed short edge at 0.1500mm (down from 0.1950)
+  Phase 1 routed in 6509 iterations, 25 segments
+  SUCCESS: 25 segments, 0 vias, 6509 iterations, length=22.04mm (stubs=18.99mm) (0.06s)
+
+Sync pcb_data: 123 -> 42 (kept stubs) -> 123 (after adding 81)
+
+============================================================
+Multi-point Phase 3: Routing 2 tap connections
+============================================================
+Phase 3 order (boxed-in risk first): /USB_D_P, /USB_D_N
+
+/USB_D_P (net 6):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] Routing MST edge: pad 1 -> pad 2 (length=11.57mm) target=(170.17, 133.09)
+      Both directions stuck (forward=1097, backward=8 < 5000)  [x2]
+        forward cell (1669, 1253, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+          Blocking obstacles: /USB_D_N(3 track, 1 pad), unconnected-(J1-SBU_{1}-PadA8)(1 pad)  [x2]
+        backward cell (1702, 1331, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+          Blocking obstacles: /USB_D_N(3 track, 1 pad), unconnected-(U1-NC-Pad13)(1 pad)  [x2]
+      backward stuck (34 < 5000), forward=5000  [x2]
+        backward cell (1702, 1331, layer=0): ok, 0/8 neighbors blocked  [x2]
+      Failed to route MST edge after 6139 iterations (0.01s)
+    Fallback: attempting orphaned pad 2 directly from connected copper
+    [2/2] (1 failed) Routing MST edge: pad 1 -> pad 2 (length=11.57mm) target=(170.17, 133.09)
+      Both directions stuck (forward=1089, backward=8 < 5000)  [x2]
+        forward cell (1669, 1253, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+          Blocking obstacles: /USB_D_N(3 track, 1 pad), unconnected-(J1-SBU_{1}-PadA8)(1 pad)  [x2]
+        backward cell (1702, 1331, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+          Blocking obstacles: /USB_D_N(3 track, 1 pad), unconnected-(U1-NC-Pad13)(1 pad)  [x2]
+      backward stuck (34 < 5000), forward=5000  [x2]
+        backward cell (1702, 1331, layer=0): ok, 0/8 neighbors blocked  [x2]
+      Failed to route MST edge after 6131 iterations (0.01s)
+  Warning: 1 pad(s) not connected (1 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 23 total segments, 0 total vias
+  NOT CONNECTED (so far): /USB_D_P - U1 pad 14 at (170.17, 133.09) - may still be recovered; final verdict in the end-of-run summary
+  (seam re-ask skipped: /USB_D_P is protected)
+  Net total time: 0.02s, 18779 iterations
+
+/USB_D_N (net 7):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [2/2] (1 failed) Routing MST edge: pad 1 -> pad 0 (length=1.54mm) target=(166.03, 123.97)
+      Routed in 1 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 58 total segments, 0 total vias
+  (seam re-ask skipped: /USB_D_N is protected)
+  Net total time: 0.01s, 33662 iterations
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing /USB_D_P (partial, 2 disconnected parts)
+    bare-ball escape: U1.14 skipped (no routable layer for its via to reach besides the pad's own; the rest are outside --layers)
+  WARNING: net rescue net_6: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+backward stuck (517 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (705 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked
+No route found after 11222 iterations (both directions)
+backward stuck (468 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked (margin=4)
+backward stuck (877 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (1105 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked
+No route found after 17450 iterations (both directions)
+backward stuck (540 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked (margin=4)
+backward stuck (979 < 5000), forward=5000
+  backward cell (6807, 5324, layer=0): ok, 0/8 neighbors blocked (margin=2)
+Wide power route blocked - routed short edge at 0.0889mm (down from 0.1950)
+Route found in 13850 iterations, path length: 114
+    rescued a gap: grid 0.025, clearance 0.125, track 0.0889/0.1101/0.1313/0.1526/0.1738/0.195 (20 segs, 0 vias, 13850 iters)
+    fully reconnected (2 -> 1 parts, 0.3s, width 0.0889 vs requested 0.19502)
+Rescue pass: 1 recovered, 0 improved, 0 unchanged (0.3s)
+Graze micro-shift: moved copper by its clearance shortfall on 1 net(s)
+Cycle prune: removed 7 redundant loop segment(s) across 2 net(s)
+Merged 7 collinear joint(s) on 2 net(s): -7 redundant segment(s) (#811)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  2/2 routed
+  Multi-point:   8/8 pads connected (2 nets)
+  Total vias:    0
+  Total time:    0.07s
+  Iterations:    40,170
+  Fragility refresh (#466): 3 windows, 0.04s total
+  History congestion (#590): 0 contest + 0 rip + 1 blocked-frontier event(s) over 22 cell(s), peak 0.03mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+JSON_SUMMARY: {"routed_single": ["/USB_D_N", "/USB_D_P"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 2, "multipoint_pads_connected": 8, "multipoint_pads_total": 8, "multipoint_edges_routed": 3, "multipoint_edges_failed": 1, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 2, "failed": 0, "total_time": 0.07, "total_iterations": 40170, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.125, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.15, "track_width": 0.15, "via_diameter": 0.5, "via_drill": 0.19999999999999998, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.2}, "count": 8, "nets": [6], "narrowed": [{"net": 6, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.28, "site": "via-in-pad clamp", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.195, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "clearance", "requested": 0.15, "delivered": 0.1375, "site": "fine-pitch plane tap", "count": 1}, {"net": 6, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.195, "delivered": 0.15, "site": "fine-pitch tap", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "clearance", "requested": 0.15, "delivered": 0.1375, "site": "fine-pitch plane tap", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "clearance", "requested": 0.15, "delivered": 0.125, "site": "net rescue", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "track_width", "requested": 0.195, "delivered": 0.0889, "site": "net rescue", "count": 1}], "min_delivered": {"via_diameter": 0.28, "track_width": 0.0889, "clearance": 0.125}, "fab_tier_escalations": 4, "fab_tier_contexts": ["plane tap U1.14", "plane tap J1.A6", "net rescue net_6", "net rescue net_6"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 6, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "pour_guard": {"source": "kicad_refill", "why": "", "pours": [{"net": "+3V3", "layer": "In2.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 1}, {"net": "GND", "layer": "B.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 1}, {"net": "GND", "layer": "F.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 0}, {"net": "GND", "layer": "In1.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 0}]}, "impedance_width_clamped": {"In1.Cu": [0.1322, 0.15], "In2.Cu": [0.1322, 0.15]}, "rescue": {"attempted": 1, "recovered": ["/USB_D_P"], "improved": [], "unchanged": [], "pads_reconnected": 1, "widths": {"/USB_D_P": {"requested_mm": 0.195, "delivered_mm": 0.0889, "rescue_min_mm": 0.0889, "rescue_max_mm": 0.195, "rescue_segments_emitted": 20, "rescue_by_width": {"0.0889": 9, "0.1101": 2, "0.1313": 2, "0.1526": 2, "0.1738": 2, "0.195": 3}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 0.27}, "oracle_check": "disabled", "pad_pairs_connected": 6, "pad_pairs_total": 6, "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/17_environment_sensor/probe/armD/b.kicad_pcb...
+Successfully wrote wk/gpm/17_environment_sensor/probe/armD/b.kicad_pcb
+  Plane finalize: zone net(s) +3V3, GND are OUTSIDE this route's --nets scope -- excluded from the finalize BY PLAN. Since #562 a pour alone connects nothing: unless a later route step covers these nets, their pads ship disconnected.
+  Strict collapse (#1063, end of run): removed 25 redundant segment(s) on 2 net(s)
+VIA_IN_PAD_JSON: {"count": 0, "sites": [], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.125, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.15, "track_width": 0.15, "via_diameter": 0.5, "via_drill": 0.19999999999999998, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.2}, "count": 7, "nets": [6, 7], "narrowed": [{"net": 6, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.28, "site": "via-in-pad clamp", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "clearance", "requested": 0.15, "delivered": 0.1375, "site": "fine-pitch plane tap", "count": 1}, {"net": 6, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "clearance", "requested": 0.15, "delivered": 0.1375, "site": "fine-pitch plane tap", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "clearance", "requested": 0.15, "delivered": 0.125, "site": "net rescue", "count": 1}, {"net": 6, "net_name": "/USB_D_P", "kind": "track_width", "requested": 0.195, "delivered": 0.0889, "site": "impedance copper shipped under width", "count": 1, "length_mm": 3.64}, {"net": 7, "net_name": "/USB_D_N", "kind": "track_width", "requested": 0.195, "delivered": 0.15, "site": "impedance copper shipped under width", "count": 1, "length_mm": 13.0}], "min_delivered": {"via_diameter": 0.28, "clearance": 0.125, "track_width": 0.0889}, "fab_tier_escalations": 4, "fab_tier_contexts": ["plane tap U1.14", "plane tap J1.A6", "net rescue net_6", "net rescue net_6"], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 2, "seconds": 1.05, "routed_single": ["/USB_D_N", "/USB_D_P"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 8, "multipoint_pads_connected": 8, "successful": 2, "failed": 0, "unowned_broken": [], "recovered": [], "pad_pairs": {}, "broken_by_run": [], "pour_fill": {"graded_on": "kicad_refill", "islands": {"+3V3 on In2.Cu": 2, "GND on B.Cu": 2, "GND on F.Cu": 4, "GND on In1.Cu": 1}, "poured_nothing": []}}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (2 net(s), 1.1s)
+============================================================
+  Single-ended:  2/2 routed
+  Multi-point:   8/8 pads connected
+
+  Pour cut (#1260): GND (12 -> 13 open pads) -- this run's copper cut the pour of a zone net outside its nets, where a routed net's pad inside the pour kept it crossable; nothing in this run repairs it, so route that net in a later step or reroute the crossing
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": ["/USB_D_N", "/USB_D_P"], "lost_zone": [], "gained_zone": [], "worsened": [["GND", 12, 13]], "disconnected_pads_before": 171, "disconnected_pads_after": 168, "nets_compared": 52, "excluded_plane_nets": ["GND"], "rejected_on_excluded_plane_nets_alone": false, "verdict": "accept"}
+  Design rules [--escalation fab, --fab-tier auto]: 7 feature(s) on 2 net(s) delivered below the requested size (smallest clearance 0.125 mm, smallest track width 0.0889 mm, smallest via diameter 0.28 mm); 4 fab-tier escalation(s) to advanced. Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 11, "failed": 0, "failed_single": [], "finalize_excluded_nets": ["+3V3", "GND"], "main_loop_time_s": 0.07, "min_clearance_used": 0.125, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "pour_cuts": ["GND"], "regraded_nets": 2, "routed": 2, "scope": "merged", "terminal_restores_broken": [], "vias": 0}
+  Min clearance used: 0.125 mm (below nominal 0.15) - grading at this floor
+  DRC settings: wrote 8 value(s) to wk/gpm/17_environment_sensor/probe/armD/b.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_clearance: 0.15 -> 0.125 mm
+      rules.min_hole_clearance: 0.15 -> 0.125 mm
+      rules.min_track_width: 0.15 -> 0.0889 mm
+      net_class[Default].clearance: 0.15 -> 0.125 mm
+      net_class[90Ohm-diff_USB].clearance: 0.15 -> 0.125 mm
+      net_class[I2C].clearance: 0.15 -> 0.125 mm
+      net_class[Power].clearance: 0.15 -> 0.125 mm
+      kicad_routing_tools.class_clearance_relaxed: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/17_environment_sensor/probe/armD/b.kicad_pro", "writes": ["rules.min_clearance: 0.15 -> 0.125 mm", "rules.min_hole_clearance: 0.15 -> 0.125 mm", "rules.min_track_width: 0.15 -> 0.0889 mm", "net_class[Default].clearance: 0.15 -> 0.125 mm", "net_class[90Ohm-diff_USB].clearance: 0.15 -> 0.125 mm", "net_class[I2C].clearance: 0.15 -> 0.125 mm", "net_class[Power].clearance: 0.15 -> 0.125 mm", "kicad_routing_tools.class_clearance_relaxed: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    track width: 0.15 -> 0.0889 mm; 11 of 108 object(s) on this board are below the ORIGINAL 0.15mm
+    copper-to-hole clearance: 0.15 -> 0.125 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  DEFAULT CLASS CLEARANCE LOWERED BY A DESCENT -- 0.15 -> 0.125 mm: an automatic clearance descent on /USB_D_P routed at 0.125 mm, and the writeback stores the run's smallest clearance as the Default class.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.15 to route the other nets at 0.15 again.
+EXIT=0

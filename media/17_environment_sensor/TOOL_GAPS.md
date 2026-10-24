@@ -1,125 +1,120 @@
-# TOOL_GAPS -- board 17 environment_sensor
+# TOOL_GAPS -- gpm board 17 (environment_sensor)
 
-Ranked by what each cost this run. Every repro command runs from the worktree root
-(`~/Documents/git/krt-gpm`, with `PATH="$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS"`);
-the boards it needs are in `wk/gpm/17_environment_sensor/repro/` (copied with `copy_board.py`, siblings included).
+Ranked by what each cost this run. Every repro runs from WT
+(`~/Documents/git/krt-gpm`, with `export PATH="$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH"`)
+on inputs copied into `wk/gpm/17_environment_sensor/repro/`.
 
----
+## 1. The seed judge cannot see a declared spec, so it kept a seed that can never be DONE
 
-## 1. `fill_for_delivery.py` re-saves the board in KiCad 10 format, which turns 68 accepted via-in-pad vias into 68 blocking `drc_via_in_paste`
-
-Cost: about 30 minutes (diagnosis, an upgrade-first chain, two more full chains, a second delivery).
-
-- **Tool / command:** `python3 -X utf8 py_tools/fill_for_delivery.py routed.kicad_pcb -o delivered.kicad_pcb` (SKILL.md §3.9 step 2), then `grade.py` / `board_score --baseline`.
-- **What it claimed:** fill_for_delivery exits 0 ("Filled ... net classes preserved: 4, unconnected 45 -> 0"). It is described as only filling the zones, and §3.9 says to route nothing further from its output.
-- **What was true:** the input is file version `20241229` (KiCad 9). The output is `20260206` (KiCad 10), because pcbnew's SaveBoard writes the current format. On the KiCad 9 file, check_drc / board_score count the 68 vias that route.py put in same-net pads or paste openings as "undeclarable in this file format (accepted)". On the KiCad 10 file the same 68 vias are declarable, carry no protection, and count as violations. Measured: `board_score --baseline <pile>` gives **BLOCKING=0** on the routed board and **BLOCKING=68 (drc_via_in_paste=68)** on its filled copy, with identical copper. grade.py on the first delivered board: `"done": false, "blocking": 68, "check_complete": "INCOMPLETE"`. The fill runs after the last route step, so no route step can declare Type VII any more. Workaround, now in the chain: `kicad-cli pcb upgrade` on a copy of the input BEFORE routing. route.py then declares Type VII itself ("69 stamped (capping yes)"), and the delivered board grades DONE. Neither SKILL.md (§3.9) nor plan-pcb-routing (4d) mentions it: a step is missing.
+- **Tool / command:** `py_placer/judge_seeds.py wk/gpm/17_environment_sensor/judge.json --chain judge_chain.txt --intent intent_run.json --seeds 5,3,0` (which scores each seed with `py_tools/quick_score.py`), as SKILL.md §3.7 prescribes.
+- **What it claimed:** "best seed 3: keep its placement s3.kicad_pcb" (seed 3: blocking 0, vias 108; seed 5: blocking 1, ranked last).
+- **What was true:** the board declares the USB pair impedance-controlled (route_diff `--impedance 90`, netclass `90Ohm-diff_USB`), and DONE is graded with `--impedance-nets '/USB_D_*'`. `quick_score.py` has no `--impedance-nets` (its only options are `--intent`, `--baseline`, `--json`) and `judge_seeds.py` has no way to pass a spec flag, so the judge ranked seeds blind to it. Full (non-quick) routes of the same chain, measured with the spec:
+  - seed 3 (judge best): blocking **2** (impedance: USB pair single-ended on B.Cu, 11 crossings of In2 voids), vias 143;
+  - seed 0: blocking **2** (impedance), vias 164;
+  - seed 5 (judge last): blocking **0**, check_complete DONE, vias 147.
+  The kept placement had to be changed by hand from 3 to 5 after a wasted full route, three placement/route experiments on seed 3 (D5 turn, F.Cu-only diff, qfn_fanout stubs) and two more full chains (~20 min). SKILL.md §3.7 says nothing about specs the quick route cannot grade.
 - **Repro:**
-  ```bash
-  python3 -X utf8 py_tools/fill_for_delivery.py wk/gpm/17_environment_sensor/repro/fillfmt_routed.kicad_pcb -o wk/gpm/17_environment_sensor/repro/fillfmt_delivered.kicad_pcb
-  head -2 wk/gpm/17_environment_sensor/repro/fillfmt_routed.kicad_pcb wk/gpm/17_environment_sensor/repro/fillfmt_delivered.kicad_pcb
-  for b in fillfmt_routed fillfmt_delivered; do python3 -X utf8 py_tools/board_score.py wk/gpm/17_environment_sensor/repro/$b.kicad_pcb --baseline wk/gpm/17_environment_sensor/repro/pile.kicad_pcb --quiet | grep ^BLOCKING; done
   ```
-- **Existing issues:** `gh issue list --search "fill_for_delivery format via paste"`, `"via-in-paste undeclarable"` and `"fill_for_delivery KiCad 10 version"` find nothing (the last returns only #937, which is unrelated). Not covered.
+  zsh wk/gpm/17_environment_sensor/repro/full_chain.sh wk/gpm/17_environment_sensor/repro/s3.kicad_pcb wk/gpm/17_environment_sensor/repro/out_s3   # BLOCKING=2 ... impedance=2
+  zsh wk/gpm/17_environment_sensor/repro/full_chain.sh wk/gpm/17_environment_sensor/repro/s5.kicad_pcb wk/gpm/17_environment_sensor/repro/out_s5   # BLOCKING=0
+  python3 -X utf8 py_tools/quick_score.py --help    # no --impedance-nets
+  ```
+  (full_chain.sh hard-codes `intent_run.json` / `fixed.kicad_pcb` from the run folder for its final board_score; both are also in repro/.)
+- **gh issue search:** `judge seeds spec flags impedance`, `quick_score impedance`: no issue covers it (closest: #1323, closed, about quick_score's ungraded list in converge).
 
-## 2. Tracks land 2 µm inside the 0.2 mm edge floor at the slot's Edge.Cuts arcs; check_drc says clean and kicad_drc_compare files KiCad's 5 errors as "#408 intentional edge"
+## 2. route_planes lowered the board's Default clearance 0.15 -> 0.119 for a part no pour covers, in a step that poured nothing
 
-Cost: about 15 minutes (found only by running kicad-cli by hand on the filled board; two re-routes).
-
-- **Tool / command:** `route.py ... --board-edge-clearance` omitted. It used 0.2, the "fab-edge pin" it also wrote into the project, while the board itself declares `min_copper_edge_clearance 0.0`. Then `check_drc.py <board> [--clearance-margin 0.1]` and `tests/stress/kicad_drc_compare.py <board>`.
-- **What it claimed:** check_drc: `NO DRC VIOLATIONS FOUND!`. kicad_drc_compare: `kicad=0 check_drc=0 ... [#408: -5 kicad / -5 check_drc intentional edge] ... CONSISTENT`.
-- **What was true:** `kicad-cli pcb drc --refill-zones` reports 5 `copper_edge_clearance` **errors**: GND, I2C_1_SCL and I2C_1_SDA tracks 0.1976-0.1978 mm from the arcs of the L-slot and the north notch (the rule is 0.2000 mm). These are routed tracks, not edge-connector pads. They are "accepted" only because check_drc treats them as covered by an edge-exempt pad, and kicad_drc_compare drops KiCad's items to match. Opened in KiCad, the board shows 5 DRC errors. Workaround: `--board-edge-clearance 0.22` on every routing step. KiCad then reports 0, at the same 101 vias. 0.25 was worse: 105 vias and 4 edge errors again, at the 0.25 floor it wrote.
+- **Tool / command:** `py_router/route_planes.py in.kicad_pcb 1_planes.kicad_pcb --nets GND GND GND +3V3 --plane-layers F.Cu In1.Cu B.Cu In2.Cu --skip-existing-zones`
+- **What it claimed:** "Zone clearance tightened 0.15 -> 0.119mm so the pour threads U6's via lattice (0.648mm pitch, 0.3mm vias ...)", then `PROJECT_WRITES_JSON ... rules.min_clearance: 0.15 -> 0.119 mm ... net_class[Default].clearance: 0.15 -> 0.119 mm`.
+- **What was true:** every existing zone was KEPT (four "keeping it" notes), so no pour was made at all; and U6 (BME280, LGA-8) sits at (205.0, 119.8), inside the NE sensor island that both designer zones exclude (GND polygon and +3V3 polygon stop at x 197.95 / y 123.65), and has no vias. The written Default class (0.119) then capped every later `--clearance-ceiling 0.15` step, so the whole board routed at 0.119 instead of the authored 0.15 (later descents reached 0.1), and `check_complete --authored-from` grades the delivered board UNSOUND for the clearance descent. Same line on a plain (non-skip) run.
 - **Repro:**
-  ```bash
-  python3 -X utf8 py_router/check_drc.py wk/gpm/17_environment_sensor/repro/edgearc_routed.kicad_pcb | tail -3
-  python3 -X utf8 tests/stress/kicad_drc_compare.py wk/gpm/17_environment_sensor/repro/edgearc_routed.kicad_pcb | head -3
-  kicad-cli pcb drc wk/gpm/17_environment_sensor/repro/edgearc_routed.kicad_pcb --refill-zones --format json -o wk/gpm/17_environment_sensor/repro/out/edgearc.json; python3 -c "import json;[print(v['description'],[i['description'] for i in v['items']]) for v in json.load(open('wk/gpm/17_environment_sensor/repro/out/edgearc.json'))['violations'] if v['type']=='copper_edge_clearance']"
   ```
-- **Existing issues:** #408 (closed: emit intentional edge-clearance items) is the filter that hides these. #438 (closed: router grazes the copper-edge rule on strict-edge boards) is the nearest; neither covers arcs or tracks accepted by the pad cover. `"edge clearance arc track"` finds #236, #1074 and #908, which are all different.
+  python3 -X utf8 py_router/route_planes.py wk/gpm/17_environment_sensor/repro/final.kicad_pcb wk/gpm/17_environment_sensor/repro/planes_skip.kicad_pcb --nets GND GND GND +3V3 --plane-layers F.Cu In1.Cu B.Cu In2.Cu --skip-existing-zones 2>&1 | grep -E "tightened|keeping it|PROJECT_WRITES"
+  ```
+- **gh issue search:** `zone clearance tightened via lattice`, `route_planes zone clearance tightened`, `pour clearance lowered no zone`: none.
 
-## 3. KiCad requires the two `MP` tabs of each JST-SH connector to be joined; check_connected, board_score and check_complete say fully connected
+## 3. fill_for_delivery's KiCad 10 re-save turned a DONE board into blocking 96 (vias in paste)
 
-Cost: about 10 minutes (found on the KiCad DRC of the filled board; two hand joins with check_join).
-
-- **Tool / command:** `py_router/check_connected.py`, `board_score.py`, `check_complete.py` on the routed board. The router never routes these nets.
-- **What it claimed:** `ALL NETS FULLY CONNECTED!`; `unrouted=0 broken=0`; `check_complete: DONE`.
-- **What was true:** J2 and J3 each have two pads numbered `MP` on one net, `unconnected-(J2-PadMP)` / `unconnected-(J3-PadMP)`. KiCad's DRC reports 2 unconnected items: "Missing connection between items Pad MP ... of J2 (197.65,138.855) / (203.25,138.855)", and the same for J3 (190.34 / 195.94, 138.855) on B.Cu. The repo's tools treat such a net as a one-pad net. Workaround: one 0.25 mm track per connector between its tabs, with `check_join.py` (CLEAN). KiCad unconnected: 2 -> 0.
+- **Tool / command:** `py_tools/fill_for_delivery.py labelled.kicad_pcb -o delivered.kicad_pcb` (§3.9 step 2), then `board_score ... --impedance-nets '/USB_D_*'`.
+- **What it claimed:** `Filled ... EXIT=0`; the routed and labelled boards graded blocking 0 / DONE (check_drc: "96 undeclarable in this file format (accepted)").
+- **What was true:** the input board is KiCad 9 format (`version 20241229`); the fill saves KiCad 10 (`version 20260206`), where the protection tokens are declarable, so the same 96 vias under solder become 96 undeclared violations: `BLOCKING=96 (... drc_via_in_paste=96)`, check_complete INCOMPLETE. Workaround used: `kicad-cli pcb upgrade` on the chain's input copy (`final_route/in.kicad_pcb`) before the route chain; route.py then stamps Type VII on all 96 ("96 filled+capped (accepted)") with identical copper (vias 147, copper 847.36), and the filled delivery grades DONE. The upgrade is a kicad-cli step, which the redo recorder does not record (added to redo_commands.sh by hand). Cost: one full re-route and re-delivery (~6 min).
 - **Repro:**
-  ```bash
-  python3 -X utf8 py_router/check_connected.py wk/gpm/17_environment_sensor/repro/mptabs_routed.kicad_pcb | tail -2
-  kicad-cli pcb drc wk/gpm/17_environment_sensor/repro/mptabs_routed.kicad_pcb --refill-zones --format json -o wk/gpm/17_environment_sensor/repro/out/mp.json; python3 -c "import json;[print(u['description'],[i['description'] for i in u['items']]) for u in json.load(open('wk/gpm/17_environment_sensor/repro/out/mp.json'))['unconnected_items']]"
   ```
-- **Existing issues:** `"unconnected PadMP same pad number"` finds nothing. `"duplicate pad number missing connection"` returns only #489, which is unrelated. Related family: #1334 (closed), "A DONE board ships KiCad ... errors that no repo grader reports" (starved thermals and connection widths, not this case). Not covered.
-
-## 4. route.py is not run-to-run deterministic with the Step 2c env stack (identical input, command and env: 1183 or 1188 copper items)
-
-Cost: about 15 minutes. It also means a single probe arm cannot be trusted to reproduce in the shipped chain.
-
-- **Tool / command:** `route.py <in> <out> --nets '*'`, with the shipped chain's flags and the Step 2c env stack `KICAD_GLOBAL_PLAN=1 ... KICAD_PACK_INLINE=1`.
-- **What it claimed:** CLAUDE.md: "Routing is deterministic ... compare check_drc / check_connected counts (stable run-to-run)".
-- **What was true:** the same input board, flags and env gave two different boards. Probe E2/c, x1 and x2 gave 1183 segments+vias (917.32 mm after the chain); c_redo and the shipped chain gave 1188 (923.97 mm). The two outcomes alternate between runs. It is not caused by `KICAD_ROUTE_TRACE` (c_trace = c_notrace) or by `REDO_RUNDIR` (x2 with it = x1 without). Vias were 101 either way, so the shipped chain's copper is about 7 mm worse than the arm it was meant to reproduce.
-- **Repro** (run it twice or more and compare the md5s):
-  ```bash
-  K="KICAD_GLOBAL_PLAN=1 KICAD_GLOBAL_PLAN_SEQ=1 KICAD_GLOBAL_PLAN_SEQ_COST=1.5 KICAD_GLOBAL_PLAN_VIA_COST=20 KICAD_GLOBAL_PLAN_ITERS=50000 KICAD_GLOBAL_PLAN_ATTRACT=1 KICAD_ATTRACT_POTENTIAL=65 KICAD_GLOBAL_PLAN_RIVER=1 KICAD_FINALIZE_REAUDIT=1 KICAD_PACK_INLINE=1"
-  for i in 1 2 3; do env $K python3 -X utf8 py_router/route.py wk/gpm/17_environment_sensor/repro/spread_in.kicad_pcb wk/gpm/17_environment_sensor/repro/out/spread_$i.kicad_pcb --nets '*' --clearance-ceiling 0.15 --track-width 0.15 --via-size 0.5 --via-drill 0.2 --power-nets GND +3V3 +5V /VBUS 'Net-(U3-VDDA)' 'Net-(U3-VBAT)' GNDREF --power-nets-widths 0.7 0.7 0.7 0.7 0.3 0.3 0.3 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 --via-cost 300 --board-edge-clearance 0.22 >/dev/null 2>&1; grep -E '^\s*\((start|end|at) ' wk/gpm/17_environment_sensor/repro/out/spread_$i.kicad_pcb | md5; done
+  python3 -X utf8 py_tools/fill_for_delivery.py wk/gpm/17_environment_sensor/repro/labelled_k9.kicad_pcb -o wk/gpm/17_environment_sensor/repro/delivered_k9.kicad_pcb
+  python3 -X utf8 py_tools/board_score.py wk/gpm/17_environment_sensor/repro/delivered_k9.kicad_pcb --intent wk/gpm/17_environment_sensor/repro/intent_run.json --baseline wk/gpm/17_environment_sensor/repro/fixed.kicad_pcb --impedance-nets '/USB_D_*' --quiet | grep BLOCKING   # drc_via_in_paste=96
   ```
-- **Existing issues:** `"nondeterministic route.py run-to-run"` returns #263 (a hang, unrelated). `"deterministic global plan"` returns #589 and #153, neither about determinism. Not covered as such. CLAUDE.md does note an oracle-stage spread for plane chains, on orangecrab.
+- **gh issue search:** `fill_for_delivery via-in-paste undeclarable format`: **#1367** (open) covers it.
 
-## 5. `analyze_power_paths`: a part's current is added once per power PIN, so widths scale with pin count (GND 2.0 mm, +3V3 1.0 mm on a ~190 mA board)
+## 4. route_diff's single-ended fallback ships an impedance pair over reference-plane voids
 
-Cost: about 10 minutes (worked out the widths by hand).
+- **Tool / command:** `py_router/route_diff.py 1_planes.kicad_pcb 2_diff.kicad_pcb --nets '/USB_D_*' --track-width 0.1 --diff-pair-gap 0.15 --clearance-ceiling 0.15 --impedance 90 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0` on seed 3.
+- **What it claimed:** `single_ended_diff_pairs: ["/USB_D"]`, "SE fallback: 2/2 member net(s) routed" (honest about the fallback), and net_impedance recorded for both nets.
+- **What was true:** the leg from U1 (0.5 mm-pitch QFN) "escape direction blocked at every setback", the coupled route failed, and the fallback laid both members ~12 mm on B.Cu over In2, whose +3V3 pour stops at x 169.7 and is carved by via antipads: `check_impedance`: 9 segments / 11 crossings over voids, 6.45 mm. The fallback has no reference-plane cost, so a pair it records as impedance-controlled is routed where the impedance grade must block it. The same happened with `--layers F.Cu` only (0/2 routed) and with `qfn_fanout` stubs on U1 (the D5->U1 leg still failed).
+- **Repro:**
+  ```
+  python3 -X utf8 py_router/route_diff.py wk/gpm/17_environment_sensor/repro/s3_1_planes.kicad_pcb wk/gpm/17_environment_sensor/repro/s3_diff.kicad_pcb --nets '/USB_D_*' --track-width 0.1 --diff-pair-gap 0.15 --clearance-ceiling 0.15 --impedance 90 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 | grep -E "SE fallback|Diff pairs"
+  python3 -X utf8 py_tools/check_impedance.py wk/gpm/17_environment_sensor/repro/s3_diff.kicad_pcb --nets '/USB_D_*' --verbose --exit-zero | grep -A14 "Reference-plane"
+  ```
+- **gh issue search:** `single-ended fallback impedance crossing`, `route_diff single-ended fallback reference plane void`, `route_diff polarity mismatch USB-C`: #486 (closed: reference-plane continuity check added), #90 (closed: USB-C dual-row pairs); neither covers the fallback routing over voids.
 
-- **Tool / command:** analyze-power-nets skill steps 1-5 (`get_power_net_recommendations`); `wk/gpm/17_environment_sensor/repro/power_snippet.py` replays them with this run's classifications.
-- **What it claimed:** `{'GND': 2.0, '+3V3': 1.0, '+5V': 0.7, '/VBUS': 0.5, 'Net-(U3-VDDA)': 0.7, 'Net-(U3-VBAT)': 0.5, 'GNDREF': 0.7}`.
-- **What was true:** the sinks total about 187 mA, which the tool's own table puts at 0.7 mm. The loop at `get_power_net_recommendations` adds `current` for EVERY power pin of a sink or source: J1's four GND pins x 500 mA, U3's 7 VDD/VSS pins x 60 mA, and so on. That gives GND 2.0 mm and +3V3 1.0 mm. The traced paths are wrong too: "J1 -> U6 via FB1" on GND->GNDREF (the USB shield RC), U3's whole 60 mA routed through the VDDA ferrite FB3, and a coin cell's microamps sized at 0.5 mm. The run routed with GND/+3V3/+5V/VBUS 0.7 and VDDA/VBAT/GNDREF 0.3, from the table applied once per part.
-- **Repro:** `python3 -X utf8 wk/gpm/17_environment_sensor/repro/power_snippet.py wk/gpm/17_environment_sensor/repro/pile.kicad_pcb | grep -E '^(PATH|REC)'`
-- **Existing issues:** `"analyze_power_paths per pin"` returns #937 (unrelated). `"analyze-power-nets width"` and `"power width GND 2.0"` return #124 (closed: rails not widened), #1169 and #1185, all different. Not covered.
+## 5. analyze_power_paths recommends widths no 0402/0.5 mm-pitch board can carry
 
-## 6. The datasheet steps assume poppler, and so does the Read tool's PDF mode; neither is installed (helper written)
+- **Tool / command:** `/analyze-power-nets` Steps 1-6 (inline Python; saved as `helpers/power_classify.py`).
+- **What it claimed:** `--power-nets-widths 2.0 0.7 0.5 1.0 0.7 0.7 0.7` for GND, +5V, /VBUS, +3V3, VDDA, VBAT, GNDREF; traced "Path 1: J1 -> U6, Nets: GND -> GNDREF, Via: FB1".
+- **What was true:** worst-case currents are ~0.35 A on +5V/+3V3 and microamps on VBAT (a coin cell), ~60 mA on VDDA; the sensors' GND/+3V3 must cross a 2 mm bridge to the NE island, which a 2.0 mm GND track cannot do. The traced "GND -> GNDREF" path is a shield bead, not a power path. Widths used instead (a judgment): 0.5 / 0.5 / 0.5 / 0.5 / 0.3 / 0.3 / 0.3.
+- **Repro:** `python3 -X utf8 wk/gpm/17_environment_sensor/helpers/power_classify.py wk/gpm/17_environment_sensor/repro/fixed.kicad_pcb | tail -12`
+- **gh issue search:** `analyze_power_paths width`: **#1377** (open) covers the over-sizing.
 
-Cost: about 10 minutes.
+## 6. SKILL §3.5 cannot read a datasheet on this machine (no poppler), and names no fallback
 
-- **Tool / command:** SKILL.md §3.5 step 2 ("`pdftotext -layout`, `pdftoppm -r 300`") and the Read tool with `pages`, on the GCT USB4105 and JST eSH datasheets (§3.4 overhang and mating face).
-- **What it claimed:** the skill says "Where poppler is installed", and gives no fallback. Read said `pdftoppm is not installed`.
-- **What was true:** no poppler, PyMuPDF or pypdf, and `sips` renders only page 1 (and clipped this rotated page). Wrote `helpers/pdfpage.swift`, a PDFKit renderer that honours /Rotate, to read the USB4105 PCB-layout figure (the PCB edge and the shell front both sit 2.60 mm from the front pegs, so the receptacle is flush and overhang_mm needs no row) and the JST eSH side-entry drawing (the solder tabs are at the mating opening, so J2 is `+y` and J3 `-y`).
-- **Repro:** `which pdftoppm pdftotext; swift wk/gpm/17_environment_sensor/helpers/pdfpage.swift <any.pdf> 1 wk/gpm/17_environment_sensor/repro/out/p1.png 3`
-- **Existing issues:** `"pdftoppm"` and `"pdftoppm poppler datasheet"` find nothing.
+- **Tool / command:** the Read tool with `pages` on a downloaded PDF; `pdftotext` / `pdftoppm` as §3.5 suggests.
+- **What it claimed:** §3.5: "download it ... and open it with the Read tool and `pages`".
+- **What was true:** `Read` refuses ("pdftoppm is not installed"); `pdftotext`, `pdftoppm`, PyMuPDF and pypdf are all absent; WebFetch of the PDF returns compressed streams. Workaround: macOS `qlmanage -t -s 2400` renders page 1 of the PDF to PNG (used for the GCT USB4105 drawing: PCB edge flush with the shell front, so no `overhang_mm` row was needed). Multi-page datasheets remain unreadable.
+- **Repro:** `which pdftotext pdftoppm; python3 -c "import fitz" ; python3 -c "import pypdf"` (all fail).
+- **gh issue search:** `poppler pdftotext datasheet`: **#1417** (open) covers it.
 
-## 7. `route_planes.py --skip-existing-zones` keeps every zone, yet tightens the zone clearance for a via lattice that does not exist and lowers the Default class clearance
+## 7. The STANDARD-tier plane map ("inner-only, no outer floods") cannot be executed on this board
 
-Cost: about 5 minutes. It is why the chain has no pour step.
+- **Tool / command:** plan-pcb-routing Step 5a-tuned (STANDARD: inner-only pours) with `route_planes.py --nets GND +3V3 --plane-layers In1.Cu In2.Cu`.
+- **What it claimed:** the skill prescribes inner-only pours for a 4-layer, 89-net board.
+- **What was true:** the board's GND pour is ONE zone on F.Cu+B.Cu+In1.Cu. route_planes: "it is ONE multi-layer zone that also covers B.Cu, F.Cu ... so it cannot be replaced ... Keeping it and pouring the new plane over it"; no chain tool deletes a zone, so the outer floods stay whatever the plan says. This run kept the designer's pours as drawn (`--skip-existing-zones`, the README calls them design intent) and noted the deviation from the skill.
+- **Repro:** `python3 -X utf8 py_router/route_planes.py wk/gpm/17_environment_sensor/repro/final.kicad_pcb wk/gpm/17_environment_sensor/repro/inner_only.kicad_pcb --nets GND +3V3 --plane-layers In1.Cu In2.Cu | grep -A1 "multi-layer zone"`
+- **gh issue search:** `outer flood existing zone inner-only skip-existing-zones`, `multi-layer zone cannot be replaced`: #1299 (closed, about replacing it when every layer is poured); nothing about the skill's map being unexecutable.
 
-- **Tool / command:** `route_planes.py placed.kicad_pcb out.kicad_pcb --nets GND GND GND +3V3 --plane-layers F.Cu In1.Cu B.Cu In2.Cu --skip-existing-zones`
-- **What it claimed:** "Zone clearance tightened 0.15 -> 0.119mm so the pour threads U6's via lattice (0.648mm pitch, 0.3mm vias ...)". It then writes `net_class[Default].clearance: 0.15 -> 0.119` and `rules.min_clearance: 0.15 -> 0.119`, and says "FAB FLOOR RELAXED".
-- **What was true:** U6 is a BME280 LGA-8 with no vias. Every zone was kept as drawn ("keeping it (no new zone ...)"), with the designer's 0.25 mm zone clearance. The only copper added was a 9-via thermal array under U1's exposed pad. Yet the project floor was relaxed for every later step.
-- **Repro:** `python3 -X utf8 py_router/route_planes.py wk/gpm/17_environment_sensor/repro/placed.kicad_pcb wk/gpm/17_environment_sensor/repro/out/pour.kicad_pcb --nets GND GND GND +3V3 --plane-layers F.Cu In1.Cu B.Cu In2.Cu --skip-existing-zones 2>&1 | grep -E "tightened|keeping it|net_class\[Default\]"`
-- **Existing issues:** `"zone clearance tightened lattice"` finds nothing. `"skip-existing-zones"` returns #1329 (closed: the replace path), which is the other branch.
+## 8. manifest_to_plan rejects the plain redirects the skill says to use in plan.sh
 
-## 8. Skill commands call bare `kicad-cli`, which is not on PATH here; the repo's own tools find KiCad on their own
+- **Tool / command:** `python3 tests/stress/manifest_to_plan.py final_plan.sh -o final_plan.json`
+- **What it claimed:** plan-pcb-routing "Capture Logs": "In the plan file use a plain redirect, `> /tmp/step.txt 2>&1`" (route_plan_check also passes R02).
+- **What was true:** `command 2: route_diff.py rejects its arguments: ... --layer-costs: invalid float value: '>'`; 2 of 5 steps dropped. Converting the recorded `redo_commands.sh` instead (no redirects) gives all 5 steps.
+- **Repro:** `python3 tests/stress/manifest_to_plan.py wk/gpm/17_environment_sensor/repro/plan_with_redirects.sh -o wk/gpm/17_environment_sensor/repro/plan.json 2>&1 | grep -E "rejects|skipped"`
+- **gh issue search:** `manifest_to_plan redirect`, `plan.sh redirect manifest_to_plan`: none.
 
-Cost: about 2 minutes.
+## 9. kicad_drc_compare reports kicad=0 CONSISTENT while KiCad reports 3 edge-clearance errors
 
-- **Tool / command:** SKILL.md §3.9 step 1 (`kicad-cli pcb drc ... silk_before.json`).
-- **What it claimed:** the step reads as runnable; it says "Without kicad-cli, keep the board as it was and say the silk is ungraded".
-- **What was true:** `kicad-cli not found` (exit 127). Yet `tests/stress/kicad_drc_compare.py` and `fill_for_delivery.py` ran KiCad 10.0.7 at `/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`. Followed as written, the step would have reported the silk "ungraded" on a machine that has KiCad. Added the app directory to PATH by hand.
-- **Repro:** `env -i PATH=/usr/bin:/bin zsh -c 'kicad-cli version'; ls /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`
-- **Existing issues:** `"kicad-cli not found PATH"` and `"kicad-cli path macOS"` return #1334, #1356, #1335 and #1286, none about locating the binary. Not covered.
+- **Tool / command:** `python3 -X utf8 tests/stress/kicad_drc_compare.py delivered.kicad_pcb --baseline environment_sensor.kicad_pcb`
+- **What it claimed:** `kicad=0 check_drc=0 ... [#408: -3 kicad / -3 check_drc intentional edge] ... CONSISTENT`.
+- **What was true:** `kicad-cli pcb drc --refill-zones` reports 3 `copper_edge_clearance` errors (actual 0.1978 mm vs 0.2000) on two GND F.Cu tracks and one I2C_1_SDA B.Cu track at the internal-cutout arc (198.95, 118.45). check_drc accepts them as `quantization-margin` (2.2 um), and the compare drops them under the #408 "intentional edge" label. 2 um is fab noise, but the delivered board opens in KiCad with 3 DRC errors and the compare's label names the wrong reason. Re-routing with `--board-edge-clearance 0.22` moved no copper and raised the project's edge floor (board_score then graded drc=3), so it was not kept.
+- **Repro:** `python3 -X utf8 tests/stress/kicad_drc_compare.py wk/gpm/17_environment_sensor/repro/delivered.kicad_pcb --baseline wk/gpm/17_environment_sensor/repro/fixed.kicad_pcb | grep "kicad="` and `kicad-cli pcb drc wk/gpm/17_environment_sensor/repro/delivered.kicad_pcb --refill-zones --format json -o wk/gpm/17_environment_sensor/repro/d.json` (3 copper_edge_clearance).
+- **gh issue search:** `kicad_drc_compare intentional edge quantization`: **#1404** (open) covers it.
 
-## 9. `place_pose.py` prints `"legal": false` for a pose with zero conflicts when the outline has arcs
+## 10. place_pose reports `legal: false` for a no-worse move on any non-rectangular outline
 
-Cost: about 2 minutes (it reads as a refusal).
-
-- **Tool / command:** `place_pose.py s4.kicad_pcb out --intent intent_run.json set D1 162.0 132.5 --rot 0 set D2 161.5 133.6 --rot 0`
+- **Tool / command:** `py_placer/place_pose.py final.kicad_pcb out.kicad_pcb --intent intent_run.json set R5 181.5042 123.8039 --rot 90 set R6 184.4048 128.5549 --rot 0`
 - **What it claimed:** `"legal": false` (exit 0, written).
-- **What was true:** every counted category was 0 before and after (pad, hole, stack, graphic, keep-out, off-board). `legal` is false only because `pad_edge` is `complete: false`: the outline has arcs, so every pad's edge distance is "unmeasured (outline uses sampled perimeter check)", 323 pads. check_assembly called the board buildable.
-- **Repro:** `python3 -X utf8 py_placer/place_pose.py wk/gpm/17_environment_sensor/repro/placed.kicad_pcb wk/gpm/17_environment_sensor/repro/out/pp.kicad_pcb set D1 162.0 132.5 --rot 0 2>&1 | grep -o '"legal": [a-z]*\|"pad_conflicts_after": [0-9]*\|"unmeasured_count": [0-9]*' | head -3`
-- **Existing issues:** `"place_pose legal false arc outline"` finds nothing.
+- **What was true:** `no_worse: true`, every conflict count 0 -> 0; `legal` is false only because `pad_edge` is "incomplete": 323 pads "outline uses sampled perimeter check" (this outline has a notch and an L cutout). check_assembly: buildable.
+- **Repro:** `python3 -X utf8 py_placer/place_pose.py wk/gpm/17_environment_sensor/repro/final.kicad_pcb wk/gpm/17_environment_sensor/repro/turn.kicad_pcb --intent wk/gpm/17_environment_sensor/repro/intent_run.json set R5 181.5042 123.8039 --rot 90 | grep -o '"legal": [a-z]*'`
+- **gh issue search:** `place_pose legal false outline sampled`: **#1326** (closed) says `legal` is unreachable on a non-rectangular outline; the behaviour is still there.
 
-## 10. route_diff / route.py leave pad-local back-tracks that check_cycles counts as copper loops (11 on the USB pair); check_weird says clean
+## Helpers written (each is part of an entry above)
 
-Cost: about 5 minutes.
+- `helpers/full_chain.sh` -- replays the final route chain (non-quick) on any placement and grades it with the impedance spec (entry 1: the judge cannot).
+- `helpers/route_variant.sh` -- replays the route.py x3 tail with one knob changed for post-DONE A/B; no repo tool replays a chain tail with an override.
+- `helpers/power_classify.py` -- the /analyze-power-nets inline session saved for entry 5's repro.
 
-- **Tool / command:** `route_diff.py ... --nets '/USB_D_*' --layers F.Cu`, then `route.py --nets /USB_D_P /USB_D_N --layers F.Cu`. Graded with `py_tools/check_cycles.py`.
-- **What it claimed:** check_weird `NO WEIRD THINGS FOUND`; route_diff routed the pair.
-- **What was true:** check_cycles finds `/USB_D_N 6 loops`, `/USB_D_P 5 loops` on the shipped board. route_diff's own output already has one. Its D+ copper starts `167.57,132.562 -> 167.6,132.6 -> 167.4,132.4`, out of pad D5.1 and back across it. The legs step adds the rest. They are tiny, but they are stubs on the one signal pair with an impedance spec.
-- **Repro:** `python3 -X utf8 py_tools/check_cycles.py wk/gpm/17_environment_sensor/repro/loops_diff.kicad_pcb`
-- **Existing issues:** `"check_cycles loops pad"` finds nothing.
+## 11. check_floorplan exits 4 on the finished board at 0 errors, so grade.py reports `floorplan_pass: false`
+
+- **Tool / command:** `python3 -X utf8 py_tools/check_floorplan.py delivered.kicad_pcb --intent intent_run.json --allow-routed`; `scripts/grade.py ... --mode full`.
+- **What it claimed:** `0 error(s), 6 warning(s)` ... `NOT FULLY GRADED: 2 budget_abstained, 1 rules_skipped_armed ... an absent verdict, not a clean one. EXIT=4`; grade.py: `"floorplan_errors": 0, "floorplan_pass": false, "check_floorplan_rc": 4`.
+- **What was true:** the two abstained budgets (`oob_count`, `overlap_area`) were withheld by the emitter because the INPUT was a pile ("its off-board count is staging, not a baseline (#1103)"); the delivered board is fully placed, buildable, and has 0 floorplan errors, but no placement can ever make the given (read-only) intent grade complete. Not acted on (the intent is the user's); reported here and in REPORT.md.
+- **Repro:** `python3 -X utf8 py_tools/check_floorplan.py wk/gpm/17_environment_sensor/repro/delivered.kicad_pcb --intent wk/gpm/17_environment_sensor/repro/intent_run.json --allow-routed | tail -3`
+- **gh issue search:** `budget_abstained pile NOT FULLY GRADED`: **#1420** (open) covers it.

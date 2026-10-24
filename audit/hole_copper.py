@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Other-net copper around each mounting hole of one board (the screw head / washer / standoff area).
 
-    python3 -X utf8 wk/gpm/_audit/hole_copper.py BOARD.kicad_pcb [--ring 1.3]     (from a repo checkout)
+    python3 -X utf8 hole_copper.py BOARD.kicad_pcb [--ring 1.3]     (from the repository root)
 
 A mounting hole = a footprint with <= 9 pads whose pads ALL carry a drill >= 2.0 mm and no signal net (none,
 `unconnected-*`, or a GND-named net). For each one: the drill, the plated pad's diameter, and every track, arc

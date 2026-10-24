@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                              663              863
+  vias                                  118              144
+  total length mm                     929.4           1000.4
+  distinct track widths                   5                5
+  nets with copper                       50               52
+  ours widths:   {0.089: 2, 0.15: 628, 0.2: 23, 0.4: 4, 0.8: 6}
+  orig widths:   {0.15: 542, 0.182: 40, 0.2: 21, 0.25: 242, 0.3: 18}
+  ours vias:     {'0.6/0.25': 112, '0.28/0.18': 3, '0.45/0.2': 1, '0.3/0.15': 1, '0.35/0.2': 1}
+  orig vias:     {'0.6/0.25': 144}
+
+  SUGGESTIONS:
+   - VIAS: 118 vs original 144 (0.82x) — comparable.
+   - COMPLETION: we put copper on 50 nets vs original 52 — 2 net(s) the human routed that we did not.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 663, "n_vias": 118, "total_length_mm": 929.4, "length_by_layer": {"F.Cu": 354.5, "In2.Cu": 212.1, "In1.Cu": 199.7, "B.Cu": 163.0}, "width_count": {"0.15": 628, "0.089": 2, "0.2": 23, "0.4": 4, "0.8": 6}, "via_count": {"0.6/0.25": 112, "0.28/0.18": 3, "0.45/0.2": 1, "0.3/0.15": 1, "0.35/0.2": 1}, "distinct_widths": 5, "nets_with_copper": 50, "n_multi_pad_nets": 53, "n_nets": 90}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 863, "n_vias": 144, "total_length_mm": 1000.4, "length_by_layer": {"F.Cu": 567.7, "B.Cu": 255.6, "In1.Cu": 16.0, "In2.Cu": 161.2}, "width_count": {"0.25": 242, "0.15": 542, "0.182": 40, "0.3": 18, "0.2": 21}, "via_count": {"0.6/0.25": 144}, "distinct_widths": 5, "nets_with_copper": 52, "n_multi_pad_nets": 53, "n_nets": 90}, "suggestions": ["VIAS: 118 vs original 144 (0.82x) \u2014 comparable.", "COMPLETION: we put copper on 50 nets vs original 52 \u2014 2 net(s) the human routed that we did not."]}
