@@ -1,0 +1,4 @@
+python3 -X utf8 py_tools/board_score.py wk/gpm/18_uecg/repro/delivered_copy.kicad_pcb --net-min-widths wk/gpm/18_uecg/power_widths.json --quiet > uecg_with.txt     # BLOCKING=7 net_widths=7, exit 4
+python3 -X utf8 py_tools/board_score.py wk/gpm/18_uecg/repro/delivered_copy.kicad_pcb --quiet > uecg_without.txt                                                  # BLOCKING=0, net_widths UNGRADED, exit 0
+python3 -X utf8 check_complete.py wk/gpm/18_uecg/repro/delivered_copy.kicad_pcb > uecg_check_complete_without.txt                                                # VERDICT: DONE
+for a in A B: board_score wk/gpm/12_steppenprobe/arms/$a/s4.kicad_pcb [--net-min-widths wk/gpm/12_steppenprobe/power_min_widths.json]  # 0 -> 5 (A), 0 -> 4 (B)

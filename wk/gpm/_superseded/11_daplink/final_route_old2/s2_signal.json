@@ -1,0 +1,268 @@
+{
+ "routed_single": [
+  "Net-(D3-A)",
+  "Net-(D2-A)",
+  "Net-(D1-A)",
+  "Net-(P1-CC1)",
+  "Net-(U2-PB12)",
+  "/D+",
+  "Net-(U2-PC13)",
+  "Net-(P1-CC2)",
+  "/PB6",
+  "Net-(U2-BOOT0)",
+  "+5V",
+  "/PB5",
+  "/IF_RST",
+  "/IF_SWDIO",
+  "/IF_SWCLK",
+  "/OSCIN",
+  "/PA0",
+  "/PA12",
+  "/TGT_SWCLK",
+  "/TGT_RX",
+  "/PA11",
+  "/TGT_SWDIO",
+  "/PA9",
+  "/D-",
+  "/TGT_TX",
+  "+3.3V",
+  "/TGT_RST"
+ ],
+ "failed_single": [
+  "/OSCOUT"
+ ],
+ "open_single": [],
+ "failed_multipoint": [],
+ "multipoint_nets": 0,
+ "multipoint_pads_connected": 57,
+ "multipoint_pads_total": 57,
+ "multipoint_edges_routed": 0,
+ "multipoint_edges_failed": 0,
+ "ripup_success_pairs": [],
+ "rerouted_pairs": [],
+ "single_ended_target_swaps": [],
+ "layer_swaps": 0,
+ "successful": 27,
+ "failed": 1,
+ "total_time": 0.29000000000000004,
+ "total_iterations": 81714,
+ "total_vias": 27,
+ "cleanup_disconnected": [],
+ "min_clearance_used": 0.2,
+ "design_rules": {
+  "escalation_policy": "board",
+  "fab_tier": "standard",
+  "board_floors": {
+   "via_diameter": 0.5,
+   "via_drill": 0.3,
+   "hole_to_hole": 0.25,
+   "annular": 0.1,
+   "board_edge": 0.2,
+   "clearance": 0.2
+  },
+  "count": 2,
+  "nets": [
+   5,
+   11
+  ],
+  "narrowed": [
+   {
+    "net": 5,
+    "net_name": "+3.3V",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.127,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 27.41
+   },
+   {
+    "net": 11,
+    "net_name": "+5V",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.175,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 14.31
+   }
+  ],
+  "min_delivered": {
+   "track_width": 0.127
+  },
+  "fab_tier_escalations": 0,
+  "fab_tier_contexts": [],
+  "fab_tier_target": "board_floors",
+  "unsupported_rules": []
+ },
+ "plane_fragility": {
+  "source": "none",
+  "islands": 0,
+  "refill_status": null,
+  "why": "the board has no zones",
+  "machine_dependent": false
+ },
+ "rescue": {
+  "attempted": 1,
+  "recovered": [],
+  "improved": [],
+  "unchanged": [
+   "/OSCOUT"
+  ],
+  "pads_reconnected": 0,
+  "widths": {},
+  "time": 0.18
+ },
+ "oracle_check": "disabled",
+ "blockers": [
+  {
+   "net": "/OSCOUT",
+   "stage": "preexisting",
+   "blocked_by": [
+    {
+     "net": "/PA0",
+     "preexisting": true
+    },
+    {
+     "net": "/IF_RST",
+     "preexisting": true
+    },
+    {
+     "net": "+3.3V",
+     "preexisting": true
+    },
+    {
+     "net": "/PA12",
+     "preexisting": true
+    },
+    {
+     "net": "/OSCIN",
+     "preexisting": true
+    }
+   ]
+  }
+ ],
+ "boxed_in": [
+  {
+   "verdict": "boxed_in_static",
+   "iterations": 5025,
+   "geometry": {
+    "grid_step": 0.1,
+    "clearance": 0.2,
+    "track_width": 0.127,
+    "via_diameter": null
+   },
+   "net": "/OSCOUT"
+  }
+ ],
+ "pad_pairs_connected": 61,
+ "pad_pairs_total": 62,
+ "pad_pairs_open": [
+  {
+   "net": "/OSCOUT",
+   "pairs_connected": 1,
+   "pairs_total": 2,
+   "outcome": "open",
+   "open_subtype": "unrouted"
+  }
+ ],
+ "power_trace_ampacity": [
+  {
+   "net": "+3.3V",
+   "bottleneck_width_mm": 0.127,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0,
+   "max_current_a": 0.54,
+   "max_current_ipc2152_a": 0.54,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 92.4
+  },
+  {
+   "net": "+5V",
+   "bottleneck_width_mm": 0.175,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0,
+   "max_current_a": 0.68,
+   "max_current_ipc2152_a": 0.68,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 18.9
+  }
+ ],
+ "scope": "merged",
+ "board_scoped_keys": [
+  "power_trace_ampacity",
+  "min_clearance_used"
+ ],
+ "env_knobs": {
+  "KICAD_ROUTE_TRACE": "1"
+ },
+ "power_widths": {
+  "GND": {
+   "requested_mm": 0.7,
+   "length_mm": 0,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": null,
+   "by_width_mm": {},
+   "in_run_scope": false
+  },
+  "+3.3V": {
+   "requested_mm": 0.7,
+   "length_mm": 86.64,
+   "under_mm": 27.41,
+   "under_share": 0.3164,
+   "min_mm": 0.127,
+   "by_width_mm": {
+    "0.127": 23.24,
+    "0.1616": 0.3,
+    "0.1962": 0.3,
+    "0.2308": 0.42,
+    "0.2416": 0.03,
+    "0.2654": 0.42,
+    "0.3": 2.6,
+    "0.3562": 0.03,
+    "0.4708": 0.03,
+    "0.5854": 0.03,
+    "0.7": 59.22
+   },
+   "in_run_scope": true
+  },
+  "+5V": {
+   "requested_mm": 0.7,
+   "length_mm": 18.11,
+   "under_mm": 14.31,
+   "under_share": 0.7901,
+   "min_mm": 0.175,
+   "by_width_mm": {
+    "0.175": 14.26,
+    "0.28": 0.04,
+    "0.7": 3.8
+   },
+   "in_run_scope": true
+  }
+ },
+ "power_widths_measured_on": "written board",
+ "power_widths_run_scope": [
+  "+3.3V",
+  "+5V"
+ ],
+ "regrade": {
+  "board": "file",
+  "graded_nets": 28,
+  "seconds": 0.03,
+  "unowned_broken": [],
+  "recovered": [],
+  "broken_by_run": []
+ },
+ "via_in_pad": {
+  "count": 0,
+  "sites": [],
+  "stamped": 0,
+  "restored": 0,
+  "protected": 0,
+  "unstampable": 0,
+  "site_created": 0,
+  "unprotected": [],
+  "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"
+ }
+}

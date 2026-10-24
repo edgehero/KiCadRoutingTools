@@ -1,0 +1,1509 @@
+{
+ "advisory": 0,
+ "advisory_pairs": [],
+ "assembly_sides": "both",
+ "back_side_zero_pad_blocks": [],
+ "blocking": 0,
+ "blocking_pairs": [],
+ "board": "wk/gpm/11_daplink/final_route/in.kicad_pcb",
+ "board_declares_no_floor": false,
+ "body_edge_band": {
+  "citation": "JLCPCB assembly terms, section 2 \"Notes on DFM\", item 3: \"The distance between the body of the components and the edge of the board must be equal or greater than 2.5mm.\" One assembler's rule, which also adds edge rails when the file has none (https://jlcpcb.com/help/article/Terms-and-Conditions-of-JLCPCB-Assembly-Service, read 2026-10-14)",
+  "eligible": 33,
+  "error": null,
+  "excluded": [
+   {
+    "mm": 0.0,
+    "ref": "P1",
+    "side": "F",
+    "source": "fab",
+    "why": "edge_receptacle"
+   },
+   {
+    "mm": 0.8,
+    "ref": "RST1",
+    "side": "F",
+    "source": "fab",
+    "why": "edge_actuator"
+   }
+  ],
+  "gates": false,
+  "in_band": [
+   {
+    "mm": 0.0,
+    "ref": "J2",
+    "side": "B",
+    "source": "fab"
+   },
+   {
+    "mm": 0.0,
+    "ref": "J3",
+    "side": "F",
+    "source": "fab"
+   },
+   {
+    "mm": 0.45,
+    "ref": "U1",
+    "side": "F",
+    "source": "fab"
+   },
+   {
+    "mm": 1.253,
+    "ref": "C6",
+    "side": "F",
+    "source": "fab"
+   },
+   {
+    "mm": 2.132,
+    "ref": "J1",
+    "side": "F",
+    "source": "fab"
+   },
+   {
+    "mm": 2.266,
+    "ref": "Y1",
+    "side": "F",
+    "source": "fab"
+   },
+   {
+    "mm": 2.493,
+    "ref": "U2",
+    "side": "F",
+    "source": "fab"
+   }
+  ],
+  "measured": 35,
+  "new_in_band": null,
+  "new_in_band_refs": null,
+  "threshold_basis": "derived_default",
+  "threshold_mm": 2.5,
+  "unmeasured": []
+ },
+ "body_edge_band_gating": 0,
+ "buildable": true,
+ "clearance": 0.2,
+ "clearance_source": "board netclass",
+ "coincident_origin_groups": [],
+ "coincident_origins": 0,
+ "coincident_origins_basis": "every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix, so they form a pair here like any other two parts. See duplicate_references for the names the board itself uses. A pair at one origin stacks only when it shares something physical on a face both occupy -- copper pad boxes (a plated barrel on both faces), an NPTH hole on copper, or pad copper / a drawn body the body channel found -- and is not in the intent's overlap_waivers (#1204); coincident_origins_exempt names the rest.",
+ "coincident_origins_exempt": [],
+ "contained": 0,
+ "containers": {},
+ "containment_blocking": 0,
+ "containments": [],
+ "courtyard_advisory": 0,
+ "courtyard_blocking": 0,
+ "courtyard_blocking_gating": null,
+ "courtyard_blocking_gating_pairs": [],
+ "courtyard_blocking_pairs": [],
+ "courtyard_fixed_pose_waived": [],
+ "courtyard_gating_basis": "no-baseline: report-only",
+ "courtyard_pairs": [],
+ "courtyard_severity": "error",
+ "courtyard_severity_basis": "project",
+ "courtyard_severity_waiver": null,
+ "courtyard_synthetic_refs": [],
+ "courtyard_waivers_unresolved": [],
+ "courtyard_waivers_unused": [],
+ "duplicate_references": {},
+ "fab_rejected_refs": [],
+ "fab_unjudged": 0,
+ "fab_unjudged_refs": [],
+ "footprint_blocks": 35,
+ "graphic_edge_shortfall_refs": [],
+ "graphic_pad_basis": "each part's pad copper against every OTHER part's footprint graphic copper (fp_poly / fp_line / fp_arc / fp_rect / fp_circle on a copper layer, #908) on a shared layer: the strokes by check_drc's pad-to-segment test, a filled shape's interior by containment (#1181). A CONTACT is judged on the stroke as drawn and is a `stack` on ANY net (two parts' copper in one place, check_assembly's pad_intersection argument) except a net tie's own tied net on the tie's copper; the clearance shortfall is graded at the modelled stroke check_drc grades and skips a pad of the one net the copper's owner gives it. Board-level art is not measured, nor copper the parser does not model (graphic_copper_unmeasured)",
+ "graphic_pad_contacts": [],
+ "graphic_pad_gating": null,
+ "graphic_pad_gating_pairs": null,
+ "graphic_pad_stack_pairs": [],
+ "graphic_pad_unmeasured": [],
+ "hole_conflicts": 0,
+ "keepout_copper_basis": "per-PAD copper rect (axis-aligned box at the pose) against each board-level rule-area keep-out with tracks not allowed, minus its holes, at a band of clearance + track_width/2 (the router's own track reach, obstacle_map.add_rule_area_keepout_obstacles). A pad is ILLEGAL when every copper layer it occupies is covered and no LANDING clears every covering area together by the band -- landings are the router's own CELLS on its default grid (routing_defaults.GRID_STEP): the pad's centre cell, and the cells of net_queries.pad_landing_extent (the shrunk rect, the inscribed ellipse for circle/oval pads, none for a tilted pad) -- and its net needs a connection (net with 2+ pads, not served by a same-net pour on those layers where pour is allowed AND a same-net zone outline reaches the pad copper at the pose). A through-hole pad is reported in keepout_copper_tht_refs, not failed, only when it keeps an ESCAPE layer: an uncovered outer layer, or an uncovered inner layer no zone of a different net covers at the pad (placement does not know the routing layer set, and a foreign plane is no escape); otherwise it fails like an SMD pad. The pour test reads the zone OUTLINE, not its fill: fill cut-outs, zone priority, zone holes and thermal-relief necks are ignored, so a pad the fill does not actually reach can read pour_served",
+ "keepout_copper_exempt": [],
+ "keepout_copper_pads": [],
+ "keepout_copper_tht_refs": [],
+ "keepout_copper_unmeasured": [],
+ "locked_contact_pairs": [],
+ "locked_contacts": 0,
+ "mating_keepout_count": 0,
+ "mating_keepout_refs": [],
+ "oob_graphic_copper_amount": 0.0,
+ "oob_graphic_copper_basis": "graphic copper shapes (drawn stroke, true circles) against the real outline + cutouts + milled contours not owned by the part, at margin 0; an edge running inside a filled shape counts by its depth in the copper",
+ "oob_graphic_copper_count": 0,
+ "oob_graphic_copper_refs": [],
+ "oob_graphic_copper_unmeasured": [],
+ "oob_graphic_copper_waived": [],
+ "oob_keepout_copper_amount": 0.0,
+ "oob_keepout_copper_count": 0,
+ "oob_keepout_copper_refs": [],
+ "oob_pad_amount": 0.0,
+ "oob_pad_basis": "part pad AABB vs outline inflated by the grading clearance (NOT the per-pad outline measure; see render_placement checklist.a_off_outline.pad_copper)",
+ "oob_pad_copper_basis": "per-PAD copper rects against the real outline at margin 0, a ranking MAGNITUDE (render_placement's checklist.a_off_outline.pad_copper). What gates is oob_pad_copper_gating_refs: pad_copper_overrun_mm, on true pad outlines (a custom pad on its parsed copper) with an edge-straddling castellated pad exempt",
+ "oob_pad_copper_count": 0,
+ "oob_pad_copper_gating_count": 0,
+ "oob_pad_copper_gating_refs": [],
+ "oob_pad_copper_overrun_mm": {},
+ "oob_pad_copper_refs": [],
+ "oob_pad_count": 0,
+ "oob_pad_refs": [],
+ "own_pad_basis": "each footprint's own pads against each other, by check_drc's pad-to-pad test, on a shared copper layer. Exempt as KiCad exempts them: two pads on one net, two pads with one number (unless they carry two different real nets that are not both a pin's `unconnected-(...)` net), and two pads in one net_tie_pad_groups group. Two pads with no net are not graded (check_drc's same-net rule; KiCad grades them `clearance`). A `short` is a contact between two pads on real nets (KiCad: shorting_items); a contact with a no-net pad is `no_net` (KiCad: clearance, actual 0)",
+ "own_pad_contacts": [],
+ "own_pad_gating_pairs": [],
+ "own_pad_short_pairs": [],
+ "own_pad_shorts": 0,
+ "pad_clearance_required": [],
+ "pad_conflicts": 0,
+ "pad_edge": {
+  "argument_mm": null,
+  "basis": "analytic pad copper extrema (custom pads: parsed polygons) vs rectangular Edge.Cuts centreline (within 0.1 mm of one: its bbox shrunk by the outline_inset_mm it strays); edge-straddling castellated pads exempt; other outlines sampled, not certified; no body/track/via/fill check",
+  "complete": false,
+  "findings": [],
+  "measured_pads": 0,
+  "minimum_gap_by_ref_mm": {},
+  "minimum_gap_mm": null,
+  "outline_inset_mm": null,
+  "required_mm": 0.2,
+  "rules_unmeasured": [],
+  "source": "fab edge floor (what routing writes)",
+  "tolerance_mm": 1e-06,
+  "units": "mm",
+  "unmeasured": [
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     112.9264,
+     105.966
+    ],
+    "pad_ref": "C1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     112.9264,
+     104.241
+    ],
+    "pad_ref": "C1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     114.5874,
+     105.966
+    ],
+    "pad_ref": "C2.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     114.5874,
+     107.691
+    ],
+    "pad_ref": "C2.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     125.2607,
+     104.8284
+    ],
+    "pad_ref": "C3.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     125.2607,
+     103.1034
+    ],
+    "pad_ref": "C3.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     123.7746,
+     114.5573
+    ],
+    "pad_ref": "C4.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     123.7746,
+     116.2823
+    ],
+    "pad_ref": "C4.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     116.4431,
+     113.3844
+    ],
+    "pad_ref": "C5.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     116.4431,
+     111.6594
+    ],
+    "pad_ref": "C5.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     122.1051,
+     117.0844
+    ],
+    "pad_ref": "C6.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     122.1051,
+     118.8094
+    ],
+    "pad_ref": "C6.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     108.2645,
+     116.3066
+    ],
+    "pad_ref": "C7.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     109.9895,
+     116.3066
+    ],
+    "pad_ref": "C7.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     145.2274,
+     104.8647
+    ],
+    "pad_ref": "C8.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     143.5024,
+     104.8647
+    ],
+    "pad_ref": "C8.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     116.8432,
+     109.9405
+    ],
+    "pad_ref": "C9.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     115.1182,
+     109.9405
+    ],
+    "pad_ref": "C9.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     131.4856,
+     106.4833
+    ],
+    "pad_ref": "D1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     131.4856,
+     104.7333
+    ],
+    "pad_ref": "D1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     128.7841,
+     107.7703
+    ],
+    "pad_ref": "D2.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     128.7841,
+     106.0203
+    ],
+    "pad_ref": "D2.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     133.1487,
+     102.5602
+    ],
+    "pad_ref": "D3.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     133.1487,
+     104.3102
+    ],
+    "pad_ref": "D3.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     137.0149,
+     111.0225
+    ],
+    "pad_ref": "J1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     137.0149,
+     108.4825
+    ],
+    "pad_ref": "J1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 2,
+    "pad_loc": [
+     137.0149,
+     105.9425
+    ],
+    "pad_ref": "J1.3",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 3,
+    "pad_loc": [
+     137.0149,
+     103.4025
+    ],
+    "pad_ref": "J1.4",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     143.7038,
+     117.4691
+    ],
+    "pad_ref": "J2.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 2,
+    "pad_loc": [
+     143.7038,
+     114.9291
+    ],
+    "pad_ref": "J2.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 3,
+    "pad_loc": [
+     143.7038,
+     112.3891
+    ],
+    "pad_ref": "J2.3",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 4,
+    "pad_loc": [
+     143.7038,
+     109.8491
+    ],
+    "pad_ref": "J2.4",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 5,
+    "pad_loc": [
+     143.7038,
+     107.3091
+    ],
+    "pad_ref": "J2.5",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     143.7038,
+     108.3612
+    ],
+    "pad_ref": "J3.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 2,
+    "pad_loc": [
+     143.7038,
+     110.9012
+    ],
+    "pad_ref": "J3.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 3,
+    "pad_loc": [
+     143.7038,
+     113.4412
+    ],
+    "pad_ref": "J3.3",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 4,
+    "pad_loc": [
+     143.7038,
+     115.9812
+    ],
+    "pad_ref": "J3.4",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 5,
+    "pad_loc": [
+     143.7038,
+     118.5212
+    ],
+    "pad_ref": "J3.5",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 2,
+    "pad_loc": [
+     107.355,
+     105.1542
+    ],
+    "pad_ref": "P1.A1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 3,
+    "pad_loc": [
+     107.355,
+     105.9542
+    ],
+    "pad_ref": "P1.A4",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 4,
+    "pad_loc": [
+     107.355,
+     107.1042
+    ],
+    "pad_ref": "P1.A5",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 5,
+    "pad_loc": [
+     107.355,
+     108.1042
+    ],
+    "pad_ref": "P1.A6",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 6,
+    "pad_loc": [
+     107.355,
+     108.6042
+    ],
+    "pad_ref": "P1.A7",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 7,
+    "pad_loc": [
+     107.355,
+     109.6042
+    ],
+    "pad_ref": "P1.A8",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 8,
+    "pad_loc": [
+     107.355,
+     110.7542
+    ],
+    "pad_ref": "P1.A9",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 9,
+    "pad_loc": [
+     107.355,
+     111.5542
+    ],
+    "pad_ref": "P1.A12",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 10,
+    "pad_loc": [
+     107.355,
+     111.5542
+    ],
+    "pad_ref": "P1.B1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 11,
+    "pad_loc": [
+     107.355,
+     110.7542
+    ],
+    "pad_ref": "P1.B4",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 12,
+    "pad_loc": [
+     107.355,
+     110.1042
+    ],
+    "pad_ref": "P1.B5",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 13,
+    "pad_loc": [
+     107.355,
+     109.1042
+    ],
+    "pad_ref": "P1.B6",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 14,
+    "pad_loc": [
+     107.355,
+     107.6042
+    ],
+    "pad_ref": "P1.B7",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 15,
+    "pad_loc": [
+     107.355,
+     106.6042
+    ],
+    "pad_ref": "P1.B8",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 16,
+    "pad_loc": [
+     107.355,
+     105.9542
+    ],
+    "pad_ref": "P1.B9",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 17,
+    "pad_loc": [
+     107.355,
+     105.1542
+    ],
+    "pad_ref": "P1.B12",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 18,
+    "pad_loc": [
+     106.78,
+     104.0342
+    ],
+    "pad_ref": "P1.S1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 19,
+    "pad_loc": [
+     102.6,
+     104.0342
+    ],
+    "pad_ref": "P1.S1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 20,
+    "pad_loc": [
+     106.78,
+     112.6742
+    ],
+    "pad_ref": "P1.S1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 21,
+    "pad_loc": [
+     102.6,
+     112.6742
+    ],
+    "pad_ref": "P1.S1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     109.3928,
+     107.1035
+    ],
+    "pad_ref": "R1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     111.2178,
+     107.1035
+    ],
+    "pad_ref": "R1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     113.5418,
+     115.2074
+    ],
+    "pad_ref": "R10.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     111.7168,
+     115.2074
+    ],
+    "pad_ref": "R10.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     140.8108,
+     108.2635
+    ],
+    "pad_ref": "R11.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     140.8108,
+     106.4385
+    ],
+    "pad_ref": "R11.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     108.7261,
+     114.6242
+    ],
+    "pad_ref": "R12.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     106.9011,
+     114.6242
+    ],
+    "pad_ref": "R12.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     111.2178,
+     109.1035
+    ],
+    "pad_ref": "R13.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     109.3928,
+     109.1035
+    ],
+    "pad_ref": "R13.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     109.5956,
+     110.7878
+    ],
+    "pad_ref": "R14.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     109.5956,
+     112.6128
+    ],
+    "pad_ref": "R14.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     119.1572,
+     109.3438
+    ],
+    "pad_ref": "R15.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     119.1572,
+     111.1688
+    ],
+    "pad_ref": "R15.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     137.7782,
+     114.2566
+    ],
+    "pad_ref": "R2.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     135.9532,
+     114.2566
+    ],
+    "pad_ref": "R2.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     125.2913,
+     107.9262
+    ],
+    "pad_ref": "R3.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     127.1163,
+     107.9262
+    ],
+    "pad_ref": "R3.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     123.6025,
+     109.3822
+    ],
+    "pad_ref": "R4.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     123.6025,
+     111.2072
+    ],
+    "pad_ref": "R4.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     137.7805,
+     116.0493
+    ],
+    "pad_ref": "R5.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     135.9555,
+     116.0493
+    ],
+    "pad_ref": "R5.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     128.8393,
+     103.0074
+    ],
+    "pad_ref": "R6.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     130.6643,
+     103.0074
+    ],
+    "pad_ref": "R6.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     127.1168,
+     103.6072
+    ],
+    "pad_ref": "R7.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     127.1168,
+     105.4322
+    ],
+    "pad_ref": "R7.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     133.1648,
+     107.8525
+    ],
+    "pad_ref": "R8.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     133.1648,
+     106.0275
+    ],
+    "pad_ref": "R8.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     115.2176,
+     116.9521
+    ],
+    "pad_ref": "R9.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     115.2176,
+     115.1271
+    ],
+    "pad_ref": "R9.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     140.8108,
+     104.85
+    ],
+    "pad_ref": "RST1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     140.8108,
+     100.65
+    ],
+    "pad_ref": "RST1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     116.7696,
+     101.5
+    ],
+    "pad_ref": "U1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     116.7696,
+     103.8
+    ],
+    "pad_ref": "U1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 2,
+    "pad_loc": [
+     123.0696,
+     103.8
+    ],
+    "pad_ref": "U1.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 3,
+    "pad_loc": [
+     116.7696,
+     106.1
+    ],
+    "pad_ref": "U1.3",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     125.7022,
+     111.2566
+    ],
+    "pad_ref": "U2.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     125.7022,
+     111.7566
+    ],
+    "pad_ref": "U2.2",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 2,
+    "pad_loc": [
+     125.7022,
+     112.2566
+    ],
+    "pad_ref": "U2.3",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 3,
+    "pad_loc": [
+     125.7022,
+     112.7566
+    ],
+    "pad_ref": "U2.4",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 4,
+    "pad_loc": [
+     125.7022,
+     113.2566
+    ],
+    "pad_ref": "U2.5",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 5,
+    "pad_loc": [
+     125.7022,
+     113.7566
+    ],
+    "pad_ref": "U2.6",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 6,
+    "pad_loc": [
+     125.7022,
+     114.2566
+    ],
+    "pad_ref": "U2.7",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 7,
+    "pad_loc": [
+     125.7022,
+     114.7566
+    ],
+    "pad_ref": "U2.8",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 8,
+    "pad_loc": [
+     125.7022,
+     115.2566
+    ],
+    "pad_ref": "U2.9",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 9,
+    "pad_loc": [
+     125.7022,
+     115.7566
+    ],
+    "pad_ref": "U2.10",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 10,
+    "pad_loc": [
+     125.7022,
+     116.2566
+    ],
+    "pad_ref": "U2.11",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 11,
+    "pad_loc": [
+     125.7022,
+     116.7566
+    ],
+    "pad_ref": "U2.12",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 12,
+    "pad_loc": [
+     127.1147,
+     118.1691
+    ],
+    "pad_ref": "U2.13",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 13,
+    "pad_loc": [
+     127.6147,
+     118.1691
+    ],
+    "pad_ref": "U2.14",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 14,
+    "pad_loc": [
+     128.1147,
+     118.1691
+    ],
+    "pad_ref": "U2.15",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 15,
+    "pad_loc": [
+     128.6147,
+     118.1691
+    ],
+    "pad_ref": "U2.16",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 16,
+    "pad_loc": [
+     129.1147,
+     118.1691
+    ],
+    "pad_ref": "U2.17",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 17,
+    "pad_loc": [
+     129.6147,
+     118.1691
+    ],
+    "pad_ref": "U2.18",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 18,
+    "pad_loc": [
+     130.1147,
+     118.1691
+    ],
+    "pad_ref": "U2.19",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 19,
+    "pad_loc": [
+     130.6147,
+     118.1691
+    ],
+    "pad_ref": "U2.20",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 20,
+    "pad_loc": [
+     131.1147,
+     118.1691
+    ],
+    "pad_ref": "U2.21",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 21,
+    "pad_loc": [
+     131.6147,
+     118.1691
+    ],
+    "pad_ref": "U2.22",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 22,
+    "pad_loc": [
+     132.1147,
+     118.1691
+    ],
+    "pad_ref": "U2.23",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 23,
+    "pad_loc": [
+     132.6147,
+     118.1691
+    ],
+    "pad_ref": "U2.24",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 24,
+    "pad_loc": [
+     134.0272,
+     116.7566
+    ],
+    "pad_ref": "U2.25",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 25,
+    "pad_loc": [
+     134.0272,
+     116.2566
+    ],
+    "pad_ref": "U2.26",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 26,
+    "pad_loc": [
+     134.0272,
+     115.7566
+    ],
+    "pad_ref": "U2.27",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 27,
+    "pad_loc": [
+     134.0272,
+     115.2566
+    ],
+    "pad_ref": "U2.28",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 28,
+    "pad_loc": [
+     134.0272,
+     114.7566
+    ],
+    "pad_ref": "U2.29",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 29,
+    "pad_loc": [
+     134.0272,
+     114.2566
+    ],
+    "pad_ref": "U2.30",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 30,
+    "pad_loc": [
+     134.0272,
+     113.7566
+    ],
+    "pad_ref": "U2.31",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 31,
+    "pad_loc": [
+     134.0272,
+     113.2566
+    ],
+    "pad_ref": "U2.32",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 32,
+    "pad_loc": [
+     134.0272,
+     112.7566
+    ],
+    "pad_ref": "U2.33",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 33,
+    "pad_loc": [
+     134.0272,
+     112.2566
+    ],
+    "pad_ref": "U2.34",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 34,
+    "pad_loc": [
+     134.0272,
+     111.7566
+    ],
+    "pad_ref": "U2.35",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 35,
+    "pad_loc": [
+     134.0272,
+     111.2566
+    ],
+    "pad_ref": "U2.36",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 36,
+    "pad_loc": [
+     132.6147,
+     109.8441
+    ],
+    "pad_ref": "U2.37",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 37,
+    "pad_loc": [
+     132.1147,
+     109.8441
+    ],
+    "pad_ref": "U2.38",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 38,
+    "pad_loc": [
+     131.6147,
+     109.8441
+    ],
+    "pad_ref": "U2.39",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 39,
+    "pad_loc": [
+     131.1147,
+     109.8441
+    ],
+    "pad_ref": "U2.40",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 40,
+    "pad_loc": [
+     130.6147,
+     109.8441
+    ],
+    "pad_ref": "U2.41",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 41,
+    "pad_loc": [
+     130.1147,
+     109.8441
+    ],
+    "pad_ref": "U2.42",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 42,
+    "pad_loc": [
+     129.6147,
+     109.8441
+    ],
+    "pad_ref": "U2.43",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 43,
+    "pad_loc": [
+     129.1147,
+     109.8441
+    ],
+    "pad_ref": "U2.44",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 44,
+    "pad_loc": [
+     128.6147,
+     109.8441
+    ],
+    "pad_ref": "U2.45",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 45,
+    "pad_loc": [
+     128.1147,
+     109.8441
+    ],
+    "pad_ref": "U2.46",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 46,
+    "pad_loc": [
+     127.6147,
+     109.8441
+    ],
+    "pad_ref": "U2.47",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 47,
+    "pad_loc": [
+     127.1147,
+     109.8441
+    ],
+    "pad_ref": "U2.48",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 0,
+    "pad_loc": [
+     119.2741,
+     113.3844
+    ],
+    "pad_ref": "Y1.1",
+    "reason": "outline uses sampled perimeter check"
+   },
+   {
+    "pad_index": 1,
+    "pad_loc": [
+     119.2741,
+     117.0844
+    ],
+    "pad_ref": "Y1.2",
+    "reason": "outline uses sampled perimeter check"
+   }
+  ]
+ },
+ "pad_edge_conflicts": 0,
+ "pad_edge_shortfall": 0,
+ "pad_edge_unmeasured": 144,
+ "pairs": [],
+ "parts_by_side": {
+  "B": 1,
+  "F": 34
+ },
+ "parts_by_side_basis": "every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix and counted separately. `pad_bearing` restricts that to blocks carrying at least one pad that is not a paste/mask aperture (#1143), and it is the count the populated-side verdict is taken from -- a zero-pad graphic on the back does not make a board double-sided.",
+ "parts_by_side_blocks": {
+  "B": 1,
+  "F": 34
+ },
+ "pin_in_courtyard": 0,
+ "pin_in_courtyard_pairs": [],
+ "reflow_passes": 2,
+ "smd_parts_by_side": {
+  "B": 1,
+  "F": 32
+ },
+ "testpoint_covered": 0,
+ "testpoint_covered_basis": "a test point (part_class testpoint) whose copper pads, as boxes about their centres (legality.bodyless_pad_shape), lie at least CONTAINMENT_FRAC under another same-face part's drawn body (fab, else silk). Gates when a member moved vs --baseline, the body is .Fab, and the pair is not in the intent's overlap_waivers or a container's. Fiducials are not graded here.",
+ "testpoint_covered_gating": null,
+ "testpoint_covered_gating_pairs": [],
+ "testpoint_covered_pairs": [],
+ "through_hole_by_side": {
+  "B": 0,
+  "F": 2
+ },
+ "through_hole_parts": 2,
+ "unsoldered_parts_by_side": {
+  "B": 0,
+  "F": 0
+ },
+ "verdict": "buildable (blocking 0)",
+ "waived": 0,
+ "zero_pad_blocks_by_side": {
+  "B": [],
+  "F": []
+ }
+}

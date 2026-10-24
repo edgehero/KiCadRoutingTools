@@ -1,0 +1,160 @@
+== 0 worktree bda59fa0, source wk/gpm/_src/steppenprobe/steppenprobe.kicad_pcb
+== 1 copy source
+Copied 2 file(s): human.kicad_pcb, human.kicad_pro
+== 2 strip copper (segments, arcs, vias, fills, teardrops, tuning patterns)
+dropped 729 copper form(s) (segment/arc/via), 2 zone fill(s), 0 teardrop zone(s), 0 generated form(s) (tuning patterns), 0 group(s); 1687824 -> 636587 chars
+== 2b strip board text, drawings off Edge.Cuts, padless artwork
+strip_drawings: dropped footprint (padless artwork) 4, gr_line 8, gr_text 54; kept 8 Edge.Cuts graphic(s)
+== 3 pile (every part with pads moved south of the outline, every lock removed)
+Modified 84 footprint positions
+Successfully wrote wk/gpm/12_steppenprobe/steppenprobe.kicad_pcb
+board      50.00 x 60.00 mm
+moved      84 pad-bearing part(s) to a pile at (125.00, 121.21); closest to the outline: U1 at 6.30 mm below it
+unlocked   0: -
+held       0 locked part(s), 0 padless artwork block(s)
+texts      253 of 253 text(s) on 84 moved part(s) at absolute 0
+zones      3 board-level zone(s)/rule area(s) kept; none covers under 25% of the bounding box and holds a moved part's pad
+siblings   ['.kicad_pro']
+verdict    unplaced=True partially_unplaced=False has_copper=False
+sanitize: {"carried": true, "sanitized_keys": ["meta.filename", "board.design_settings.drc_exclusions", "pcbnew.last_paths"], "dropped_prl": false, "sha256": "f556c8e309bbb66a6724055e21af4ea9a98b3a4c694190d2726cd690e297def0", "floors": {"clearance": {"value": 0.15, "source": "board netclass"}, "board_edge_clearance": {"value": 0.3, "source": "board constraint"}}, "kicad_dru": false, "kicad_prl": false}
+== 3b sanitize the pile (local zones under 25 %, text angles)
+zones kept 2: pour +3V3 (100.00% of the board); pour GND (100.00% of the board)
+zones dropped 1: rule area  (2.44% of the board)
+text angles reset: 0
+== 4 declarations (rule fa10-decl-v1)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+fa10-decl-v1: 4 posed, 2 edge claim(s)
+| ref | channel | footprint | why |
+|---|---|---|---|
+| H1 | mechanical.fixed | MountingHole_3.2mm_M3 | fa10-decl-v1: MountingHole footprint |
+| H2 | mechanical.fixed | MountingHole_3.2mm_M3 | fa10-decl-v1: MountingHole footprint |
+| H3 | mechanical.fixed | MountingHole_3.2mm_M3 | fa10-decl-v1: MountingHole footprint |
+| H4 | mechanical.fixed | MountingHole_3.2mm_M3 | fa10-decl-v1: MountingHole footprint |
+| J1 | brief.edge=north | USB_C_Receptacle_GCT_USB4085 | edge_receptacle, seat -0.61 mm from the edge |
+| SW1 | brief.edge=west | SW_SPDT_PCM12 | edge_actuator, seat -0.90 mm from the edge |
+| SW2 | not claimed | SW_Push_1P1T_NO_E-Switch_TL3301NxxxxxG | edge_actuator: nearest edge east is 3.45 mm away (> 0.5) |
+== 5a validate on the human board
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/_truth/steppenprobe/human_stripped.kicad_pcb --brief wk/gpm/12_steppenprobe/steppenprobe.design-brief.json --mechanical wk/gpm/12_steppenprobe/mechanical.json --emit-intent wk/gpm/_truth/steppenprobe/human_intent.json --decaps-from wk/gpm/_truth/steppenprobe/human_stripped.kicad_pcb
+ENV KNOBS: none
+design brief steppenprobe.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/12_steppenprobe/mechanical.json: 4 pose(s), 0 edge(s)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  merged the design brief into the emitted intent: declared claims OUTRANK the edge this tool infers from a part's current pose
+  4 mechanical ref(s) the grade anchors at their declared pose (compiled from the file at grade time; each must be locked there, or seated by a fixed_poses entry)
+  4 of them compiled into fixed_poses[] for place_simple to seat
+Wrote wk/gpm/_truth/steppenprobe/human_intent.json
+  0 block(s), 0 with a zone, 2 edge connector(s), 0 locked part(s)
+  envelope [100.0, 50.0, 150.0, 110.0] -- read from the board. The outline is not editable by this toolchain
+  decaps: max_distance_mm 2.925 from 19 tether(s) on the reference human_stripped.kicad_pcb
+  decaps: max_pin_distance_mm 12.9632 from 21 supply pin(s) on the reference
+  decaps: decap_ungraded promoted to error -- per cap, for the 19 cap(s) the reference keeps within 5 mm of their chip; the 1 it keeps beyond (C17) stay warn; a cap the reference lacks, or carries under another footprint, stays warn
+  rule roster: 9 armed, 9 not; 1 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [not applicable] zone_side: every part with pads is on F face, so no block can be on the wrong one
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+EXIT=0
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/_truth/steppenprobe/human_stripped.kicad_pcb --intent wk/gpm/_truth/steppenprobe/human_intent.json --brief wk/gpm/12_steppenprobe/steppenprobe.design-brief.json --mechanical wk/gpm/12_steppenprobe/mechanical.json --require-brief-coverage --json wk/gpm/_truth/steppenprobe/human_grade.json
+ENV KNOBS: none
+design brief steppenprobe.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/12_steppenprobe/mechanical.json: 4 pose(s), 0 edge(s)
+grading at clearance 0.15 (board netclass), edge 0.3 (board constraint)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Floorplan: human_stripped.kicad_pcb vs human_intent.json
+  84 footprints, 0 block(s), 0 part(s) covered
+  outline: 1 ring(s), 0 cutout(s), 0 milled contour(s)
+  0 error(s), 2 warning(s) from 9 rule(s)
+    [warn ] decap_ungraded: C17 is 11.19mm from U9, the IC it decouples -- beyond the 5.00mm tether search radius, so decap_distance never measured it against the 2.92mm limit. That limit was derived from the caps INSIDE the radius, so it says nothing about this one
+    [warn ] proximity: C3 pad 1 is 2.28mm from Y1 pad 1 on /OSCI, past the declared 2.20mm proximity limit
+  pad stacks: 0 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule)
+  along-edge seating (measured, not a verdict -- a violation needs a declared center_on_edge or along_edge_band):
+    SW1 west: +6.50mm (+12.0% of the 54.00mm edge, ring)
+    J1 north: +0.00mm (+0.0% of the 44.00mm edge, ring)
+  edge connector overhang (measured; the band's own currency is named):
+    J1 north: overhang 3.3300mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm unmeasured; facing north [courtyard+fab+marker, strong] pass
+    SW1 west: overhang 2.7000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm unmeasured
+  decap pins: 21 on 11 of 15 candidate IC(s) -- pintype 19, role 2
+    1 chip(s) where a lower channel would have named a DIFFERENT pin set (U1)
+  9 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - must_lock: the intent declares no must_lock patterns
+    - replicate: the intent declares no replicate copies
+    - template: the intent declares no templates
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  rule roster: 9 armed, 9 not; 1 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [not applicable] zone_side: every part with pads is on F face, so no block can be on the wrong one
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+  brief clause coverage: 2 graded, 0 uncovered, 0 abstained, 2 declared unknown, 0 carried
+  wrote wk/gpm/_truth/steppenprobe/human_grade.json
+JSON_SUMMARY: {"blocks": 0, "blocks_resolved": 0, "board": "human_stripped.kicad_pcb", "brief": "wk/gpm/12_steppenprobe/steppenprobe.design-brief.json", "brief_absent": 2, "brief_clauses": 4, "brief_clauses_abstained": 0, "brief_clauses_carried": 0, "brief_clauses_drifted": 0, "brief_clauses_graded": 2, "brief_clauses_not_claimed": 2, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 2, "brief_drift": 0, "brief_unknown": 2, "brief_unknown_keys": ["interfaces[J1].along_edge", "interfaces[SW1].along_edge"], "budget_abstained": 0, "budget_abstained_keys": [], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.15}, "complete": true, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 0, "decap_pins_by_channel": {"pinfunction": 0, "pintype": 19, "rail_net": 0, "role": 2}, "decap_pins_graded": 21, "derived_default_clauses": [], "edge_clearance_used": {"source": "board constraint", "value": 0.3}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 2, "edge_seating_worst_offset_pct": 12.04, "errors": 0, "hole_shortfall": 0.0, "hpwl": 1261.8475, "intent": "human_intent.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"dark": 1, "graded_pass": 17, "inapplicable": 3, "policy": 5, "unknown": 2}, "locked_contact_pairs": 0, "mechanical": "wk/gpm/12_steppenprobe/mechanical.json", "not_graded": {}, "oob_amount": 12.0893, "oob_area": 25.4355, "oob_count": 6, "oob_count_exempt": 6, "overlap_area": 0.0, "overlap_area_exact": 0.0, "overlap_area_excluded": 0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "pad_stack_count": 0, "parts_covered": 0, "parts_total": 84, "pass": true, "rules_dark_undispositioned": ["zone_containment"], "rules_run": 9, "rules_skipped": 9, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 0.0714, "state_partially_unplaced": false, "state_spread_ratio": 0.8779, "state_unplaced": false, "unmeasured_facts": [], "violations": 2, "violations_by_rule": {"decap_ungraded": 1, "proximity": 1}, "warnings": 2}
+EXIT=0
+== 5b emit the run intent on the pile
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/12_steppenprobe/steppenprobe.kicad_pcb --emit-intent wk/gpm/12_steppenprobe/intent.json --allow-unplaced --decaps-from wk/gpm/_truth/steppenprobe/human_stripped.kicad_pcb
+ENV KNOBS: none
+check_floorplan: this board does not look PLACED (84 footprints at 84 distinct position(s)).
+  - footprints span 10.0% of the board diagonal
+  - 100% of footprints lie outside the board outline
+  Its poses are not a placement yet: py_placer/place_simple.py places a board from a pile.
+  To see what the file currently contains:  python3 -X utf8 py_tools/render_placement.py <board> -o state.png
+design brief steppenprobe.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/12_steppenprobe/mechanical.json: 4 pose(s), 0 edge(s)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  merged the design brief into the emitted intent: declared claims OUTRANK the edge this tool infers from a part's current pose
+  DRIFT J1:edge: brief 'north' [declared]; board 'south' [inferred] -> brief wins
+  DRIFT SW1:edge: brief 'west' [declared]; board 'south' [inferred] -> brief wins
+  DRIFT H1:pose: mechanical (104.0, 54.0, 0.0) [recorded_fact]; board (127.071, 120.2909, 0.0) [inferred] -> mechanical wins
+  DRIFT H2:pose: mechanical (104.0, 106.0, 0.0) [recorded_fact]; board (127.7613, 120.2909, 0.0) [inferred] -> mechanical wins
+  DRIFT H3:pose: mechanical (146.0, 54.0, 0.0) [recorded_fact]; board (122.2387, 120.9045, 0.0) [inferred] -> mechanical wins
+  DRIFT H4:pose: mechanical (146.0, 106.0, 0.0) [recorded_fact]; board (122.929, 120.9045, 0.0) [inferred] -> mechanical wins
+  4 mechanical ref(s) the grade anchors at their declared pose (compiled from the file at grade time; each must be locked there, or seated by a fixed_poses entry)
+  4 of them compiled into fixed_poses[] for place_simple to seat
+Wrote wk/gpm/12_steppenprobe/intent.json
+  0 block(s), 0 with a zone, 2 edge connector(s), 0 locked part(s)
+  envelope [100.0, 50.0, 150.0, 110.0] -- read from the board. The outline is not editable by this toolchain
+  pile: the board is a pile (footprints span 10.0% of the board diagonal; 100% of footprints lie outside the board outline): staging poses are not claims -- withheld edge_connectors[].edge read off a pose, blocks[].zone, legality_budget.oob_count for 84 unlocked part(s) off the board; kept: KiCad-locked parts; a brief / mechanical.json merged after this
+  decaps: max_distance_mm 2.925 from 19 tether(s) on the reference human_stripped.kicad_pcb
+  decaps: max_pin_distance_mm 12.9632 from 21 supply pin(s) on the reference
+  decaps: decap_ungraded promoted to error -- per cap, for the 19 cap(s) the reference keeps within 5 mm of their chip; the 1 it keeps beyond (C17) stay warn; a cap the reference lacks, or carries under another footprint, stays warn
+  rule roster: 8 armed, 10 not; 2 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [not applicable] zone_side: every part with pads is on F face, so no block can be on the wrong one
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+EXIT=0
+redact_intent: 10 string(s) rewritten; remaining source markers: none
+== 6 record
+{
+ "intent.json": "a2238d2102796550af651d35290a7d0b3627c5f4a39abccddfd6c9a593bc13e5",
+ "mechanical.json": "f013f40a387a8b59204c4561250c9c37d672aa631f30691cf3affe1b7739ea29",
+ "steppenprobe.design-brief.json": "db1bdc2df23b842d7658e181daf90ae1ee50e5653b59dc0317f3a0e6b6e7dc3c",
+ "steppenprobe.kicad_pcb": "172fbe0b00a248f102cbdf7ae6a3771298061233884caa36bbb2fa35176ed7bf",
+ "steppenprobe.kicad_pro": "f556c8e309bbb66a6724055e21af4ea9a98b3a4c694190d2726cd690e297def0"
+}
+== 7 gate
+stage_gate steppenprobe: PASS {"copper": 0, "fills": 0, "teardrops": 0, "tuning": 0, "drawings": 0, "artwork": 0, "locked_text": 0, "text_angles": 0, "locked": 0, "on_board": 0, "pads_turned": 0, "leaks": 0, "gate_touched_inputs": 0} load {"pcbnew_footprints": 84, "parser_footprints": 84, "pcbnew_ok": true, "kicad_cli_drc_exit": 0}

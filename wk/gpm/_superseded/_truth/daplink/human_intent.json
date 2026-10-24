@@ -1,0 +1,345 @@
+{
+ "assembly": {
+  "sides": "both",
+  "why": "observed: 34 pad-bearing part(s) on F and 1 on B, 2 reflow pass(es). every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix and counted separately. `pad_bearing` restricts that to blocks carrying at least one pad that is not a paste/mask aperture (#1143), and it is the count the populated-side verdict is taken from -- a zero-pad graphic on the back does not make a board double-sided."
+ },
+ "blocks": [],
+ "board": "human_stripped.kicad_pcb",
+ "context": {
+  "basis": {
+   "assembly.sides": "observed_baseline",
+   "decaps.max_pin_distance_mm": "reference:human_stripped.kicad_pcb",
+   "defaults.zone_tolerance_mm": "derived_default",
+   "edge_connectors[C3].overhang_mm": "observed_baseline",
+   "edge_connectors[D1].overhang_mm": "observed_baseline",
+   "edge_connectors[J1].edge": "observed_baseline",
+   "edge_connectors[J1].overhang_mm": "observed_baseline",
+   "edge_connectors[J2].edge": "observed_baseline",
+   "edge_connectors[J2].overhang_mm": "observed_baseline",
+   "edge_connectors[J3].edge": "observed_baseline",
+   "edge_connectors[J3].overhang_mm": "observed_baseline",
+   "edge_connectors[P1].edge": "declared",
+   "edge_connectors[P1].overhang_mm": "observed_baseline",
+   "edge_connectors[R10].overhang_mm": "observed_baseline",
+   "edge_connectors[R11].overhang_mm": "observed_baseline",
+   "edge_connectors[R14].overhang_mm": "observed_baseline",
+   "edge_connectors[R4].overhang_mm": "observed_baseline",
+   "edge_connectors[R6].overhang_mm": "observed_baseline",
+   "edge_connectors[RST1].edge": "declared",
+   "edge_connectors[RST1].overhang_mm": "observed_baseline",
+   "envelope.tolerance_mm": "derived_default",
+   "legality_budget.oob_count": "observed_baseline",
+   "legality_budget.overlap_area": "observed_baseline"
+  },
+  "brief": {
+   "absent": [
+    "product.form_factor",
+    "product.primary_axis"
+   ],
+   "consequences": [],
+   "contradictions": [],
+   "counts": {
+    "fixed": 0,
+    "interfaces": 2,
+    "keepouts": 0
+   },
+   "declared": [
+    "interfaces[P1].edge",
+    "interfaces[RST1].edge"
+   ],
+   "fixed": [],
+   "not_graded": [],
+   "path": "wk/gpm/11_daplink/daplink.design-brief.json",
+   "product": {},
+   "unknown": [
+    "interfaces[P1].along_edge",
+    "interfaces[RST1].along_edge"
+   ],
+   "unmatched": [],
+   "unmatched_checked": true
+  },
+  "budget_withheld": {
+   "decaps.max_distance_mm": "the reference board human_stripped.kicad_pcb: only 1 tether(s) on the emitting board -- a max over 1 sample(s) is a coordinate, not a limit (DECAP_MIN_SAMPLE=3) (2 rail-sharing cap(s) lie beyond the 5.0mm search radius, worst 6.852mm)"
+  },
+  "cutouts": [],
+  "decap_census": {
+   "beyond_radius": 2,
+   "beyond_radius_refs": [
+    "C1",
+    "C2"
+   ],
+   "emitted_max_pin_distance_mm": 13.9269,
+   "ics": 1,
+   "max_mm": 1.8150377406544396,
+   "max_mm_display": 1.815,
+   "median_mm": 1.815,
+   "metric": "cap footprint centroid to IC bounding box, clamped to 0 inside (placement.groups.decap_tethers)",
+   "no_rail_chip": 0,
+   "no_rail_chip_refs": [],
+   "population": 3,
+   "reference_board": "human_stripped.kicad_pcb",
+   "reference_board_sha256": "768316f36a5ffd483e9239516a31275e3fed50a8488012dc745fcd6d40d032a4",
+   "reference_part_match": 1.0,
+   "reference_pin_census": {
+    "covered": 8,
+    "max_mm": 13.9269,
+    "max_raw": 13.926881129671496,
+    "pins": 8,
+    "uncovered": 0
+   },
+   "reference_tethers": 1,
+   "search_radius_mm": 5.0,
+   "source": "auto-tethers",
+   "tethers": 1,
+   "unaccounted": 0,
+   "worst_beyond_mm": 6.852
+  },
+  "edge_contours": 0,
+  "file_locked": [],
+  "keepouts_note": "empty because a keep-out is a mechanical fact -- an enclosure rib, a standoff, a battery, a display window, an antenna clearance -- and none of those can be read off a board. \"[]\" here means NONE DECLARED, never \"not considered\". Declare them by hand; since #701 the seat search honours them, not only the grade.",
+  "note": "read-only, describing the board as it is. The outline is not editable by this toolchain: size, cutouts and slots are mechanical decisions the user owns",
+  "reconciliation": [
+   {
+    "field": "edge",
+    "id": "P1:edge",
+    "kind": "agree",
+    "ref": "P1",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/_truth/daplink/human_stripped.kicad_pcb",
+      "value": "west"
+     },
+     "brief": {
+      "authority": "declared",
+      "source": "wk/gpm/11_daplink/daplink.design-brief.json (sha256 7d8f52c5543efcf874b7583cc518918b0a75854089a3449153248b3f6e65fd84)",
+      "value": "west"
+     }
+    },
+    "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+    "winner": "brief"
+   },
+   {
+    "field": "edge",
+    "id": "RST1:edge",
+    "kind": "agree",
+    "ref": "RST1",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/_truth/daplink/human_stripped.kicad_pcb",
+      "value": "north"
+     },
+     "brief": {
+      "authority": "declared",
+      "source": "wk/gpm/11_daplink/daplink.design-brief.json (sha256 7d8f52c5543efcf874b7583cc518918b0a75854089a3449153248b3f6e65fd84)",
+      "value": "north"
+     }
+    },
+    "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+    "winner": "brief"
+   }
+  ]
+ },
+ "decaps": {
+  "max_pin_distance_mm": 13.9269
+ },
+ "defaults": {
+  "zone_tolerance_mm": 0.5
+ },
+ "edge_connectors": [
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "C3"
+  },
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "D1"
+  },
+  {
+   "edge": "south",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "J1"
+  },
+  {
+   "edge": "east",
+   "overhang_mm": {
+    "max": 9.668,
+    "min": 0.0
+   },
+   "ref": "J2"
+  },
+  {
+   "edge": "east",
+   "overhang_mm": {
+    "max": 9.668,
+    "min": 0.0
+   },
+   "ref": "J3"
+  },
+  {
+   "context": {
+    "basis": {},
+    "brief_row": 0,
+    "compiled_from": {},
+    "why": "fa10-decl-v1: edge_receptacle seated at the west edge in the source"
+   },
+   "edge": "west",
+   "overhang_mm": {
+    "max": 0.525,
+    "min": 0.0
+   },
+   "ref": "P1",
+   "source": "brief"
+  },
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "R10"
+  },
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "R11"
+  },
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "R14"
+  },
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "R4"
+  },
+  {
+   "note": "overhang observed at 0.000mm; not an edge part (no part class), so no edge is claimed",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "R6"
+  },
+  {
+   "context": {
+    "basis": {},
+    "brief_row": 1,
+    "compiled_from": {},
+    "why": "fa10-decl-v1: edge_actuator seated at the north edge in the source"
+   },
+   "edge": "north",
+   "overhang_mm": {
+    "max": 0.5,
+    "min": 0.0
+   },
+   "ref": "RST1",
+   "source": "brief"
+  }
+ ],
+ "envelope": {
+  "rect": [
+   100.0,
+   100.0,
+   150.0038,
+   120.0
+  ],
+  "tolerance_mm": 0.5
+ },
+ "keepouts": [],
+ "kind": "floorplan-intent",
+ "legality_budget": {
+  "oob_count": 5,
+  "overlap_area": 0.0
+ },
+ "min_reader": 12,
+ "must_lock": [],
+ "proximity": [
+  {
+   "basis": "pad_edge",
+   "context": {
+    "basis": "the farthest crystal leg on the human corpus, 75th percentile (placement_survey.py)",
+    "limit": "derived_default",
+    "role": "crystal",
+    "source": "placement.crystals"
+   },
+   "max_mm": 8.1,
+   "near": "U2",
+   "pads": {
+    "U2": [
+     "5",
+     "6"
+    ],
+    "Y1": [
+     "1",
+     "2"
+    ]
+   },
+   "ref": "Y1"
+  },
+  {
+   "basis": "pad_edge",
+   "context": {
+    "basis": "the farthest load cap on the human corpus, 75th percentile (placement_survey.py)",
+    "limit": "derived_default",
+    "role": "crystal load cap",
+    "source": "placement.crystals"
+   },
+   "max_mm": 2.2,
+   "near": "Y1",
+   "pads": {
+    "C5": [
+     "1"
+    ],
+    "Y1": [
+     "1"
+    ]
+   },
+   "ref": "C5"
+  },
+  {
+   "basis": "pad_edge",
+   "context": {
+    "basis": "the farthest load cap on the human corpus, 75th percentile (placement_survey.py)",
+    "limit": "derived_default",
+    "role": "crystal load cap",
+    "source": "placement.crystals"
+   },
+   "max_mm": 2.2,
+   "near": "Y1",
+   "pads": {
+    "C6": [
+     "1"
+    ],
+    "Y1": [
+     "2"
+    ]
+   },
+   "ref": "C6"
+  }
+ ],
+ "schema": 1,
+ "units": "mm"
+}

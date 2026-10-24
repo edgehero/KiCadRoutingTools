@@ -1,0 +1,125 @@
+{
+ "schema": 1,
+ "board": "fixed.kicad_pcb",
+ "groups": [
+  {
+   "name": "usb_in",
+   "role": "interface",
+   "refs": [
+    "P1",
+    "R1",
+    "R14",
+    "R12",
+    "R13"
+   ],
+   "anchor": "P1",
+   "near": [
+    "power",
+    "core"
+   ],
+   "why": "USB-C receptacle (west edge) with its CC1/CC2 5k1 pull-downs at the CC pins and the 33R D-/D+ series pair; the pair borders core (PA11/PA12)"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "refs": [
+    "U1",
+    "C1",
+    "C2",
+    "C3"
+   ],
+   "anchor": "U1",
+   "near": [
+    "usb_in",
+    "core"
+   ],
+   "why": "AMS1117-3.3 LDO from VBUS: C1 10nF + C2 10uF on its VI (+5V), C3 10uF on VO (+3.3V, the LDO's required output cap and the only 3.3V bulk cap)"
+  },
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U2",
+    "Y1",
+    "C5",
+    "C6",
+    "C4",
+    "R2",
+    "R3",
+    "R4",
+    "R9",
+    "R10",
+    "C7",
+    "C9",
+    "R15",
+    "R5"
+   ],
+   "anchor": "U2",
+   "near": [
+    "usb_in",
+    "power",
+    "target",
+    "debug"
+   ],
+   "why": "STM32F103CB with its 8MHz crystal and 20pF load caps, NRST pull-up R2 + cap C4, BOOT0 and PC13 pull-downs R3/R4, the PA0 4k7/4k7 strap divider R9/R10, the USB-side 18pF caps C7/C9 and the 1k5 D+ pull-up R15 at PA11/PA12; R5 100R series from PB12 (the SWDIO driver) onto TGT_SWDIO, at the driver pin"
+  },
+  {
+   "name": "debug",
+   "role": "interface",
+   "refs": [
+    "J1"
+   ],
+   "anchor": "J1",
+   "near": [
+    "core"
+   ],
+   "why": "1x04 vertical SWD header that programs the STM32 itself (PA13/PA14); a short vertical header, no edge rule"
+  },
+  {
+   "name": "target",
+   "role": "interface",
+   "refs": [
+    "J3",
+    "J2"
+   ],
+   "anchor": "J3",
+   "near": [
+    "core",
+    "reset"
+   ],
+   "why": "target-side right-angle SMT headers on the east edge, opposite the USB end: J3 (F.Cu) target SWD/RST, J2 (B.Cu) target UART"
+  },
+  {
+   "name": "reset",
+   "role": "ui",
+   "refs": [
+    "RST1",
+    "R11",
+    "C8"
+   ],
+   "anchor": "RST1",
+   "near": [
+    "target",
+    "core"
+   ],
+   "why": "target reset button (north edge) with the TGT_RST 10k pull-up and 10nF cap beside it"
+  },
+  {
+   "name": "leds",
+   "role": "ui",
+   "refs": [
+    "D1",
+    "D2",
+    "D3",
+    "R6",
+    "R7",
+    "R8"
+   ],
+   "anchor": "D1",
+   "near": [
+    "core"
+   ],
+   "why": "three status LEDs (G/B on PB5/PB6 sinking, R on PA9 sourcing) each with its series resistor"
+  }
+ ]
+}

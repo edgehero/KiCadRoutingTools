@@ -1,0 +1,831 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/11_daplink/final_route/s3_pour.kicad_pcb wk/gpm/11_daplink/final_route/s4_route.kicad_pcb --nets "*" --track-width 0.127 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3 --power-nets +5V +3.3V GND --power-nets-widths 0.7 0.7 0.7 --layer-costs 1.0 1.0 --same-net-pad-clearance 0.1 --json-out wk/gpm/11_daplink/final_route/s4_route.json
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+  Default class clearance 0.1818 mm, unchanged by this step but below the 0.2 mm an earlier step asked for: an automatic descent on +3.3V, /IF_RST, /IF_SWDIO, /OSCIN, /OSCOUT, /PA0 (+6 more) lowered it.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.2 to route the other nets at 0.2 again.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1818mm.
+--clearance-ceiling 0.2: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/11_daplink/final_route/s3_pour.kicad_pcb to expand net patterns...
+Pattern '*' matched 30 nets
+Routing 30 nets: ['+3.3V', '+5V', '/D+', '/D-', '/IF_RST']...
+Loading wk/gpm/11_daplink/final_route/s3_pour.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+
+Skipping 29 already-routed net(s): 28 x Already fully connected, 1 x Only 1 pad(s)
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: GND
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+27 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.01s
+Found 29 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.05s (29 nets)
+Plane fragility: exact-fill geometry (10 filled island(s) from KiCad refill)
+Plane fragility field: 95201 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing GND (id=4)
+  Detected multi-point net with 33 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +521 region-laddered target(s) across 9 component(s) (phase 1)
+  Existing copper joins 33 terminals into 9 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 22 and 24, length=8.32mm)
+  WARNING: plane tap U2.20: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+           NOTE: --via-size cannot prevent this. The via is re-derived from min(pad.size_x, pad.size_y) floored at the fab ladder, so RAISING --via-size makes the clamp fire more readily, never less. A hard tier or --fab-overrides is what forbids the escalation.
+  Phase 1 edge (pads 22,24) failed after 20095 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/8) (pads 25 and 27, length=8.32mm)
+  WARNING: plane tap U2.35: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  WARNING: plane tap U2.23: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 25,27) failed after 1178 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (3/8) (pads 20 and 21, length=4.85mm)
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      barrel-in-fill: weld complete at via (125.60,108.90); trimmed 5 tail node(s)
+  Phase 1 routed in 30704 iterations, 8 segments
+  SUCCESS: 8 segments, 1 vias, 30704 iterations, length=1.22mm (stubs=0.00mm) (0.76s)
+
+Sync pcb_data: 266 -> 258 (kept stubs) -> 266 (after adding 8)
+
+============================================================
+Multi-point Phase 3: Routing 7 tap connections
+============================================================
+
+GND (net 4):
+  POUR-LAUNCH v3: +480 region-laddered target(s) across 8 component(s) (phase 3)
+  Multi-point net Phase 3: routing 7 remaining MST edges (longest first)
+    [1/7] Routing MST edge: pad 21 -> pad 23 (length=4.24mm) target=(127.61, 109.84)
+  WARNING: plane tap U2.47: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+      backward stuck (26 < 5000), forward=5000  [x6]
+        backward cell (1276, 1098, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB9-Pad46)(1 pad)  [x6]
+        backward cell (1276, 1098, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+        backward cell (1276, 1098, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (67 < 5000), forward=5000  [x2]
+        backward cell (1276, 1098, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20145 iterations (0.22s)
+    [2/7] (1 failed) Routing MST edge: pad 17 -> pad 19 (length=4.20mm) target=(123.77, 116.28)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 7014 iterations (0.02s)
+    [3/7] (1 failed) Routing MST edge: pad 19 -> pad 22 (length=3.45mm) target=(125.70, 114.76)
+      Routed in 215178 iterations (0.49s)
+    [4/7] (1 failed) Routing MST edge: pad 22 -> pad 24 (length=8.32mm) target=(130.61, 118.17)
+      backward stuck (17 < 5000), forward=5000  [x6]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad), /TGT_RST(1 track)  [x2]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)  [x4]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (42 < 5000), forward=5000  [x2]
+        backward cell (1306, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20093 iterations (0.05s)
+    [5/7] (2 failed) Routing MST edge: pad 21 -> pad 18 (length=3.14mm) target=(123.60, 109.38)
+      Routed in 861 iterations (0.00s)
+      barrel-in-fill: weld complete at via (124.50,109.60); trimmed 9 tail node(s)
+    Fallback: attempting orphaned pad 23 directly from connected copper
+    [6/7] (2 failed) Routing MST edge: pad 21 -> pad 23 (length=4.24mm) target=(127.61, 109.84)
+      backward stuck (26 < 5000), forward=5000  [x6]
+        backward cell (1276, 1098, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB9-Pad46)(1 pad)  [x6]
+        backward cell (1276, 1098, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+        backward cell (1276, 1098, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (67 < 5000), forward=5000  [x2]
+        backward cell (1276, 1098, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20145 iterations (0.22s)
+    Fallback: attempting orphaned pad 24 directly from connected copper
+    [6/7] (2 failed) Routing MST edge: pad 22 -> pad 24 (length=8.32mm) target=(130.61, 118.17)
+      backward stuck (17 < 5000), forward=5000  [x6]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad), /TGT_RST(1 track)  [x2]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)  [x4]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (42 < 5000), forward=5000  [x2]
+        backward cell (1306, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20093 iterations (0.05s)
+    Fallback: attempting orphaned pad 25 directly from connected copper
+    [6/7] (2 failed) Routing MST edge: pad 22 -> pad 25 (length=9.82mm) target=(132.11, 118.17)
+      backward stuck (20 < 5000), forward=5000  [x6]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)  [x2]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)  [x4]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (45 < 5000), forward=5000  [x2]
+        backward cell (1321, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20105 iterations (0.05s)
+    Fallback: attempting orphaned pad 27 directly from connected copper
+    [7/7] (3 failed) Routing MST edge: pad 22 -> pad 27 (length=11.32mm) target=(134.03, 111.76)
+      backward stuck (119 < 5000), forward=5000  [x2]
+        backward cell (1340, 1118, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: +3.3V(2 track, 1 pad), /IF_SWDIO(2 track, 1 pad), /PA12(1 track)  [x2]
+      backward stuck (194 < 5000), forward=5000  [x2]
+        backward cell (1340, 1118, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)  [x2]
+      backward stuck (248 < 5000), forward=5000  [x2]
+        backward cell (1340, 1118, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+          Blocking obstacles: /IF_SWDIO(1 track, 1 pad), +3.3V(1 pad)  [x2]
+      backward stuck (333 < 5000), forward=5000  [x2]
+        backward cell (1340, 1118, layer=0): ok, 3/8 neighbors blocked  [x2]
+          Blocking obstacles: /IF_SWDIO(1 track)  [x2]
+      Failed to route MST edge after 20894 iterations (0.05s)
+  Warning: 4 pad(s) not connected (4 MST edge(s) failed)
+  Phase 3 routing complete: 3 edges, 19 total segments, 4 total vias
+    Ripping /PA12 (net 1) to retry tap route...
+      PRE-EXISTING rip: '/PA12' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  POUR-LAUNCH v3: +480 region-laddered target(s) across 8 component(s) (phase 3)
+  Multi-point net Phase 3: routing 7 remaining MST edges (longest first)
+    [8/7] (4 failed) Routing MST edge: pad 21 -> pad 23 (length=4.24mm) target=(127.61, 109.84)
+      Wide power route blocked - routed short edge at 0.1270mm (down from 0.7000)
+      Routed in 15574 iterations (0.03s)
+    [9/7] (4 failed) Routing MST edge: pad 17 -> pad 19 (length=4.20mm) target=(123.77, 116.28)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 8146 iterations (0.02s)
+    [10/7] (4 failed) Routing MST edge: pad 19 -> pad 22 (length=3.45mm) target=(125.70, 114.76)
+      Routed in 215177 iterations (0.51s)
+    [11/7] (4 failed) Routing MST edge: pad 22 -> pad 24 (length=8.32mm) target=(130.61, 118.17)
+      backward stuck (17 < 5000), forward=5000  [x6]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad), /TGT_RST(1 track)  [x2]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)  [x4]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (42 < 5000), forward=5000  [x2]
+        backward cell (1306, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20093 iterations (0.06s)
+    [12/7] (5 failed) Routing MST edge: pad 21 -> pad 18 (length=3.14mm) target=(123.60, 109.38)
+      Routed in 116 iterations (0.00s)
+    Fallback: attempting orphaned pad 24 directly from connected copper
+    [13/7] (5 failed) Routing MST edge: pad 22 -> pad 24 (length=8.32mm) target=(130.61, 118.17)
+      backward stuck (17 < 5000), forward=5000  [x6]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad), /TGT_RST(1 track)  [x2]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)  [x4]
+        backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (42 < 5000), forward=5000  [x2]
+        backward cell (1306, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20093 iterations (0.05s)
+    Fallback: attempting orphaned pad 27 directly from connected copper
+    [13/7] (5 failed) Routing MST edge: pad 23 -> pad 27 (length=8.33mm) target=(134.03, 111.76)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 77142 iterations (0.07s)
+    [14/7] (5 failed) Routing MST edge: pad 27 -> pad 25 (length=8.32mm) target=(132.11, 118.17)
+      backward stuck (20 < 5000), forward=5000  [x6]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)  [x2]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)  [x4]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (45 < 5000), forward=5000  [x2]
+        backward cell (1321, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20105 iterations (0.06s)
+    Fallback: attempting orphaned pad 25 directly from connected copper
+    [15/7] (6 failed) Routing MST edge: pad 27 -> pad 25 (length=8.32mm) target=(132.11, 118.17)
+      backward stuck (20 < 5000), forward=5000  [x6]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)  [x2]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)  [x4]
+        backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (45 < 5000), forward=5000  [x2]
+        backward cell (1321, 1182, layer=0): ok, 3/8 neighbors blocked  [x2]
+      Failed to route MST edge after 20105 iterations (0.06s)
+  Warning: 2 pad(s) not connected (2 MST edge(s) failed)
+  Phase 3 routing complete: 5 edges, 67 total segments, 4 total vias
+    GND: Retry SUCCESS (N=1): 4 -> 2 failed edges
+    Adding 59 tap segments, 3 tap vias to obstacles before re-routing...
+    Re-routing 1 ripped net(s)...
+
+  Re-routing /PA12 (net 1)...
+Route found in 78 iterations, path length: 57
+    Re-routed main path: 9 segments, 0 vias
+  NOT CONNECTED (so far): GND - U2 pad 20 at (130.61, 118.17) - may still be recovered; final verdict in the end-of-run summary
+  NOT CONNECTED (so far): GND - U2 pad 23 at (132.11, 118.17) - may still be recovered; final verdict in the end-of-run summary
+  Added 59 tap segments, 3 tap vias
+  Net total time: 2.95s, 771783 iterations
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing GND (partial, 4 disconnected parts)
+    bare-ball escape: C8.2 dogbone (10 seg(s), 1 via(s)) (#666)
+    bare-ball escape: J3.5 dogbone (11 seg(s), 1 via(s)) (#666)
+    bare-ball escape: C1.2 dogbone (10 seg(s), 1 via(s)) (#666)
+    bare-ball escape: C9.2 dogbone (11 seg(s), 1 via(s)) (#666)
+  WARNING: net rescue net_4: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+    endpoint cell blocked for U2.20 -- seeded 140 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: /IF_SWDIO(2 track, 1 pad), +3.3V(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: /IF_SWDIO(1 track, 1 pad), +3.3V(1 pad)
+backward stuck (332 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (464 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 20798 iterations (both directions)
+    endpoint cell blocked for U2.20 -- seeded 140 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: /IF_SWDIO(1 track, 1 pad), +3.3V(1 pad)
+backward stuck (446 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (585 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 21033 iterations (both directions)
+    endpoint cell blocked for U2.20 -- seeded 140 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: /IF_SWDIO(1 track, 1 pad), +3.3V(1 pad)
+backward stuck (516 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (660 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 21178 iterations (both directions)
+    endpoint cell blocked for U2.20 -- seeded 140 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 pad), /IF_SWDIO(1 pad)
+backward stuck (582 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (729 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 21313 iterations (both directions)
+    endpoint cell blocked for U2.20 -- seeded 140 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 pad), /IF_SWDIO(1 pad)
+backward stuck (652 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (809 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 21463 iterations (both directions)
+    endpoint cell blocked for U2.20 -- seeded 147 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 147 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 pad), /IF_SWDIO(1 pad)
+backward stuck (652 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (809 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 21463 iterations (both directions)
+    endpoint cell blocked for U2.20 -- seeded 175 free on-pad cell(s)
+    endpoint cell blocked for U2.23 -- seeded 175 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 pad), /IF_SWDIO(1 pad)
+backward stuck (652 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (809 < 5000), forward=5000
+  backward cell (5361, 4470, layer=0): ok, 0/8 neighbors blocked
+No route found after 21463 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 99 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (366 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (507 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 20875 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 99 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (486 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (644 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21132 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 99 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (506 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (659 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21167 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 99 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (636 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (806 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21444 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 99 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (656 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (824 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21482 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 99 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (656 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (824 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21482 iterations (both directions)
+    endpoint cell blocked for R4.1 -- seeded 165 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+backward stuck (656 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (824 < 5000), forward=5000
+  backward cell (5225, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21482 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 330 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (366 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (507 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 20875 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 330 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (486 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (644 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21132 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 330 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (506 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (659 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21167 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 330 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(2 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (636 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (806 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21444 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 330 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 140 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (656 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (824 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21482 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 363 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 147 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (656 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (824 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21482 iterations (both directions)
+    endpoint cell blocked for R3.1 -- seeded 495 free on-pad cell(s)
+    endpoint cell blocked for U2.8 -- seeded 175 free on-pad cell(s)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=18)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 8/8 neighbors blocked (margin=8)
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+backward stuck (656 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked (margin=2)
+backward stuck (824 < 5000), forward=5000
+  backward cell (5285, 4727, layer=0): ok, 0/8 neighbors blocked
+No route found after 21482 iterations (both directions)
+    improved (4 -> 4 parts, 3.9s, width 0.127 vs requested 0.7)
+Rescue pass: 0 recovered, 1 improved, 0 unchanged (3.9s)
+  WARNING: terminal escalation net_1: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  WARNING: terminal escalation net_4: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+
+Terminal geometry escalation (better than shipping opens): 2 candidate net(s)
+  terminal escalation: /PA12 at track 0.127 via 0.45/0.2 (rung 1/2)
+Route found in 7578 iterations, path length: 41
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 69671 iterations, path length: 327
+    terminal escalation: /PA12 recovered at 0.127x0.45/0.2 (3 -> 1 parts, 0.0s)
+  terminal escalation: GND at track 0.509 via 0.45/0.2 (rung 1/3)
+backward stuck (1 < 5000), forward=5000
+  backward cell (1340, 1118, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: +3.3V(1 track, 1 pad), /IF_SWDIO(1 track, 1 pad)
+No route found after 5001 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+No route found after 5001 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+No route found after 5001 iterations (both directions)
+  terminal escalation: GND at track 0.318 via 0.25/0.15 (rung 2/3)
+backward stuck (1 < 5000), forward=5000
+  backward cell (1340, 1118, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: /IF_SWDIO(1 track, 1 pad), +3.3V(1 pad)
+No route found after 5001 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (1306, 1182, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: unconnected-(U2-PB1-Pad19)(1 pad), unconnected-(U2-PB10-Pad21)(1 pad)
+No route found after 5001 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (1321, 1182, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: +3.3V(1 track, 1 pad), unconnected-(U2-PB11-Pad22)(1 pad)
+No route found after 5001 iterations (both directions)
+  terminal escalation: GND at track 0.127 via 0.25/0.15 (rung 3/3)
+backward stuck (27 < 5000), forward=5000
+  backward cell (1340, 1118, layer=0): ok, 3/8 neighbors blocked
+    Blocking obstacles: /IF_SWDIO(1 track)
+No route found after 5027 iterations (both directions)
+backward stuck (28 < 5000), forward=5000
+  backward cell (1306, 1182, layer=0): ok, 3/8 neighbors blocked
+No route found after 5028 iterations (both directions)
+backward stuck (28 < 5000), forward=5000
+  backward cell (1321, 1182, layer=0): ok, 3/8 neighbors blocked
+No route found after 5028 iterations (both directions)
+    terminal escalation: GND unrecovered (0.1s)
+Terminal escalation: 1 recovered, 1 unrecovered (0.1s)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/PA12' (was blocking 'GND'): rerouted
+Closed 2 stub gap(s) to same-net copper
+Cycle prune: removed 1 redundant loop segment(s) across 1 net(s)
+Octolinear smoothing: collapsed 6 staircase span(s) on 3 net(s), -1.24 mm of copper (#536)
+Merged 37 collinear joint(s) on 1 net(s): -37 redundant segment(s) (#811)
+Stripped 16 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+Stripping 4 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed
+  Multi-point:   30/33 pads connected (3 FAILED)
+  Total vias:    11
+  Total time:    0.76s
+  Iterations:    30,704
+  Fragility refresh (#466): 5 windows, 0.05s total
+  History congestion (#590): 4 contest + 1 rip + 4 blocked-frontier event(s) over 2819 cell(s), peak 0.23mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed multi-point connections:
+  GND: U2 pad ? at (130.61, 118.17) not connected
+  GND: U2 pad ? at (132.11, 118.17) not connected
+  GND: U2 pad ? at (134.03, 111.76) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3.3V: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+  +5V: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  GND: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "GND", "failed_pads": [{"component_ref": "U2", "pad_number": "?", "x": 130.6147, "y": 118.1691}, {"component_ref": "U2", "pad_number": "?", "x": 132.1147, "y": 118.1691}, {"component_ref": "U2", "pad_number": "?", "x": 134.0272, "y": 111.7566}]}], "multipoint_nets": 1, "multipoint_pads_connected": 30, "multipoint_pads_total": 33, "multipoint_edges_routed": 6, "multipoint_edges_failed": 2, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.76, "total_iterations": 30704, "total_vias": 11, "cleanup_disconnected": [], "min_clearance_used": 0.1818, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.1818}, "count": 52, "nets": [1, 4], "narrowed": [{"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6333, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6333, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.2656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1908, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1711, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.2656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "net rescue", "count": 1}, {"net": 1, "net_name": "/PA12", "kind": "via_diameter", "requested": 0.5, "delivered": 0.45, "site": "terminal escalation", "count": 1}], "min_delivered": {"via_diameter": 0.3, "track_width": 0.127}, "fab_tier_escalations": 20, "fab_tier_contexts": ["plane tap U2.20", "plane tap U2.20", "plane tap U2.35", "plane tap U2.35", "plane tap U2.23", "plane tap U2.23", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "net rescue net_4", "net rescue net_4", "net rescue net_4", "terminal escalation net_1", "terminal escalation net_4", "terminal escalation net_4"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 10, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": ["GND"], "unchanged": [], "pads_reconnected": 0, "widths": {"GND": {"requested_mm": 0.7, "delivered_mm": 0.127, "rescue_min_mm": 0.127, "rescue_max_mm": 0.127, "rescue_segments_emitted": 42, "rescue_by_width": {"0.127": 42}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 3.92}, "terminal_escalations": {"/PA12": "recovered at 0.127x0.45/0.2", "GND": "unrecovered"}, "preexisting_rips": {"/PA12": "rerouted [was blocking 'GND']"}, "oracle_check": "disabled", "blockers": [{"net": "GND", "stage": "phase3", "blocked_by": [{"net": "/PA12", "blocked_count": 10, "unique_cells": 10, "track_cells": 10, "via_cells": 0, "near_target_cells": 10, "near_source_cells": 0}, {"net": "+3.3V", "blocked_count": 1, "unique_cells": 1, "track_cells": 1, "via_cells": 0, "near_target_cells": 1, "near_source_cells": 0}, {"net": "/PA9", "blocked_count": 22, "unique_cells": 22, "track_cells": 6, "via_cells": 19, "near_target_cells": 22, "near_source_cells": 0}, {"net": "/IF_SWDIO", "blocked_count": 13, "unique_cells": 13, "track_cells": 13, "via_cells": 0, "near_target_cells": 13, "near_source_cells": 0}, {"net": "/TGT_SWCLK", "blocked_count": 10, "unique_cells": 10, "track_cells": 10, "via_cells": 0, "near_target_cells": 10, "near_source_cells": 0}, {"net": "Net-(U2-BOOT0)", "blocked_count": 9, "unique_cells": 9, "track_cells": 9, "via_cells": 0, "near_target_cells": 9, "near_source_cells": 0}, {"net": "/TGT_SWDIO", "blocked_count": 11, "unique_cells": 10, "track_cells": 3, "via_cells": 11, "near_target_cells": 11, "near_source_cells": 0}, {"net": "/PA11", "blocked_count": 10, "unique_cells": 7, "track_cells": 9, "via_cells": 8, "near_target_cells": 10, "near_source_cells": 0}, {"net": "/IF_RST", "blocked_count": 7, "unique_cells": 5, "track_cells": 7, "via_cells": 0, "near_target_cells": 7, "near_source_cells": 0}]}], "pad_pairs_connected": 32, "pad_pairs_total": 35, "pad_pairs_open": [{"net": "GND", "pairs_connected": 29, "pairs_total": 32, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+3.3V", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 95.8}, {"net": "+5V", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 18.1}, {"net": "GND", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 33.2}], "scope": "run", "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/11_daplink/final_route/s4_route.kicad_pcb...
+Removed 24 dead-end input segment(s) from the output
+Removed 4 stale input via(s) from the output
+Successfully wrote wk/gpm/11_daplink/final_route/s4_route.kicad_pcb
+
+Plane finalize (#562): repairing 1 zone net(s) in-run (rip authority over blockers): GND
+  Plane finalize: snapped 184 in-memory coordinate(s) onto the nm grid
+Board bounds: (100.00, 100.00) to (150.00, 120.00)
+  Same-net pad via clearance 0.1mm (#581): repair vias stay off same-net pads
+Routing layers: F.Cu, B.Cu
+
+============================================================
+Routing disconnected plane regions
+============================================================
+    fill-model: pad U2.20 reaches only a pinched fill island -- queued for repair
+    fill-model: pad U2.23 reaches only a pinched fill island -- queued for repair
+    fill-model: pad U2.35 reaches only a pinched fill island -- queued for repair
+  (#517 ordering: net repair order = GND[3])
+
+[GND] on B.Cu, F.Cu (clearances: B.Cu=0.1818mm, F.Cu=0.1818mm):
+    fill-model: pad U2.20 reaches only a pinched fill island -- queued for repair
+    fill-model: pad U2.23 reaches only a pinched fill island -- queued for repair
+    fill-model: pad U2.35 reaches only a pinched fill island -- queued for repair
+  Pad repair: 3 pad(s) with no connection to the GND plane:
+    Pad U2.20 (F.Cu)... (needs rip - deferred to phase 2)
+    Pad U2.23 (F.Cu)... (needs rip - deferred to phase 2)
+    Pad U2.35 (F.Cu)... (needs rip - deferred to phase 2)
+    (#517 ordering: phase 2 -- 3 rip-requiring pad(s) [adaptive: immediate])
+    Pad U2.20 (F.Cu)... blocked by /TGT_TX - ripping... blocked by +3.3V - ripping... blocked by /TGT_RST - ripping... placed via at (130.60, 119.20), 22 trace segment(s) [fine params]
+    (#517 ordering: immediate reconnect of 1 ripped net(s): /TGT_RST)
+Using provided PCB data...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /TGT_RST
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+26 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.01s
+Found 29 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.05s (29 nets)
+Plane fragility: exact-fill geometry (10 filled island(s) from KiCad refill)
+Plane fragility field: 95201 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /TGT_RST (id=3)
+  Detected multi-point net with 5 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 3, length=16.28mm)
+  Phase 1 routed in 9757 iterations, 16 segments
+  SUCCESS: 16 segments, 2 vias, 9757 iterations, length=16.86mm (stubs=0.00mm) (0.01s)
+
+Sync pcb_data: 357 -> 341 (kept stubs) -> 357 (after adding 16)
+
+============================================================
+Multi-point Phase 3: Routing 3 tap connections
+============================================================
+
+/TGT_RST (net 3):
+  Multi-point net Phase 3: routing 3 remaining MST edges (longest first)
+    [1/3] Routing MST edge: pad 3 -> pad 2 (length=12.44mm) target=(140.81, 106.44)
+      Routed in 15237 iterations (0.00s)
+    [2/3] Routing MST edge: pad 2 -> pad 1 (length=1.59mm) target=(140.81, 104.85)
+      Routed in 17 iterations (0.00s)
+    [3/3] Routing MST edge: pad 1 -> pad 4 (length=4.43mm) target=(145.23, 104.86)
+      Routed in 16 iterations (0.00s)
+  Phase 3 routing complete: 3 edges, 41 total segments, 2 total vias
+  Added 25 tap segments, 0 tap vias
+  #444 seam re-ask: /TGT_RST tree is 1.41x its MST bound -- re-asking whole
+
+  Re-routing /TGT_RST (net 3)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 3, length=16.28mm)
+  Phase 1 routed in 9757 iterations, 16 segments
+    Re-routed main path: 16 segments, 2 vias
+  Multi-point net Phase 3: routing 3 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 3 -> pad 2 (length=12.44mm) target=(140.81, 106.44)
+      Routed in 15237 iterations (0.00s)
+    [2/0] Routing MST edge: pad 2 -> pad 1 (length=1.59mm) target=(140.81, 104.85)
+      Routed in 17 iterations (0.00s)
+    [3/0] Routing MST edge: pad 1 -> pad 4 (length=4.43mm) target=(145.23, 104.86)
+      Routed in 16 iterations (0.00s)
+  Phase 3 routing complete: 3 edges, 41 total segments, 2 total vias
+    Re-routed 25 tap segments, 0 tap vias
+  Net total time: 0.10s, 25027 iterations
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/PA12': original copper restored
+Cycle prune: removed 1 redundant loop segment(s) across 1 net(s)
+Octolinear smoothing: collapsed 3 staircase span(s) on 1 net(s), -0.39 mm of copper (#536)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   5/5 pads connected (1 nets)
+  Total vias:    2
+  Total time:    0.01s
+  Iterations:    9,757
+  Fragility refresh (#466): 9 windows, 0.09s total
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3.3V: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+  +5V: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  GND: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+JSON_SUMMARY: {"routed_single": ["/TGT_RST"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 1, "multipoint_pads_connected": 5, "multipoint_pads_total": 5, "multipoint_edges_routed": 4, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.01, "total_iterations": 9757, "total_vias": 2, "cleanup_disconnected": [], "min_clearance_used": 0.1681, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.1818}, "count": 68, "nets": [1, 4], "narrowed": [{"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6333, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6333, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.2656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1908, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1711, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.2656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "net rescue", "count": 1}, {"net": 1, "net_name": "/PA12", "kind": "via_diameter", "requested": 0.5, "delivered": 0.45, "site": "terminal escalation", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}], "min_delivered": {"via_diameter": 0.3, "track_width": 0.127, "clearance": 0.1681}, "fab_tier_escalations": 27, "fab_tier_contexts": ["plane tap U2.20", "plane tap U2.20", "plane tap U2.35", "plane tap U2.35", "plane tap U2.23", "plane tap U2.23", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "net rescue net_4", "net rescue net_4", "net rescue net_4", "terminal escalation net_1", "terminal escalation net_4", "terminal escalation net_4", "plane tap U2.20", "plane tap U2.23", "plane tap U2.35", "plane tap U2.20", "plane tap U2.20", "plane tap U2.20", "plane tap U2.20"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 10, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "preexisting_rips": {"/PA12": "original copper restored"}, "oracle_check": "skipped (in-memory board)", "pad_pairs_connected": 7, "pad_pairs_total": 7, "power_trace_ampacity": [{"net": "+3.3V", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 95.8}, {"net": "+5V", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 18.1}, {"net": "GND", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 34.3}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+    (#517 ordering: /TGT_RST reconnected in place)
+    Pad U2.23 (F.Cu)... reused via at (130.60, 119.20), 48 trace segment(s) [fine params]
+    Pad U2.35 (F.Cu)... blocked by /IF_SWDIO - ripping... reused via at (134.70, 109.90), 54 trace segment(s) [fine params]
+    (#517 ordering: immediate reconnect of 1 ripped net(s): /IF_SWDIO)
+Using provided PCB data...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /IF_SWDIO
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+26 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.01s
+Found 29 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.03s (29 nets)
+Plane fragility: exact-fill geometry (10 filled island(s) from KiCad refill)
+Plane fragility field: 95201 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /IF_SWDIO (id=6)
+  SUCCESS: 8 segments, 0 vias, 4659 iterations, length=5.75mm (stubs=0.00mm) (0.00s)
+
+Sync pcb_data: 469 -> 461 (kept stubs) -> 469 (after adding 8)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/PA12': original copper restored
+Cycle prune: removed 1 redundant loop segment(s) across 1 net(s)
+Octolinear smoothing: collapsed 1 staircase span(s) on 1 net(s), -0.17 mm of copper (#536)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Total vias:    0
+  Total time:    0.00s
+  Iterations:    4,659
+  Fragility refresh (#466): 3 windows, 0.03s total
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3.3V: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+  +5V: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  GND: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+JSON_SUMMARY: {"routed_single": ["/IF_SWDIO"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.0, "total_iterations": 4659, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.1681, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.1818}, "count": 78, "nets": [1, 4], "narrowed": [{"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6333, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6333, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.2656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1908, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1711, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.2656, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5362, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "net rescue", "count": 1}, {"net": 1, "net_name": "/PA12", "kind": "via_diameter", "requested": 0.5, "delivered": 0.45, "site": "terminal escalation", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}], "min_delivered": {"via_diameter": 0.3, "track_width": 0.127, "clearance": 0.1681}, "fab_tier_escalations": 30, "fab_tier_contexts": ["plane tap U2.20", "plane tap U2.20", "plane tap U2.35", "plane tap U2.35", "plane tap U2.23", "plane tap U2.23", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "net rescue net_4", "net rescue net_4", "net rescue net_4", "terminal escalation net_1", "terminal escalation net_4", "terminal escalation net_4", "plane tap U2.20", "plane tap U2.23", "plane tap U2.35", "plane tap U2.20", "plane tap U2.20", "plane tap U2.20", "plane tap U2.20", "plane tap U2.23", "plane tap U2.35", "plane tap U2.35"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 10, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "preexisting_rips": {"/PA12": "original copper restored"}, "oracle_check": "skipped (in-memory board)", "pad_pairs_connected": 4, "pad_pairs_total": 4, "power_trace_ampacity": [{"net": "+3.3V", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 95.8}, {"net": "+5V", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 18.1}, {"net": "GND", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 40.0}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+    (#517 ordering: /IF_SWDIO reconnected in place)
+  Building obstacle map... done
+  Region discovery from fill model: 3 region(s) (8 fill island(s), 0 off-fill anchor(s), 1 orphan island(s))
+  Zone SPLIT: 2 island(s) (5.2 mm^2) on F.Cu carry same-net copper, so KiCad KEEPS them on refill and flags the missing connection (#611)
+    - F.Cu near (109.1, 107.9): 1.2 mm^2
+    - F.Cu near (136.3, 111.2): 4.0 mm^2
+    Joins from this call seed from the primary analysis layer (B.Cu); a follow-up join runs with each flagged layer primary (#611).
+  Found 3 disconnected regions (40 total anchors)
+  Joining 3 regions incrementally (closest components first, 2 join(s) needed)...
+    [1/2] Component 0 (1 region(s), 385 pts) <-> Component 1 (1 region(s), 22 pts) (seed 23x16)... OK width=0.80mm, length=4.9mm, 9 seg(s), 2 layer(s), 2 via(s)
+  Result: All 1 route(s) succeeded
+  #611 follow-up join with F.Cu primary (kept island(s) reported there):
+  Region discovery from fill model: 3 region(s) (25 fill island(s), 0 off-fill anchor(s), 2 orphan island(s))
+  Found 3 disconnected regions (42 total anchors)
+  Joining 3 regions incrementally (closest components first, 2 join(s) needed)...
+
+============================================================
+SUMMARY
+============================================================
+  Zones processed: 2
+  Total routes added: 1
+  Total vias added: 3
+  Pad repair: 3/3 unconnected pad(s) reconnected
+
+Writing output to wk/gpm/11_daplink/final_route/s4_route.kicad_pcb...
+Output written to wk/gpm/11_daplink/final_route/s4_route.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+  [finalize timing] engine leg: 1.7s
+Plane Closed 6 stub gap(s) to same-net copper
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Plane Merged 102 collinear joint(s) on 1 net(s): -102 redundant segment(s) (#811)
+  [finalize timing] cleanup leg: 0.1s
+  Plane finalize cleanup: closed 6 stub gap(s), trimmed 124 dead-end segment(s)
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 1.3s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+
+Final reconciliation: retrying 0 incomplete/custody net(s) against the finished board: 
+Loading wk/gpm/11_daplink/final_route/s4_route.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+No valid nets to route!
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+
+Pour re-audit: re-auditing 1 zone net(s) KiCad verified complete before the final reconciliation: GND
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  Pour re-audit: every verified pour is whole after the reconciliation (0 link(s) welded back)
+  Strict collapse (#1063, end of run): removed 14 redundant segment(s) on 3 net(s)
+VIA_IN_PAD_JSON: {"count": 0, "sites": [], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: GND 28.7/47.3 mm under the requested 0.7 (min 0.127); +3.3V 27.9/95.8 mm under the requested 0.7 (min 0.127); +5V 14.3/18.1 mm under the requested 0.7 (min 0.175) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.1681, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.1818}, "count": 31, "nets": [1, 4, 5, 11], "narrowed": [{"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 1, "net_name": "/PA12", "kind": "via_diameter", "requested": 0.5, "delivered": 0.45, "site": "terminal escalation", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "power copper shipped under width", "count": 1, "length_mm": 28.72}, {"net": 5, "net_name": "+3.3V", "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "power copper shipped under width", "count": 1, "length_mm": 27.85}, {"net": 11, "net_name": "+5V", "kind": "track_width", "requested": 0.7, "delivered": 0.175, "site": "power copper shipped under width", "count": 1, "length_mm": 14.31}], "min_delivered": {"via_diameter": 0.3, "clearance": 0.1681, "track_width": 0.127}, "fab_tier_escalations": 30, "fab_tier_contexts": ["plane tap U2.20", "plane tap U2.20", "plane tap U2.35", "plane tap U2.35", "plane tap U2.23", "plane tap U2.23", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "plane tap U2.47", "net rescue net_4", "net rescue net_4", "net rescue net_4", "terminal escalation net_1", "terminal escalation net_4", "terminal escalation net_4", "plane tap U2.20", "plane tap U2.23", "plane tap U2.35", "plane tap U2.20", "plane tap U2.20", "plane tap U2.20", "plane tap U2.20", "plane tap U2.23", "plane tap U2.35", "plane tap U2.35"], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 6, "seconds": 0.08, "routed_single": ["GND"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 42, "multipoint_pads_connected": 42, "successful": 1, "failed": 0, "unowned_broken": [], "recovered": ["GND"], "pad_pairs": {}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (6 net(s), 0.1s)
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   42/42 pads connected
+  Recovered after a summary reported them failing: 1
+  route summary written to wk/gpm/11_daplink/final_route/s4_route.json
+  Route trace written to wk/gpm/11_daplink/final_route/s4_route_routetrace.json (14 events)
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": ["GND"], "lost_zone": [], "gained_zone": ["GND"], "worsened": [], "disconnected_pads_before": 8, "disconnected_pads_after": 0, "nets_compared": 29, "verdict": "accept"}
+  Design rules [--escalation fab, --fab-tier auto]: 31 feature(s) on 4 net(s) delivered below the requested size (smallest clearance 0.1681 mm, smallest track width 0.127 mm, smallest via diameter 0.3 mm); 30 fab-tier escalation(s) to advanced. Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 61, "failed": 0, "failed_single": [], "main_loop_time_s": 0.77, "min_clearance_used": 0.1681, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "regraded_nets": 6, "routed": 1, "scope": "merged", "terminal_restores_broken": [], "vias": 13}
+  Min clearance used: 0.1681 mm (below nominal 0.1818) - grading at this floor
+  DRC settings: wrote 3 value(s) to wk/gpm/11_daplink/final_route/s4_route.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_hole_clearance: 0.1818 -> 0.1681 mm
+      net_class[Default].clearance: 0.1818 -> 0.1681 mm
+      kicad_routing_tools.class_clearance_relaxed: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/11_daplink/final_route/s4_route.kicad_pro", "writes": ["rules.min_hole_clearance: 0.1818 -> 0.1681 mm", "net_class[Default].clearance: 0.1818 -> 0.1681 mm", "kicad_routing_tools.class_clearance_relaxed: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    via diameter: 0.25 mm, unchanged by this step but still below the board's ORIGINAL 0.5mm; 14 of 40 object(s) on this board are below the ORIGINAL 0.5mm
+    via annular ring: 0.05 mm, unchanged by this step but still below the board's ORIGINAL 0.1mm; 9 of 40 object(s) on this board are below the ORIGINAL 0.1mm
+    hole diameter: 0.15 mm, unchanged by this step but still below the board's ORIGINAL 0.3mm
+    copper-to-hole clearance: 0.25 -> 0.1681 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  DEFAULT CLASS CLEARANCE LOWERED BY A DESCENT -- 0.2 -> 0.1681 mm: an automatic clearance descent on +3.3V, /IF_RST, /IF_SWDIO, /OSCIN, /OSCOUT, /PA0 (+7 more) routed at 0.1681 mm, and the writeback stores the run's smallest clearance as the Default class.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.2 to route the other nets at 0.2 again.
+EXIT=0

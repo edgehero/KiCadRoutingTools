@@ -1,0 +1,123 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V5/G21/dq_poured.kicad_pcb wk/gpm/_verify/V5/G21/dq_all8.kicad_pcb --nets /DRAM/DRAM_DQ0 /DRAM/DRAM_DQ1 /DRAM/DRAM_DQ2 /DRAM/DRAM_DQ3 /DRAM/DRAM_DQ4 /DRAM/DRAM_DQ5 /DRAM/DRAM_DQ6 /DRAM/DRAM_DQ7 --length-match-group /DRAM/DRAM_DQ[0-7] --length-match-tolerance 0.8 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 -1 2.5 1.0 --track-width 0.1 --clearance-ceiling 0.1 --via-size 0.45 --via-drill 0.25 --no-bga-zones --escalation board
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1mm.
+--clearance-ceiling 0.1: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/_verify/V5/G21/dq_poured.kicad_pcb to expand net patterns...
+Routing 8 nets: ['/DRAM/DRAM_DQ0', '/DRAM/DRAM_DQ1', '/DRAM/DRAM_DQ2', '/DRAM/DRAM_DQ3', '/DRAM/DRAM_DQ4']...
+Netclass clearances for 32 net(s), capped at --clearance-ceiling 0.1 (mm: [0.1]); cross-class max(A,B) respected.
+Loading wk/gpm/_verify/V5/G21/dq_poured.kicad_pcb...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=-1.0x, In2.Cu=2.5x, B.Cu=1.0x
+BGA exclusion zones disabled (all)
+  .kicad_dru rule 'byte0 delay matching': length is not routed to; check_drc grades it
+  .kicad_dru rule 'target length and skew': length is not routed to; check_drc grades it
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 8 nets with 4 crossing conflicts detected
+MPS Round 1: 5 units: /DRAM/DRAM_DQ1, /DRAM/DRAM_DQ6, /DRAM/DRAM_DQ3, /DRAM/DRAM_DQ4, /DRAM/DRAM_DQ0
+MPS Round 2: 2 units: /DRAM/DRAM_DQ2, /DRAM/DRAM_DQ7
+MPS Round 3: 1 units: /DRAM/DRAM_DQ5
+Direct-first ordering (#472): 8 bare-ball net(s) moved to the front: /DRAM/DRAM_DQ1, /DRAM/DRAM_DQ6, /DRAM/DRAM_DQ3, /DRAM/DRAM_DQ4, /DRAM/DRAM_DQ0, /DRAM/DRAM_DQ2, /DRAM/DRAM_DQ7, /DRAM/DRAM_DQ5
+
+Routing 8 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Pour guard (#1260): +3V3 pour on In2.Cu: islands left crossable -- 1 hold a routed net's terminal
+Pour guard (#1260): GND pour on In1.Cu: islands left crossable -- 1 hold a routed net's terminal
+Pour guard (#1260): VMEM pour on In2.Cu: islands left crossable -- 1 hold a routed net's terminal
+Base obstacle map built in 0.68s
+Found 134 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.02s (134 nets)
+Plane fragility: exact-fill geometry (3 filled island(s) from KiCad refill)
+Plane fragility field: 121251 cells near the edges of 3 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/8] Routing /DRAM/DRAM_DQ1 (id=162)
+  SUCCESS: 5 segments, 0 vias, 175 iterations, length=8.73mm (stubs=0.00mm) (0.01s)
+
+[2/8] Routing /DRAM/DRAM_DQ6 (id=149)
+  SUCCESS: 7 segments, 0 vias, 505 iterations, length=9.41mm (stubs=0.00mm) (0.00s)
+
+[3/8] Routing /DRAM/DRAM_DQ3 (id=163)
+  SUCCESS: 5 segments, 0 vias, 124 iterations, length=8.73mm (stubs=0.00mm) (0.00s)
+
+[4/8] Routing /DRAM/DRAM_DQ4 (id=164)
+  SUCCESS: 4 segments, 0 vias, 328 iterations, length=12.10mm (stubs=0.00mm) (0.00s)
+
+[5/8] Routing /DRAM/DRAM_DQ0 (id=148)
+  SUCCESS: 6 segments, 0 vias, 1214 iterations, length=13.06mm (stubs=0.00mm) (0.00s)
+
+[6/8] Routing /DRAM/DRAM_DQ2 (id=150)
+  SUCCESS: 9 segments, 0 vias, 211 iterations, length=9.75mm (stubs=0.00mm) (0.00s)
+
+[7/8] Routing /DRAM/DRAM_DQ7 (id=160)
+  SUCCESS: 9 segments, 0 vias, 405 iterations, length=13.23mm (stubs=0.00mm) (0.00s)
+
+[8/8] Routing /DRAM/DRAM_DQ5 (id=152)
+  SUCCESS: 13 segments, 0 vias, 1622 iterations, length=15.23mm (stubs=0.00mm) (0.00s)
+
+============================================================
+Length matching
+============================================================
+
+Length match group: ['/DRAM/DRAM_DQ[0-7]']
+  Matched nets: ['/DRAM/DRAM_DQ1', '/DRAM/DRAM_DQ6', '/DRAM/DRAM_DQ3', '/DRAM/DRAM_DQ4', '/DRAM/DRAM_DQ0', '/DRAM/DRAM_DQ2', '/DRAM/DRAM_DQ7', '/DRAM/DRAM_DQ5']
+  Length matching group: 8 nets (0 diff pairs, 8 single-ended), target=15.23mm
+    /DRAM/DRAM_DQ1: 8.73mm -> adding 6.50mm
+      /DRAM/DRAM_DQ1: new length = 15.80mm (8 bumps)
+    /DRAM/DRAM_DQ6: 9.41mm -> adding 5.81mm
+      /DRAM/DRAM_DQ6: new length = 15.69mm (11 bumps)
+    /DRAM/DRAM_DQ3: 8.73mm -> adding 6.50mm
+      /DRAM/DRAM_DQ3: new length = 15.13mm (14 bumps)
+    /DRAM/DRAM_DQ4: 12.10mm -> adding 3.13mm
+      /DRAM/DRAM_DQ4: new length = 15.83mm (3 bumps)
+    /DRAM/DRAM_DQ0: 13.06mm -> adding 2.17mm
+      /DRAM/DRAM_DQ0: new length = 15.49mm (2 bumps)
+    /DRAM/DRAM_DQ2: 9.75mm -> adding 5.48mm
+    Warning: No straight run with clearance found for meanders
+    Warning: No straight run with clearance found for meanders
+      Can't fit more bumps (got 0, need 1)
+      /DRAM/DRAM_DQ2: new length = 9.75mm (0 bumps)
+    /DRAM/DRAM_DQ7: 13.23mm -> adding 2.00mm
+      /DRAM/DRAM_DQ7: new length = 15.58mm (4 bumps)
+    /DRAM/DRAM_DQ5: 15.23mm (OK, within tolerance)
+
+Sync pcb_data: 58 -> 0 (kept stubs) -> 278 (after adding 278)
+Merged 64 collinear joint(s) on 6 net(s): -64 redundant segment(s) (#811)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  8/8 routed
+  Total vias:    0
+  Total time:    0.02s
+  Iterations:    4,584
+JSON_SUMMARY: {"routed_single": ["/DRAM/DRAM_DQ1", "/DRAM/DRAM_DQ6", "/DRAM/DRAM_DQ3", "/DRAM/DRAM_DQ4", "/DRAM/DRAM_DQ0", "/DRAM/DRAM_DQ2", "/DRAM/DRAM_DQ7", "/DRAM/DRAM_DQ5"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 8, "failed": 0, "total_time": 0.02, "total_iterations": 4584, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.1, "length_match_groups": [{"name": "/DRAM/DRAM_DQ[0-7]", "source": "patterns", "patterns": ["/DRAM/DRAM_DQ[0-7]"], "members": ["/DRAM/DRAM_DQ0", "/DRAM/DRAM_DQ1", "/DRAM/DRAM_DQ2", "/DRAM/DRAM_DQ3", "/DRAM/DRAM_DQ4", "/DRAM/DRAM_DQ5", "/DRAM/DRAM_DQ6", "/DRAM/DRAM_DQ7"]}], "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"clearance": 0.08, "track_width": 0.1, "via_diameter": 0.45, "via_drill": 0.25, "hole_to_hole": 0.25, "annular": 0.07, "board_edge": 0.3}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 3, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "pour_guard": {"source": "kicad_refill", "why": "", "pours": [{"net": "+3V3", "layer": "In2.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 0}, {"net": "GND", "layer": "In1.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 0}, {"net": "VMEM", "layer": "In2.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 0}]}, "oracle_check": "disabled", "pad_pairs_connected": 8, "pad_pairs_total": 8, "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/_verify/V5/G21/dq_all8.kicad_pcb...
+Successfully wrote wk/gpm/_verify/V5/G21/dq_all8.kicad_pcb
+  In-run DRC floors (#650): lowered 1 value(s) in dq_all8.kicad_pro to the routed floors so the in-run audit grades what ships
+      rules.min_hole_clearance: 0.15 -> 0.1 mm
+  Plane finalize: zone net(s) +3V3, GND, VMEM are OUTSIDE this route's --nets scope -- excluded from the finalize BY PLAN. Since #562 a pour alone connects nothing: unless a later route step covers these nets, their pads ship disconnected.
+  Strict collapse (#1063, end of run): removed 6 redundant segment(s) on 6 net(s)
+VIA_IN_PAD_JSON: {"count": 0, "sites": [], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+JSON_REGRADE: {"board": "file", "graded_nets": 8, "seconds": 0.43, "routed_single": ["/DRAM/DRAM_DQ1", "/DRAM/DRAM_DQ6", "/DRAM/DRAM_DQ3", "/DRAM/DRAM_DQ4", "/DRAM/DRAM_DQ0", "/DRAM/DRAM_DQ2", "/DRAM/DRAM_DQ7", "/DRAM/DRAM_DQ5"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 0, "multipoint_pads_connected": 0, "successful": 8, "failed": 0, "unowned_broken": [], "recovered": [], "pad_pairs": {}, "broken_by_run": [], "pour_fill": {"graded_on": "kicad_refill", "islands": {"+3V3 on In2.Cu": 1, "GND on In1.Cu": 1, "VMEM on In2.Cu": 1}, "poured_nothing": []}}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (8 net(s), 0.4s)
+============================================================
+  Single-ended:  8/8 routed
+JSON_SUMMARY_MIN: {"escalations": 0, "failed": 0, "failed_single": [], "finalize_excluded_nets": ["+3V3", "GND", "VMEM"], "main_loop_time_s": 0.02, "min_clearance_used": 0.1, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "regraded_nets": 8, "routed": 8, "scope": "merged", "terminal_restores_broken": [], "vias": 0}
+  DRC settings: wrote 1 value(s) to wk/gpm/_verify/V5/G21/dq_all8.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_via_drill: None -> 0.25 mm
+PROJECT_WRITES_JSON: {"project": "wk/gpm/_verify/V5/G21/dq_all8.kicad_pro", "writes": ["rules.min_via_drill: None -> 0.25 mm"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.1 mm, unchanged by this step but still below the board's ORIGINAL 0.15mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  Protected nets (not ripped by later steps): 8 recorded in dq_all8.kicad_pro (+8 this step)
+EXIT=0
+python3 -X utf8 py_router/route.py $V/dq_poured.kicad_pcb $V/dq_all8.kicad_pc  3,58s user 0,22s system 99% cpu 3,816 total

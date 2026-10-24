@@ -1,0 +1,20 @@
+{"schema": 1,
+ "board": "sonde_xilinx.kicad_pcb",
+ "note": "Xilinx parallel-cable-style JTAG probe: PC parallel port (J1, DB25) -> 74LS125 tri-state buffers (U1) -> target DB9 (J2) and 6-pin header (P1); U2 reads DONE back to the port. All through-hole, 2 layers, GND pour on B.Cu.",
+ "groups": [
+   {"name": "pc_port", "role": "interface", "refs": ["J1", "R6", "R7", "R8", "R9", "R10", "D1", "R1"],
+    "anchor": "J1", "near": ["core"],
+    "why": "DB25 to the PC's parallel port with the 100R series resistors on the data lines D0-D4 it drives (the PC is the driver, so the series R sit at the port end, bordering core), and the VCC-sense path D1 (BAT46) + R1 100R that reports target power on status pin 15"},
+   {"name": "core", "role": "core", "refs": ["U1", "C1", "C2", "C3", "C4", "C5", "R2"],
+    "anchor": "U1", "near": ["pc_port", "target_port", "readback"],
+    "why": "74LS125 U1 drives TDI/TCK/TMS and the PROG line; C2-C5 are the 100pF edge-rate caps on its four output nodes (before the series R), R2 the 5.1K pull-up on its open-drain-style PROG output (U1A, input tied low, enabled by D4), and C1 (1uF, the only VCC cap) decouples U1/U2's VCC pin"},
+   {"name": "readback", "role": "core", "refs": ["U2", "R4"],
+    "anchor": "U2", "near": ["core", "pc_port"],
+    "why": "second 74LS125, one gate used: buffers the target's DONE/PROG node (U1A output) back to the port's status pin 13 through R4 47R, the series resistor at its driver (U2 pin 3 is the output)"},
+   {"name": "target_port", "role": "interface", "refs": ["J2", "P1", "R11", "R12", "R13", "R14"],
+    "anchor": "J2", "near": ["core", "power"],
+    "why": "target-side DB9 (bottom side, east edge) and the 1x6 flying-lead header wired in parallel with it, with the 100R output series resistors on TDI/TCK/TMS/TDO-DONE that border core"},
+   {"name": "power", "role": "power", "refs": ["D2", "R5"],
+    "anchor": "D2", "near": ["target_port", "core"],
+    "why": "power comes from the target (J2.1 / P1.1, /PWR_3,3-5V) through BAT46 D2 (reverse-blocking diode) onto VCC; R5 1K is the VCC load/bleed resistor"}
+ ]}

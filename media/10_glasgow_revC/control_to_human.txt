@@ -1,0 +1,22 @@
+WARNING: 7 footprint block(s) share 1 reference(s) -- REF** x7. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 272 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                             4533             4715
+  vias                                  544              416
+  total length mm                    4466.3           4437.0
+  distinct track widths                  17                7
+  nets with copper                      225              227
+  ours widths:   {0.089: 752, 0.116: 1, 0.121: 3, 0.13: 23, 0.15: 2092, 0.153: 3, 0.17: 63, 0.179: 1, 0.186: 3, 0.19: 66, 0.2: 46, 0.21: 63, 0.218: 3, 0.23: 65, 0.25: 1323, 0.4: 20, 0.8: 6}
+  orig widths:   {0.15: 1643, 0.19: 2163, 0.25: 680, 0.35: 35, 0.45: 97, 0.65: 1, 0.75: 96}
+  ours vias:     {'0.28/0.18': 30, '0.6/0.3': 368, '0.45/0.2': 62, '0.35/0.2': 18, '0.59/0.3': 3, '0.3/0.15': 38, '0.4/0.25': 11, '0.49/0.24': 3, '0.25/0.15': 11}
+  orig vias:     {'0.6/0.3': 364, '0.4/0.2': 46, '0.5/0.3': 6}
+
+  SUGGESTIONS:
+   - VIAS: we placed 544 vias vs original 416 (1.31x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+   - COMPLETION: we put copper on 225 nets vs original 227 — 2 net(s) the human routed that we did not.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 4533, "n_vias": 544, "total_length_mm": 4466.3, "length_by_layer": {"F.Cu": 2025.3, "In1.Cu": 584.0, "In2.Cu": 520.4, "B.Cu": 1336.5}, "width_count": {"0.15": 2092, "0.089": 752, "0.25": 1323, "0.23": 65, "0.21": 63, "0.19": 66, "0.17": 63, "0.116": 1, "0.121": 3, "0.153": 3, "0.186": 3, "0.218": 3, "0.179": 1, "0.13": 23, "0.2": 46, "0.4": 20, "0.8": 6}, "via_count": {"0.28/0.18": 30, "0.6/0.3": 368, "0.45/0.2": 62, "0.35/0.2": 18, "0.59/0.3": 3, "0.3/0.15": 38, "0.4/0.25": 11, "0.49/0.24": 3, "0.25/0.15": 11}, "distinct_widths": 17, "nets_with_copper": 225, "n_multi_pad_nets": 227, "n_nets": 252}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 4715, "n_vias": 416, "total_length_mm": 4437.0, "length_by_layer": {"F.Cu": 2349.5, "B.Cu": 1827.8, "In2.Cu": 259.7}, "width_count": {"0.15": 1643, "0.25": 680, "0.35": 35, "0.75": 96, "0.45": 97, "0.19": 2163, "0.65": 1}, "via_count": {"0.6/0.3": 364, "0.4/0.2": 46, "0.5/0.3": 6}, "distinct_widths": 7, "nets_with_copper": 227, "n_multi_pad_nets": 227, "n_nets": 252}, "suggestions": ["VIAS: we placed 544 vias vs original 416 (1.31x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count.", "COMPLETION: we put copper on 225 nets vs original 227 \u2014 2 net(s) the human routed that we did not."]}

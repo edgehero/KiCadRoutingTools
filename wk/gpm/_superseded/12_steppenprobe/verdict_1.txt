@@ -1,0 +1,36 @@
+VERDICT=FAIL
+identity: sha256 4dd7849a7d6b55ed86958177e1444a7e0d705dde99fd82a4b3077a88f0771e4d, matches the claim. Input files unchanged: intent.json, mechanical.json, design brief, steppenprobe.kicad_pcb/.kicad_pro all match README sha256.
+rules: delivered.kicad_pro is present, with no .kicad_dru. Graded at: clearance 0.15 (Default and Power classes), edge 0.3, hole-to-hole 0.25, track >= 0.15, via 0.6/0.3. Copper-to-NPTH-hole is graded at 0.25: the input project declared min_hole_clearance 0.25, the chain's writeback lowered it to 0.15 in delivered.kicad_pro, and fab_floor_origin still records 0.25.
+check_assembly --baseline: buildable, blocking 0, advisory 0, courtyard_blocking 0. oob_pad_copper_gating_refs: none. mating_keepout_refs: none. Pad pairs 0, hole conflicts 0. Body-edge band (report-only): J4 0.838 mm, D1 1.238 mm.
+check_floorplan --allow-routed: 0 errors, 0 violations, 0 warnings. Exit 4 INCOMPLETE: 2 budget_abstained (oob_count and overlap_area were withheld because the baseline is a pile) and 1 armed rule skipped. zone_containment and legality are OWED.
+render_placement: pad_copper_gating [], graphic_copper [], keepout_copper []. Courtyards off the outline: H1-H4 (mount holes at the rounded corners), J1 and SW1 (edge parts). PNG viewed: all 84 parts are on the board, none in a pile, fully routed.
+mechanical H1-H4: (104.0,54.0), (104.0,106.0), (146.0,54.0), (146.0,106.0), all at rot 0.0, matching mechanical.json exactly. PASS.
+mechanical J1: on the north edge with its mating face north (facing check strong). PASS.
+mechanical J1 overhang: the drawn body overhangs only 0.338 mm. The F.Fab front is at y=49.662 against the edge at y=50.000; the declared band is 2.51-2.60. FAIL (see D1).
+mechanical SW1: on the west edge, actuator facing west (out). The actuator tip is at x=100.25 (0.25 mm inside the edge) and the courtyard is flush at x=100.0. PASS.
+board_score --baseline: blocking 0 (unrouted 0, broken 0, drc 0, undersized 0, floorplan 0, assembly 0, via_in_paste 0). vias 140, copper_mm 1400.11, segments 1147. Ungraded: diff_pairs, impedance, length, net_widths.
+check_complete: DONE. UNEXAMINED: diff_pairs, impedance, length, net_widths.
+check_complete --authored-from steppenprobe.kicad_pcb: DONE (not gating), lists no floor. It did not see the 0.25 -> 0.15 hole-clearance rewrite in the zone fills (D2).
+check_connected: ALL NETS FULLY CONNECTED. 61 routed nets, 0 disconnected pads, and the KiCad refill cross-check agrees.
+check_drc --baseline --clearance-margin 0.1: 0 violations (also 0 with --check-pad-edge). check_orphan_stubs: 0. check_weird: 0. check_drc does not grade zone fill.
+kicad-cli pcb drc (shipped fills, delivered project rules): 0 clearance, short, hole or edge errors, 0 unconnected. 28 solder_mask_bridge errors, all between J1's own adjacent pins (A1..A12, B1..B12; library footprint). 77 lib_footprint_mismatch and 9 silk warnings.
+zone fill vs NPTH holes (pcbnew, fills as shipped): 0.1505 mm at 12 hole/layer pairs. That is under the 0.25 mm declared and under the 0.2 mm fab floor the checkers cite. FAIL (see D2).
+UNEXAMINED (ungraded components): diff_pairs, impedance, length, net_widths.
+declared class, power widths: the input .kicad_pro declares a "Power" netclass (track_width 0.3 mm) on 8 nets: +1V8, +3V3, +5V, /VPHY, /VPLL, GND, VBUS, Vdrive. Its component, net_widths, is ungraded, which is FAIL under rule 5 (see D3).
+declared class, diff pair: /USB_DP and /USB_DM are recorded as diff-pair (protected_nets) in delivered.kicad_pro. diff_pairs is ungraded because no .kicad_dru skew or uncoupled rule exists. Measured under review Steps 2-4 below.
+review Step 2 (length): no length groups declared; nothing graded.
+review Step 3 (return vias): the USB vias near J1, at (135.4,64.4) and (135.5,65.2), have their nearest GND via or PTH at 4.21 mm and 4.97 mm, over the 3.0 mm high-tier limit (WARN). The vias at (132.4,84.8) and (133.1,82.3) have GND at 1.20 mm and 2.93 mm.
+review Step 3b (check_impedance /USB_D*): 39.6 mm over a reference-plane void (DP 20.55 mm / 47%, DM 19.02 mm / 43%), 33 crossings, exit 1. No impedance is declared, so it is not graded (WARN).
+review Step 4 (diff pair copper): 36.21 mm coupled (B.Cu), 8.07 mm uncoupled. Total-copper skew 2.09 mm (multipoint nets). Path J1.A6->U1.8 is 42.83 mm and J1.A7->U1.7 is 43.76 mm, a path skew of 0.93 mm, over the ~0.5 mm flag (WARN). Width 0.15 mm.
+
+DEFECTS
+D1 J1 overhang band not met. J1 sits at (137.2123, 58.2717), rot 180. Its F.Fab mating face is at y=49.662, only 0.338 mm past the north edge (y=50.0). The footprint's own "PCB Edge" marker is at y=52.172, 2.172 mm inside the outline. intent_run.json declares overhang_mm 2.51-2.60 for the drawn body, so J1 must move 2.17-2.26 mm north, to y ~56.10-56.01. check_floorplan's "overhang 2.5149mm [legacy_occupancy@margin=0] pass" is not an overhang. The body went unmeasured on the rounded-corner outline, and rect_outside_amount sums the bbox term plus one term per off-board corner: 3 x 0.8383 mm, the real courtyard overhang (courtyard top at y=49.1617) = 2.5149. That figure falls inside the band only by coincidence, and the board does not meet the band.
+D2 Zone fill too close to NPTH holes. The shipped +3V3 (F.Cu) and GND (B.Cu) fills come within 0.1505 mm of the hole edge at H1 (104,54), H2 (104,106), H3 (146,54), H4 (146,106) (3.2 mm drill), and at SW1's pegs (103.07,78.889) and (103.07,81.889) (0.9 mm drill). That is both layers at each, 12 pairs. The input project declares min_hole_clearance 0.25, and the checkers apply 0.25 to NPTH copper. The fill was made at the 0.15 the chain wrote back. KiCad's DRC with the input project's 0.25 would report these as hole_clearance errors. check_drc reports 0 because it does not grade fills.
+D3 Power widths: the declared Power class is ungraded. Measured at 0.3 mm, 5 of 8 nets carry thinner copper:
+  +1V8: 30.4 mm in 40 segments, including a 6.5 mm 0.15 mm B.Cu run at x=135.9, y 79.1-85.6.
+  +3V3: 28.1 mm in 36 segments, including 3.3 mm at 0.15 on F.Cu at y=94.6, x 140.8-144.1.
+  GND: 13.3 mm in 53 segments.
+  VBUS: 3.9 mm in 5 segments at 0.175.
+  /VPHY: 1.3 mm in 5 segments.
+  +5V, /VPLL and Vdrive meet 0.3.
+  KiCad treats a netclass track_width as the preferred routing width, not a DRC minimum. This is a FAIL under rule 5 (declared class, component ungraded), not a KiCad DRC error.

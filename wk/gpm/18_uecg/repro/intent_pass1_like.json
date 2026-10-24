@@ -1,0 +1,647 @@
+{
+  "assembly": {
+    "sides": "both",
+    "why": "observed: 74 pad-bearing part(s) on F and 1 on B, 2 reflow pass(es). every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix and counted separately. `pad_bearing` restricts that to blocks carrying at least one pad that is not a paste/mask aperture (#1143), and it is the count the populated-side verdict is taken from -- a zero-pad graphic on the back does not make a board double-sided."
+  },
+  "blocks": [
+    {
+      "name": "analog",
+      "refs": [
+        "U2",
+        "C15",
+        "R15",
+        "GC1",
+        "U5",
+        "C9",
+        "C16",
+        "C19",
+        "C21",
+        "IC4",
+        "U9",
+        "U8",
+        "R1",
+        "R2",
+        "R3",
+        "C8",
+        "R4",
+        "R6",
+        "R8",
+        "C11",
+        "C6",
+        "D1",
+        "D3",
+        "R9",
+        "R11",
+        "R12",
+        "R13",
+        "R14",
+        "E+1"
+      ],
+      "zone": [
+        122.0,
+        95.5,
+        151.99,
+        111.0
+      ],
+      "exclusive": true,
+      "why": "agent judgement (gpm 18): the board keeps a GNDA pour on F.Cu and B.Cu (priority 2) over the east third (x>=121.6, south of y~95); every GNDA part (the MCP3911, its LDO U5 and load switch IC4, the op-amp front end) belongs inside it and every GND part outside it, or each ground pad sits in the other ground's fill. The rect is the pour's largest box on the board, including the GND notch at x 129-137, y 95.5-100.3 and the slanted SW corner (54 mm2 of 438 not GNDA)"
+    }
+  ],
+  "board": "uecg.kicad_pcb",
+  "context": {
+    "basis": {
+      "assembly.sides": "observed_baseline",
+      "decaps.max_distance_mm": "<the source board, withheld>",
+      "decaps.within_radius_mm": "derived_default",
+      "decaps.within_radius_refs": "<the source board, withheld>",
+      "defaults.zone_tolerance_mm": "derived_default",
+      "edge_connectors[J2].edge": "declared",
+      "edge_connectors[SW2].edge": "declared",
+      "envelope.tolerance_mm": "derived_default"
+    },
+    "brief": {
+      "absent": [
+        "product.form_factor",
+        "product.primary_axis"
+      ],
+      "consequences": [],
+      "contradictions": [],
+      "counts": {
+        "fixed": 0,
+        "interfaces": 2,
+        "keepouts": 0
+      },
+      "declared": [
+        "interfaces[J2].edge",
+        "interfaces[SW2].edge"
+      ],
+      "fixed": [],
+      "not_graded": [],
+      "path": "wk/gpm/18_uecg/uecg.design-brief.json",
+      "product": {},
+      "unknown": [
+        "interfaces[J2].along_edge",
+        "interfaces[SW2].along_edge"
+      ],
+      "unmatched": [],
+      "unmatched_checked": true
+    },
+    "budget_withheld": {
+      "oob_count": "the board is a pile: its off-board count is staging, not a baseline (#1103)",
+      "overlap_area": "the board is a pile: its overlap is staging, not a baseline (#1103)"
+    },
+    "cutouts": [],
+    "decap_census": {
+      "beyond_radius": 0,
+      "beyond_radius_refs": [],
+      "decap_ungraded_promoted": "per cap, for the 10 cap(s) the reference keeps within 5 mm of their chip; a cap the reference lacks, or carries under another footprint, stays warn",
+      "decaps_basis": "<the source board, withheld>",
+      "emitted_max_distance_mm": 2.5406,
+      "ics": 4,
+      "max_mm": 2.4861262920455243,
+      "max_mm_display": 2.4861,
+      "median_mm": 0.0,
+      "metric": "cap footprint centroid to IC bounding box, clamped to 0 inside (placement.groups.decap_tethers)",
+      "no_rail_chip": 0,
+      "no_rail_chip_refs": [],
+      "pin_limit_withheld": "the reference board <the source board, withheld>: 5 of 19 supply pins have no cap on their net, so a max over the rest is censored",
+      "population": 10,
+      "reference_beyond_radius_refs": [],
+      "reference_board": "<the source board, withheld>",
+      "reference_board_sha256": "5c90aef77b3a531213413954d8ddd79eb08261c1e5c143e82c87132f954187f3",
+      "reference_part_match": 1.0,
+      "reference_pin_census": {
+        "covered": 14,
+        "max_mm": 5.877,
+        "max_raw": 5.877014548220893,
+        "pins": 19,
+        "uncovered": 5
+      },
+      "reference_tethers": 10,
+      "search_radius_mm": 5.0,
+      "source": "auto-tethers",
+      "tethers": 10,
+      "unaccounted": 0,
+      "worst_beyond_mm": null
+    },
+    "declared_pose_overlaps": {
+      "accepted": [],
+      "hard": []
+    },
+    "edge_contours": 0,
+    "file_locked": [],
+    "keepouts_note": "empty because a keep-out is a mechanical fact -- an enclosure rib, a standoff, a battery, a display window, an antenna clearance -- and none of those can be read off a board. \"[]\" here means NONE DECLARED, never \"not considered\". Declare them by hand; since #701 the seat search honours them, not only the grade.",
+    "mechanical": {
+      "anchored": [
+        "E+1",
+        "E-1"
+      ],
+      "fixed_poses": [
+        "E+1",
+        "E-1"
+      ],
+      "fixed_skipped": {},
+      "path": "<the source board, withheld>",
+      "sha256": "59f2542e37a5906f4b717e4461873a34d7a42cba5887e5fab96067ffd8d3b3df",
+      "skipped": {}
+    },
+    "note": "read-only, describing the board as it is. The outline is not editable by this toolchain: size, cutouts and slots are mechanical decisions the user owns",
+    "pose_claims_withheld": {
+      "kept": "KiCad-locked parts; a brief / mechanical.json merged after this",
+      "reason": "the board is a pile (footprints span 10.0% of the board diagonal; 100% of footprints lie outside the board outline): staging poses are not claims",
+      "refs_off_board": [
+        "AE1",
+        "C1",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C15",
+        "C16",
+        "C17",
+        "C18",
+        "C19",
+        "C2",
+        "C20",
+        "C21",
+        "C22",
+        "C3",
+        "C4",
+        "C5",
+        "C6",
+        "C7",
+        "C8",
+        "C9",
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "E+1",
+        "E-1",
+        "F1",
+        "GC1",
+        "IC3",
+        "IC4",
+        "J2",
+        "J5",
+        "J6",
+        "L1",
+        "L2",
+        "L3",
+        "R1",
+        "R10",
+        "R11",
+        "R12",
+        "R13",
+        "R14",
+        "R15",
+        "R16",
+        "R17",
+        "R18",
+        "R19",
+        "R2",
+        "R20",
+        "R21",
+        "R22",
+        "R23",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9",
+        "SC1",
+        "SW1",
+        "SW2",
+        "U1",
+        "U2",
+        "U3",
+        "U4",
+        "U5",
+        "U6",
+        "U7",
+        "U8",
+        "U9",
+        "Y1"
+      ],
+      "withheld": [
+        "edge_connectors[].edge read off a pose",
+        "blocks[].zone",
+        "legality_budget.oob_count"
+      ]
+    },
+    "reconciliation": [
+      {
+        "field": "edge",
+        "id": "J2:edge",
+        "kind": "drift",
+        "ref": "J2",
+        "values": {
+          "board": {
+            "authority": "inferred",
+            "source": "wk/gpm/18_uecg/uecg.kicad_pcb",
+            "value": "south"
+          },
+          "brief": {
+            "authority": "declared",
+            "source": "wk/gpm/18_uecg/uecg.design-brief.json (sha256 1fec5c03781f922a34abe8a2309b2fc958b326fec16903d29d467168f5629157)",
+            "value": "north"
+          }
+        },
+        "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+        "winner": "brief"
+      },
+      {
+        "field": "edge",
+        "id": "SW2:edge",
+        "kind": "drift",
+        "ref": "SW2",
+        "values": {
+          "board": {
+            "authority": "inferred",
+            "source": "wk/gpm/18_uecg/uecg.kicad_pcb",
+            "value": "south"
+          },
+          "brief": {
+            "authority": "declared",
+            "source": "wk/gpm/18_uecg/uecg.design-brief.json (sha256 1fec5c03781f922a34abe8a2309b2fc958b326fec16903d29d467168f5629157)",
+            "value": "north"
+          }
+        },
+        "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+        "winner": "brief"
+      },
+      {
+        "field": "pose",
+        "id": "E+1:pose",
+        "kind": "drift",
+        "ref": "E+1",
+        "values": {
+          "board": {
+            "authority": "inferred",
+            "source": "wk/gpm/18_uecg/uecg.kicad_pcb",
+            "value": [
+              118.141,
+              120.7692,
+              0.0
+            ]
+          },
+          "mechanical": {
+            "authority": "recorded_fact",
+            "source": "<the source board, withheld> (sha256 59f2542e37a5906f4b717e4461873a34d7a42cba5887e5fab96067ffd8d3b3df)",
+            "value": [
+              142.0,
+              100.0,
+              0.0
+            ]
+          }
+        },
+        "why": "fa10-decl-v1: locked in the human board",
+        "winner": "mechanical"
+      },
+      {
+        "field": "pose",
+        "id": "E-1:pose",
+        "kind": "drift",
+        "ref": "E-1",
+        "values": {
+          "board": {
+            "authority": "inferred",
+            "source": "wk/gpm/18_uecg/uecg.kicad_pcb",
+            "value": [
+              118.7308,
+              120.7692,
+              0.0
+            ]
+          },
+          "mechanical": {
+            "authority": "recorded_fact",
+            "source": "<the source board, withheld> (sha256 59f2542e37a5906f4b717e4461873a34d7a42cba5887e5fab96067ffd8d3b3df)",
+            "value": [
+              98.0,
+              100.0,
+              0.0
+            ]
+          }
+        },
+        "why": "fa10-decl-v1: locked in the human board",
+        "winner": "mechanical"
+      }
+    ]
+  },
+  "decaps": {
+    "max_distance_mm": 2.5406,
+    "within_radius_mm": 5.0,
+    "within_radius_refs": [
+      "C14",
+      "C16",
+      "C17",
+      "C18",
+      "C19",
+      "C21",
+      "C4",
+      "C5",
+      "C7",
+      "C9"
+    ]
+  },
+  "defaults": {
+    "zone_tolerance_mm": 0.5
+  },
+  "edge_connectors": [
+    {
+      "context": {
+        "basis": {},
+        "brief_row": 0,
+        "compiled_from": {},
+        "why": "fa10-decl-v1: edge_receptacle seated at the north edge in the source"
+      },
+      "edge": "north",
+      "ref": "J2",
+      "source": "brief"
+    },
+    {
+      "context": {
+        "basis": {},
+        "brief_row": 1,
+        "compiled_from": {},
+        "why": "fa10-decl-v1: edge_actuator seated at the north edge in the source",
+        "agent": "gpm 18: PCM12 slide actuator is the footprint's +y bump (courtyard to +3.4, fab tip +3.15); its mounting tabs reach +1.83, so the edge must sit at local y >= ~2.05 (0.2 edge clearance): courtyard overhang <= 1.35. 1.15-1.35 puts the actuator 0.9-1.1 mm past the edge and the tabs inside"
+      },
+      "edge": "north",
+      "ref": "SW2",
+      "source": "brief",
+      "mating_face": "+y",
+      "overhang_mm": {
+        "min": 1.15,
+        "max": 1.35
+      }
+    }
+  ],
+  "envelope": {
+    "rect": [
+      89.0048,
+      89.0,
+      151.9952,
+      111.0
+    ],
+    "tolerance_mm": 0.5
+  },
+  "fixed_poses": [
+    {
+      "basis": "mechanical",
+      "ref": "E+1",
+      "rot": 0.0,
+      "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+      "x": 142.0,
+      "y": 100.0
+    },
+    {
+      "basis": "mechanical",
+      "ref": "E-1",
+      "rot": 0.0,
+      "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+      "x": 98.0,
+      "y": 100.0
+    }
+  ],
+  "keepouts": [],
+  "kind": "floorplan-intent",
+  "legality_budget": {},
+  "min_reader": 14,
+  "must_lock": [],
+  "proximity": [
+    {
+      "basis": "pad_edge",
+      "context": {
+        "basis": "the farthest crystal leg on the human corpus, 75th percentile (placement_survey.py)",
+        "limit": "derived_default",
+        "role": "crystal",
+        "source": "placement.crystals"
+      },
+      "max_mm": 8.1,
+      "near": "U1",
+      "pads": {
+        "U1": [
+          "34",
+          "35"
+        ],
+        "Y1": [
+          "1",
+          "3"
+        ]
+      },
+      "ref": "Y1"
+    },
+    {
+      "basis": "pad_edge",
+      "context": {
+        "basis": "the farthest load cap on the human corpus, 75th percentile (placement_survey.py)",
+        "limit": "derived_default",
+        "role": "crystal load cap",
+        "source": "placement.crystals"
+      },
+      "max_mm": 2.2,
+      "near": "Y1",
+      "pads": {
+        "C12": [
+          "2"
+        ],
+        "Y1": [
+          "3"
+        ]
+      },
+      "ref": "C12"
+    },
+    {
+      "basis": "pad_edge",
+      "context": {
+        "basis": "the farthest load cap on the human corpus, 75th percentile (placement_survey.py)",
+        "limit": "derived_default",
+        "role": "crystal load cap",
+        "source": "placement.crystals"
+      },
+      "max_mm": 2.2,
+      "near": "Y1",
+      "pads": {
+        "C13": [
+          "2"
+        ],
+        "Y1": [
+          "1"
+        ]
+      },
+      "ref": "C13"
+    }
+  ],
+  "schema": 1,
+  "units": "mm",
+  "templates": [
+    {
+      "anchor": "U1",
+      "members": [
+        {
+          "ref": "C10",
+          "at": [
+            4.125,
+            -0.0
+          ],
+          "rot": 90.0,
+          "pads": {
+            "C10": [
+              "1",
+              "2"
+            ],
+            "U1": [
+              "30",
+              "31"
+            ]
+          },
+          "note": "Nordic C3 0.8 pF shunt at ANT 30, grounded via VSS pin 31 as section 53.5 requires"
+        },
+        {
+          "ref": "L1",
+          "at": [
+            5.685,
+            0.0025
+          ],
+          "rot": 180.0,
+          "pads": {
+            "L1": [
+              "2"
+            ],
+            "U1": [
+              "30"
+            ],
+            "C10": [
+              "1"
+            ]
+          },
+          "note": "Nordic L1 3.9 nH series, ANT side pad 2 toward the chip, pad 1 heads +x to the antenna"
+        },
+        {
+          "ref": "AE1",
+          "at": [
+            8.79,
+            0.0025
+          ],
+          "rot": 0.0,
+          "pads": {
+            "AE1": [
+              "1"
+            ],
+            "L1": [
+              "1"
+            ]
+          },
+          "note": "U.FL receptacle ends the 50 ohm chain: centre pin at L1's far pad"
+        },
+        {
+          "ref": "C2",
+          "at": [
+            -1.09,
+            -4.125
+          ],
+          "rot": 0.0,
+          "pads": {
+            "C2": [
+              "1",
+              "2"
+            ],
+            "U1": [
+              "46",
+              "45"
+            ]
+          },
+          "note": "Nordic C10 (DEC4 cap) across DEC4 46 / VSS 45"
+        },
+        {
+          "ref": "L2",
+          "at": [
+            -2.91,
+            -5.135
+          ],
+          "rot": 90.0,
+          "pads": {
+            "L2": [
+              "1"
+            ],
+            "U1": [
+              "47"
+            ]
+          },
+          "note": "Nordic L2 10 uH on DCC 47, standing off the -y side"
+        },
+        {
+          "ref": "L3",
+          "at": [
+            -1.5525,
+            -5.6838
+          ],
+          "rot": 270.0,
+          "pads": {
+            "L3": [
+              "1",
+              "2"
+            ],
+            "L2": [
+              "2"
+            ],
+            "C2": [
+              "1"
+            ]
+          },
+          "note": "Nordic L3 15 nH from L2's far pad back to DEC4 at C2"
+        }
+      ],
+      "tolerance_mm": 0.3,
+      "fitted": {
+        "legs_gap_mm": {
+          "C10": 1.11,
+          "L1": 0.46,
+          "AE1": 0.75,
+          "C2": 1.11,
+          "L2": 0.85,
+          "L3": 1.021
+        },
+        "legs_mm": {
+          "C10": [
+            0.555,
+            0.555
+          ],
+          "L1": [
+            0.46
+          ],
+          "AE1": [
+            0.75
+          ],
+          "C2": [
+            0.555,
+            0.555
+          ],
+          "L2": [
+            0.85
+          ],
+          "L3": [
+            0.562,
+            0.459
+          ]
+        },
+        "off_chip_mm": {
+          "C10": 0.155,
+          "L1": 1.255,
+          "AE1": 3.27,
+          "C2": 0.155,
+          "L2": 0.155,
+          "L3": 1.254
+        },
+        "gap_mm": 0.15
+      },
+      "kind": "rf front end",
+      "source": "Nordic nRF52832 Product Specification v1.0 (2016-02-17), 53.2 Schematic QFAA QFN48 with DC/DC regulator setup (Figure 168, Table 140), 53.4 PCB guidelines, 53.5 PCB layout example (Figures 170-172, internal-LDO reference layout: C3/L1 at ANT on the chip's +x side, C3 grounded via VSS pin 31)",
+      "why": "RF match (Nordic C3 0.8 pF shunt = board C10, Nordic L1 3.9 nH series = board L1) from ANT pin 30 to the U.FL AE1, and the built-in DC/DC in the same template (Nordic L2 10 uH = L2 on DCC 47, L3 15 nH = L3, Nordic C10 on DEC4 = board C2)"
+    }
+  ]
+}

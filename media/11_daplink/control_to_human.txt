@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              402              331
+  vias                                   57               27
+  total length mm                     562.3            654.5
+  distinct track widths                   3                2
+  nets with copper                       29               29
+  ours widths:   {0.127: 117, 0.228: 2, 0.25: 283}
+  orig widths:   {0.2: 14, 0.25: 317}
+  ours vias:     {'0.8/0.4': 45, '0.25/0.15': 7, '0.45/0.2': 5}
+  orig vias:     {'0.8/0.4': 27}
+
+  SUGGESTIONS:
+   - VIAS: we placed 57 vias vs original 27 (2.11x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+   - LAYER BALANCE: ours 0.31 vs original 0.64 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 402, "n_vias": 57, "total_length_mm": 562.3, "length_by_layer": {"F.Cu": 430.3, "B.Cu": 131.9}, "width_count": {"0.25": 283, "0.228": 2, "0.127": 117}, "via_count": {"0.8/0.4": 45, "0.25/0.15": 7, "0.45/0.2": 5}, "distinct_widths": 3, "nets_with_copper": 29, "n_multi_pad_nets": 29, "n_nets": 50}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 331, "n_vias": 27, "total_length_mm": 654.5, "length_by_layer": {"F.Cu": 399.9, "B.Cu": 254.6}, "width_count": {"0.25": 317, "0.2": 14}, "via_count": {"0.8/0.4": 27}, "distinct_widths": 2, "nets_with_copper": 29, "n_multi_pad_nets": 29, "n_nets": 50}, "suggestions": ["VIAS: we placed 57 vias vs original 27 (2.11x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count.", "LAYER BALANCE: ours 0.31 vs original 0.64 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

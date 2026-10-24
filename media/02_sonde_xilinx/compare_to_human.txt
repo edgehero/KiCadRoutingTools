@@ -1,0 +1,23 @@
+
+==============================================================================
+COMPARE  ours=delivered.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              116              208
+  vias                                    0                3
+  total length mm                     556.2            637.8
+  distinct track widths                   2                3
+  nets with copper                       26               26
+  ours widths:   {0.3: 86, 0.5: 30}
+  orig widths:   {0.432: 7, 0.635: 173, 1.016: 28}
+  ours vias:     {}
+  orig vias:     {'1.778/0.635': 3}
+
+  SUGGESTIONS:
+   - VIAS: 0 vs original 3 (0.0x) — comparable.
+   - WIDTHS: original uses 3 track widths (up to 1.016mm, likely power/high-current) but we use only 2 ([0.3, 0.5]). We under-build power nets — add per-net width (wide traces for power/GND-return) instead of one uniform width.
+   - WIDTHS: original has traces up to 1.016mm wide vs our max 0.5mm — high-current/power nets need widening (--power-nets with explicit widths).
+   - LAYER BALANCE: ours 0.18 vs original 0.44 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 116, "n_vias": 0, "total_length_mm": 556.2, "length_by_layer": {"F.Cu": 472.1, "B.Cu": 84.0}, "width_count": {"0.3": 86, "0.5": 30}, "via_count": {}, "distinct_widths": 2, "nets_with_copper": 26, "n_multi_pad_nets": 26, "n_nets": 42}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 208, "n_vias": 3, "total_length_mm": 637.8, "length_by_layer": {"F.Cu": 195.4, "B.Cu": 442.4}, "width_count": {"0.635": 173, "1.016": 28, "0.432": 7}, "via_count": {"1.778/0.635": 3}, "distinct_widths": 3, "nets_with_copper": 26, "n_multi_pad_nets": 26, "n_nets": 43}, "suggestions": ["VIAS: 0 vs original 3 (0.0x) \u2014 comparable.", "WIDTHS: original uses 3 track widths (up to 1.016mm, likely power/high-current) but we use only 2 ([0.3, 0.5]). We under-build power nets \u2014 add per-net width (wide traces for power/GND-return) instead of one uniform width.", "WIDTHS: original has traces up to 1.016mm wide vs our max 0.5mm \u2014 high-current/power nets need widening (--power-nets with explicit widths).", "LAYER BALANCE: ours 0.18 vs original 0.44 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

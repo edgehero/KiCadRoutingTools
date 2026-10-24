@@ -1,0 +1,51 @@
+CMD: Python -X utf8 py_tools/check_floorplan.py wk/gpm/12_steppenprobe/delivered.kicad_pcb --intent wk/gpm/12_steppenprobe/intent_run.json --allow-routed
+ENV KNOBS: none
+check_floorplan: this board carries 877 segment(s) and 140 via(s); proceeding with the copper left as it is.
+design brief delivered.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+mechanical declaration wk/gpm/12_steppenprobe/mechanical.json: 4 pose(s), 0 edge(s)
+grading at clearance 0.15 (board netclass), edge 0.3 (board constraint)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Floorplan: delivered.kicad_pcb vs intent_run.json
+  84 footprints, 0 block(s), 0 part(s) covered
+  outline: 1 ring(s), 0 cutout(s), 0 milled contour(s)
+  INCOMPLETE: 8 rule(s) ran with no violations, but 2 budget_abstained, 1 rules_skipped_armed -- this board was not fully graded
+  pad stacks: 0 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule)
+  along-edge seating (measured, not a verdict -- a violation needs a declared center_on_edge or along_edge_band):
+    J1 north: +9.24mm (+21.0% of the 44.00mm edge, ring)
+    SW1 west: +0.39mm (+0.7% of the 54.00mm edge, ring)
+  edge connector overhang (measured; the band's own currency is named):
+    J1 north: overhang 9.1500mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm unmeasured; facing north [courtyard+fab+marker, strong] pass
+    SW1 west: overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm unmeasured
+  decap pins: 21 on 11 of 15 candidate IC(s) -- pintype 19, role 2
+    1 chip(s) where a lower channel would have named a DIFFERENT pin set (U1)
+  2 declared value(s) NOT DERIVABLE -- not graded, not passed:
+    - oob_count: the board is a pile: its off-board count is staging, not a baseline (#1103)
+    - overlap_area: the board is a pile: its overlap is staging, not a baseline (#1103)
+  10 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - legality: the intent declares no legality_budget; the emitter WITHHELD oob_count (the board is a pile: its off-board count is staging, not a baseline (#1103)), overlap_area (the board is a pile: its overlap is staging, not a baseline (#1103))
+    - must_lock: the intent declares no must_lock patterns
+    - replicate: the intent declares no replicate copies
+    - template: the intent declares no templates
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  rule roster: 8 armed, 10 not; 2 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [not applicable] zone_side: every part with pads is on F face, so no block can be on the wrong one
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+  brief clause coverage: 2 graded, 0 uncovered, 0 abstained, 2 declared unknown, 0 carried
+JSON_SUMMARY: {"blocks": 0, "blocks_resolved": 0, "board": "delivered.kicad_pcb", "brief": "wk/gpm/12_steppenprobe/delivered.design-brief.json", "brief_absent": 2, "brief_clauses": 4, "brief_clauses_abstained": 0, "brief_clauses_carried": 0, "brief_clauses_drifted": 0, "brief_clauses_graded": 2, "brief_clauses_not_claimed": 2, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 2, "brief_drift": 0, "brief_unknown": 2, "brief_unknown_keys": ["interfaces[J1].along_edge", "interfaces[SW1].along_edge"], "budget_abstained": 2, "budget_abstained_keys": ["oob_count", "overlap_area"], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.15}, "complete": false, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 0, "decap_pins_by_channel": {"pinfunction": 0, "pintype": 19, "rail_net": 0, "role": 2}, "decap_pins_graded": 21, "derived_default_clauses": [], "edge_clearance_used": {"source": "board constraint", "value": 0.3}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 2, "edge_seating_worst_offset_pct": 20.99, "errors": 0, "hole_shortfall": 0.0, "hpwl": 1049.3764, "intent": "intent_run.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"dark": 2, "graded_pass": 16, "inapplicable": 3, "policy": 5, "unknown": 2}, "locked_contact_pairs": 0, "mechanical": "wk/gpm/12_steppenprobe/mechanical.json", "not_graded": {"budget_abstained": 2, "rules_skipped_armed": 1}, "oob_amount": 15.5093, "oob_area": 37.9825, "oob_count": 6, "overlap_area": 0.0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "pad_stack_count": 0, "parts_covered": 0, "parts_total": 84, "pass": false, "rules_dark_undispositioned": ["zone_containment", "legality"], "rules_run": 8, "rules_skipped": 10, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": true, "state_outside_fraction": 0.0595, "state_partially_unplaced": false, "state_spread_ratio": 0.8973, "state_unplaced": false, "unmeasured_facts": [], "violations": 0, "violations_by_rule": {}, "warnings": 0}
+  NOT FULLY GRADED: 2 budget_abstained, 1 rules_skipped_armed. A channel the intent asked for was never measured, so this is an absent verdict, not a clean one.
+EXIT=4

@@ -1,0 +1,1445 @@
+{
+ "a24e9932cf593aa5e": {
+  "board": "01",
+  "calls": 130,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/ .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/; wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "ECC83 12AX7 datasheet heater current 300mA 150mA anode current"
+   }
+  ]
+ },
+ "a67b04df7416bfaa6": {
+  "board": "01v",
+  "calls": 34,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; shasum -a 256 wk/gpm/01_ecc83-pp_v2/delivered.kicad_pcb; ls -la wk/gpm/01_ecc83-pp_v2/ | head -80; git log --oneline -1"
+   }
+  ]
+ },
+ "ad7e349275602493d": {
+  "board": "02",
+  "calls": 121,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; which python3; python3 --version; git log --oneline -1; cat wk/gpm/02_sonde_xilinx/intent.json | head -c 6000; echo; cat wk/gpm/02_sonde_xilinx/sonde_xilinx.design-brief.json"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.ti.com/lit/ds/symlink/sn74ls125a.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.st.com/resource/en/datasheet/bat46.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; R=wk/gpm/02_sonde_xilinx; mkdir -p $R/datasheets/sn74ls125a $R/datasheets/bat46; curl -sSL -m 60 -o $R/datasheets/sn74ls125a/sn74ls125a.pdf https://www.ti.com/lit/ds/symlink/sn74ls125a.pdf; echo ti=$?; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $R/datasheets/bat46/bat46.pdf https://www.st.com/resource/en/datasheet/bat46.pdf; echo st=$?; ls -la $R/datasheets/*/; which pdftotext; pdftotext -layout $R/datasheets/sn74ls125a/sn74ls125a.pdf - 2>/dev/null | grep -n -iE \"ICC|supply current|SDLS|Revised\" | head -20"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.ti.com/product/SN74LS125A"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "BAT46 Schottky diode datasheet continuous forward current 150 mA STMicroelectronics"
+   }
+  ]
+ },
+ "ab42f0745b7dcc76f": {
+  "board": "02v",
+  "calls": 39,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; shasum -a 256 wk/gpm/02_sonde_xilinx/delivered.kicad_pcb; ls -la wk/gpm/02_sonde_xilinx/ | head -80; git log --oneline -1"
+   }
+  ]
+ },
+ "ac484bf1c7fd9c158": {
+  "board": "03",
+  "calls": 153,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && printf 'FIRST_CMD: 2026-10-23T16:51:27Z\\n\\n# STATE board 03 complex_hierarchy\\n\\nstatus: starting; reading skill\\n' > wk/gpm/03_complex_hierarchy/STATE.md; cat wk/gpm/03_complex_hierarchy/STATE.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/03_complex_hierarchy; mkdir -p $D/datasheets/icl7660; cd $D/datasheets/icl7660 && curl -sSL -o icl7660_adi.pdf \"https://www.analog.com/media/en/technical-documentation/data-sheets/ICL7660-MAX1044.pdf\"; ls -la; file icl7660_adi.pdf; which pdftotext pdftoppm"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/03_complex_hierarchy/datasheets/icl7660 && curl -sSL --http1.1 -A \"Mozilla/5.0\" -o icl7660_adi.pdf \"https://www.analog.com/media/en/technical-documentation/data-sheets/ICL7660-MAX1044.pdf\"; ls -la; file icl7660_adi.pdf; head -c 300 icl7660_adi.pdf | strings | head"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "ICL7660 datasheet pdf charge pump voltage converter"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/03_complex_hierarchy/datasheets/icl7660 && curl -sSL --max-time 60 -A \"Mozilla/5.0\" -o icl7660_renesas.pdf \"https://www.renesas.com/us/en/document/dst/icl7660-icl7660a-datasheet\"; ls -la; file icl7660_renesas.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "MPSA42 MPSA92 datasheet onsemi collector current 500 mA 300 V"
+   }
+  ]
+ },
+ "a35ad323f4ebfdcfa": {
+  "board": "03v",
+  "calls": 40,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"/Applications/KiCad/KiCad.app/Contents/MacOS:$HOME/.venvs/krt/bin:$PATH\"; python3 -X utf8 py_tools/render_placement.py --help 2>&1 | head -60; git -C ~/Documents/git/krt-gpm log --oneline -1; git -C ~/Documents/git/krt-gpm status --short | head"
+   }
+  ]
+ },
+ "a817abdbc7a4bfb1a": {
+  "board": "04",
+  "calls": 264,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; T=$(date -u +%Y-%m-%dT%H:%M:%SZ); sed -i '' \"s|^FIRST_CMD: .*|FIRST_CMD: $T|\" wk/gpm/04_multichannel_mixer/STATE.md; cat wk/gpm/04_multichannel_mixer/STATE.md; ls -la wk/gpm/04_multichannel_mixer/; git log --oneline -1; which python3; python3 --version"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.ti.com/lit/ds/symlink/tl072.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "TL072 datasheet supply current per amplifier ICC 1.4 mA 2.5 mA TL072CD"
+   }
+  ]
+ },
+ "a75ef3b8d1c277f06": {
+  "board": "04v",
+  "calls": 40,
+  "flags": []
+ },
+ "a8149862327d482a7": {
+  "board": "05",
+  "calls": 206,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/ && wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md && git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "XC4003A datasheet supply current ICC quiescent Xilinx XC4000A"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "EP600 Altera EPLD datasheet ICC supply current mA"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "HM628128 128k x 8 SRAM datasheet operating current ICC"
+   },
+   {
+    "kinds": [
+     "BROAD"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && python3 - <<'EOF'\np='wk/gpm/05_interf_u/TOOL_GAPS.md'\ns=open(p).read()\nnew='''## 6. kicad_drc_compare names a starved thermal as pad `?` at the zone's corner (cost: ~5 min, a hand kicad-cli run to find the pads)\n\n**Tool / command.**\n`python3 -X utf8 tests/stress/kicad_drc_compare.py wk/gpm/05_interf_u/routed.kicad_pcb --baseline wk/gpm/05_interf_u/final_route/in.kicad_pcb`\n\n**What it claimed.** Five identical lines\n`STARVED-THERMAL ?  ['GND'] @ (193.675, 133.35)  Thermal relief connection to zone incomplete`.\n\n**What was true.** (193.675, 133.35) is a cor"
+   }
+  ]
+ },
+ "aa559c0b487bbfbe0": {
+  "board": "05v",
+  "calls": 45,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; python3 -X utf8 -c \"\nimport json\np=json.load(open('wk/gpm/05_interf_u/interf_u.kicad_pro'))\nprint('input classes', json.dumps([{k:c.get(k) for k in ('name','clearance','track_width','via_diameter','via_drill')} for c in p['net_settings']['classes']]))\nprint('input min_clearance', p['board']['design_settings']['rules'].get('min_clearance'), 'min_track', p['board']['design_settings']['rules'].get('min_track_width'))\n\"; git -C ~/Documents/git/krt-gpm log --oneline"
+   },
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; python3 -X utf8 -c \"\nimport json\np=json.load(open('wk/gpm/05_interf_u/interf_u.kicad_pro'))\nprint('input classes', json.dumps([{k:c.get(k) for k in ('name','clearance','track_width','via_diameter','via_drill')} for c in p['net_settings']['classes']]))\nprint('input min_clearance', p['board']['design_settings']['rules'].get('min_clearance'), 'min_track', p['board']['design_settings']['rules'].get('min_track_width'))\n\"; git -C ~/Documents/git/krt-gpm log --oneline"
+   }
+  ]
+ },
+ "abc73d8e30189290e": {
+  "board": "05v",
+  "calls": 48,
+  "flags": []
+ },
+ "aa6ac7142aa097355": {
+  "board": "06",
+  "calls": 226,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; echo \"FIRST_CMD: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" > wk/gpm/06_rp2350_fpga_eensy_prePlane/STATE.md; cat wk/gpm/06_rp2350_fpga_eensy_prePlane/STATE.md; date; ls -la wk/gpm/06_rp2350_fpga_eensy_prePlane/; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; D=wk/gpm/06_rp2350_fpga_eensy_prePlane; mkdir -p $D/datasheets/hro_typec31m12; cd $D/datasheets/hro_typec31m12; curl -sSL -m 60 -o typec31m12.pdf \"https://datasheet.lcsc.com/lcsc/1811131825_Korean-Hroparts-Elec-TYPE-C-31-M-12_C165948.pdf\"; ls -la; file typec31m12.pdf; which pdftotext pdftoppm pdfimages"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "HRO TYPE-C-31-M-12 datasheet PDF PCB layout"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.lcsc.com/product-detail/C165948.html"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/06_rp2350_fpga_eensy_prePlane/datasheets/hro_typec31m12 && curl -sSL -m 60 -A \"Mozilla/5.0\" -o typec31m12.pdf \"https://www.lcsc.com/datasheet/C165948.pdf\"; ls -la; file typec31m12.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/06_rp2350_fpga_eensy_prePlane/datasheets/hro_typec31m12 && curl -sSL -m 60 -A \"Mozilla/5.0 (Macintosh)\" -w \"%{http_code} %{url_effective} %{content_type}\\n\" -o t2.pdf \"https://www.lcsc.com/datasheet/C165948.pdf\"; ls -la; file t2.pdf; head -c 300 t2.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/06_rp2350_fpga_eensy_prePlane/datasheets/hro_typec31m12 && mv t2.pdf typec31m12.pdf ../../old/ 2>/dev/null; mv typec31m12.pdf ../../old/lcsc_page.html 2>/dev/null; curl -sSL -m 60 -A \"Mozilla/5.0 (Macintosh)\" -w \"%{http_code} %{content_type}\\n\" -o typec31m12.pdf \"https://datasheet.lcsc.com/datasheet/pdf/9e56b777c022540fcce7c7f67825f55e.pdf\"; file typec31m12.pdf; ls -la"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; D=wk/gpm/06_rp2350_fpga_eensy_prePlane; python3 - <<'EOF'\nimport json\np='wk/gpm/06_rp2350_fpga_eensy_prePlane/intent_run.json'\nd=json.load(open(p))\nfor e in d['edge_connectors']:\n    if e['ref']=='J1':\n        e['overhang_mm']={'min':0.99,'max':1.05}\n        e['mating_face']='+y'\n        e.setdefault('context',{})['run_note']=('overhang_mm and mating_face added by the run (gpm 06): HRO TYPE-C-31-M-12 '\n          'datasheet recommended PCB layout puts the PCB EDGE 5.79 mm from the rear shell-leg centre line, i.e. a"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/06_rp2350_fpga_eensy_prePlane && mkdir -p datasheets/rp2350 && cd datasheets/rp2350 && curl -sSL -m 120 -A \"Mozilla/5.0 (Macintosh)\" -w \"%{http_code} %{content_type} %{size_download}\\n\" -o hw-design-rp2350.pdf https://datasheets.raspberrypi.com/rp2350/hardware-design-with-rp2350.pdf; file hw-design-rp2350.pdf; cd ../..; ./helpers/pdftool find datasheets/rp2350/hw-design-rp2350.pdf \"VREG_LX\" 2>/dev/null | tr '\\n' ' '; echo; ./helpers/pdftool find datasheets/rp2350/hw-design-rp2350.pdf \"inductor\" 2>/dev/null | tr '\\n' ' '"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "Efinix Trion T8 WLCSP49 T8F49 datasheet VCC core current static power"
+   }
+  ]
+ },
+ "a87bcf4e7094b2c8f": {
+  "board": "06v",
+  "calls": 34,
+  "flags": []
+ },
+ "a90b8045c6fafda90": {
+  "board": "07",
+  "calls": 396,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; D=wk/gpm/07_One-Air-Max; cat $D/One-Air-Max.design-brief.json; echo; cat $D/mechanical.json; echo; cat $D/.fence-manifest.json; echo; python3 --version; git log --oneline -1; ls $D/*.kicad_dru 2>/dev/null"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/07_One-Air-Max; mkdir -p $D/datasheets/tps62902 $D/datasheets/tps62903 $D/datasheets/bq25672 $D/datasheets/dc045a $D/datasheets/esp32c6wroom1; cd $D/datasheets; curl -sSL -o tps62902/tps62902.pdf https://www.ti.com/lit/ds/symlink/tps62902.pdf; curl -sSL -o tps62903/tps62903-q1.pdf https://www.ti.com/lit/ds/symlink/tps62903-q1.pdf; curl -sSL -o bq25672/bq25672.pdf https://www.ti.com/lit/ds/symlink/bq25672.pdf; ls -la */; file */*.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "DC-045A-13A DC power jack SMD datasheet LCSC"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/07_One-Air-Max && curl -sSL -o datasheets/dc045a/xkb_dc045a.pdf \"https://atta.szlcsc.com/upload/public/pdf/source/20220120/F5B3726925A760CAAABA8F993DBBCC18.pdf\"; file datasheets/dc045a/xkb_dc045a.pdf; helpers/pdf_tool text datasheets/dc045a/xkb_dc045a.pdf 1 2 2>/dev/null | head -40; helpers/pdf_tool render datasheets/dc045a/xkb_dc045a.pdf 1 150 datasheets/dc045a/p1.png 2>/dev/null"
+   }
+  ]
+ },
+ "ab14c241c9a0d516f": {
+  "board": "07v",
+  "calls": 58,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; shasum -a 256 wk/gpm/07_One-Air-Max/delivered.kicad_pcb; ls -la wk/gpm/07_One-Air-Max/; python3 --version; git log --oneline -1"
+   }
+  ]
+ },
+ "a83a1965ee08df513": {
+  "board": "07v",
+  "calls": 65,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; shasum -a 256 wk/gpm/07_One-Air-Max/delivered.kicad_pcb; ls -la wk/gpm/07_One-Air-Max/; python3 --version; git log --oneline -1"
+   }
+  ]
+ },
+ "a5fc8fbe747a2f6cd": {
+  "board": "08",
+  "calls": 345,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/ && wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md && git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "GLPLX-SMT-188S7 RJ45 datasheet"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; mkdir -p $R/datasheets/J1; curl -sSL -m 60 -o $R/datasheets/J1/GLPLX-SMT-188S7.pdf \"https://cloud.kycon.com/GLPLX-SMT-188S7-QQ-YG.pdf\"; ls -la $R/datasheets/J1; file $R/datasheets/J1/*; curl -sSL -m 60 -o $R/datasheets/J1/GLPLX.pdf \"https://www.mouser.lt/datasheet/3/166/1/GLPLX.pdf\"; file $R/datasheets/J1/*"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; cat $R/datasheets/J1/GLPLX-SMT-188S7.pdf; echo; curl -sSL --http1.1 -m 60 -A \"Mozilla/5.0\" -o $R/datasheets/J1/GLPLX.pdf \"https://www.mouser.lt/datasheet/3/166/1/GLPLX.pdf\"; file $R/datasheets/J1/GLPLX.pdf; curl -sSL --http1.1 -m 60 -A \"Mozilla/5.0\" -o $R/datasheets/J1/eicom.pdf \"https://cdn.eicom.ru/media/PDF/8186345.pdf\"; file $R/datasheets/J1/eicom.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; mkdir -p $R/datasheets/AP3441; curl -sSL --http1.1 -m 60 -A \"Mozilla/5.0\" -o $R/datasheets/AP3441/AP3441.pdf \"https://www.diodes.com/assets/Datasheets/AP3441.pdf\"; file $R/datasheets/AP3441/AP3441.pdf; ls -la $R/datasheets/AP3441/"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AP3441SHE-7B datasheet pdf 2A synchronous buck DFN2020 Diodes"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; D=$R/datasheets/AP3441; for u in \"https://www.diodes.com/datasheet/download/AP3441.pdf\" \"https://www.diodes.com/assets/Datasheets/AP3441-AP3445.pdf\" \"https://www.diodes.com/assets/Datasheets/AP3441_45.pdf\" \"https://www.diodes.com/assets/Datasheets/AP3441L.pdf\"; do curl -sSL --http1.1 -m 40 -A \"Mozilla/5.0\" -o $D/try.pdf \"$u\"; echo \"$u $(file -b $D/try.pdf | cut -c1-40)\"; done"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; D=$R/datasheets/AP3441; mv $D/AP3441.pdf $R/old/ap3441_404.html; rm -f $D/try.pdf 2>/dev/null; curl -sSL --http1.1 -m 40 -A \"Mozilla/5.0\" -o $D/AP3441.pdf \"https://www.diodes.com/datasheet/download/AP3441.pdf\"; file $D/AP3441.pdf; cat > $R/helpers/pdf_render.swift <<'EOF'\n// Render pages of a PDF to PNG with PDFKit (no poppler on this Mac).\n// usage: swift pdf_render.swift in.pdf outprefix firstPage lastPage scale\nimport Foundation\nimport PDFKit\nimport AppKit\nlet a = CommandLine.arguments\nlet doc = PDFDocument(url: URL(fileURLWit"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AP3441 evaluation board user guide PCB layout Diodes"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; D=$R/datasheets/AP3441; curl -sSL --http1.1 -m 40 -A \"Mozilla/5.0\" -o $D/EVB.pdf \"https://pericom.com/assets/Evaluation-Boards/AP3441-L-EVB-User-Guide.pdf\"; file $D/EVB.pdf; swift $R/helpers/pdf_render.swift $D/EVB.pdf $D/evb 1 10 2.5 2>&1 | grep pages; grep -l -i layout $D/evb-*.txt; for f in $D/evb-*.txt; do echo \"== $f\"; head -40 $f; done 2>/dev/null | head -150"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/08_CM5_MINIMA_3; D=$R/datasheets/AP3441; head -c 400 $D/EVB.pdf; echo; for u in \"https://www.diodes.com/assets/Evaluation-Boards/AP3441-L-EVB-User-Guide.pdf\" \"https://diodes.com/assets/Evaluation-Boards/AP3441-L-EVB-User-Guide.pdf\"; do curl -sSL --http1.1 -m 40 -A \"Mozilla/5.0\" -o $D/EVB.pdf \"$u\"; echo \"$u $(file -b $D/EVB.pdf | cut -c1-40)\"; done"
+   }
+  ]
+ },
+ "a7ef9ddba3c0f2584": {
+  "board": "08v",
+  "calls": 61,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; which python3; python3 --version; shasum -a 256 wk/gpm/08_CM5_MINIMA_3/delivered.kicad_pcb wk/gpm/08_CM5_MINIMA_3/fixed.kicad_pcb wk/gpm/08_CM5_MINIMA_3/CM5_MINIMA_3.kicad_pcb; ls -la wk/gpm/08_CM5_MINIMA_3/ | head -80; git log --oneline -1"
+   }
+  ]
+ },
+ "a81485256fdf5f1d0": {
+  "board": "09",
+  "calls": 287,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; T=$(date -u +%Y-%m-%dT%H:%M:%SZ); printf '# STATE 09_StickHub\\n\\nFIRST_CMD: %s\\n\\n' \"$T\" > wk/gpm/09_StickHub/STATE.md; cat wk/gpm/09_StickHub/STATE.md; ls -la wk/gpm/09_StickHub/; which python3; python3 --version; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "SLG5NT1487V datasheet load switch"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "XR22417 MaxLinear 7-port USB 2.0 hub datasheet supply current"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/09_StickHub; mkdir -p $R/datasheets/XR22417 $R/datasheets/SLG5NT1487V; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $R/datasheets/XR22417/xr22417.pdf \"https://www.maxlinear.com/document?id=22103\"; file $R/datasheets/XR22417/xr22417.pdf; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $R/datasheets/SLG5NT1487V/slg5nt1487v.pdf \"https://www.renesas.com/document/dst/slg5nt1487v-datasheet\"; file $R/datasheets/SLG5NT1487V/slg5nt1487v.pdf; ls -la $R/datasheets/*/"
+   }
+  ]
+ },
+ "acb15b6b0a9e686ca": {
+  "board": "09v",
+  "calls": 34,
+  "flags": []
+ },
+ "a964bcfb6275726ca": {
+  "board": "10",
+  "calls": 302,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && printf 'FIRST_CMD: 2026-10-23T09:06:36Z\\n\\n# STATE\\n\\n- status: starting; reading skill\\n' > wk/gpm/10_glasgow_revC/STATE.md && cat wk/gpm/10_glasgow_revC/STATE.md && git log --oneline -3 && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "CY7C68013A datasheet supply current ICC mA"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "iCE40 HX8K datasheet core supply current ICC VCCIO static"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "TLV755P TLV75533 500 mA LDO datasheet; TLV733P 300mA; TPS731 150mA; TPD3S014 current limit"
+   }
+  ]
+ },
+ "a666b0cb3f154641d": {
+  "board": "10v",
+  "calls": 59,
+  "flags": []
+ },
+ "acaa8bd59aaf8d539": {
+  "board": "11",
+  "calls": 213,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && cat wk/gpm/11_daplink/README.md; echo ----; cat wk/gpm/11_daplink/TASK.md | head -50; echo ----; cat wk/gpm/11_daplink/daplink.design-brief.json; cat wk/gpm/11_daplink/.fence-manifest.json; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "STM32F103CB datasheet supply current IDD 72 MHz USB full-speed"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AMS1117-3.3 datasheet output current 1A dropout output capacitor"
+   },
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && git status --short | grep -v \"^??\" | head; git diff --stat | tail -3; ls -lT docs/floorplan-intent.md"
+   }
+  ]
+ },
+ "a11ec6893f363f851": {
+  "board": "11",
+  "calls": 179,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls -la .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/ && wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md && git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/11_daplink; mkdir -p $D/datasheets/usb4105; curl -sSL -A \"Mozilla/5.0\" -o $D/datasheets/usb4105/usb4105.pdf https://gct.co/files/drawings/usb4105.pdf; ls -la $D/datasheets/usb4105; file $D/datasheets/usb4105/usb4105.pdf; which pdftotext pdftoppm"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/11_daplink; mkdir -p $D/datasheets/harwin_m20-890; curl -sSL -A \"Mozilla/5.0\" -o $D/datasheets/harwin_m20-890/M20-890.pdf https://cdn.harwin.com/pdfs/M20-890.pdf; ls -la $D/datasheets/harwin_m20-890; file $D/datasheets/harwin_m20-890/M20-890.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/11_daplink; mv $D/datasheets/harwin_m20-890/M20-890.pdf $D/datasheets/harwin_m20-890/M20-890.html; grep -oE 'https?://[^\"]*\\.pdf' $D/datasheets/harwin_m20-890/M20-890.html | sort -u | head; for u in https://cdn.harwin.com/pdfs/M20-890R.pdf https://www.harwin.com/pdfs/M20-890.pdf; do curl -sSL -A \"Mozilla/5.0\" -o /tmp/x.pdf -w \"%{http_code} %{content_type}\\n\" $u; done"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "Harwin M20-8900545 datasheet PDF SMT horizontal male header PCB layout"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "STM32F103CB datasheet supply current run mode 72 MHz all peripherals enabled IDD max"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AMS1117-3.3 datasheet maximum output current dropout"
+   }
+  ]
+ },
+ "a1710e9763ac30e85": {
+  "board": "11v",
+  "calls": 55,
+  "flags": []
+ },
+ "ade0a45b65af67bab": {
+  "board": "11v",
+  "calls": 57,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; cat wk/gpm/11_daplink/daplink.design-brief.json; echo; cmp wk/gpm/11_daplink/daplink.design-brief.json wk/gpm/11_daplink/delivered.design-brief.json && echo SAME_BRIEF; python3 -c \"\nimport json\np=json.load(open('wk/gpm/11_daplink/delivered.kicad_pro'))\nds=p['board']['design_settings']\nprint(json.dumps(ds.get('rules'),indent=1))\nprint(json.dumps(p['net_settings']['classes'],indent=1))\nprint(json.dumps(p.get('kicad_routing_tools'),indent=1)[:2000])\n\"; ls wk/gpm/11_daplink"
+   },
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls -la wk/gpm/11_daplink/delivered.* wk/gpm/11_daplink/daplink.*; git log -1 --format='%H %cd' -- docs/floorplan-intent.md; git diff --stat"
+   }
+  ]
+ },
+ "abe073e8078c36273": {
+  "board": "11v",
+  "calls": 39,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; shasum -a 256 wk/gpm/11_daplink/delivered.kicad_pcb; ls -la wk/gpm/11_daplink/ | grep -E \"delivered|daplink\\.|intent_run\"; git log --oneline -1"
+   }
+  ]
+ },
+ "a9ad3d1477880e719": {
+  "board": "12",
+  "calls": 275,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; printf 'FIRST_CMD: 2026-10-23T20:11:51Z\\n' > wk/gpm/12_steppenprobe/STATE.md; cat wk/gpm/12_steppenprobe/README.md; echo ----; cat wk/gpm/12_steppenprobe/TASK.md; git log --oneline -1; which python3; python3 --version"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "GCT USB4085-GF-A datasheet PCB layout board edge"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && mkdir -p wk/gpm/12_steppenprobe/datasheets/USB4085 && cd wk/gpm/12_steppenprobe/datasheets/USB4085 && curl -sSL -A \"Mozilla/5.0\" -o usb4085.pdf \"https://gct.co/files/drawings/usb4085.pdf\"; file usb4085.pdf; ls -la"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "E-Switch EG1215AA datasheet slide switch right angle PCB layout"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/12_steppenprobe/datasheets && mkdir -p EG1215 && cd EG1215 && curl -sSL -A \"Mozilla/5.0\" -o eg1215.pdf \"https://www.mouser.com/datasheet/3/315/1/EG1215.pdf\"; file eg1215.pdf; swift ../../helpers/pdfpage.swift eg1215.pdf 1 2 150 pg 2>&1 | tail -3"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/12_steppenprobe/datasheets/EG1215 && mv eg1215.pdf mouser.html; curl -sSL -A \"Mozilla/5.0\" -o eg1215.pdf \"https://cdn.components.ru/media/PDF/205305.pdf\"; file eg1215.pdf; curl -sSL -A \"Mozilla/5.0\" -o eswitch.pdf \"https://www.e-switch.com/wp-content/uploads/2022/06/EG1215.pdf\"; file eswitch.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "FT2232H datasheet operating supply current high speed mA VCCIO VREGIN"
+   }
+  ]
+ },
+ "a2ee3ab6ec865ea1d": {
+  "board": "12",
+  "calls": 356,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && printf 'FIRST_CMD: 2026-10-23T09:06:41Z\\n\\n# STATE\\n\\n- status: starting; reading skill\\n' > wk/gpm/12_steppenprobe/STATE.md && cat wk/gpm/12_steppenprobe/STATE.md && git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && W=wk/gpm/12_steppenprobe; mkdir -p $W/datasheets/usb4085 && curl -sSL -m 60 -o $W/datasheets/usb4085/usb4085.pdf \"https://gct.co/files/drawings/usb4085.pdf\"; ls -la $W/datasheets/usb4085; file $W/datasheets/usb4085/usb4085.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && W=wk/gpm/12_steppenprobe; cat $W/datasheets/usb4085/usb4085.pdf | head -30; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $W/datasheets/usb4085/usb4085b.pdf \"https://gct.co/files/drawings/usb4085.pdf\"; file $W/datasheets/usb4085/usb4085b.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "FT2232H datasheet operating supply current Icc1 mA VREGIN"
+   }
+  ]
+ },
+ "a057aaa8cd8890913": {
+  "board": "12v",
+  "calls": 70,
+  "flags": []
+ },
+ "a62b85739ff7d98ab": {
+  "board": "12v",
+  "calls": 46,
+  "flags": []
+ },
+ "a543d7e3204c87937": {
+  "board": "12v",
+  "calls": 40,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; shasum -a 256 wk/gpm/12_steppenprobe/delivered.kicad_pcb; ls -la wk/gpm/12_steppenprobe/ | head -100; python3 --version; git log --oneline -1"
+   }
+  ]
+ },
+ "a79b510b838b99b69": {
+  "board": "12v",
+  "calls": 38,
+  "flags": []
+ },
+ "ac91cc3b10f4f0ba6": {
+  "board": "13",
+  "calls": 370,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/ && wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md .claude/skills/analyze-power-nets/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "HRO TYPE-C-31-M-12 datasheet PCB layout board edge"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "mkdir -p wk/gpm/13_pico_ice_rev3/datasheets/TYPE-C-31-M-12 && cd wk/gpm/13_pico_ice_rev3/datasheets/TYPE-C-31-M-12 && curl -sSL -A \"Mozilla/5.0\" -o typec.pdf \"https://datasheet.lcsc.com/lcsc/1811131825_Korean-Hroparts-Elec-TYPE-C-31-M-12_C165948.pdf\"; ls -la; file typec.pdf; which pdftotext pdftoppm"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://lcsc.com/product-detail/C165948.html"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/13_pico_ice_rev3/datasheets/TYPE-C-31-M-12 && curl -sSL -A \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36\" -o typec.pdf \"https://www.lcsc.com/datasheet/C165948.pdf\"; ls -la; file typec.pdf; export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; python3 -c \"import fitz; print('pymupdf ok')\" 2>&1; python3 -c \"import pypdf; print('pypdf ok')\" 2>&1"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.lcsc.com/datasheet/C165948.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://jlcpcb.com/partdetail/KoreanHropartsElec-TYPE_C_31_M_12/C165948"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/13_pico_ice_rev3/datasheets/TYPE-C-31-M-12 && curl -sSL -o typec.pdf 'https://jlc-prod-smt.oss-eu-central-1.aliyuncs.com/smtDataManualFile/8550723676065714176-C165948.pdf?response-content-disposition=attachment%3B%20filename%3DC165948.pdf%3B%20filename%2A%3DUTF-8%27%27C165948.pdf&x-oss-date=20261023T091136Z&x-oss-expires=1800&x-oss-security-token=CAISgAN1q6Ft5B2yfSjIr5vaHtjjgO1D4oala2HWvUsdRMp9pYTflDz2IHhMdHJsAOodtv0%2FmmhT6PkclqRLcbhpcmfjV%2BZHzLB8qcAP%2BCA%2F557b16cNrbH4M4H6aXeirtuwDsz9SNTCALjPD3nPii50x5bjaDymRCbLGJaViJlhHLN1Ow6jdmhpCctxLAlvo9NgFxm3"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "C&K PTS820 J25K SMTR LFS datasheet side actuated tactile switch"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "NCP115AMX330TCG datasheet output current 300 mA XDFN4"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "iCE40UP5K datasheet core supply current ICC VCC 1.2V typical maximum mA"
+   }
+  ]
+ },
+ "aa64590e9ef39920a": {
+  "board": "13v",
+  "calls": 32,
+  "flags": []
+ },
+ "a4f1da6f7635c30f3": {
+  "board": "14",
+  "calls": 451,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; which python3; python3 --version; git log --oneline -1; cat wk/gpm/14_imx6ulz_4l/imx6ulz_4l.design-brief.json; echo; cat wk/gpm/14_imx6ulz_4l/mechanical.json; echo; wc -c wk/gpm/14_imx6ulz_4l/intent.json; cat wk/gpm/14_imx6ulz_4l/imx6ulz_4l.kicad_dru"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/14_imx6ulz_4l; mkdir -p $R/datasheets/tlv62568; curl -sSL -A \"Mozilla/5.0\" -o $R/datasheets/tlv62568/tlv62568.pdf https://www.ti.com/lit/ds/symlink/tlv62568.pdf; ls -la $R/datasheets/tlv62568/; file $R/datasheets/tlv62568/tlv62568.pdf; which pdftotext pdftoppm"
+   }
+  ]
+ },
+ "ace9db938a3e367b6": {
+  "board": "14v",
+  "calls": 107,
+  "flags": []
+ },
+ "a966390cf95bea094": {
+  "board": "15",
+  "calls": 243,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/; wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "FD6288Q datasheet Fortior gate driver QFN24 bootstrap layout"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && F=wk/gpm/15_am32_esc; mkdir -p $F/datasheets/fd6288q $F/old $F/helpers $F/repro; curl -sSL -A \"Mozilla/5.0\" -o $F/datasheets/fd6288q/fd6288q.pdf \"https://datasheet.lcsc.com/szlcsc/Fortior-Tech-FD6288Q_C328453.pdf\"; ls -la $F/datasheets/fd6288q; file $F/datasheets/fd6288q/fd6288q.pdf; which pdftotext pdftoppm pdfimages"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && F=wk/gpm/15_am32_esc/datasheets/fd6288q; curl -sSL -A \"Mozilla/5.0\" -o $F/fd6288_mev.pdf \"https://shop.mev-elektronik.com/wp-content/uploads/FD6288.pdf\"; curl -sSL -A \"Mozilla/5.0\" -o $F/fd6288t_02.pdf \"https://file01.andesource.com/dkpdf/FD6288T_02.pdf\"; file $F/*.pdf; ls -la $F"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://shop.mev-elektronik.com/wp-content/uploads/FD6288.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AON7544 datasheet Alpha Omega 30V N-channel DFN 3x3 continuous drain current"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "Holtek HT75xx-1 LDO datasheet output current SOT-89 HT7550-1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AP2112K-3.3 Diodes Inc LDO 600mA datasheet"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "TJA1051TK/3 NXP CAN transceiver datasheet supply current dominant VCC VIO"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "WS2812B-2020 datasheet supply current per LED; STM32L431KC run mode supply current datasheet"
+   }
+  ]
+ },
+ "acec612da54a38da4": {
+  "board": "15v",
+  "calls": 43,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; shasum -a 256 wk/gpm/15_am32_esc/delivered.kicad_pcb; ls -la wk/gpm/15_am32_esc/ | head -80; git log --oneline -1"
+   }
+  ]
+ },
+ "a6d202aab509f5746": {
+  "board": "15v",
+  "calls": 48,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH:/Applications/KiCad/KiCad.app/Contents/MacOS\"; shasum -a 256 wk/gpm/15_am32_esc/delivered.kicad_pcb; ls -la wk/gpm/15_am32_esc/ | head -100; git -C . log --oneline -1"
+   }
+  ]
+ },
+ "aa42c7fcd5ce8a31f": {
+  "board": "16",
+  "calls": 209,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; echo \"FIRST_CMD: $(date -u +%Y-%m-%dT%H:%M:%SZ)\" > wk/gpm/16_esp_rust_board/STATE.md; cat wk/gpm/16_esp_rust_board/STATE.md; ls -la wk/gpm/16_esp_rust_board/; git log --oneline -1; which python3; python3 --version"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "Silergy SY8088 datasheet PDF layout"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/16_esp_rust_board; mkdir -p $D/datasheets/SY8088; curl -sSL -m 60 -o $D/datasheets/SY8088/sy8088.pdf \"https://static.chipdip.ru/lib/486/DOC014486487.pdf\"; ls -la $D/datasheets/SY8088/; file $D/datasheets/SY8088/sy8088.pdf; which pdftotext pdftoppm pdfimages"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "SY8088AAC datasheet lcsc pdf \"layout\""
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://www.lcsc.com/product-detail/C79313.html"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/16_esp_rust_board; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $D/datasheets/SY8088/sy8088_lcsc.pdf \"https://www.lcsc.com/datasheet/C79313.pdf\"; ls -la $D/datasheets/SY8088/; file $D/datasheets/SY8088/sy8088_lcsc.pdf; swift $D/helpers/pdf_render.swift $D/datasheets/SY8088/sy8088_lcsc.pdf text 1 20 2>&1 | grep -n -i -E \"page|layout|figure|rev|close|loop\" | head -40"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "GCT USB4105-GF-A datasheet PCB edge drawing pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/16_esp_rust_board; mkdir -p $D/datasheets/USB4105; for u in \"https://gct.co/files/drawings/usb4105.pdf\" \"https://www.gct.co/files/drawings/usb4105.pdf\"; do curl -sSL -m 40 -A \"Mozilla/5.0\" -o $D/datasheets/USB4105/usb4105.pdf \"$u\"; file $D/datasheets/USB4105/usb4105.pdf; done"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/16_esp_rust_board; mkdir -p $D/datasheets/ESP32C3MINI1; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $D/datasheets/ESP32C3MINI1/ds.pdf \"https://www.espressif.com/sites/default/files/documentation/esp32-c3-mini-1_datasheet_en.pdf\"; file $D/datasheets/ESP32C3MINI1/ds.pdf; swift $D/helpers/pdf_render.swift $D/datasheets/ESP32C3MINI1/ds.pdf text 1 60 2>/dev/null > $D/datasheets/ESP32C3MINI1/ds.txt; wc -l $D/datasheets/ESP32C3MINI1/ds.txt; grep -n -i -E \"keep-?out|antenna area|base board|edge of|Position|TX.*mA|current consumption|peak|500 mA|0\\.5 A\" $D/datash"
+   }
+  ]
+ },
+ "ad02b5e4cac3b94f2": {
+  "board": "16v",
+  "calls": 43,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; shasum -a 256 wk/gpm/16_esp_rust_board/delivered.kicad_pcb; ls -la wk/gpm/16_esp_rust_board/ | head -100; git log --oneline -3"
+   }
+  ]
+ },
+ "aedc7525655c36855": {
+  "board": "16v",
+  "calls": 69,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; shasum -a 256 wk/gpm/16_esp_rust_board/delivered.kicad_pcb; ls -la wk/gpm/16_esp_rust_board/ | head -80; git log --oneline -1"
+   }
+  ]
+ },
+ "a67127cdf1bb03e35": {
+  "board": "17",
+  "calls": 229,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/; wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/17_environment_sensor; mkdir -p $D/datasheets/USB4105 $D/old $D/helpers $D/repro; curl -sSL -m 60 -o $D/datasheets/USB4105/usb4105.pdf \"https://gct.co/files/drawings/usb4105.pdf\"; ls -la $D/datasheets/USB4105/; file $D/datasheets/USB4105/usb4105.pdf"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/17_environment_sensor; mkdir -p $D/datasheets/JST_SH; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $D/datasheets/JST_SH/eSH.pdf \"https://www.jst-mfg.com/product/pdf/eng/eSH.pdf\"; file $D/datasheets/JST_SH/eSH.pdf; ls -la $D/datasheets/JST_SH/"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/17_environment_sensor; cat $D/datasheets/JST_SH/eSH.pdf; echo; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $D/datasheets/JST_SH/sh.pdf \"https://cdn.sparkfun.com/datasheets/GPS/eSH.pdf\"; file $D/datasheets/JST_SH/sh.pdf; ls -la $D/datasheets/JST_SH/sh.pdf"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "SM04B-SRSS-TB datasheet pdf JST SH side entry PCB layout"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && D=wk/gpm/17_environment_sensor; curl -sSL -m 60 -A \"Mozilla/5.0\" -o $D/datasheets/JST_SH/eSH_copy.pdf \"https://openpilotwiki.readthedocs.io/en/latest/_downloads/EM406-SMDConnector-eSH.pdf\"; file $D/datasheets/JST_SH/eSH_copy.pdf; swift $D/helpers/pdfpage.swift $D/datasheets/JST_SH/eSH_copy.pdf 1 $D/datasheets/JST_SH/p1.png 2 2>&1|tail -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "AP7370-33SA-7 datasheet output current 300mA LDO Diodes"
+   }
+  ]
+ },
+ "a65d27bb8b2e81a95": {
+  "board": "17v",
+  "calls": 38,
+  "flags": []
+ },
+ "a1f88672ba5c80ed2": {
+  "board": "18",
+  "calls": 243,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/; wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/plan-pcb-placement/ .claude/skills/plan-pcb-placement/references/; wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "HY-1185 tactile switch datasheet side push"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "nRF52832 product specification pdf reference layout QFN48 DC/DC configuration"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && mkdir -p wk/gpm/18_uecg/datasheets/nrf52832 && cd wk/gpm/18_uecg/datasheets/nrf52832 && curl -sSL -o nRF52832_PS_v1.4.pdf \"https://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.4.pdf\"; ls -la; file nRF52832_PS_v1.4.pdf; which pdftotext pdftoppm pdfimages"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/18_uecg/datasheets/nrf52832 && head -c 1500 nRF52832_PS_v1.4.pdf; echo; curl -sSIL \"https://docs-be.nordicsemi.com/bundle/ps_nrf52832/attach/nRF52832_PS_v1.9.pdf\" | head -20"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/18_uecg/datasheets/nrf52832 && mv nRF52832_PS_v1.4.pdf blocked_cloudflare.html; for u in \"https://file01.andesource.com/dkpdf/NRF52832-QFAA-R.pdf\" \"https://cdn.sparkfun.com/datasheets/Dev/nRF52832/nRF52832_PS_v1.4.pdf\" \"https://cdn-learn.adafruit.com/assets/assets/000/092/427/original/nRF52832_PS_v1.4.pdf\"; do n=$(basename $u); curl -sSL -m 60 -o \"$n\" \"$u\"; file \"$n\"; ls -la \"$n\"; done"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "\"nRF52832_PS_v1.4.pdf\" OR \"nRF52832_PS_v1.8.pdf\" sparkfun OR mouser OR adafruit OR digikey"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/18_uecg/datasheets/nrf52832 && rm -f nRF52832_PS_v1.4.pdf 2>/dev/null; for u in \"https://docs.nordicsemi.com/bundle/nRF52832-PS/resource/nRF52832_PS_v1.8.pdf\" \"https://cdn.eicom.ru/media/PDF/7769172.pdf\"; do n=$(basename $u); curl -sSL -m 120 -A \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15\" -o \"$n\" \"$u\"; file \"$n\"; ls -la \"$n\"; done"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "nRF52832 product specification v1.4 pdf mouser.com datasheet 297"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "WebFetch",
+    "text": "https://docs.nordicsemi.com/r/bundle/ps_nrf52832/page/ref_circuitry.html"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/18_uecg/datasheets/nrf52832 && UA=\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15\"; i=0; for u in \"https://www.nordicsemi.com/-/media/DocLib/Other/Product_Spec/nRF52832PSv14.pdf\" \"https://www.nordicsemi.com/-/media/Software-and-other-downloads/Product-Briefs/nRF52832-product-brief.pdf\" \"https://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.8.pdf\" \"https://www.mouser.com/datasheet/2/297/nRF52832_PS_v1.4-1149453.pdf\" \"https://www.farnell.com/datasheets/2582207.pdf\"; do i=$((i+1)); cur"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/18_uecg/datasheets/nrf52832 && mv try5.pdf ../../old/try5_wrongdoc.pdf; UA=\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15\"; i=10; for u in \"https://cdn.sparkfun.com/datasheets/Wireless/Bluetooth/nRF52832_PS_v1.0.pdf\" \"https://cdn.sparkfun.com/datasheets/Dev/Arduino/Boards/nRF52832_PS_v1.0.pdf\" \"https://cdn-shop.adafruit.com/product-files/3406/n5_PS_v1.0.pdf\" \"https://cdn-learn.adafruit.com/assets/assets/000/039/652/original/nRF52832_PS_v1.1.pdf\" \"https://www.waveshare.com/w/upload"
+   }
+  ]
+ },
+ "a31ef8f3f6af91a6f": {
+  "board": "18v",
+  "calls": 64,
+  "flags": []
+ },
+ "aebbb195e5301e239": {
+  "board": "18v",
+  "calls": 51,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; ls -la wk/gpm/18_uecg/uecg* ; ls wk/gpm/18_uecg/ | sed -n '80,200p'; git -C . log --oneline -1"
+   },
+   {
+    "kinds": [
+     "PATH"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && ls .claude/skills/ ; ls .claude/skills/ 2>/dev/null; grep -rln -i \"declares a class\" .claude .claude 2>/dev/null | head"
+   }
+  ]
+ },
+ "ae35f9e4ebbcba1d1": {
+  "board": "18v",
+  "calls": 51,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; shasum -a 256 wk/gpm/18_uecg/delivered.kicad_pcb; ls -la wk/gpm/18_uecg/ | head -80; git log --oneline -1"
+   }
+  ]
+ },
+ "afc81249b52ec823a": {
+  "board": "19",
+  "calls": 334,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; D=wk/gpm/19_icebreaker_v10e; cat $D/icebreaker_v10e.design-brief.json; echo; cat $D/.fence-manifest.json; echo; python3 -c \"\nimport json;m=json.load(open('$D/mechanical.json'));print(json.dumps(m,indent=1)[:4000])\"; which python3; python3 --version; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "FT2232H datasheet operating supply current Icc VREGIN"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "iCE40 UltraPlus iCE40UP5K datasheet VCC core supply current RGB LED driver current"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "W25Q128JV datasheet active read current ICC"
+   }
+  ]
+ },
+ "ac26788a6fa464774": {
+  "board": "19v",
+  "calls": 62,
+  "flags": []
+ },
+ "a23c9fc0cd0c7fd43": {
+  "board": "20",
+  "calls": 323,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && wc -l .claude/skills/plan-pcb-placement/SKILL.md .claude/skills/plan-pcb-placement/references/*.md .claude/skills/plan-pcb-routing/SKILL.md .claude/skills/analyze-power-nets/SKILL.md; git log --oneline -1"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "MCP16501 datasheet PMIC Microchip PDF"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && R=wk/gpm/20_sam9g25; mkdir -p $R/datasheets/mcp16501; cd $R/datasheets/mcp16501 && curl -sSL -A \"Mozilla/5.0\" -o mcp16501.pdf \"https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP16501-High-Performance-PMIC-for-SAMA5-and-SAM9-Data-Sheet-DS20006435.pdf\"; ls -la; file mcp16501.pdf; head -c 300 mcp16501.pdf | strings | head"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd wk/gpm/20_sam9g25/datasheets/mcp16501 && for u in https://www.farnell.com/datasheets/3154028.pdf https://www.farnell.com/datasheets/3154081.pdf; do f=$(basename $u); curl -sSL -A \"Mozilla/5.0\" -o $f \"$u\"; file $f; done; ls -la; which pdftotext pdftoppm"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; R=wk/gpm/20_sam9g25; mkdir -p $R/helpers/pylib && python3 -m pip install --quiet --target $R/helpers/pylib pymupdf 2>&1 | tail -3; ls $R/helpers/pylib | head"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "MCP16501 evaluation board user's guide PCB layout top layer"
+   },
+   {
+    "kinds": [
+     "NET"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:$PATH\"; R=wk/gpm/20_sam9g25; mkdir -p $R/datasheets/usb4105; cd $R/datasheets/usb4105; curl -sSL -A \"Mozilla/5.0\" -o usb4105.pdf \"https://gct.co/files/drawings/usb4105.pdf\"; file usb4105.pdf; ls -la"
+   },
+   {
+    "kinds": [
+     "WEB"
+    ],
+    "tool": "WebSearch",
+    "text": "RTL8188CUS module power consumption TX current mA 3.3V"
+   }
+  ]
+ },
+ "a0570e204c944214f": {
+  "board": "20v",
+  "calls": 44,
+  "flags": []
+ },
+ "ad72347ff6e1f170d": {
+  "board": "20v",
+  "calls": 32,
+  "flags": [
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; S=<tmp> mkdir -p $S; D=wk/gpm/20_sam9g25; B=$D/delivered.kicad_pcb; I=$D/intent_run.json; IN=$D/sam9g25.kicad_pcb\nls -la $D/sam9g25.* ; git log --oneline -1\n(python3 -X utf8 py_tools/check_assembly.py $B --intent $I --baseline $IN > $S/asm.txt 2>&1; echo \"EXIT $?\" >> $S/asm.txt) &\n(python3 -X utf8 py_tools/check_floorplan.py $B --intent $I --allow-routed > $S/fp"
+   },
+   {
+    "kinds": [
+     "GIT"
+    ],
+    "tool": "Bash",
+    "text": "cd ~/Documents/git/krt-gpm && export PATH=\"$HOME/.venvs/krt/bin:/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH\"; S=<tmp> mkdir -p $S; D=wk/gpm/20_sam9g25; B=$D/delivered.kicad_pcb; I=$D/intent_run.json; IN=$D/sam9g25.kicad_pcb\nls -la $D/sam9g25.* ; git log --oneline -1\n(python3 -X utf8 py_tools/check_assembly.py $B --intent $I --baseline $IN > $S/asm.txt 2>&1; echo \"EXIT $?\" >> $S/asm.txt) &\n(python3 -X utf8 py_tools/check_floorplan.py $B --intent $I --allow-routed > $S/fp"
+   }
+  ]
+ }
+}

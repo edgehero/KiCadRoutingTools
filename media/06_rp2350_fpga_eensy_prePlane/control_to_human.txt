@@ -1,0 +1,22 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  6                6
+  segments                             1038              904
+  vias                                  131               70
+  total length mm                    1039.2            846.7
+  distinct track widths                   2                4
+  nets with copper                       71               72
+  ours widths:   {0.089: 4, 0.09: 1034}
+  orig widths:   {0.076: 99, 0.089: 59, 0.09: 728, 0.1: 18}
+  ours vias:     {'0.3/0.15': 19, '0.25/0.15': 20, '0.45/0.2': 92}
+  orig vias:     {'0.25/0.15': 18, '0.45/0.2': 50, '0.3/0.15': 2}
+
+  SUGGESTIONS:
+   - VIAS: we placed 131 vias vs original 70 (1.87x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+   - WIDTHS: original uses 4 track widths (up to 0.1mm, likely power/high-current) but we use only 2 ([0.09, 0.089]). We under-build power nets — add per-net width (wide traces for power/GND-return) instead of one uniform width.
+   - COMPLETION: we put copper on 71 nets vs original 72 — 1 net(s) the human routed that we did not.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"], "n_segments": 1038, "n_vias": 131, "total_length_mm": 1039.2, "length_by_layer": {"F.Cu": 384.0, "In1.Cu": 188.6, "In2.Cu": 132.9, "B.Cu": 155.8, "In3.Cu": 98.1, "In4.Cu": 79.8}, "width_count": {"0.09": 1034, "0.089": 4}, "via_count": {"0.3/0.15": 19, "0.25/0.15": 20, "0.45/0.2": 92}, "distinct_widths": 2, "nets_with_copper": 71, "n_multi_pad_nets": 74, "n_nets": 101}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"], "n_segments": 904, "n_vias": 70, "total_length_mm": 846.7, "length_by_layer": {"F.Cu": 337.3, "In1.Cu": 141.9, "In2.Cu": 99.7, "In3.Cu": 75.1, "B.Cu": 145.2, "In4.Cu": 47.7}, "width_count": {"0.076": 99, "0.089": 59, "0.1": 18, "0.09": 728}, "via_count": {"0.25/0.15": 18, "0.45/0.2": 50, "0.3/0.15": 2}, "distinct_widths": 4, "nets_with_copper": 72, "n_multi_pad_nets": 74, "n_nets": 101}, "suggestions": ["VIAS: we placed 131 vias vs original 70 (1.87x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count.", "WIDTHS: original uses 4 track widths (up to 0.1mm, likely power/high-current) but we use only 2 ([0.09, 0.089]). We under-build power nets \u2014 add per-net width (wide traces for power/GND-return) instead of one uniform width.", "COMPLETION: we put copper on 71 nets vs original 72 \u2014 1 net(s) the human routed that we did not."]}

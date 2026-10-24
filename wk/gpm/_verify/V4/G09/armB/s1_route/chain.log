@@ -1,0 +1,205 @@
+$ ~/.venvs/krt/bin/python3 -X utf8 py_router/route_planes.py wk/gpm/_verify/V4/G09/armB/s1_route/in.kicad_pcb wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb --nets GND --plane-layers B.Cu --skip-existing-zones
+CMD: Python -X utf8 py_router/route_planes.py wk/gpm/_verify/V4/G09/armB/s1_route/in.kicad_pcb wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb --nets GND --plane-layers B.Cu --skip-existing-zones
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--track-width not given; using the board Default net-class 0.8636mm.
+--via-size not given; using the board Default net-class 1.905mm.
+--via-drill not given; using the board Default net-class 0.635mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.508mm.
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.01mm [board constraint].
+  WARNING: --board-edge-clearance 0.01 is below the physical fab floor 0.2 (the advanced rung, or your --fab-overrides); pinning up to 0.2. Pass --fab-overrides to declare a smaller fab capability, or raise the value to silence this.
+Loading PCB from wk/gpm/_verify/V4/G09/armB/s1_route/in.kicad_pcb...
+Zone clearance: following routed clearance 0.508mm (--zone-clearance to override)
+Found net 'GND' with ID 1
+Note: zone for 'GND' already exists on B.Cu - keeping it (no new zone; thermal-array/--stitch-vias features still apply; pads are welded by the route step)
+Board bounds: (120.02, 90.81) to (168.28, 132.72)
+  Layer costs: F.Cu=1.0x, B.Cu=3.0x
+
+============================================================
+Processing net 'GND' on layer B.Cu
+============================================================
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 7
+  SMD pads on B.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 0
+
+Results for 'GND':
+  New vias placed: 0
+  Traces added: 0
+
+Writing output to wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb...
+Output written to wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+
+============================================================
+GEOMETRIC VERIFICATION (re-parsed output)
+============================================================
+  GND: 7/7 pads connected to plane on B.Cu
+  Bare pour (no track or via drawn): writing the copper clearance only -- no size or copper-to-hole floor (#1319)
+  DRC settings: wrote 2 value(s) to wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_copper_edge_clearance: 0.01 -> 0.2 mm (fab-edge pin)
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pro", "writes": ["rules.min_copper_edge_clearance: 0.01 -> 0.2 mm (fab-edge pin)", "kicad_routing_tools.fab_floor_origin: recorded"]}
+JSON_SUMMARY: {"complete": true, "env_knobs": {"KICAD_ROUTE_TRACE": "1"}, "min_clearance_used": 0.508, "pads": {"geometric_failed": 0}, "pads_scope": "all zones in this run, summed -- not per zone; see plane_zones for what was poured", "plane_nets": ["GND"], "plane_zones": [{"layer": "B.Cu", "net": "GND"}], "status": "ok"}
+EXIT=0
+# exit 0 in 0.4 s
+$ ~/.venvs/krt/bin/python3 -X utf8 py_router/route.py wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb wk/gpm/_verify/V4/G09/armB/s1_route/2_route.kicad_pcb --nets '*' --clearance-ceiling 0.508 --track-width 0.8636 --via-size 0.45 --via-drill 0.3 --power-nets GND 'Net-(P4-P1)' 'Net-(P4-PM)' --power-nets-widths 0.8636 0.8636 0.8636 --layer-costs 1.0 1.0 --via-cost 600 --json-out wk/gpm/_verify/V4/G09/armB/s1_route/route.json --quick 2
+# --quick 2 added: the judge routes every route.py / route_diff.py step at level 2
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb wk/gpm/_verify/V4/G09/armB/s1_route/2_route.kicad_pcb --nets "*" --clearance-ceiling 0.508 --track-width 0.8636 --via-size 0.45 --via-drill 0.3 --power-nets GND "Net-(P4-P1)" "Net-(P4-PM)" --power-nets-widths 0.8636 0.8636 0.8636 --layer-costs 1.0 1.0 --via-cost 600 --json-out wk/gpm/_verify/V4/G09/armB/s1_route/route.json --quick 2
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.508mm.
+--clearance-ceiling 0.508: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb to expand net patterns...
+Pattern '*' matched 9 nets
+Routing 9 nets: ['GND', 'Net-(P1-PM)', 'Net-(P2-P1)', 'Net-(P3-P1)', 'Net-(P4-P1)']...
+Loading wk/gpm/_verify/V4/G09/armB/s1_route/1_route_planes.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+
+Power net width assignments (3 nets):
+  0.8636mm: GND, Net-(P4-P1), Net-(P4-PM)
+
+Skipping 1 already-routed net(s): Already fully connected
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 8 nets with 1 crossing conflicts detected
+MPS Round 1: 7 units: Net-(U1A-K), Net-(P2-P1), Net-(P1-PM), Net-(P4-P1), Net-(U1B-K), Net-(P3-P1), Net-(U1A-G)
+MPS Round 2: 1 units: Net-(P4-PM)
+
+Routing 8 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.00s
+Found 9 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.01s (9 nets)
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/8] Routing Net-(U1A-K) (id=4)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=9.30mm)
+  Phase 1 routed in 70 iterations, 4 segments
+  SUCCESS: 4 segments, 0 vias, 70 iterations, length=8.00mm (stubs=0.00mm) (0.00s)
+
+[2/8] Routing Net-(P2-P1) (id=3)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 1, length=4.18mm)
+  Phase 1 routed in 34 iterations, 4 segments
+  SUCCESS: 4 segments, 0 vias, 34 iterations, length=3.70mm (stubs=0.00mm) (0.00s)
+
+[3/8] Routing Net-(P1-PM) (id=5)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=7.07mm)
+  Phase 1 routed in 71 iterations, 3 segments
+  SUCCESS: 3 segments, 0 vias, 71 iterations, length=7.07mm (stubs=0.00mm) (0.00s)
+
+[4/8] Routing Net-(P4-P1) (id=6)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 1, length=7.93mm)
+  Phase 1 routed in 71 iterations, 4 segments
+  SUCCESS: 4 segments, 0 vias, 71 iterations, length=7.54mm (stubs=0.00mm) (0.00s)
+
+[5/8] Routing Net-(U1B-K) (id=9)
+  SUCCESS: 4 segments, 0 vias, 65 iterations, length=6.98mm (stubs=0.00mm) (0.00s)
+
+[6/8] Routing Net-(P3-P1) (id=2)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=10.41mm)
+  Phase 1 routed in 82 iterations, 4 segments
+  SUCCESS: 4 segments, 0 vias, 82 iterations, length=9.16mm (stubs=0.00mm) (0.00s)
+
+[7/8] Routing Net-(U1A-G) (id=8)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=15.64mm)
+  Phase 1 routed in 100 iterations, 26 segments
+  SUCCESS: 26 segments, 0 vias, 100 iterations, length=12.61mm (stubs=0.00mm) (0.00s)
+
+[8/8] Routing Net-(P4-PM) (id=7)
+  SUCCESS: 19 segments, 0 vias, 18284 iterations, length=23.51mm (stubs=0.00mm) (0.00s)
+
+Sync pcb_data: 67 -> 0 (kept stubs) -> 67 (after adding 67)
+
+============================================================
+Multi-point Phase 3: Routing 6 tap connections
+============================================================
+
+Net-(U1A-K) (net 4):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/6] Routing MST edge: pad 1 -> pad 2 (length=5.52mm) target=(159.88, 98.67)
+      Routed in 56 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 6 total segments, 0 total vias
+  Added 2 tap segments, 0 tap vias
+  Net total time: 0.00s, 126 iterations
+
+Net-(P2-P1) (net 3):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [2/6] Routing MST edge: pad 2 -> pad 0 (length=3.81mm) target=(156.89, 122.03)
+      Routed in 31 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 7 total segments, 0 total vias
+  Added 3 tap segments, 0 tap vias
+  Net total time: 0.00s, 65 iterations
+
+Net-(P1-PM) (net 5):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [3/6] Routing MST edge: pad 1 -> pad 0 (length=3.97mm) target=(129.04, 97.19)
+      Routed in 39 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 6 total segments, 0 total vias
+  Added 3 tap segments, 0 tap vias
+  Net total time: 0.00s, 110 iterations
+
+Net-(P4-P1) (net 6):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [4/6] Routing MST edge: pad 2 -> pad 0 (length=4.59mm) target=(138.40, 107.60)
+      Routed in 25 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 7 total segments, 0 total vias
+  Added 3 tap segments, 0 tap vias
+  Net total time: 0.00s, 96 iterations
+
+Net-(P3-P1) (net 2):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [5/6] Routing MST edge: pad 1 -> pad 2 (length=5.06mm) target=(147.67, 120.71)
+      Routed in 51 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 6 total segments, 0 total vias
+  Added 2 tap segments, 0 tap vias
+  Net total time: 0.00s, 133 iterations
+
+Net-(U1A-G) (net 8):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [6/6] Routing MST edge: pad 1 -> pad 2 (length=8.52mm) target=(154.36, 106.29)
+      Routed in 70 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 28 total segments, 0 total vias
+  Added 3 tap segments, 0 tap vias
+  Net total time: 0.00s, 170 iterations
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  8/8 routed
+  Multi-point:   18/18 pads connected (6 nets)
+  Total vias:    0
+  Total time:    0.01s
+  Iterations:    18,777
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  Net-(P4-P1): 2.15A max (0.864mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 2.15A)
+  Net-(P4-PM): 2.15A max (0.864mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 2.15A)
+JSON_SUMMARY: {"routed_single": ["Net-(U1A-K)", "Net-(P2-P1)", "Net-(P1-PM)", "Net-(P4-P1)", "Net-(U1B-K)", "Net-(P3-P1)", "Net-(U1A-G)", "Net-(P4-PM)"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 6, "multipoint_pads_connected": 18, "multipoint_pads_total": 18, "multipoint_edges_routed": 12, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 8, "failed": 0, "total_time": 0.01, "total_iterations": 18777, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.508, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"clearance": 0.2, "track_width": 0.2, "via_diameter": 0.4, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "none", "islands": 0, "refill_status": null, "why": "--quick 2", "machine_dependent": false}, "quick": {"level": 2, "skipped": ["net_rescue", "terminal_escalation", "plane_finalize", "reconciliation", "seam_reask", "plane_fragility", "cleanup_polish", "smoothing", "late_collapse", "late_sweeps", "final_regrade", "improvement_gate", "via_protection_stamp"], "why": "the seed judge: rank placements by what routes, then route the chosen one again to ship"}, "oracle_check": "disabled", "pad_pairs_connected": 14, "pad_pairs_total": 14, "power_trace_ampacity": [{"net": "Net-(P4-P1)", "bottleneck_width_mm": 0.8636, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 2.15, "max_current_ipc2152_a": 2.15, "temp_rise_c": 10.0, "trace_length_mm": 10.8}, {"net": "Net-(P4-PM)", "bottleneck_width_mm": 0.8636, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 2.15, "max_current_ipc2152_a": 2.15, "temp_rise_c": 10.0, "trace_length_mm": 23.5}], "scope": "run", "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/_verify/V4/G09/armB/s1_route/2_route.kicad_pcb...
+Successfully wrote wk/gpm/_verify/V4/G09/armB/s1_route/2_route.kicad_pcb
+  route summary written to wk/gpm/_verify/V4/G09/armB/s1_route/route.json
+  Route trace written to wk/gpm/_verify/V4/G09/armB/s1_route/2_route_routetrace.json (14 events)
+JSON_SUMMARY_MIN: {"escalations": 0, "failed": 0, "failed_single": [], "main_loop_time_s": 0.01, "min_clearance_used": 0.508, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "routed": 8, "scope": "merged", "terminal_restores_broken": [], "vias": 0}
+  DRC settings: wrote 1 value(s) to wk/gpm/_verify/V4/G09/armB/s1_route/2_route.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_via_drill: None -> 0.3 mm
+PROJECT_WRITES_JSON: {"project": "wk/gpm/_verify/V4/G09/armB/s1_route/2_route.kicad_pro", "writes": ["rules.min_via_drill: None -> 0.3 mm"]}
+EXIT=0
+# exit 0 in 0.5 s
+$ ~/.venvs/krt/bin/python3 -X utf8 py_tools/quick_score.py wk/gpm/_verify/V4/G09/armB/s1_fast.kicad_pcb --json wk/gpm/_verify/V4/G09/armB/s1_fast.score.json --intent wk/gpm/01_ecc83-pp_v2/intent_run.json --baseline wk/gpm/01_ecc83-pp_v2/fixed.kicad_pcb
+blocking=0 joins_needed=0 vias=0 copper_mm=107.27 segments=82 (poured, not counted: 0 joins) floorplan=0 assembly=0
+UNGRADED (the full route's board_score grades these): connectivity.poured_nets, drc, impedance, length, net_widths, undersized

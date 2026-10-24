@@ -1,0 +1,149 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V6/G06/out1.kicad_pcb wk/gpm/_verify/V6/G06/out2.kicad_pcb --nets "/RP2354A/FPGA.~{STATUS}" GND +3V3 --grid-step 0.05 --track-width 0.0762 --clearance-ceiling 0.09 --via-size 0.25 --via-drill 0.15 --layers F.Cu In1.Cu In2.Cu In3.Cu In4.Cu B.Cu --layer-costs 1.0 6.0 2.5 1.0 1.0 1.0 --no-bga-zones --max-ripup 5 --power-nets GND +3V3 "Net-(D2-K)" /VIN "Net-(D2-A)" "Net-(U7-SW)" +1V1 /RP2354A/1V1 "Net-(U6-VREG_LX)" "Net-(U6-VREG_AVDD)" --power-nets-widths 0.7 0.7 0.7 0.7 0.7 0.7 0.5 0.5 0.5 0.3
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.09mm.
+--clearance-ceiling 0.09: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/_verify/V6/G06/out1.kicad_pcb to expand net patterns...
+Routing 3 nets: ['/RP2354A/FPGA.~{STATUS}', 'GND', '+3V3']
+Loading wk/gpm/_verify/V6/G06/out1.kicad_pcb...
+Using 6 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'In3.Cu', 'In4.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=6.0x, In2.Cu=2.5x, In3.Cu=1.0x, In4.Cu=1.0x, B.Cu=1.0x
+BGA exclusion zones disabled (all)
+
+Power net width assignments (10 nets):
+  0.3mm: Net-(U6-VREG_AVDD)
+  0.5mm: +1V1, /RP2354A/1V1, Net-(U6-VREG_LX)
+  0.7mm: 6 nets (+3V3, GND, Net-(D2-K)...)
+
+WARNING: 5 target pad(s) at/over the board outline:
+    GND (U8.1) at (139.85, 88.50) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    GND (U8.17) at (148.50, 122.55) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    GND (U8.32) at (157.15, 91.03) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    +3V3 (U8.16) at (145.96, 122.55) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    +3V3 (U8.31) at (157.15, 93.58) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+
+Skipping 2 already-routed net(s): Already fully connected
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /RP2354A/FPGA.~{STATUS}
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+68 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.06s
+Found 74 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.11s (74 nets)
+Plane fragility: exact-fill geometry (2 filled island(s) from KiCad refill)
+Plane fragility field: 366730 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /RP2354A/FPGA.~{STATUS} (id=6)
+forward stuck (82 < 5000), backward=5000
+  forward cell (3056, 2292, layer=0): ok, 0/8 neighbors blocked
+No route found after 5082 iterations (both directions)
+  FAILED: Could not find route (0.07s)
+  Forward direction failed fastest (82 iterations, 38 blocked cells)
+  Frontier blocked by 2 nets (20 cells, 20 unique; near: 20 src, 0 tgt)
+  Coverage: 20/38 frontier cells attributed to routed nets; 18 static/unrippable
+  Top blockers:
+    1. /T8F49I2X/PIN.4: 16 (80.0%), 16 uniq (100%), near: 16 src, 0 tgt
+    2. /T8F49I2X/PIN.20: 4 (20.0%), 4 uniq (100%), near: 4 src, 0 tgt
+  Via-in-pad decline blamed Net-(U2-GPIOL_20_PLLIN) (copper under the boxed pad) - ripping it first
+  Ripping up Net-(U2-GPIOL_20_PLLIN) to retry...
+      PRE-EXISTING rip: 'Net-(U2-GPIOL_20_PLLIN)' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped Net-(U2-GPIOL_20_PLLIN)
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 141651 iterations, path length: 265
+  RETRY SUCCESS (N=1): 34 segments, 4 vias, length=22.25mm
+    stub-debris trim: 0 unused stub segment(s), 1 dangling via(s) freed
+
+[REROUTE 2/2] Re-routing ripped net Net-(U2-GPIOL_20_PLLIN)
+Both directions stuck (forward=35, backward=904 < 5000)
+  forward cell (3048, 2292, layer=0): ok, 0/8 neighbors blocked
+  backward cell (3048, 2242, layer=0): ok, 0/8 neighbors blocked
+No route found after 939 iterations (both directions)
+  REROUTE FAILED: (0.03s) - attempting rip-up and retry...
+  No previously-routed nets blocking (likely blocked by pads/stubs/zones)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 939 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.025 --clearance 0.15 --track-width 0.15 (current: grid 0.05, clearance 0.09, track 0.0762 mm)
+  RIP-RESTORE (#468): Net-(U2-GPIOL_20_PLLIN) remains UNROUTED -- kept only its escape stub (0 seg(s), 1 via(s)) so the pads keep their landing sites; full restore would short against copper routed since the rip
+
+Sync pcb_data: 1086 -> 1052 (kept stubs) -> 1086 (after adding 34)
+
+============================================================
+Final reconciliation (casualties-only, depth 1): 1 net(s)/pair(s) ripped during routing never re-routed
+============================================================
+      restore skipped (net 10): saved copper would short other-net copper; left ripped (#134)
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 30397 iterations, path length: 126
+  REROUTED Net-(U2-GPIOL_20_PLLIN): casualty re-routed with restored copper as obstacles
+
+Pre-existing rip outcome(s) (1 net(s)):
+  'Net-(U2-GPIOL_20_PLLIN)' (was blocking '/RP2354A/FPGA.~{STATUS}'): rerouted
+Closed 2 stub gap(s) to same-net copper
+Cycle prune: removed 3 redundant loop segment(s) across 2 net(s)
+Octolinear smoothing: collapsed 8 staircase span(s) on 3 net(s), -0.23 mm of copper (#536)
+Stripped 8 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+Stripping 2 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Total vias:    6
+  Total time:    0.09s
+  Iterations:    147,672
+  Fragility refresh (#466): 3 windows, 0.09s total
+  History congestion (#590): 1 contest + 1 rip + 2 blocked-frontier event(s) over 2305 cell(s), peak 0.12mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V1: 0.37A max (0.076mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  +3V3: 0.37A max (0.076mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  /RP2354A/1V1: 0.37A max (0.076mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.18A)
+  /VIN: 1.12A max (0.350mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.56A)
+  GND: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Net-(D2-A): 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Net-(D2-K): 0.37A max (0.076mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  Net-(U6-VREG_AVDD): 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Net-(U6-VREG_LX): 1.45A max (0.500mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.72A)
+  Net-(U7-SW): 1.85A max (0.700mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+JSON_SUMMARY: {"routed_single": ["/RP2354A/FPGA.~{STATUS}"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.09, "total_iterations": 147672, "total_vias": 6, "cleanup_disconnected": [], "min_clearance_used": 0.09, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.075, "via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.09}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 2, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "preexisting_rips": {"Net-(U2-GPIOL_20_PLLIN)": "rerouted [was blocking '/RP2354A/FPGA.~{STATUS}']"}, "casualty_reconcile": {"attempted": 1, "restored": [], "rerouted": ["Net-(U2-GPIOL_20_PLLIN)"], "partial": [], "unrecovered": []}, "terminal_restores": {"Net-(U2-GPIOL_20_PLLIN)": "stub"}, "oracle_check": "disabled", "pad_pairs_connected": 2, "pad_pairs_total": 2, "power_trace_ampacity": [{"net": "+1V1", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 33.2}, {"net": "+3V3", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 43.1}, {"net": "/RP2354A/1V1", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.18, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 24.3}, {"net": "/VIN", "bottleneck_width_mm": 0.35, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.56, "max_current_ipc2152_a": 1.12, "temp_rise_c": 10.0, "trace_length_mm": 3.3}, {"net": "GND", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 109.0}, {"net": "Net-(D2-A)", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 8.5}, {"net": "Net-(D2-K)", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 25.5}, {"net": "Net-(U6-VREG_AVDD)", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 2.9}, {"net": "Net-(U6-VREG_LX)", "bottleneck_width_mm": 0.5, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.72, "max_current_ipc2152_a": 1.45, "temp_rise_c": 10.0, "trace_length_mm": 3.4}, {"net": "Net-(U7-SW)", "bottleneck_width_mm": 0.7, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 2.1}], "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/_verify/V6/G06/out2.kicad_pcb...
+Removed 10 dead-end input segment(s) from the output
+Removed 2 stale input via(s) from the output
+Successfully wrote wk/gpm/_verify/V6/G06/out2.kicad_pcb
+
+Plane finalize (#562): all zone nets complete (fill-aware) -- skipping engine/cleanup legs, oracle verifies
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 1.3s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+  Strict collapse (#1063, end of run): removed 8 redundant segment(s) on 2 net(s)
+
+  FAB NOTE (route): 115 via(s) in a pad or paste opening [C1 F.Paste (paste_only_pad), C11 F.Paste (paste_only_pad), C13 F.Paste (paste_only_pad), C16 F.Paste (paste_only_pad), C17 F.Paste (paste_only_pad), C18 F.Paste (paste_only_pad), C19 F.Paste (paste_only_pad), C20 F.Paste (paste_only_pad), +102 more] -- 1 stamped (capping yes) (filling yes), 114 already filled+capped. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 115, "sites": ["C1 F.Paste (paste_only_pad)", "C11 F.Paste (paste_only_pad)", "C13 F.Paste (paste_only_pad)", "C16 F.Paste (paste_only_pad)", "C17 F.Paste (paste_only_pad)", "C18 F.Paste (paste_only_pad)", "C19 F.Paste (paste_only_pad)", "C20 F.Paste (paste_only_pad)", "C21 F.Paste (paste_only_pad)", "C22 F.Paste (paste_only_pad)", "C24 F.Paste (paste_only_pad)", "C25 F.Paste (paste_only_pad)", "C26.2 F.Paste (pad)", "C27.1 F.Paste (pad)", "C27.2 F.Paste (pad)", "C28 F.Paste (paste_only_pad)", "C29 F.Paste (paste_only_pad)", "C3 F.Paste (paste_only_pad)", "C30 F.Paste (paste_only_pad)", "C5 F.Paste (paste_only_pad)", "C6 F.Paste (paste_only_pad)", "C7 F.Paste (paste_only_pad)", "C8 F.Paste (paste_only_pad)", "C9 F.Paste (paste_only_pad)", "C9.1", "D1.1 F.Paste (pad)", "D2 F.Paste (paste_only_pad)", "J1.A1 F.Paste (pad)", "J1.A12 F.Paste (pad)", "J2.1", "J3.1 B.Paste (pad)", "L1.1 F.Paste (pad)", "L1.2 F.Paste (pad)", "L2.1 F.Paste (pad)", "R11 F.Paste (paste_only_pad)", "R2 F.Paste (paste_only_pad)", "R3 F.Paste (paste_only_pad)", "R6 F.Paste (paste_only_pad)", "RN1.7 F.Paste (pad)", "RN2.1 F.Paste (pad)", "RN2.2 F.Paste (pad)", "RN2.3 F.Paste (pad)", "RN2.5 F.Paste (pad)", "RN2.8 F.Paste (pad)", "U1.8 B.Paste (pad)", "U2.A2 F.Paste (pad)", "U2.A4 F.Paste (pad)", "U2.A6 F.Paste (pad)", "U2.B1 F.Paste (pad)", "U2.B2 F.Paste (pad)", "U2.B3 F.Paste (pad)", "U2.B4 F.Paste (pad)", "U2.B6 F.Paste (pad)", "U2.C1 F.Paste (pad)", "U2.C2 F.Paste (pad)", "U2.C5 F.Paste (pad)", "U2.C6 F.Paste (pad)", "U2.D1 F.Paste (pad)", "U2.D2 F.Paste (pad)", "U2.D4 F.Paste (pad)", "U2.D5 F.Paste (pad)", "U2.D6 F.Paste (pad)", "U2.E2 F.Paste (pad)", "U2.E5 F.Paste (pad)", "U2.E7 F.Paste (pad)", "U2.F1 F.Paste (pad)", "U2.F2 F.Paste (pad)", "U2.F3 F.Paste (pad)", "U2.F4 F.Paste (pad)", "U2.F5 F.Paste (pad)", "U2.F6 F.Paste (pad)", "U2.F7 F.Paste (pad)", "U3.2 F.Paste (pad)", "U3.4 F.Paste (pad)", "U3.5 F.Paste (pad)", "U3.6 F.Paste (pad)", "U4 F.Paste (paste_only_pad)", "U5.2 F.Paste (pad)", "U5.5 F.Paste (pad)", "U5.6 F.Paste (pad)", "U5.9 F.Paste (pad)", "U6.11 F.Paste (pad)", "U6.2 F.Paste (pad)", "U6.20 F.Paste (pad)", "U6.24 F.Paste (pad)", "U6.25 F.Paste (pad)", "U6.26 F.Paste (pad)", "U6.30 F.Paste (pad)", "U6.38 F.Paste (pad)", "U6.4 F.Paste (pad)", "U6.42 F.Paste (pad)", "U6.43 F.Paste (pad)", "U6.46 F.Paste (pad)", "U6.47 F.Paste (pad)", "U6.48 F.Paste (pad)", "U6.50 F.Paste (pad)", "U6.53 F.Paste (pad)", "U6.55 F.Paste (pad)", "U6.56 F.Paste (pad)", "U6.57 F.Paste (pad)", "U6.58 F.Paste (pad)", "U6.59 F.Paste (pad)", "U6.6 F.Paste (pad)", "U7 F.Paste (paste_only_pad)", "U7.2 F.Paste (pad)", "U7.5 F.Paste (pad)", "U7.7 F.Paste (pad)", "Y1.1 F.Paste (pad)", "Y2.2 F.Paste (pad)", "Y2.4 F.Paste (pad)"], "stamped": 1, "restored": 0, "protected": 114, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: +3V3 34.7/43.1 mm under the requested 0.7 (min 0.0762); GND 60.6/109.0 mm under the requested 0.7 (min 0.175); Net-(D2-K) 24.6/25.4 mm under the requested 0.7 (min 0.0762); +1V1 29.4/33.2 mm under the requested 0.5 (min 0.0762); /RP2354A/1V1 16.1/24.3 mm under the requested 0.5 (min 0.0762); /VIN 1.9/3.3 mm under the requested 0.7 (min 0.35); Net-(D2-A) 8.5/8.5 mm under the requested 0.7 (min 0.175) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.09, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.075, "via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.09}, "count": 2, "nets": [1, 2], "narrowed": [{"net": 1, "net_name": "+3V3", "kind": "track_width", "requested": 0.7, "delivered": 0.0762, "site": "power copper shipped under width", "count": 1, "length_mm": 34.73}, {"net": 2, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.175, "site": "power copper shipped under width", "count": 1, "length_mm": 60.56}], "min_delivered": {"track_width": 0.0762}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 3, "seconds": 0.07, "routed_single": ["/RP2354A/FPGA.~{STATUS}"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 0, "multipoint_pads_connected": 0, "successful": 1, "failed": 0, "unowned_broken": [], "recovered": [], "pad_pairs": {}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (3 net(s), 0.1s)
+============================================================
+  Single-ended:  1/1 routed
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": ["/RP2354A/FPGA.~{STATUS}"], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 1, "disconnected_pads_after": 0, "nets_compared": 74, "verdict": "accept"}
+  Design rules [--escalation fab, --fab-tier auto]: 2 feature(s) on 2 net(s) delivered below the requested size (smallest track width 0.0762 mm). Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 2, "failed": 0, "failed_single": [], "main_loop_time_s": 0.09, "min_clearance_used": 0.09, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "regraded_nets": 3, "routed": 1, "scope": "merged", "terminal_restores_broken": [], "vias": 6}
+  DRC settings already consistent (wk/gpm/_verify/V6/G06/out2.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    via annular ring: 0.05 mm, unchanged by this step but still below the board's ORIGINAL 0.1mm; 175 of 175 object(s) on this board are below the ORIGINAL 0.1mm
+    copper-to-hole clearance: 0.09 mm, unchanged by this step but still below the board's ORIGINAL 0.25mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+EXIT=0

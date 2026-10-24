@@ -1,0 +1,240 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V6/G06/d11_out.kicad_pcb wk/gpm/_verify/V6/G06/d11_g05.kicad_pcb --nets /OSCOUT --grid-step 0.05 --track-width 0.127 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3 --power-nets +5V +3.3V GND --power-nets-widths 0.7 0.7 0.7 --layer-costs 1.0 1.0 --escalation board --fab-tier standard --same-net-pad-clearance 0.1
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.2mm.
+--clearance-ceiling 0.2: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/_verify/V6/G06/d11_out.kicad_pcb to expand net patterns...
+Routing 1 nets: ['/OSCOUT']
+Loading wk/gpm/_verify/V6/G06/d11_out.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /OSCOUT
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+26 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Pour guard (#1260): GND pour on B.Cu: islands left crossable -- 1 hold a routed net's terminal
+Pour guard (#1260): GND pour on F.Cu is outside this run's nets, and no routed net has a pad inside 1 of its island(s) (2.7 mm^2) -- blocked, so no track cuts them (KICAD_POUR_GUARD=0 reverts)
+Pour guard (#1260): GND pour on F.Cu: islands left crossable -- 2 hold a routed net's terminal
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.79s
+Found 29 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.04s (29 nets)
+Plane fragility: exact-fill geometry (4 filled island(s) from KiCad refill)
+Plane fragility field: 401713 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /OSCOUT (id=16)
+backward stuck (117 < 5000), forward=5000
+  backward cell (2514, 2275, layer=0): ok, 0/8 neighbors blocked
+No route found after 5117 iterations (both directions)
+  FAILED: Could not find route (0.05s)
+  Backward direction failed fastest (117 iterations, 76 blocked cells)
+  Frontier blocked by 2 nets (2 cells, 2 unique; near: 0 src, 2 tgt)
+  Coverage: 2/76 frontier cells attributed to routed nets; 74 static/unrippable
+  Top blockers:
+    1. /OSCIN: 1 (50.0%), 1 uniq (100%), near: 0 src, 1 tgt
+    2. /IF_RST: 1 (50.0%), 1 uniq (100%), near: 0 src, 1 tgt
+  Ripping up /OSCIN to retry...
+      PRE-EXISTING rip: '/OSCIN' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /OSCIN
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+dynamic iterations (#529): search extended to 319858 (base 200000)
+Route found in 329858 iterations, path length: 498
+  RETRY SUCCESS (N=1): 24 segments, 2 vias, length=29.56mm
+
+[REROUTE 2/2] Re-routing ripped net /OSCIN
+  Multi-point net with 3 pads - routing main + taps
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=6.56mm)
+  backward stuck (238 < 5000), forward=5000
+    backward cell (2514, 2265, layer=0): ok, 0/8 neighbors blocked
+  Phase 1 edge (pads 1,2) failed after 5238 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/2) (pads 0 and 1, length=2.83mm)
+  Phase 1 routed in 5295 iterations, 3 segments
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 2 (length=6.56mm) target=(125.70, 113.26)
+      backward stuck (238 < 5000), forward=5000
+        backward cell (2514, 2265, layer=0): ok, 0/8 neighbors blocked
+      Failed to route MST edge after 5238 iterations (0.00s)
+    Fallback: attempting orphaned pad 2 directly from connected copper
+    [2/0] (1 failed) Routing MST edge: pad 1 -> pad 2 (length=6.56mm) target=(125.70, 113.26)
+      backward stuck (238 < 5000), forward=5000
+        backward cell (2514, 2265, layer=0): ok, 0/8 neighbors blocked
+      Failed to route MST edge after 5238 iterations (0.00s)
+  Warning: 1 pad(s) not connected (1 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 3 total segments, 0 total vias
+    Tap routing: 0 segments, 0 vias
+    NOT CONNECTED (so far): /OSCIN - U2 pad 5 at (125.70, 113.26) - may still be recovered; final verdict in the end-of-run summary
+  REROUTE SUCCESS: 3 segments, 0 vias, length=2.85mm (stubs=0.00mm) (0.01s)
+
+Sync pcb_data: 323 -> 297 (kept stubs) -> 323 (after adding 26)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/OSCIN' (was blocking '/OSCOUT'): rerouted PARTIAL (pads still disconnected; original corridor taken -- reconciliation retries it)
+Cycle prune: removed 1 redundant loop segment(s) across 1 net(s)
+Octolinear smoothing: collapsed 2 staircase span(s) on 1 net(s), -1.71 mm of copper (#536)
+Stripped 6 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+Stripping 2 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   2/3 pads connected (1 FAILED)
+  Total vias:    2
+  Total time:    0.06s
+  Iterations:    350,746
+  Fragility refresh (#466): 4 windows, 0.15s total
+  History congestion (#590): 1 contest + 1 rip + 1 blocked-frontier event(s) over 4055 cell(s), peak 0.23mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed multi-point connections:
+  /OSCIN: U2 pad ? at (125.70, 113.26) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3.3V: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+  +5V: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  GND: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+JSON_SUMMARY: {"routed_single": ["/OSCOUT"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "/OSCIN", "failed_pads": [{"component_ref": "U2", "pad_number": "?", "x": 125.7022, "y": 113.2566}]}], "multipoint_nets": 1, "multipoint_pads_connected": 2, "multipoint_pads_total": 3, "multipoint_edges_routed": 1, "multipoint_edges_failed": 1, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.06, "total_iterations": 350746, "total_vias": 2, "cleanup_disconnected": [], "min_clearance_used": 0.2, "design_rules": {"escalation_policy": "board", "fab_tier": "standard", "board_floors": {"via_diameter": 0.5, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.1, "board_edge": 0.2, "clearance": 0.2}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 4, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "pour_guard": {"source": "kicad_refill", "why": "", "pours": [{"net": "GND", "layer": "B.Cu", "blocked_islands": 0, "blocked_mm2": 0, "crossable_islands": 1, "minor_islands": 0}, {"net": "GND", "layer": "F.Cu", "blocked_islands": 1, "blocked_mm2": 2.7, "crossable_islands": 2, "minor_islands": 0}]}, "preexisting_rips": {"/OSCIN": "rerouted PARTIAL (pads still disconnected; original corridor taken -- reconciliation retries it) [was blocking '/OSCOUT']"}, "oracle_check": "disabled", "ripped_open": ["/OSCIN"], "ripped_open_uncounted": ["/OSCIN"], "ripped_open_note": "ripped_open nets are OUTSIDE this run's --nets scope, so they move neither failed_single nor open_single. Those listed in ripped_open_uncounted are additionally not in either scoped term: if they are also outside the multipoint pad deficit, the run's open-net verdict is understated by that many.", "pad_pairs_connected": 3, "pad_pairs_total": 4, "pad_pairs_open": [{"net": "/OSCIN", "pairs_connected": 1, "pairs_total": 2, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+3.3V", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 97.9}, {"net": "+5V", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 18.1}, {"net": "GND", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 5.4}], "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/_verify/V6/G06/d11_g05.kicad_pcb...
+Removed 7 dead-end input segment(s) from the output
+Removed 2 stale input via(s) from the output
+Successfully wrote wk/gpm/_verify/V6/G06/d11_g05.kicad_pcb
+  Plane finalize: zone net(s) GND are OUTSIDE this route's --nets scope -- excluded from the finalize BY PLAN. Since #562 a pour alone connects nothing: unless a later route step covers these nets, their pads ship disconnected.
+
+Final reconciliation: retrying 1 incomplete/custody net(s) against the finished board: /OSCIN
+Loading wk/gpm/_verify/V6/G06/d11_g05.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /OSCIN
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.02s
+Found 29 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.01s (29 nets)
+Plane fragility: exact-fill geometry (4 filled island(s) from KiCad refill)
+Plane fragility field: 416450 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /OSCIN (id=15)
+backward stuck (250 < 5000), forward=5000
+  backward cell (2514, 2265, layer=0): ok, 0/8 neighbors blocked
+No route found after 5250 iterations (both directions)
+  FAILED: Could not find route (0.02s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5250 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.025 --clearance 0.15 --track-width 0.15 (current: grid 0.05, clearance 0.2, track 0.127 mm)
+  Hint: the blocking copper belongs to 5 pre-existing net(s) committed by an earlier run/step; 5 of them this run may not rip. Retry with --rip-existing-nets '/PA11' '/OSCOUT' '+3.3V' '/PA12' '/IF_RST' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing /OSCIN (failed, 2 disconnected parts)
+  WARNING: plane web under U2 (0.5mm pitch; GND poured at clearance 0.2, min width 0.1): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U2:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 14 rows x 14 columns
+  Center: (129.86, 114.01)
+  Boundary: X[125.45, 134.28], Y[109.59, 118.42]
+  Under-pad: WARNING via 0.50mm is large for 0.50mm pitch (track 0.13, clearance 0.20); expect drops. No via fits: the smallest the fab ladder reaches is 0.5mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 off-pad-or-fail (#581) fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 5 plane balls skipped, 15 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Dropped ball(s) on U2, and what crowds each (#1217):
+    U2.5 /OSCIN: no room for a 0.5mm via at the ball (/OSCOUT track on F.Cu 0.18mm from it); nearest foreign copper (edge to ball centre): F.Cu: /OSCOUT track 0.43mm; B.Cu: clear within 0.50mm
+  WARNING: plane web under U2 (0.5mm pitch; GND poured at clearance 0.2, min width 0.1): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U2:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 14 rows x 14 columns
+  Center: (129.86, 114.01)
+  Boundary: X[125.45, 134.28], Y[109.59, 118.42]
+  Under-pad: WARNING via 0.50mm is large for 0.50mm pitch (track 0.13, clearance 0.20); expect drops. No via fits: the smallest the fab ladder reaches is 0.5mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 off-pad-or-fail (#581) fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 5 plane balls skipped, 15 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Dropped ball(s) on U2, and what crowds each (#1217):
+    U2.5 /OSCIN: no room for a 0.5mm via at the ball (/OSCOUT track on F.Cu 0.18mm from it); nearest foreign copper (edge to ball centre): F.Cu: /OSCOUT track 0.43mm; B.Cu: clear within 0.50mm
+backward stuck (1384 < 5000), forward=5000
+  backward cell (5028, 4530, layer=0): ok, 0/8 neighbors blocked
+No route found after 6384 iterations (both directions)
+backward stuck (1384 < 5000), forward=5000
+  backward cell (5028, 4530, layer=0): ok, 0/8 neighbors blocked
+No route found after 6384 iterations (both directions)
+    rescue failed (0.2s)
+Rescue pass: 0 recovered, 0 improved, 1 unchanged (0.2s)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Total vias:    0
+  Total time:    0.02s
+  Iterations:    5,250
+
+Failed single-ended nets:
+  /OSCIN
+
+============================================================
+FAILED NET HISTORIES
+============================================================
+
+/OSCIN:
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 5250 iteration(s) (grid 0.05, clearance 0.2, track 0.127 mm)
+  [0] Blocked by pre-existing copper: /PA11, /OSCOUT, +3.3V (+2 more)
+         Hint: the blocking copper belongs to 5 pre-existing net(s) committed by an earlier run/step; 5 of them this run may not rip. Retry with --rip-existing-nets '/PA11' '/OSCOUT' '+3.3V' '/PA12' '/IF_RST' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_failed
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3.3V: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+  +5V: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  GND: 0.54A max (0.127mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": ["/OSCIN"], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.02, "total_iterations": 5250, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.2, "design_rules": {"escalation_policy": "board", "fab_tier": "standard", "board_floors": {"via_diameter": 0.5, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.1, "board_edge": 0.2, "clearance": 0.2}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 4, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": [], "unchanged": ["/OSCIN"], "pads_reconnected": 0, "widths": {}, "time": 0.17}, "oracle_check": "skipped", "blockers": [{"net": "/OSCIN", "stage": "preexisting", "blocked_by": [{"net": "/PA11", "preexisting": true}, {"net": "/OSCOUT", "preexisting": true}, {"net": "+3.3V", "preexisting": true}, {"net": "/PA12", "preexisting": true}, {"net": "/IF_RST", "preexisting": true}]}], "boxed_in": [{"verdict": "boxed_in_static", "iterations": 5250, "geometry": {"grid_step": 0.05, "clearance": 0.2, "track_width": 0.127, "via_diameter": null}, "net": "/OSCIN"}], "pad_pairs_connected": 1, "pad_pairs_total": 2, "pad_pairs_open": [{"net": "/OSCIN", "pairs_connected": 1, "pairs_total": 2, "outcome": "open", "open_subtype": "unrouted"}], "power_trace_ampacity": [{"net": "+3.3V", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 97.9}, {"net": "+5V", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 18.1}, {"net": "GND", "bottleneck_width_mm": 0.127, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 5.4}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {}}
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+  Strict collapse (#1063, end of run): removed 2 redundant segment(s) on 1 net(s)
+VIA_IN_PAD_JSON: {"count": 0, "sites": [], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: GND 5.4/5.4 mm under the requested 0.7 (min 0.127); +3.3V 40.6/97.9 mm under the requested 0.7 (min 0.127); +5V 14.3/18.1 mm under the requested 0.7 (min 0.175) -- JSON_SUMMARY power_widths
+JSON_REGRADE: {"board": "file", "graded_nets": 2, "seconds": 0.4, "routed_single": ["/OSCOUT"], "failed_single": ["/OSCIN"], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 3, "multipoint_pads_connected": 3, "successful": 1, "failed": 1, "unowned_broken": [], "recovered": [], "pad_pairs": {"/OSCIN": {"total": 2, "connected": 1, "copper": true}}, "broken_by_run": ["/OSCIN"], "pour_fill": {"graded_on": "kicad_refill", "islands": {"GND on B.Cu": 1, "GND on F.Cu": 3}, "poured_nothing": []}}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (2 net(s), 0.4s)
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   3/3 pads connected
+  Broken by this run, outside its routing scope (connected on the input; ripped and not restored): /OSCIN
+  Ships broken: 1 net(s) -- the `failed` count, over every net the run owns
+
+IMPROVEMENT GATE: this run broke 1 previously-connected net(s) [/OSCIN], worsened 0, connected 1 -- ACCEPTED
+  broken by this run: /OSCIN
+  connected by this run: /OSCOUT
+  disconnected pads: 1 -> 1 over 29 multi-pad net(s)
+  shipped (the run connected at least as many nets as it broke)
+JSON_IMPROVEMENT_GATE: {"lost": ["/OSCIN"], "gained": ["/OSCOUT"], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 1, "disconnected_pads_after": 1, "nets_compared": 29, "verdict": "accept"}
+JSON_SUMMARY_MIN: {"escalations": 0, "failed": 1, "failed_single": ["/OSCIN"], "finalize_excluded_nets": ["GND"], "main_loop_time_s": 0.08, "min_clearance_used": 0.2, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 1, "nets": ["/OSCIN"]}, "regraded_nets": 2, "routed": 1, "scope": "merged", "terminal_restores_broken": [], "vias": 2}
+  DRC settings already consistent (wk/gpm/_verify/V6/G06/d11_g05.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.2 mm, unchanged by this step but still below the board's ORIGINAL 0.25mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+EXIT=0

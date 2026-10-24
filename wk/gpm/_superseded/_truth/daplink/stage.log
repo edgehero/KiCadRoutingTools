@@ -1,0 +1,170 @@
+== 0 worktree bda59fa0, source wk/gpm/_src/daplink/daplink.kicad_pcb
+== 1 copy source
+Copied 3 file(s): human.kicad_pcb, human.kicad_pro, human.kicad_prl
+== 2 strip copper (segments, arcs, vias, fills, teardrops, tuning patterns)
+dropped 358 copper form(s) (segment/arc/via), 0 zone fill(s), 0 teardrop zone(s), 0 generated form(s) (tuning patterns), 0 group(s); 263371 -> 203131 chars
+== 2b strip board text, drawings off Edge.Cuts, padless artwork
+strip_drawings: dropped gr_circle 1, gr_text 12; kept 8 Edge.Cuts graphic(s)
+== 3 pile (every part with pads moved south of the outline, every lock removed)
+Modified 35 footprint positions
+Successfully wrote wk/gpm/11_daplink/daplink.kicad_pcb
+board      50.00 x 20.00 mm
+moved      35 pad-bearing part(s) to a pile at (125.00, 129.48); closest to the outline: J2 at 3.52 mm below it
+unlocked   0: -
+held       0 locked part(s), 0 padless artwork block(s)
+texts      207 of 207 text(s) on 35 moved part(s) at absolute 0
+zones      0 board-level zone(s)/rule area(s) kept; none covers under 25% of the bounding box and holds a moved part's pad
+siblings   ['.kicad_pro', '.kicad_prl']
+verdict    unplaced=True partially_unplaced=False has_copper=False
+sanitize: {"carried": true, "sanitized_keys": ["meta.filename", "pcbnew.last_paths"], "dropped_prl": true, "sha256": "dc832abe16d69f17e0d0e8c5e3b47267e9e08bc98ffe31ae1da2bc0b47d17f26", "floors": {"clearance": {"value": 0.2, "source": "board netclass"}, "board_edge_clearance": {"value": 0.55, "source": "fixed default"}}, "kicad_dru": false, "kicad_prl": false}
+== 3b sanitize the pile (local zones under 25 %, text angles)
+zones kept 0: 
+zones dropped 0: 
+text angles reset: 0
+== 4 declarations (rule fa10-decl-v1)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+fa10-decl-v1: 0 posed, 2 edge claim(s)
+| ref | channel | footprint | why |
+|---|---|---|---|
+| P1 | brief.edge=west | USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal | edge_receptacle, seat 0.48 mm from the edge |
+| RST1 | brief.edge=north | SW_Push_SPST_NO_Alps_SKRK | edge_actuator, seat 0.41 mm from the edge |
+== 5a validate on the human board
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/_truth/daplink/human_stripped.kicad_pcb --brief wk/gpm/11_daplink/daplink.design-brief.json --no-mechanical --emit-intent wk/gpm/_truth/daplink/human_intent.json --decaps-from wk/gpm/_truth/daplink/human_stripped.kicad_pcb
+ENV KNOBS: none
+design brief daplink.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  merged the design brief into the emitted intent: declared claims OUTRANK the edge this tool infers from a part's current pose
+Wrote wk/gpm/_truth/daplink/human_intent.json
+  0 block(s), 0 with a zone, 12 edge connector(s), 0 locked part(s)
+  envelope [100.0, 100.0, 150.0038, 120.0] -- read from the board. The outline is not editable by this toolchain
+  decaps: max_distance_mm WITHHELD -- the reference board human_stripped.kicad_pcb: only 1 tether(s) on the emitting board -- a max over 1 sample(s) is a coordinate, not a limit (DECAP_MIN_SAMPLE=3) (2 rail-sharing cap(s) lie beyond the 5.0mm search radius, worst 6.852mm)
+  decaps: max_pin_distance_mm 13.9269 from 8 supply pin(s) on the reference
+  rule roster: 7 armed, 11 not; 3 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [OWED] decap_distance: the intent declares no decaps.max_distance_mm
+    [advisory] decap_ungraded: the intent declares no decaps.max_distance_mm
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+    OWED: decap_distance: dark -- the intent declares no decaps.max_distance_mm. It applies here (3 decoupling cap(s) share a rail with an IC). Arm it with `decaps.max_distance_mm` if the design has that requirement, or write why it does not: dispositions.rules.decap_distance
+EXIT=0
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/_truth/daplink/human_stripped.kicad_pcb --intent wk/gpm/_truth/daplink/human_intent.json --brief wk/gpm/11_daplink/daplink.design-brief.json --no-mechanical --require-brief-coverage --json wk/gpm/_truth/daplink/human_grade.json
+ENV KNOBS: none
+design brief daplink.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+grading at clearance 0.2 (board netclass), edge 0.2 (fab edge floor (what routing writes))
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Floorplan: human_stripped.kicad_pcb vs human_intent.json
+  35 footprints, 0 block(s), 0 part(s) covered
+  outline: 1 ring(s), 0 cutout(s), 0 milled contour(s)
+  INCOMPLETE: 7 rule(s) ran with no violations, but 1 budget_abstained, 2 rules_skipped_armed -- this board was not fully graded
+  pad stacks: 0 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule)
+  along-edge seating (measured, not a verdict -- a violation needs a declared center_on_edge or along_edge_band):
+    RST1 north: +10.68mm (+22.0% of the 48.61mm edge, ring)
+    J1 south: -9.95mm (-20.4% of the 48.68mm edge, ring)
+    J3 east: -0.02mm (-0.1% of the 18.67mm edge, ring)
+    P1 west: -0.01mm (-0.0% of the 18.68mm edge, ring)
+    J2 east: +0.00mm (+0.0% of the 18.67mm edge, ring)
+  edge connector overhang (measured; the band's own currency is named):
+    C3 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    D1 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    J1 south: overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    J2 east: overhang 9.1682mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    J3 east: overhang 9.1682mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    P1 west: overhang 0.0250mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured; facing west [courtyard+fab+marker, strong] pass
+    R10 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    R11 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    R14 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    R4 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    R6 (no edge): overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+    RST1 north: overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.2mm unmeasured
+  decap pins: 8 on 2 of 2 candidate IC(s) -- pintype 8
+    1 chip(s) where a lower channel would have named a DIFFERENT pin set (U2)
+  1 declared value(s) NOT DERIVABLE -- not graded, not passed:
+    - decaps.max_distance_mm: the reference board human_stripped.kicad_pcb: only 1 tether(s) on the emitting board -- a max over 1 sample(s) is a coordinate, not a limit (DECAP_MIN_SAMPLE=3) (2 rail-sharing cap(s) lie beyond the 5.0mm search radius, worst 6.852mm)
+  11 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - decap_distance: the intent declares no decaps.max_distance_mm; the emitter WITHHELD decaps.max_distance_mm (the reference board human_stripped.kicad_pcb: only 1 tether(s) on the emitting board -- a max over 1 sample(s) is a coordinate, not a limit (DECAP_MIN_SAMPLE=3) (2 rail-sharing cap(s) lie beyond the 5.0mm search radius, worst 6.852mm))
+    - decap_ungraded: the intent declares no decaps.max_distance_mm; the emitter WITHHELD decaps.max_distance_mm (the reference board human_stripped.kicad_pcb: only 1 tether(s) on the emitting board -- a max over 1 sample(s) is a coordinate, not a limit (DECAP_MIN_SAMPLE=3) (2 rail-sharing cap(s) lie beyond the 5.0mm search radius, worst 6.852mm))
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - must_lock: the intent declares no must_lock patterns
+    - replicate: the intent declares no replicate copies
+    - template: the intent declares no templates
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  rule roster: 7 armed, 11 not; 3 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [OWED] decap_distance: the intent declares no decaps.max_distance_mm
+    [advisory] decap_ungraded: the intent declares no decaps.max_distance_mm
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+    OWED: decap_distance: dark -- the intent declares no decaps.max_distance_mm. It applies here (3 decoupling cap(s) share a rail with an IC). Arm it with `decaps.max_distance_mm` if the design has that requirement, or write why it does not: dispositions.rules.decap_distance
+  brief clause coverage: 2 graded, 0 uncovered, 0 abstained, 2 declared unknown, 0 carried
+  wrote wk/gpm/_truth/daplink/human_grade.json
+JSON_SUMMARY: {"blocks": 0, "blocks_resolved": 0, "board": "human_stripped.kicad_pcb", "brief": "wk/gpm/11_daplink/daplink.design-brief.json", "brief_absent": 2, "brief_clauses": 4, "brief_clauses_abstained": 0, "brief_clauses_carried": 0, "brief_clauses_drifted": 0, "brief_clauses_graded": 2, "brief_clauses_not_claimed": 2, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 2, "brief_drift": 0, "brief_unknown": 2, "brief_unknown_keys": ["interfaces[P1].along_edge", "interfaces[RST1].along_edge"], "budget_abstained": 1, "budget_abstained_keys": ["decaps.max_distance_mm"], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.2}, "complete": false, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 0, "decap_pins_by_channel": {"pinfunction": 0, "pintype": 8, "rail_net": 0, "role": 0}, "decap_pins_graded": 8, "derived_default_clauses": [], "edge_clearance_used": {"source": "fab edge floor (what routing writes)", "value": 0.2}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 5, "edge_seating_worst_offset_pct": 21.96, "errors": 0, "hole_shortfall": 0.0, "hpwl": 424.118, "intent": "human_intent.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"advisory": 1, "dark": 3, "graded_pass": 14, "inapplicable": 2, "policy": 5, "unknown": 2}, "locked_contact_pairs": 0, "mechanical": null, "not_graded": {"budget_abstained": 1, "rules_skipped_armed": 2}, "oob_amount": 19.1944, "oob_area": 260.4938, "oob_count": 5, "oob_count_exempt": 5, "overlap_area": 3.8373, "overlap_area_exact": 0.0, "overlap_area_excluded": 0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "pad_stack_count": 0, "parts_covered": 0, "parts_total": 35, "pass": false, "rules_dark_undispositioned": ["zone_containment", "zone_side", "decap_distance"], "rules_run": 7, "rules_skipped": 11, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 0.0857, "state_partially_unplaced": false, "state_spread_ratio": 0.9462, "state_unplaced": false, "unmeasured_facts": [], "violations": 0, "violations_by_rule": {}, "warnings": 0}
+  NOT FULLY GRADED: 1 budget_abstained, 2 rules_skipped_armed. A channel the intent asked for was never measured, so this is an absent verdict, not a clean one.
+EXIT=4
+GRADE-ON-HUMAN exit 4
+== 5b emit the run intent on the pile
+CMD: Python -B -X utf8 py_tools/check_floorplan.py wk/gpm/11_daplink/daplink.kicad_pcb --emit-intent wk/gpm/11_daplink/intent.json --allow-unplaced --decaps-from wk/gpm/_truth/daplink/human_stripped.kicad_pcb
+ENV KNOBS: none
+check_floorplan: this board does not look PLACED (35 footprints at 35 distinct position(s)).
+  - footprints span 10.0% of the board diagonal
+  - 100% of footprints lie outside the board outline
+  Its poses are not a placement yet: py_placer/place_simple.py places a board from a pile.
+  To see what the file currently contains:  python3 -X utf8 py_tools/render_placement.py <board> -o state.png
+design brief daplink.design-brief.json: 2 interface(s), 0 keep-out(s), 2 declared UNKNOWN, 2 tier-0 field(s) not declared
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  merged the design brief into the emitted intent: declared claims OUTRANK the edge this tool infers from a part's current pose
+  DRIFT P1:edge: brief 'west' [declared]; board 'south' [inferred] -> brief wins
+  DRIFT RST1:edge: brief 'north' [declared]; board 'south' [inferred] -> brief wins
+Wrote wk/gpm/11_daplink/intent.json
+  0 block(s), 0 with a zone, 2 edge connector(s), 0 locked part(s)
+  envelope [100.0, 100.0, 150.0038, 120.0] -- read from the board. The outline is not editable by this toolchain
+  pile: the board is a pile (footprints span 10.0% of the board diagonal; 100% of footprints lie outside the board outline): staging poses are not claims -- withheld edge_connectors[].edge read off a pose, blocks[].zone, legality_budget.oob_count for 35 unlocked part(s) off the board; kept: KiCad-locked parts; a brief / mechanical.json merged after this
+  decaps: max_distance_mm WITHHELD -- the reference board human_stripped.kicad_pcb: only 1 tether(s) on the emitting board -- a max over 1 sample(s) is a coordinate, not a limit (DECAP_MIN_SAMPLE=3) (2 rail-sharing cap(s) lie beyond the 5.0mm search radius, worst 6.852mm)
+  decaps: max_pin_distance_mm 13.9269 from 8 supply pin(s) on the reference
+  rule roster: 6 armed, 12 not; 4 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [OWED] decap_distance: the intent declares no decaps.max_distance_mm
+    [advisory] decap_ungraded: the intent declares no decaps.max_distance_mm
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+    OWED: decap_distance: dark -- the intent declares no decaps.max_distance_mm. It applies here (3 decoupling cap(s) share a rail with an IC). Arm it with `decaps.max_distance_mm` if the design has that requirement, or write why it does not: dispositions.rules.decap_distance
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+EXIT=0
+redact_intent: 3 string(s) rewritten; remaining source markers: none
+== 6 record
+{
+ "daplink.design-brief.json": "7d8f52c5543efcf874b7583cc518918b0a75854089a3449153248b3f6e65fd84",
+ "daplink.kicad_pcb": "297e7c6965eeb0f10c7d03a255789e3c47fe2a2c956810a09e170b9450c11dff",
+ "daplink.kicad_pro": "dc832abe16d69f17e0d0e8c5e3b47267e9e08bc98ffe31ae1da2bc0b47d17f26",
+ "intent.json": "320bece871ee9b64b1a934fe98d22764b125f280690a7a9b704562bc9e7b65c5"
+}
+== 7 gate
+stage_gate daplink: PASS {"copper": 0, "fills": 0, "teardrops": 0, "tuning": 0, "drawings": 0, "artwork": 0, "locked_text": 0, "text_angles": 0, "locked": 0, "on_board": 0, "pads_turned": 0, "leaks": 0, "gate_touched_inputs": 0} load {"pcbnew_footprints": 35, "parser_footprints": 35, "pcbnew_ok": true, "kicad_cli_drc_exit": 0}

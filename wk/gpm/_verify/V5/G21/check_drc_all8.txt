@@ -1,0 +1,55 @@
+CMD: Python -X utf8 py_router/check_drc.py wk/gpm/_verify/V5/G21/dq_all8.kicad_pcb
+ENV KNOBS: none
+Grading at clearance 0.1 mm (from dq_all8.kicad_pro Default net class)
+Board-edge clearance 0.3 mm (from project min_copper_edge_clearance)
+Hole-to-hole clearance 0.25 mm (from project min_hole_to_hole)
+Copper-to-hole clearance 0.1 mm (from project min_hole_clearance)
+Copper-to-hole clearance 0.15 mm (from project fab_floor_origin.min_hole_clearance)
+  (copper-to-hole scope: tracks at 0.2 mm to NPTH holes and to plated holes whose copper ring does not cover the drill (#441); vias at 0.15 mm to NPTH holes only. Via drills and ordinary plated holes are not graded against it, unlike KiCad's hole_clearance)
+Loading wk/gpm/_verify/V5/G21/dq_all8.kicad_pcb...
+Found 208 segments and 0 vias
+Size floors (4-layer fab): track >= 0.0762mm, via dia >= 0.25mm, via drill >= 0.15mm; per-net board/rule minimums applied (#530)
+Building spatial index...
+
+Checking segment-to-segment clearances...
+Checking for same-net segment crossings...
+Checking for same-net soft joints (dangling free ends)...
+Checking via-to-segment clearances...
+Checking via-to-via clearances...
+Checking pad-to-segment clearances...
+Checking pad-to-via clearances...
+Checking pad-to-pad clearances...
+Checking via drill hole-to-hole clearances...
+Checking via drill to pad drill clearances...
+Checking copper-to-hole (track <-> NPTH drill) clearances...
+Checking board edge clearances (real Edge.Cuts outline)...
+Skipping pad-to-board-edge checks (--check-pad-edge is off; pads are edge-exempt by default because on a routed board the hits are usually pre-existing edge connectors). Pass it on a board whose PLACEMENT may have moved a part off the outline.
+Checking track widths and via/hole sizes...
+Length rules (.kicad_dru, #1313): 2 rule(s); 8 net(s) graded, 8 out of range
+
+============================================================
+FOUND 8 DRC VIOLATIONS:
+
+
+LENGTH-OUT-OF-RANGE violations (8):
+----------------------------------------
+  /DRAM/DRAM_DQ0: length 15.4913mm > max 14.5000mm (0.9913mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ1: length 15.5970mm > max 14.5000mm (1.0970mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ2: length 9.5456mm < min 11.5000mm (1.9544mm short)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ3: length 14.9269mm > max 14.5000mm (0.4269mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ4: length 15.8284mm > max 14.5000mm (1.3284mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ5: length 15.0284mm > max 14.5000mm (0.5284mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ6: length 15.4883mm > max 14.5000mm (0.9883mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+  /DRAM/DRAM_DQ7: length 15.3826mm > max 14.5000mm (0.8826mm over)
+    .kicad_dru rule 'byte0 delay matching': window 11.5000..14.5000 mm (KiCad: length_out_of_range)
+
+LISTING: 8 of 8 violation(s) shown
+============================================================
+EXIT=1

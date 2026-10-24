@@ -1,0 +1,20 @@
+regulators with out->in adjacency: {'U6': (['/SOC Power/VMEM_SW'], ['+5V']), 'U4': (['/SOC Power/V1P27_SW'], ['+5V']), 'U5': (['/SOC Power/V3P3_SW'], ['+5V'])}
+paths: 16
+paths per sink: {'U1': 12, 'J4': 4}
+  U6 -> U1 650 mA nets ['VMEM', '/SOC Power/VMEM_SW'] via ['L3']
+  J1 -> U1 650 mA nets ['VMEM', '/SOC Power/VMEM_SW', '+5V'] via ['L3', 'U6']
+  U4 -> U1 650 mA nets ['VMEM', '/SOC Power/VMEM_SW', '+5V', '/SOC Power/V1P27_SW'] via ['L3', 'U6', 'U4']  <-- U4 crossed IN(+5V)->OUT(/SOC Power/V1P27_SW) walking upstream = downstream into another branch
+  U5 -> U1 650 mA nets ['VMEM', '/SOC Power/VMEM_SW', '+5V', '/SOC Power/V3P3_SW'] via ['L3', 'U6', 'U5']  <-- U5 crossed IN(+5V)->OUT(/SOC Power/V3P3_SW) walking upstream = downstream into another branch
+  U5 -> J4 100 mA nets ['+3V3', '/SOC Power/V3P3_SW'] via ['L1']
+  J1 -> J4 100 mA nets ['+3V3', '/SOC Power/V3P3_SW', '+5V'] via ['L1', 'U5']
+  U6 -> J4 100 mA nets ['+3V3', '/SOC Power/V3P3_SW', '+5V', '/SOC Power/VMEM_SW'] via ['L1', 'U5', 'U6']  <-- U6 crossed IN(+5V)->OUT(/SOC Power/VMEM_SW) walking upstream = downstream into another branch
+  U4 -> J4 100 mA nets ['+3V3', '/SOC Power/V3P3_SW', '+5V', '/SOC Power/V1P27_SW'] via ['L1', 'U5', 'U4']  <-- U4 crossed IN(+5V)->OUT(/SOC Power/V1P27_SW) walking upstream = downstream into another branch
+  U4 -> U1 650 mA nets ['/SOC Power/VDD_ARM_SOC_IN', '+1V2', '/SOC Power/V1P27_SW'] via ['FB3', 'L2']
+  J1 -> U1 650 mA nets ['/SOC Power/VDD_ARM_SOC_IN', '+1V2', '/SOC Power/V1P27_SW', '+5V'] via ['FB3', 'L2', 'U4']
+  U6 -> U1 650 mA nets ['/SOC Power/VDD_ARM_SOC_IN', '+1V2', '/SOC Power/V1P27_SW', '+5V', '/SOC Power/VMEM_SW'] via ['FB3', 'L2', 'U4', 'U6']  <-- U6 crossed IN(+5V)->OUT(/SOC Power/VMEM_SW) walking upstream = downstream into another branch
+  U5 -> U1 650 mA nets ['/SOC Power/VDD_ARM_SOC_IN', '+1V2', '/SOC Power/V1P27_SW', '+5V', '/SOC Power/V3P3_SW'] via ['FB3', 'L2', 'U4', 'U5']  <-- U5 crossed IN(+5V)->OUT(/SOC Power/V3P3_SW) walking upstream = downstream into another branch
+  U5 -> U1 650 mA nets ['/SOC Power/VDD_HIGH_IN', '+3V3', '/SOC Power/V3P3_SW'] via ['FB2', 'L1']
+  J1 -> U1 650 mA nets ['/SOC Power/VDD_HIGH_IN', '+3V3', '/SOC Power/V3P3_SW', '+5V'] via ['FB2', 'L1', 'U5']
+  U6 -> U1 650 mA nets ['/SOC Power/VDD_HIGH_IN', '+3V3', '/SOC Power/V3P3_SW', '+5V', '/SOC Power/VMEM_SW'] via ['FB2', 'L1', 'U5', 'U6']  <-- U6 crossed IN(+5V)->OUT(/SOC Power/VMEM_SW) walking upstream = downstream into another branch
+  U4 -> U1 650 mA nets ['/SOC Power/VDD_HIGH_IN', '+3V3', '/SOC Power/V3P3_SW', '+5V', '/SOC Power/V1P27_SW'] via ['FB2', 'L1', 'U5', 'U4']  <-- U4 crossed IN(+5V)->OUT(/SOC Power/V1P27_SW) walking upstream = downstream into another branch
+paths flagged: 8 of 16

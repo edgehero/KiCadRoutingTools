@@ -1,0 +1,147 @@
+{
+ "schema": 1,
+ "groups": [
+  {
+   "name": "usb_in",
+   "role": "interface",
+   "refs": [
+    "J1",
+    "R4",
+    "R6",
+    "R5",
+    "D5",
+    "D8",
+    "D7",
+    "D6"
+   ],
+   "anchor": "J1",
+   "near": [
+    "power",
+    "charger"
+   ],
+   "why": "USB-C receptacle J1 with its CC1/CC2 5k1 pull-downs (R6, R4), the 0R shell-to-GND link R5, the D+/D- ESD diodes D8/D5 and the VBUS ESD diode D7 on the connector side of the B5819W input Schottky D6 (J1 VBUS -> board VBUS)"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "refs": [
+    "U5",
+    "C5",
+    "L1",
+    "C6",
+    "R2",
+    "R3",
+    "R1",
+    "C7",
+    "D4",
+    "Q1",
+    "R15",
+    "D1"
+   ],
+   "anchor": "U5",
+   "near": [
+    "usb_in",
+    "charger",
+    "core"
+   ],
+   "why": "the +5V/+3V3 power path: B5819W D4 (VBUS -> +5V) and the DMG3415U P-FET Q1 (gate on VBUS, R15 100k pulling VBUS down when unplugged) that feeds +5V from +BATT; the SY8088 buck U5 (+5V -> +3V3) with its input cap C5, inductor L1, output cap C7, feedback divider R2/R3 with feed-forward C6, and EN pull-up R1; D1, the LESD8D3.3 TVS on the +3V3 rail",
+   "templates": [
+    {
+     "chip": "U5",
+     "kind": "switching stage",
+     "why": "SY8088 1.5 MHz synchronous buck (+5V -> +3V3), LX on pin 3 drives L1; Silergy AN_SY8088 layout guidelines (text, no figure)"
+    }
+   ]
+  },
+  {
+   "name": "charger",
+   "role": "power",
+   "refs": [
+    "U6",
+    "C15",
+    "C16",
+    "R9",
+    "R14",
+    "D3"
+   ],
+   "anchor": "U6",
+   "near": [
+    "usb_in",
+    "power"
+   ],
+   "why": "MCP73831 Li-ion charger U6 (VBUS -> +BATT) with its VDD input cap C15, VBAT output cap C16, PROG resistor R9, and the charge-status LED D3 with its 1k resistor R14 on STAT"
+  },
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U3",
+    "C1",
+    "C11",
+    "C2",
+    "C3",
+    "C4",
+    "C9",
+    "C8",
+    "Y1",
+    "C12",
+    "C13",
+    "R12"
+   ],
+   "anchor": "U3",
+   "why": "the ESP32-C3-MINI-1 module U3 with its +3V3 decaps (C1/C2/C11 10nF, C3/C4/C9 100nF, C8 1uF), the 32.768 kHz crystal Y1 on GPIO0/GPIO1 with its DNP load caps C12/C13 and DNP bridge R12"
+  },
+  {
+   "name": "buttons",
+   "role": "ui",
+   "refs": [
+    "SW1",
+    "C10",
+    "R8",
+    "SW2",
+    "C14",
+    "R19"
+   ],
+   "anchor": "SW1",
+   "near": [
+    "core"
+   ],
+   "why": "reset button SW1 on CHIP_PU with its RC (R8 10k pull-up, C10 1uF), and boot button SW2 on IO9 with its pull-up R19 and 1nF C14; the RC goes with its button (placement-lessons: reset RC beside the reset button)"
+  },
+  {
+   "name": "sensors",
+   "role": "signal",
+   "refs": [
+    "U1",
+    "U2",
+    "R17",
+    "R18",
+    "R7",
+    "TP2"
+   ],
+   "anchor": "U2",
+   "near": [
+    "core"
+   ],
+   "why": "the I2C sensors on IO8_SCL/IO10_SDA: SHTC3 U1 (temperature/humidity) and ICM-42670-P IMU U2 with its 0R CS tie R7 and its INT2 test point TP2 (on the back), plus the bus's 10k pull-ups R17/R18; kept apart from the power group because the SHTC3 measures ambient temperature and the buck/charger dissipate heat (run judgment)",
+   "apart": [
+    "power"
+   ]
+  },
+  {
+   "name": "leds",
+   "role": "ui",
+   "refs": [
+    "D9",
+    "R11",
+    "D2",
+    "R10"
+   ],
+   "anchor": "D9",
+   "near": [
+    "core"
+   ],
+   "why": "the WS2812B RGB LED D9 with its 0R data link R11 from IO2, and the IO7 indicator LED D2 with its 470R resistor R10"
+  }
+ ]
+}

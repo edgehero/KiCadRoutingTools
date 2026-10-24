@@ -1,0 +1,60 @@
+CMD: Python -X utf8 py_tools/check_floorplan.py wk/gpm/_verify/V8/M06/dc1_west.kicad_pcb --intent wk/gpm/_verify/V8/M06/dc1_west.intent.json
+ENV KNOBS: none
+design brief dc1_west.design-brief.json: 1 interface(s), 0 keep-out(s), 1 declared UNKNOWN, 2 tier-0 field(s) not declared
+grading at clearance 0.1 (board netclass), edge 0.3 (board constraint)
+  WARNING [placement]: 197 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: BAT1, Battery1, C1, C10, C11, C12, C13, C14, C15, C16, C17, C18, ...
+  WARNING [placement]: 197 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: BAT1, Battery1, C1, C10, C11, C12, C13, C14, C15, C16, C17, C18, ...
+  NOTE [placement]: 197 footprint(s) draw no courtyard and are seated on an ESTIMATED one, what they occupy (body and pads, #1300) -- fab: D1, LED2, PWR_SW1, SW1, U6; fab_marking: BAT1, Battery1, C1, C10, C11, C12, C13, C14, C15, C16, ...
+Floorplan: dc1_west.kicad_pcb vs dc1_west.intent.json
+  204 footprints, 2 block(s), 92 part(s) covered
+  outline: 1 ring(s), 0 cutout(s), 0 milled contour(s)
+  ALSO NOT FULLY GRADED: 2 budget_abstained, 1 rules_skipped_armed -- the violations below are what WAS measured, not all of it
+  1 error(s), 5 warning(s) from 9 rule(s)
+    [ERROR] edge_connector: DC1 sits nearest the west edge but is declared on the south edge
+    [warn ] edge_connector: DC1's body leaves its pad row toward the west (silk, 0.70mm), away from its declared south edge -- its mating face points west, not out of the south edge (a weak face, under 2 mm: a WARN)
+    [warn ] edge_connector: U1 is an edge part seated 7.07mm from the nearest edge with no overhang (courtyard; seat tolerance 3.00mm) -- a plug may not reach it; disposition in the boundary review or declare max_setback_mm
+    [warn ] pins_to_edge: U3: 3 of 6 connected pads sit on a row facing the east edge (1.21mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] template: templates[2] (U5): 1 of 14 member(s) off the template -- worst L1, a pad 15.60mm from its template position
+    [warn ] template_ground_return: templates[2] (U5): 4 of 11 cap(s) return their ground more than 3mm from the chip's -- worst C27, 4.02mm of pad-edge gaps from its PGND pad to U5 (via C37, C26)
+  pad stacks: 0 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule)
+  templates[0] U6: as drawn, worst C47 0.00mm
+    ground return: 6 of 6 cap(s) within 3mm of the chip's ground, longest C49 2.09mm
+  templates[1] U2: as drawn, worst C68 0.00mm
+    ground return: 5 of 5 cap(s) within 3mm of the chip's ground, longest C4 1.40mm
+  templates[2] U5: 1 of 14 member(s) off, worst L1 15.60mm
+    ground return: 7 of 11 cap(s) within 3mm of the chip's ground, longest C27 4.02mm
+  edge connector overhang (measured; the band's own currency is named):
+    DC1 south: overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm unmeasured; facing west [silk, weak] FAIL
+    U1 east: overhang 0.0000mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm unmeasured; facing east [silk, strong] pass
+  decap pins: 40 on 21 of 27 candidate IC(s) -- pinfunction 6, rail_net 34
+  2 declared value(s) NOT DERIVABLE -- not graded, not passed:
+    - oob_count: the board is a pile: its off-board count is staging, not a baseline (#1103)
+    - overlap_area: the board is a pile: its overlap is staging, not a baseline (#1103)
+  9 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - legality: the intent declares no legality_budget; the emitter WITHHELD oob_count (the board is a pile: its off-board count is staging, not a baseline (#1103)), overlap_area (the board is a pile: its overlap is staging, not a baseline (#1103))
+    - must_lock: the intent declares no must_lock patterns
+    - replicate: the intent declares no replicate copies
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+    - zone_side: no block declares a side
+  rule roster: 9 armed, 9 not; 3 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [OWED] zone_side: no block declares a side
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: zone_side: dark -- no block declares a side. It applies here (the board carries parts on both faces). Arm it with `blocks[].side` if the design has that requirement, or write why it does not: dispositions.rules.zone_side
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+  DRIFT DC1:edge: brief 'south' [declared]; intent 'south' [declared]; board 'west' [inferred] -> brief wins
+  brief clause coverage: 1 graded, 0 uncovered, 0 abstained, 1 declared unknown, 0 carried
+JSON_SUMMARY: {"blocks": 2, "blocks_resolved": 2, "board": "dc1_west.kicad_pcb", "brief": "wk/gpm/_verify/V8/M06/dc1_west.design-brief.json", "brief_absent": 2, "brief_clauses": 2, "brief_clauses_abstained": 0, "brief_clauses_carried": 0, "brief_clauses_drifted": 0, "brief_clauses_graded": 1, "brief_clauses_not_claimed": 1, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 1, "brief_drift": 0, "brief_unknown": 1, "brief_unknown_keys": ["interfaces[DC1].along_edge"], "budget_abstained": 2, "budget_abstained_keys": ["oob_count", "overlap_area"], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.1}, "complete": false, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 0, "decap_pins_by_channel": {"pinfunction": 6, "pintype": 0, "rail_net": 34, "role": 0}, "decap_pins_graded": 40, "derived_default_clauses": [], "edge_clearance_used": {"source": "board constraint", "value": 0.3}, "edge_contours": 0, "edge_seating_abstained": 2, "edge_seating_declared": 0, "edge_seating_rows": 2, "edge_seating_worst_offset_pct": null, "errors": 1, "hole_shortfall": 0.0, "hpwl": 2202.9727, "intent": "dc1_west.intent.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"dark": 3, "graded_fail": 3, "graded_pass": 9, "inapplicable": 2, "policy": 4, "unknown": 1}, "locked_contact_pairs": 0, "mechanical": null, "not_graded": {"budget_abstained": 2, "rules_skipped_armed": 1}, "oob_amount": 0.0, "oob_area": 0.0, "oob_count": 0, "overlap_area": 0.0, "pad_conflict_pairs": 0, "pad_intersection_pairs": 0, "pad_overlap_pairs": 0, "pad_shortfall": 0.0, "pad_stack_count": 0, "parts_covered": 92, "parts_total": 204, "pass": false, "rules_dark_undispositioned": ["zone_containment", "zone_side", "legality"], "rules_run": 9, "rules_skipped": 9, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 0.0, "state_partially_unplaced": false, "state_spread_ratio": 0.9127, "state_unplaced": false, "unmeasured_facts": [], "violations": 6, "violations_by_rule": {"edge_connector": 3, "pins_to_edge": 1, "template": 1, "template_ground_return": 1}, "warnings": 5}
+  NOT FULLY GRADED: 2 budget_abstained, 1 rules_skipped_armed. A channel the intent asked for was never measured, so this is an absent verdict, not a clean one.
+EXIT=4

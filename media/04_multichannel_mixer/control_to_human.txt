@@ -1,0 +1,22 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              452              576
+  vias                                  140               29
+  total length mm                    1869.9           1959.3
+  distinct track widths                   2                2
+  nets with copper                       79               79
+  ours widths:   {0.127: 1, 0.3: 451}
+  orig widths:   {0.5: 557, 1.5: 19}
+  ours vias:     {'1.5/0.3': 126, '0.6/0.3': 14}
+  orig vias:     {'1.5/0.6': 29}
+
+  SUGGESTIONS:
+   - VIAS: we placed 140 vias vs original 29 (4.83x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+   - WIDTHS: original has traces up to 1.5mm wide vs our max 0.3mm — high-current/power nets need widening (--power-nets with explicit widths).
+   - LAYER BALANCE: ours 0.45 vs original 0.11 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 452, "n_vias": 140, "total_length_mm": 1869.9, "length_by_layer": {"B.Cu": 581.0, "F.Cu": 1288.8}, "width_count": {"0.3": 451, "0.127": 1}, "via_count": {"1.5/0.3": 126, "0.6/0.3": 14}, "distinct_widths": 2, "nets_with_copper": 79, "n_multi_pad_nets": 80, "n_nets": 81}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 576, "n_vias": 29, "total_length_mm": 1959.3, "length_by_layer": {"B.Cu": 1767.6, "F.Cu": 191.7}, "width_count": {"0.5": 557, "1.5": 19}, "via_count": {"1.5/0.6": 29}, "distinct_widths": 2, "nets_with_copper": 79, "n_multi_pad_nets": 80, "n_nets": 81}, "suggestions": ["VIAS: we placed 140 vias vs original 29 (4.83x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count.", "WIDTHS: original has traces up to 1.5mm wide vs our max 0.3mm \u2014 high-current/power nets need widening (--power-nets with explicit widths).", "LAYER BALANCE: ours 0.45 vs original 0.11 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

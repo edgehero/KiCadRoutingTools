@@ -1,0 +1,20 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                               40               53
+  vias                                    1                0
+  total length mm                     163.8            219.1
+  distinct track widths                   1                1
+  nets with copper                        9                9
+  ours widths:   {0.864: 40}
+  orig widths:   {0.864: 53}
+  ours vias:     {'1.905/0.635': 1}
+  orig vias:     {}
+
+  SUGGESTIONS:
+   - LAYER BALANCE: ours 0.08 vs original 1.0 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 40, "n_vias": 1, "total_length_mm": 163.8, "length_by_layer": {"F.Cu": 151.3, "B.Cu": 12.5}, "width_count": {"0.864": 40}, "via_count": {"1.905/0.635": 1}, "distinct_widths": 1, "nets_with_copper": 9, "n_multi_pad_nets": 9, "n_nets": 14}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 53, "n_vias": 0, "total_length_mm": 219.1, "length_by_layer": {"B.Cu": 219.1}, "width_count": {"0.864": 53}, "via_count": {}, "distinct_widths": 1, "nets_with_copper": 9, "n_multi_pad_nets": 9, "n_nets": 14}, "suggestions": ["LAYER BALANCE: ours 0.08 vs original 1.0 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

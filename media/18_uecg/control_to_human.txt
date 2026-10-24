@@ -1,0 +1,22 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              950              818
+  vias                                  150              147
+  total length mm                    1150.2            914.1
+  distinct track widths                   6                3
+  nets with copper                       59               59
+  ours widths:   {0.12: 4, 0.127: 33, 0.176: 16, 0.2: 777, 0.4: 34, 0.8: 86}
+  orig widths:   {0.12: 4, 0.2: 812, 0.4: 2}
+  ours vias:     {'0.45/0.3': 61, '0.25/0.15': 21, '0.3/0.2': 1, '0.4/0.3': 67}
+  orig vias:     {'0.4/0.3': 147}
+
+  SUGGESTIONS:
+   - VIAS: 150 vs original 147 (1.02x) — comparable.
+   - LENGTH: our total track length 1150.2mm vs original 914.1mm (1.26x) — we detour more; tighter heuristic / less ripup churn could shorten routes.
+   - LAYER BALANCE: ours 0.78 vs original 0.22 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 950, "n_vias": 150, "total_length_mm": 1150.2, "length_by_layer": {"F.Cu": 645.4, "B.Cu": 504.8}, "width_count": {"0.2": 777, "0.127": 33, "0.176": 16, "0.4": 34, "0.8": 86, "0.12": 4}, "via_count": {"0.45/0.3": 61, "0.25/0.15": 21, "0.3/0.2": 1, "0.4/0.3": 67}, "distinct_widths": 6, "nets_with_copper": 59, "n_multi_pad_nets": 59, "n_nets": 85}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 818, "n_vias": 147, "total_length_mm": 914.1, "length_by_layer": {"F.Cu": 750.5, "B.Cu": 163.6}, "width_count": {"0.2": 812, "0.4": 2, "0.12": 4}, "via_count": {"0.4/0.3": 147}, "distinct_widths": 3, "nets_with_copper": 59, "n_multi_pad_nets": 59, "n_nets": 85}, "suggestions": ["VIAS: 150 vs original 147 (1.02x) \u2014 comparable.", "LENGTH: our total track length 1150.2mm vs original 914.1mm (1.26x) \u2014 we detour more; tighter heuristic / less ripup churn could shorten routes.", "LAYER BALANCE: ours 0.78 vs original 0.22 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

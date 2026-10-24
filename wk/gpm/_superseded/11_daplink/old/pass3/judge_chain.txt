@@ -1,0 +1,4 @@
+python3 -X utf8 py_router/route_diff.py {in} {out} --nets '/D+' '/D-' --track-width 0.2 --diff-pair-gap 0.2 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3
+python3 -X utf8 py_router/route.py {in} {out} --nets '*' '!GND' --track-width 0.127 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3 --power-nets '+5V' '+3.3V' GND --power-nets-widths 0.7 0.7 0.7 --layer-costs 1.0 1.0 --json-out {dir}/route1.json
+python3 -X utf8 py_router/route_planes.py {in} {out} --nets GND GND --plane-layers F.Cu B.Cu
+python3 -X utf8 py_router/route.py {in} {out} --nets '*' --track-width 0.127 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3 --power-nets '+5V' '+3.3V' GND --power-nets-widths 0.7 0.7 0.7 --layer-costs 1.0 1.0 --json-out {dir}/route.json

@@ -1,0 +1,216 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/11_daplink/exp_lc15/s3_pour.kicad_pcb wk/gpm/11_daplink/exp_lc15/s4_route.kicad_pcb --nets "*" --track-width 0.127 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3 --power-nets +5V +3.3V GND --power-nets-widths 0.7 0.7 0.7 --layer-costs 1.0 1.5 --json-out wk/gpm/11_daplink/exp_lc15/s4_route.json
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+  Default class clearance 0.1818 mm, unchanged by this step but below the 0.2 mm an earlier step asked for: an automatic descent on +3.3V, /IF_RST, /IF_SWDIO, /OSCIN, /OSCOUT, /PA0 (+6 more) lowered it.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.2 to route the other nets at 0.2 again.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1818mm.
+--clearance-ceiling 0.2: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/11_daplink/exp_lc15/s3_pour.kicad_pcb to expand net patterns...
+Pattern '*' matched 30 nets
+Routing 30 nets: ['+3.3V', '+5V', '/D+', '/D-', '/IF_RST']...
+Loading wk/gpm/11_daplink/exp_lc15/s3_pour.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+
+Power net width assignments (3 nets):
+  0.7mm: GND, +3.3V, +5V
+
+Skipping 29 already-routed net(s): 28 x Already fully connected, 1 x Only 1 pad(s)
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: GND
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+27 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.01s
+Found 29 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.04s (29 nets)
+Plane fragility: exact-fill geometry (7 filled island(s) from KiCad refill)
+Plane fragility field: 99674 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing GND (id=4)
+  Detected multi-point net with 33 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +313 region-laddered target(s) across 6 component(s) (phase 1)
+  Existing copper joins 33 terminals into 6 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 22 and 24, length=8.32mm)
+  WARNING: plane tap U2.20: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+           NOTE: --via-size cannot prevent this. The via is re-derived from min(pad.size_x, pad.size_y) floored at the fab ladder, so RAISING --via-size makes the clamp fire more readily, never less. A hard tier or --fab-overrides is what forbids the escalation.
+  WARNING: last-resort via for net 4 (0.25/0.15mm): escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  WARNING: plane tap U2.8: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 22,24) failed after 16658 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/5) (pads 25 and 27, length=8.32mm)
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      barrel-in-fill: weld complete at via (131.00,114.90); trimmed 13 tail node(s)
+  Phase 1 routed in 25024 iterations, 1 segments
+  SUCCESS: 1 segments, 2 vias, 25024 iterations, length=1.13mm (stubs=0.00mm) (0.38s)
+
+Sync pcb_data: 233 -> 232 (kept stubs) -> 233 (after adding 1)
+
+============================================================
+Multi-point Phase 3: Routing 4 tap connections
+============================================================
+
+GND (net 4):
+  POUR-LAUNCH v3: +280 region-laddered target(s) across 5 component(s) (phase 3)
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [1/4] Routing MST edge: pad 24 -> pad 22 (length=8.32mm) target=(125.70, 114.76)
+      backward stuck (25 < 5000), forward=5000  [x6]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: /IF_RST(3 track, 1 pad), +3.3V(2 track, 1 pad), /OSCOUT(1 track), /PA0(1 track)  [x2]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: /IF_RST(1 track, 1 pad), +3.3V(1 track, 1 pad)  [x4]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (60 < 5000), forward=5000  [x2]
+        backward cell (1257, 1148, layer=0): ok, 3/8 neighbors blocked  [x2]
+          Blocking obstacles: +3.3V(1 track)  [x2]
+      Failed to route MST edge after 20135 iterations (0.05s)
+    Fallback: attempting orphaned pad 23 directly from connected copper
+    [2/4] (1 failed) Routing MST edge: pad 27 -> pad 23 (length=8.33mm) target=(127.61, 109.84)
+      Routed in 95079 iterations (0.20s)
+      barrel-in-fill: weld complete at via (142.00,116.80); trimmed 348 tail node(s)
+    [3/4] (1 failed) Routing MST edge: pad 17 -> pad 19 (length=4.20mm) target=(123.77, 116.28)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 7648 iterations (0.02s)
+    [4/4] (1 failed) Routing MST edge: pad 19 -> pad 22 (length=3.45mm) target=(125.70, 114.76)
+      backward stuck (25 < 5000), forward=5000  [x6]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: /IF_RST(3 track, 1 pad), +3.3V(2 track, 1 pad), /OSCOUT(1 track), /PA0(1 track)  [x2]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: /IF_RST(1 track, 1 pad), +3.3V(1 track, 1 pad)  [x4]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (55 < 5000), forward=5000  [x2]
+        backward cell (1257, 1148, layer=0): ok, 3/8 neighbors blocked  [x2]
+          Blocking obstacles: +3.3V(1 track)  [x2]
+      Failed to route MST edge after 20130 iterations (0.05s)
+    [5/4] (2 failed) Routing MST edge: pad 21 -> pad 18 (length=3.14mm) target=(123.60, 109.38)
+      Routed in 2542 iterations (0.01s)
+    Fallback: attempting orphaned pad 22 directly from connected copper
+    [6/4] (2 failed) Routing MST edge: pad 19 -> pad 22 (length=3.45mm) target=(125.70, 114.76)
+      backward stuck (25 < 5000), forward=5000  [x6]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=5)  [x2]
+          Blocking obstacles: /IF_RST(3 track, 1 pad), +3.3V(2 track, 1 pad), /OSCOUT(1 track), /PA0(1 track)  [x2]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=3)  [x2]
+          Blocking obstacles: /IF_RST(1 track, 1 pad), +3.3V(1 track, 1 pad)  [x4]
+        backward cell (1257, 1148, layer=0): ok, 8/8 neighbors blocked (margin=2)  [x2]
+      backward stuck (55 < 5000), forward=5000  [x2]
+        backward cell (1257, 1148, layer=0): ok, 3/8 neighbors blocked  [x2]
+          Blocking obstacles: +3.3V(1 track)  [x2]
+      Failed to route MST edge after 20130 iterations (0.05s)
+  Warning: 1 pad(s) not connected (2 MST edge(s) failed)
+  Phase 3 routing complete: 3 edges, 6 total segments, 5 total vias
+    Ripping /OSCOUT (net 16) to retry tap route...
+      PRE-EXISTING rip: '/OSCOUT' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  POUR-LAUNCH v3: +280 region-laddered target(s) across 5 component(s) (phase 3)
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [6/4] (2 failed) Routing MST edge: pad 24 -> pad 22 (length=8.32mm) target=(125.70, 114.76)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 12567 iterations (0.02s)
+    [7/4] (2 failed) Routing MST edge: pad 22 -> pad 19 (length=3.45mm) target=(123.77, 116.28)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 8648 iterations (0.02s)
+      barrel-in-fill: weld complete at via (124.00,116.50); trimmed 1 tail node(s)
+    [8/4] (2 failed) Routing MST edge: pad 19 -> pad 17 (length=4.20mm) target=(122.11, 118.81)
+      Routed in 15814 iterations (0.05s)
+      barrel-in-fill: weld complete at via (123.20,117.90); trimmed 11 tail node(s)
+    [9/4] (2 failed) Routing MST edge: pad 21 -> pad 18 (length=3.14mm) target=(123.60, 109.38)
+      Routed in 2658 iterations (0.01s)
+  Phase 3 routing complete: 4 edges, 26 total segments, 6 total vias
+    GND: Retry SUCCESS (N=1): 2 -> 0 failed edges
+    Adding 25 tap segments, 4 tap vias to obstacles before re-routing...
+    Re-routing 1 ripped net(s)...
+
+  Re-routing /OSCOUT (net 16)...
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 77569 iterations, path length: 308
+    Re-routed main path: 39 segments, 2 vias
+  Added 25 tap segments, 4 tap vias
+  Net total time: 1.03s, 230375 iterations
+  WARNING: terminal escalation net_16: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+
+Terminal geometry escalation (better than shipping opens): 1 candidate net(s)
+  terminal escalation: /OSCOUT at track 0.127 via 0.45/0.2 (rung 1/2)
+Route found in 29 iterations, path length: 29
+    terminal escalation: /OSCOUT recovered at 0.127x0.45/0.2 (2 -> 1 parts, 0.0s)
+Terminal escalation: 1 recovered, 0 unrecovered (0.0s)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/OSCOUT' (was blocking 'GND'): rerouted
+Closed 3 stub gap(s) to same-net copper
+Cycle prune: removed 2 redundant loop segment(s) across 1 net(s)
+Octolinear smoothing: collapsed 3 staircase span(s) on 1 net(s), -8.07 mm of copper (#536)
+Merged 2 collinear joint(s) on 1 net(s): -2 redundant segment(s) (#811)
+Stripped 6 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+Stripping 3 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   33/33 pads connected (1 nets)
+  Total vias:    8
+  Total time:    0.38s
+  Iterations:    25,024
+  Fragility refresh (#466): 5 windows, 0.05s total
+  History congestion (#590): 1 contest + 1 rip + 1 blocked-frontier event(s) over 1061 cell(s), peak 0.23mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3.3V: 0.54A max (0.127mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.54A)
+  +5V: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  GND: 0.63A max (0.158mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.63A)
+JSON_SUMMARY: {"routed_single": ["GND"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_nets": 1, "multipoint_pads_connected": 33, "multipoint_pads_total": 33, "multipoint_edges_routed": 5, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.38, "total_iterations": 25024, "total_vias": 8, "cleanup_disconnected": [], "min_clearance_used": 0.1681, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.3, "via_drill": 0.2, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.1818}, "count": 22, "nets": [4, 16], "narrowed": [{"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "last-resort via-in-pad", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "fine-pitch tap", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "last-resort via-in-pad", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6652, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5466, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5092, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1706, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.1578, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.175, "delivered": 0.1706, "site": "terminal neck", "count": 1}, {"net": 4, "net_name": null, "kind": "track_width", "requested": 0.175, "delivered": 0.1578, "site": "terminal neck", "count": 1}, {"net": 16, "net_name": "/OSCOUT", "kind": "via_diameter", "requested": 0.5, "delivered": 0.45, "site": "terminal escalation", "count": 1}], "min_delivered": {"via_diameter": 0.25, "track_width": 0.127, "clearance": 0.1681}, "fab_tier_escalations": 7, "fab_tier_contexts": ["plane tap U2.20", "plane tap U2.20", "last-resort via for net 4 (0.25/0.15mm)", "plane tap U2.8", "plane tap U2.8", "last-resort via for net 4 (0.25/0.15mm)", "terminal escalation net_16"], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 7, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "terminal_escalations": {"/OSCOUT": "recovered at 0.127x0.45/0.2"}, "preexisting_rips": {"/OSCOUT": "rerouted [was blocking 'GND']"}, "oracle_check": "disabled", "pad_pairs_connected": 34, "pad_pairs_total": 34, "power_trace_ampacity": [{"net": "+3.3V", "bottleneck_width_mm": 0.127, "bottleneck_layer": "B.Cu", "copper_oz": 1.0, "max_current_a": 0.54, "max_current_ipc2152_a": 0.54, "temp_rise_c": 10.0, "trace_length_mm": 95.2}, {"net": "+5V", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 18.5}, {"net": "GND", "bottleneck_width_mm": 0.1578, "bottleneck_layer": "F.Cu", "copper_oz": 1.0, "max_current_a": 0.63, "max_current_ipc2152_a": 0.63, "temp_rise_c": 10.0, "trace_length_mm": 14.4}], "scope": "run", "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/11_daplink/exp_lc15/s4_route.kicad_pcb...
+Removed 6 dead-end input segment(s) from the output
+Removed 3 stale input via(s) from the output
+Successfully wrote wk/gpm/11_daplink/exp_lc15/s4_route.kicad_pcb
+
+Plane finalize (#562): all zone nets complete (fill-aware) -- skipping engine/cleanup legs, oracle verifies
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 1.2s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+  Strict collapse (#1063, end of run): removed 2 redundant segment(s) on 1 net(s)
+
+  FAB NOTE (route): 11 via(s) in a pad or paste opening [C4.2 F.Paste (pad), J3.1 F.Paste (pad), P1.A4 F.Paste (pad), R15.1 F.Paste (pad), R15.2 F.Paste (pad), R2.2 F.Paste (pad), R4.1 F.Paste (pad), R8.1 F.Paste (pad), +3 more] -- 3 stamped (capping yes) (filling yes), 8 already filled+capped. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 11, "sites": ["C4.2 F.Paste (pad)", "J3.1 F.Paste (pad)", "P1.A4 F.Paste (pad)", "R15.1 F.Paste (pad)", "R15.2 F.Paste (pad)", "R2.2 F.Paste (pad)", "R4.1 F.Paste (pad)", "R8.1 F.Paste (pad)", "R9.1 F.Paste (pad)", "U2.13 F.Paste (pad)", "Y1.2 F.Paste (pad)"], "stamped": 3, "restored": 0, "protected": 8, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: GND 8.9/14.4 mm under the requested 0.7 (min 0.1578); +3.3V 31.6/95.2 mm under the requested 0.7 (min 0.127); +5V 9.4/18.4 mm under the requested 0.7 (min 0.175) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.1681, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.3, "via_drill": 0.2, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.1818}, "count": 12, "nets": [4, 5, 11, 16], "narrowed": [{"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "last-resort via-in-pad", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 4, "net_name": "GND", "kind": "clearance", "requested": 0.1818, "delivered": 0.1681, "site": "fine-pitch plane tap", "count": 1}, {"net": 4, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "last-resort via-in-pad", "count": 1}, {"net": 16, "net_name": "/OSCOUT", "kind": "via_diameter", "requested": 0.5, "delivered": 0.45, "site": "terminal escalation", "count": 1}, {"net": 4, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.1578, "site": "power copper shipped under width", "count": 1, "length_mm": 8.94}, {"net": 5, "net_name": "+3.3V", "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "power copper shipped under width", "count": 1, "length_mm": 31.63}, {"net": 11, "net_name": "+5V", "kind": "track_width", "requested": 0.7, "delivered": 0.175, "site": "power copper shipped under width", "count": 1, "length_mm": 9.41}], "min_delivered": {"via_diameter": 0.25, "clearance": 0.1681, "track_width": 0.127}, "fab_tier_escalations": 7, "fab_tier_contexts": ["plane tap U2.20", "plane tap U2.20", "last-resort via for net 4 (0.25/0.15mm)", "plane tap U2.8", "plane tap U2.8", "last-resort via for net 4 (0.25/0.15mm)", "terminal escalation net_16"], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 2, "seconds": 0.07, "routed_single": ["GND"], "failed_single": [], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 36, "multipoint_pads_connected": 36, "successful": 1, "failed": 0, "unowned_broken": [], "recovered": [], "pad_pairs": {}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (2 net(s), 0.1s)
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   36/36 pads connected
+  route summary written to wk/gpm/11_daplink/exp_lc15/s4_route.json
+  Route trace written to wk/gpm/11_daplink/exp_lc15/s4_route_routetrace.json (5 events)
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": ["GND"], "lost_zone": [], "gained_zone": ["GND"], "worsened": [], "disconnected_pads_before": 6, "disconnected_pads_after": 0, "nets_compared": 29, "verdict": "accept"}
+  Design rules [--escalation fab, --fab-tier auto]: 12 feature(s) on 4 net(s) delivered below the requested size (smallest clearance 0.1681 mm, smallest track width 0.127 mm, smallest via diameter 0.25 mm); 7 fab-tier escalation(s) to advanced. Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 19, "failed": 0, "failed_single": [], "main_loop_time_s": 0.38, "min_clearance_used": 0.1681, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "regraded_nets": 2, "routed": 1, "scope": "merged", "terminal_restores_broken": [], "vias": 8}
+  Min clearance used: 0.1681 mm (below nominal 0.1818) - grading at this floor
+  DRC settings: wrote 3 value(s) to wk/gpm/11_daplink/exp_lc15/s4_route.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_hole_clearance: 0.1818 -> 0.1681 mm
+      net_class[Default].clearance: 0.1818 -> 0.1681 mm
+      kicad_routing_tools.class_clearance_relaxed: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/11_daplink/exp_lc15/s4_route.kicad_pro", "writes": ["rules.min_hole_clearance: 0.1818 -> 0.1681 mm", "net_class[Default].clearance: 0.1818 -> 0.1681 mm", "kicad_routing_tools.class_clearance_relaxed: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    via diameter: 0.3 mm, unchanged by this step but still below the board's ORIGINAL 0.5mm; 7 of 32 object(s) on this board are below the ORIGINAL 0.5mm
+    via annular ring: 0.05 mm, unchanged by this step but still below the board's ORIGINAL 0.1mm; 7 of 32 object(s) on this board are below the ORIGINAL 0.1mm
+    hole diameter: 0.2 mm, unchanged by this step but still below the board's ORIGINAL 0.3mm
+    copper-to-hole clearance: 0.25 -> 0.1681 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  DEFAULT CLASS CLEARANCE LOWERED BY A DESCENT -- 0.2 -> 0.1681 mm: an automatic clearance descent on +3.3V, /IF_RST, /IF_SWDIO, /OSCIN, /OSCOUT, /PA0 (+7 more) routed at 0.1681 mm, and the writeback stores the run's smallest clearance as the Default class.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.2 to route the other nets at 0.2 again.
+EXIT=0

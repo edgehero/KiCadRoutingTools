@@ -1,0 +1,377 @@
+{
+ "schema": 1,
+ "board": "One-Air-Max.kicad_pcb",
+ "groups": [
+  {
+   "name": "charger",
+   "role": "power",
+   "refs": [
+    "U5",
+    "L1",
+    "C28",
+    "C29",
+    "C31",
+    "C33",
+    "C34",
+    "C35",
+    "C37",
+    "C38",
+    "C39",
+    "C40",
+    "C41",
+    "C26",
+    "C27",
+    "C23",
+    "C30",
+    "C36",
+    "R16",
+    "R33",
+    "R31",
+    "R34",
+    "R35",
+    "R36",
+    "R37",
+    "R38",
+    "R50",
+    "TP7",
+    "TP8",
+    "D3",
+    "R30",
+    "LED3",
+    "DC1",
+    "Solarpower1",
+    "Battery1"
+   ],
+   "anchor": "U5",
+   "near": [
+    "batt_protect",
+    "buck5"
+   ],
+   "why": "solar/DC power entry (DC1 barrel jack, Solarpower1 header, D3 TVS on Solar+) and the BQ25672 buck-boost charger with its VBUS/PMID/SYS/VBAT caps, boot caps, L1, REGN/TS/ILIM/PROG/CE resistors, charge LED3+R30, test points, and the Battery1 VBAT header",
+   "templates": [
+    {
+     "chip": "U5",
+     "kind": "switching stage",
+     "why": "BQ25672 4-switch buck-boost charger: L1 between SW1/SW2, BTST1/BTST2 boot caps, VBUS/PMID input caps; its datasheet's layout example"
+    }
+   ]
+  },
+  {
+   "name": "batt_protect",
+   "role": "power",
+   "refs": [
+    "U4",
+    "C15",
+    "C16",
+    "C17",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "C22",
+    "C24",
+    "C25",
+    "R9",
+    "R10",
+    "R11",
+    "R12",
+    "R13",
+    "R14",
+    "R15",
+    "R17",
+    "R18",
+    "R19",
+    "R20",
+    "R21",
+    "R22",
+    "R23",
+    "R24",
+    "R26",
+    "R27",
+    "R51",
+    "Q1",
+    "Q2",
+    "D1",
+    "D2",
+    "NTC1",
+    "F2",
+    "PWR_SW1"
+   ],
+   "anchor": "U4",
+   "near": [
+    "charger"
+   ],
+   "why": "BQ77905 3S protector: cell-tap RC filters (R9/R12/R15 + C16/C18/C21), VDD RC, SRP/SRN sense filter on the 10 mOhm R11, the low-side CHG/DSG FETs Q1/Q2 with their gate network (R17-R21, D1, D2), NTC1 thermistor, config resistors; plus the pack-side F2 fuse and PWR_SW1 power switch between the charger's VBAT and the holder's VBAT+",
+   "templates": [
+    {
+     "chip": "U4",
+     "kind": "none",
+     "why": "battery protector driving low-side FETs as switches (on/off), not a switching converter"
+    }
+   ]
+  },
+  {
+   "name": "buck5",
+   "role": "power",
+   "refs": [
+    "U6",
+    "L2",
+    "C42",
+    "C43",
+    "C44",
+    "C45",
+    "C46",
+    "C47",
+    "C48",
+    "C49",
+    "R39",
+    "R40",
+    "R42",
+    "R72",
+    "R73",
+    "TP1",
+    "TP2"
+   ],
+   "anchor": "U6",
+   "near": [
+    "charger",
+    "vmux"
+   ],
+   "why": "TPS62903 buck from SYS/VBAT (R72/R73 0R select) to +5VBAT: input caps C46-C48, L2, output caps C42-C45, FB divider R39/R40, MODE R42, SS C49, PG/FB test points",
+   "templates": [
+    {
+     "chip": "U6",
+     "kind": "switching stage",
+     "why": "TPS62903 synchronous buck; its datasheet's layout example"
+    }
+   ]
+  },
+  {
+   "name": "vmux",
+   "role": "power",
+   "refs": [
+    "U7",
+    "R43",
+    "R44",
+    "R45",
+    "F1",
+    "FB1"
+   ],
+   "anchor": "U7",
+   "near": [
+    "usb",
+    "buck5",
+    "buck3v3"
+   ],
+   "why": "TPS2117 power mux between +5VUSB and +5VBAT with its PR1 divider and ST pull-up, the F1 fuse to +5V, and FB1 tying PGND to GND",
+   "templates": [
+    {
+     "chip": "U7",
+     "kind": "none",
+     "why": "power multiplexer (load switches), no inductor"
+    }
+   ]
+  },
+  {
+   "name": "buck3v3",
+   "role": "power",
+   "refs": [
+    "U2",
+    "L3",
+    "C68",
+    "C2",
+    "C14",
+    "C3",
+    "C6",
+    "C4",
+    "R52",
+    "R56",
+    "R57"
+   ],
+   "anchor": "U2",
+   "near": [
+    "vmux",
+    "core"
+   ],
+   "why": "TPS62902 buck +5V -> +3V3: CIN C68 with bulk C2/C14, L3, COUT C3/C6, FB divider R52/R56, MODE R57, SS C4",
+   "templates": [
+    {
+     "chip": "U2",
+     "kind": "switching stage",
+     "why": "TPS62902 synchronous buck; its datasheet's layout example"
+    }
+   ]
+  },
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U1",
+    "C7",
+    "C9",
+    "C10",
+    "C13",
+    "C53",
+    "C66",
+    "C70",
+    "C73",
+    "R4",
+    "R6",
+    "C67",
+    "TP9",
+    "U3",
+    "R7",
+    "R62",
+    "R63",
+    "R74",
+    "R75",
+    "R76",
+    "R77",
+    "R78",
+    "R8",
+    "R5"
+   ],
+   "anchor": "U1",
+   "near": [
+    "buck3v3",
+    "pm_bridge"
+   ],
+   "why": "ESP32-C6-WROOM-1 module with its 3V3 decoupling, EN RC (R6/C67, TP9), the TPL5010 watchdog U3 on EN/WD_RST with its DELAY resistor R7, IO8 strap R4, the BOOT (IO9) strap pull-up R5 at its pin, the USB 22R series pair R62/R63 at the module's USB pins, and the IO18-IO23 pull-ups"
+  },
+  {
+   "name": "ui",
+   "role": "ui",
+   "refs": [
+    "SW1",
+    "LED2",
+    "R71",
+    "C51",
+    "C8"
+   ],
+   "anchor": "SW1",
+   "why": "BOOT button SW1 with its debounce cap C8, and the status LED2 with its series resistor R71 and the 0.1uF across its anode C51 (SW1 and LED2 fixed on the south edge)"
+  },
+  {
+   "name": "usb",
+   "role": "interface",
+   "refs": [
+    "USB1",
+    "R1",
+    "R2",
+    "C1",
+    "R3",
+    "C71",
+    "C72"
+   ],
+   "anchor": "USB1",
+   "near": [
+    "vmux"
+   ],
+   "why": "USB-C receptacle with its CC1/CC2 5.1k pull-downs, shield RC (C1/R3) and the D+/D- 1 nF filter caps"
+  },
+  {
+   "name": "pm_bridge",
+   "role": "interface",
+   "refs": [
+    "U8",
+    "X1",
+    "C54",
+    "C55",
+    "R46",
+    "R25",
+    "R41",
+    "R47",
+    "C56",
+    "R48",
+    "C63",
+    "D4",
+    "D5",
+    "D6",
+    "D7",
+    "PM1",
+    "PM2",
+    "U13",
+    "R64",
+    "C11",
+    "C32",
+    "C52",
+    "R60"
+   ],
+   "anchor": "U8",
+   "near": [
+    "core"
+   ],
+   "why": "WK2132 I2C-to-dual-UART bridge with its 14.7456 MHz crystal, address straps R25/R41, reset RC, IRQ pull-up and decap, the B5817W diodes on both UARTs to the two particulate sensors PM1/PM2, and their supply switch U13 (VOUT1) with its caps and EN pull-down"
+  },
+  {
+   "name": "co2_no2",
+   "role": "interface",
+   "refs": [
+    "CO2",
+    "U14",
+    "R65",
+    "C12",
+    "C59",
+    "R58",
+    "NO2",
+    "U17",
+    "U18",
+    "R67",
+    "R70",
+    "C61",
+    "C64",
+    "R59",
+    "C5",
+    "C50"
+   ],
+   "anchor": "U14",
+   "near": [
+    "core"
+   ],
+   "why": "CO2 sensor connector with its supply switch U14 (VOUT2), NO2 sensor connector with its two supply switches U17/U18 (VOUT5/VOUT6), their output caps, R1/C1 pull-ups, EN pull-downs, and two +5V input decaps"
+  },
+  {
+   "name": "ce",
+   "role": "interface",
+   "refs": [
+    "CE1",
+    "U15",
+    "U16",
+    "R66",
+    "R69",
+    "C60",
+    "C62",
+    "R61",
+    "JP2",
+    "JP3",
+    "C57",
+    "C58",
+    "C74"
+   ],
+   "anchor": "U15",
+   "near": [
+    "core"
+   ],
+   "why": "CE1 sensor connector with its two supply switches U15/U16 (VOUT3/VOUT4), their caps and pull-ups, EN pull-down R61, the JP2/JP3 jumpers selecting I2C or UART for its SCL_TXD/SDA_RXD lines, and +5V input decaps"
+  },
+  {
+   "name": "i2c_io",
+   "role": "interface",
+   "refs": [
+    "I2C3",
+    "IO1",
+    "U12",
+    "C65",
+    "R28",
+    "R29",
+    "R32",
+    "R49"
+   ],
+   "anchor": "IO1",
+   "near": [
+    "core"
+   ],
+   "why": "the I2C expansion connectors I2C3 and IO1 (IO18-IO20 + I2C + 5V/3V3), the AT24CM02 EEPROM with its decap, and the two sets of I2C pull-ups"
+  }
+ ]
+}

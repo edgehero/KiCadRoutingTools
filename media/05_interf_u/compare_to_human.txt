@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=delivered.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              856              731
+  vias                                   88               84
+  total length mm                    3834.1           5101.5
+  distinct track widths                  13                5
+  nets with copper                      110              110
+  ours widths:   {0.2: 702, 0.3: 1, 0.35: 11, 0.4: 1, 0.42: 6, 0.49: 7, 0.5: 1, 0.56: 6, 0.6: 1, 0.63: 7, 0.7: 100, 0.8: 3, 2.0: 10}
+  orig widths:   {0.3: 3, 0.381: 10, 0.4: 15, 0.432: 552, 0.559: 151}
+  ours vias:     {'0.9/0.5': 88}
+  orig vias:     {'1.397/0.6': 73, '1.397/0.635': 3, '1.524/0.6': 7, '1.143/0.6': 1}
+
+  SUGGESTIONS:
+   - VIAS: 88 vs original 84 (1.05x) — comparable.
+   - LAYER BALANCE: ours 0.6 vs original 0.73 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 856, "n_vias": 88, "total_length_mm": 3834.1, "length_by_layer": {"F.Cu": 2399.4, "B.Cu": 1434.6}, "width_count": {"0.2": 702, "2.0": 10, "0.8": 3, "0.7": 100, "0.35": 11, "0.63": 7, "0.49": 7, "0.56": 6, "0.42": 6, "0.6": 1, "0.3": 1, "0.5": 1, "0.4": 1}, "via_count": {"0.9/0.5": 88}, "distinct_widths": 13, "nets_with_copper": 110, "n_multi_pad_nets": 110, "n_nets": 173}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 731, "n_vias": 84, "total_length_mm": 5101.5, "length_by_layer": {"B.Cu": 2941.5, "F.Cu": 2160.0}, "width_count": {"0.432": 552, "0.4": 15, "0.381": 10, "0.3": 3, "0.559": 151}, "via_count": {"1.397/0.6": 73, "1.397/0.635": 3, "1.524/0.6": 7, "1.143/0.6": 1}, "distinct_widths": 5, "nets_with_copper": 110, "n_multi_pad_nets": 111, "n_nets": 174}, "suggestions": ["VIAS: 88 vs original 84 (1.05x) \u2014 comparable.", "LAYER BALANCE: ours 0.6 vs original 0.73 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

@@ -1,0 +1,150 @@
+CMD: Python -X utf8 py_router/route_planes.py wk/gpm/12_steppenprobe/arms/M/in.kicad_pcb wk/gpm/12_steppenprobe/arms/M/s1.kicad_pcb --nets +3V3 GND --plane-layers F.Cu B.Cu --min-thickness 0.15 --no-fix-drc-settings
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--track-width not given; using the board Default net-class 0.15mm.
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading PCB from wk/gpm/12_steppenprobe/arms/M/in.kicad_pcb...
+Zone clearance: following routed clearance 0.15mm (--zone-clearance to override)
+Found net '+3V3' with ID 32
+Found net 'GND' with ID 33
+Note: Replacing existing zone on F.Cu for net '+3V3'; what the replacement changes is listed once the new pour is built (--skip-existing-zones keeps the existing pour)
+Note: Replacing existing zone on B.Cu for net 'GND'; what the replacement changes is listed once the new pour is built (--skip-existing-zones keeps the existing pour)
+Board bounds: (100.00, 50.00) to (150.00, 110.00)
+  Layer costs: F.Cu=1.0x, B.Cu=3.0x
+  Auto-read netclass clearances for 8 net(s) (cross-class max(A,B) respected for plane taps).
+
+============================================================
+Processing net '+3V3' on layer F.Cu
+============================================================
+
+Pad analysis for net '+3V3':
+  Through-hole pads (no via needed): 1
+  SMD pads on F.Cu (no via needed): 26
+  SMD pads kept for thermal via arrays (via needed): 0
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 77.3 mm (diagonal)
+    Avg width:   38.1 mm
+    Resistance:  0.973 mΩ
+    Max current: not rated -- 2067 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 33.49 A by extrapolation
+
+Results for '+3V3':
+  Zone created on F.Cu (replaced existing)
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+Processing net 'GND' on layer B.Cu
+============================================================
+  62 pad(s) on 'GND' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 11
+  SMD pads on B.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 0
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 77.3 mm (diagonal)
+    Avg width:   38.1 mm
+    Resistance:  0.973 mΩ
+    Max current: not rated -- 2067 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 33.49 A by extrapolation
+
+Results for 'GND':
+  Zone created on B.Cu (replaced existing)
+  New vias placed: 0
+  Traces added: 0
+Replaced '+3V3' pour on F.Cu (--skip-existing-zones keeps it): 3 setting(s) changed
+    pad connection: thermal relief -> solid  [route_planes connects pads solid unless --thermal-relief (Planes tab: Thermal relief pad connections)]
+    thermal gap / spoke width: 0.15 mm / 0.15 mm -> 0.2 mm / 0.2 mm  [route_planes' fixed spoke geometry; unused while pads connect solid]
+    outline: 4-vertex outline (100.00, 50.00)..(150.00, 110.00) -> 4-vertex outline (100.30, 50.30)..(149.70, 109.70)  [the board's bounding box inset 0.3 mm (--board-edge-clearance)]
+Replaced 'GND' pour on B.Cu (--skip-existing-zones keeps it): 3 setting(s) changed
+    pad connection: thermal relief -> solid  [route_planes connects pads solid unless --thermal-relief (Planes tab: Thermal relief pad connections)]
+    thermal gap / spoke width: 0.15 mm / 0.15 mm -> 0.2 mm / 0.2 mm  [route_planes' fixed spoke geometry; unused while pads connect solid]
+    outline: 4-vertex outline (100.00, 50.00)..(150.00, 110.00) -> 4-vertex outline (100.30, 50.30)..(149.70, 109.70)  [the board's bounding box inset 0.3 mm (--board-edge-clearance)]
+
+============================================================
+OVERALL TOTALS
+============================================================
+  Nets processed: 2
+  Total new vias placed: 0
+  Total traces added: 0
+
+Writing output to wk/gpm/12_steppenprobe/arms/M/s1.kicad_pcb...
+Output written to wk/gpm/12_steppenprobe/arms/M/s1.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+
+============================================================
+GEOMETRIC VERIFICATION (re-parsed output)
+============================================================
+  +3V3: 27/27 pads connected to plane on F.Cu
+  GND: 11/73 pads connected to plane on B.Cu
+      unconnected pad Q1 on 'GND' at (116.82, 95.53) [F.Cu]
+      unconnected pad U12 on 'GND' at (121.10, 84.56) [F.Cu]
+      unconnected pad U12 on 'GND' at (122.40, 84.56) [F.Cu]
+      unconnected pad C2 on 'GND' at (126.25, 69.44) [F.Cu]
+      unconnected pad C6 on 'GND' at (136.18, 81.62) [F.Cu]
+      unconnected pad C14 on 'GND' at (124.73, 91.24) [F.Cu]
+      unconnected pad C12 on 'GND' at (139.97, 91.38) [F.Cu]
+      unconnected pad C15 on 'GND' at (138.01, 98.33) [F.Cu]
+      unconnected pad C17 on 'GND' at (120.92, 79.59) [F.Cu]
+      unconnected pad R2 on 'GND' at (135.48, 61.76) [F.Cu]
+      unconnected pad U4 on 'GND' at (129.53, 100.01) [F.Cu]
+      unconnected pad C18 on 'GND' at (127.61, 105.28) [F.Cu]
+      unconnected pad D5 on 'GND' at (144.01, 82.78) [F.Cu]
+      unconnected pad U3 on 'GND' at (133.70, 63.50) [F.Cu]
+      unconnected pad C13 on 'GND' at (140.77, 96.15) [F.Cu]
+      unconnected pad J2 on 'GND' at (113.95, 68.62) [F.Cu]
+      unconnected pad J2 on 'GND' at (115.22, 68.62) [F.Cu]
+      unconnected pad J2 on 'GND' at (117.76, 68.62) [F.Cu]
+      unconnected pad SW2 on 'GND' at (112.67, 97.71) [F.Cu]
+      unconnected pad SW2 on 'GND' at (103.57, 97.71) [F.Cu]
+      unconnected pad R1 on 'GND' at (131.01, 65.09) [F.Cu]
+      unconnected pad C11 on 'GND' at (128.72, 96.91) [F.Cu]
+      unconnected pad U9 on 'GND' at (120.24, 87.05) [F.Cu]
+      unconnected pad U6 on 'GND' at (119.29, 84.16) [F.Cu]
+      unconnected pad U10 on 'GND' at (116.71, 85.73) [F.Cu]
+      unconnected pad U7 on 'GND' at (109.57, 84.04) [F.Cu]
+      unconnected pad U7 on 'GND' at (109.57, 82.74) [F.Cu]
+      unconnected pad U8 on 'GND' at (116.01, 79.63) [F.Cu]
+      unconnected pad U5 on 'GND' at (117.24, 78.05) [F.Cu]
+      unconnected pad Y1 on 'GND' at (137.20, 77.53) [F.Cu]
+      unconnected pad Y1 on 'GND' at (135.50, 79.73) [F.Cu]
+      unconnected pad C4 on 'GND' at (131.20, 75.71) [F.Cu]
+      unconnected pad R4 on 'GND' at (124.81, 85.11) [F.Cu]
+      unconnected pad C9 on 'GND' at (140.71, 80.60) [F.Cu]
+      unconnected pad U1 on 'GND' at (136.14, 83.53) [F.Cu]
+      unconnected pad U1 on 'GND' at (134.14, 83.53) [F.Cu]
+      unconnected pad U1 on 'GND' at (131.64, 83.53) [F.Cu]
+      unconnected pad U1 on 'GND' at (131.14, 83.53) [F.Cu]
+      unconnected pad U1 on 'GND' at (130.14, 83.53) [F.Cu]
+      unconnected pad U1 on 'GND' at (129.14, 83.53) [F.Cu]
+      unconnected pad U1 on 'GND' at (126.71, 89.46) [F.Cu]
+      unconnected pad U1 on 'GND' at (129.64, 94.88) [F.Cu]
+      unconnected pad U1 on 'GND' at (135.64, 94.88) [F.Cu]
+      unconnected pad U1 on 'GND' at (138.06, 91.96) [F.Cu]
+      unconnected pad C3 on 'GND' at (138.95, 81.37) [F.Cu]
+      unconnected pad R3 on 'GND' at (136.84, 105.10) [F.Cu]
+      unconnected pad C19 on 'GND' at (111.74, 87.03) [F.Cu]
+      unconnected pad C21 on 'GND' at (106.04, 85.67) [F.Cu]
+      unconnected pad C10 on 'GND' at (141.51, 85.38) [F.Cu]
+      unconnected pad C8 on 'GND' at (125.48, 80.97) [F.Cu]
+      unconnected pad C5 on 'GND' at (132.14, 80.09) [F.Cu]
+      unconnected pad C20 on 'GND' at (115.27, 89.85) [F.Cu]
+      unconnected pad C16 on 'GND' at (127.12, 99.86) [F.Cu]
+      unconnected pad C22 on 'GND' at (124.01, 101.06) [F.Cu]
+      unconnected pad D6 on 'GND' at (142.80, 77.98) [F.Cu]
+      unconnected pad U2 on 'GND' at (129.37, 68.31) [F.Cu]
+      unconnected pad C1 on 'GND' at (129.38, 65.09) [F.Cu]
+      unconnected pad C7 on 'GND' at (128.60, 81.61) [F.Cu]
+      unconnected pad R24 on 'GND' at (118.48, 96.92) [F.Cu]
+      unconnected pad R22 on 'GND' at (115.26, 84.13) [F.Cu]
+      unconnected pad U11 on 'GND' at (121.70, 96.57) [F.Cu]
+      unconnected pad U11 on 'GND' at (121.70, 97.87) [F.Cu]
+
+  62 pad(s) are not connected to their plane by the pour alone -- EXPECTED (#562): the plane step places no taps. They are welded during the route step's normal routing (pour-launch); its in-run finalize then verifies against KiCad's exact fill and repairs any residue. Grade the board AFTER the route step, not here (see per-net breakdown above).
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+JSON_SUMMARY: {"complete": true, "env_knobs": {"KICAD_ROUTE_TRACE": "1"}, "min_clearance_used": 0.15, "pads": {"failed_pads": 0, "geometric_failed": 62, "pads_needing_vias": 0}, "pads_scope": "all zones in this run, summed -- not per zone; see plane_zones for what was poured", "plane_nets": ["+3V3", "GND"], "plane_resistance": [{"avg_width_mm": 38.105, "copper_oz": 1.0000000000000002, "max_current_a": 33.49, "max_current_ipc2152_a": 33.49, "net": "+3V3", "path_basis": "route", "path_length_mm": 77.26, "resistance_ohms": 0.000973, "temp_rise_c": 10.0}, {"avg_width_mm": 38.105, "copper_oz": 1.0000000000000002, "max_current_a": 33.49, "max_current_ipc2152_a": 33.49, "net": "GND", "path_basis": "route", "path_length_mm": 77.26, "resistance_ohms": 0.000973, "temp_rise_c": 10.0}], "plane_zones": [{"layer": "F.Cu", "net": "+3V3"}, {"layer": "B.Cu", "net": "GND"}], "status": "ok", "zone_replacements": [{"changes": [{"new": "solid", "old": "thermal relief", "setting": "pad connection", "why": "route_planes connects pads solid unless --thermal-relief (Planes tab: Thermal relief pad connections)"}, {"new": "0.2 mm / 0.2 mm", "old": "0.15 mm / 0.15 mm", "setting": "thermal gap / spoke width", "why": "route_planes' fixed spoke geometry; unused while pads connect solid"}, {"new": "4-vertex outline (100.30, 50.30)..(149.70, 109.70)", "old": "4-vertex outline (100.00, 50.00)..(150.00, 110.00)", "setting": "outline", "why": "the board's bounding box inset 0.3 mm (--board-edge-clearance)"}], "layers": ["F.Cu"], "net": "+3V3", "replaced_uuid": "00000000-0000-0000-0000-00005d9a234c"}, {"changes": [{"new": "solid", "old": "thermal relief", "setting": "pad connection", "why": "route_planes connects pads solid unless --thermal-relief (Planes tab: Thermal relief pad connections)"}, {"new": "0.2 mm / 0.2 mm", "old": "0.15 mm / 0.15 mm", "setting": "thermal gap / spoke width", "why": "route_planes' fixed spoke geometry; unused while pads connect solid"}, {"new": "4-vertex outline (100.30, 50.30)..(149.70, 109.70)", "old": "4-vertex outline (100.00, 50.00)..(150.00, 110.00)", "setting": "outline", "why": "the board's bounding box inset 0.3 mm (--board-edge-clearance)"}], "layers": ["B.Cu"], "net": "GND", "replaced_uuid": "00000000-0000-0000-0000-00005d9a2349"}]}
+EXIT=0

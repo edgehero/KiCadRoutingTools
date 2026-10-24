@@ -1,0 +1,27 @@
+CMD: Python -X utf8 py_placer/place_pose.py wk/gpm/_verify/V8/M01/s.kicad_pcb wk/gpm/_verify/V8/M01/pp.kicad_pcb rotate P1 180 --force
+ENV KNOBS: none
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Traceback (most recent call last):
+  File "py_placer/place_pose.py", line 813, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "py_placer/place_pose.py", line 585, in main
+    summary = pose_ops.apply_poses(
+        args.input_file, args.output_file, ops,
+    ...<10 lines>...
+        # so this check and the grade read the same members.
+        group_sources=parse_sources('auto') if intent else ())
+  File "py_placer/placement/pose_ops.py", line 1336, in apply_poses
+    write_placed_output(board_path, cand, placements)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "py_placer/placement/writer.py", line 1177, in write_placed_output
+    new_fp_text = _rotate_text_angles(new_fp_text, delta_rot, key)
+  File "py_placer/placement/writer.py", line 300, in _rotate_text_angles
+    return _rewrite_text_ats(fp_text, ref, rotated, 'this rotation')
+  File "py_placer/placement/writer.py", line 354, in _rewrite_text_ats
+    rep = new_at(m.group(1), m.group(2), m.group(3))
+  File "py_placer/placement/writer.py", line 296, in rotated
+    na = round(((float(a) if a is not None else 0.0) + delta_rot) % 360, 6)
+                 ~~~~~^^^
+ValueError: could not convert string to float: 'unlocked'
+EXIT=1

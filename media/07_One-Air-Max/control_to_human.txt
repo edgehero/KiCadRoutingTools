@@ -1,0 +1,23 @@
+WARNING: 8 NET-TAGGED copper graphic segment(s) on 1 net(s) (Net-(C1-Pad2)). KiCad conducts through them (a stroke joins the copper it touches, a filled shape its whole interior) and so does our connectivity grading, but they are immovable art the router routes around and never targets (#337).
+         A net whose art touches none of its other copper stays UNCONNECTED in KiCad's DRC on every run: no routing pass welds to art, so joining it is a board-authoring fix, not a routing failure (#659).
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                             1523             1911
+  vias                                  255              410
+  total length mm                    3488.4           3740.7
+  distinct track widths                   6               11
+  nets with copper                      120              120
+  ours widths:   {0.196: 8, 0.23: 1, 0.25: 1451, 0.3: 8, 0.4: 53, 0.8: 2}
+  orig widths:   {0.15: 112, 0.2: 497, 0.25: 800, 0.3: 8, 0.5: 93, 0.6: 8, 0.75: 151, 1.0: 173, 1.5: 11, 2.0: 36, 3.0: 22}
+  ours vias:     {'0.8/0.508': 220, '0.25/0.15': 5, '0.8/0.4': 27, '0.45/0.2': 1, '0.36/0.21': 1, '0.54/0.29': 1}
+  orig vias:     {'0.8/0.4': 390, '0.5/0.3': 20}
+
+  SUGGESTIONS:
+   - VIAS: 255 vs original 410 (0.62x) — comparable.
+   - WIDTHS: original has traces up to 3.0mm wide vs our max 0.8mm — high-current/power nets need widening (--power-nets with explicit widths).
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 1523, "n_vias": 255, "total_length_mm": 3488.4, "length_by_layer": {"B.Cu": 1399.1, "In1.Cu": 976.9, "In2.Cu": 496.1, "F.Cu": 616.3}, "width_count": {"0.25": 1451, "0.196": 8, "0.23": 1, "0.4": 53, "0.8": 2, "0.3": 8}, "via_count": {"0.8/0.508": 220, "0.25/0.15": 5, "0.8/0.4": 27, "0.45/0.2": 1, "0.36/0.21": 1, "0.54/0.29": 1}, "distinct_widths": 6, "nets_with_copper": 120, "n_multi_pad_nets": 121, "n_nets": 157}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 1911, "n_vias": 410, "total_length_mm": 3740.7, "length_by_layer": {"B.Cu": 1694.6, "F.Cu": 1071.6, "In1.Cu": 736.7, "In2.Cu": 237.8}, "width_count": {"0.5": 93, "0.25": 800, "1.0": 173, "0.75": 151, "0.2": 497, "0.15": 112, "2.0": 36, "1.5": 11, "0.6": 8, "3.0": 22, "0.3": 8}, "via_count": {"0.8/0.4": 390, "0.5/0.3": 20}, "distinct_widths": 11, "nets_with_copper": 120, "n_multi_pad_nets": 121, "n_nets": 157}, "suggestions": ["VIAS: 255 vs original 410 (0.62x) \u2014 comparable.", "WIDTHS: original has traces up to 3.0mm wide vs our max 0.8mm \u2014 high-current/power nets need widening (--power-nets with explicit widths)."]}

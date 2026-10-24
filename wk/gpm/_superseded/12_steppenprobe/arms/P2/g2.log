@@ -1,0 +1,38 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/12_steppenprobe/arms/P2/g1.kicad_pcb wk/gpm/12_steppenprobe/arms/P2/g2.kicad_pcb --nets "*" "!GND" "!+3V3" "!VBUS" "!+5V" "!+1V8" "!/VPLL" "!/VPHY" "!Vdrive" --power-nets GND +3V3 VBUS +5V +1V8 /VPLL /VPHY Vdrive --power-nets-widths 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 --clearance-ceiling 0.15 --layer-costs 1.0 1.5 --same-net-pad-clearance 0.1 --no-fix-drc-settings --escalation board --json-out wk/gpm/12_steppenprobe/arms/P2/g2.json
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--track-width not given; using the board Default net-class 0.15mm.
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+  --escalation board, project writeback off: clearance descents stop at 0.15 mm, the clearance KiCad grades the unchanged project's Default nets at (was unset; #1262)
+Loading wk/gpm/12_steppenprobe/arms/P2/g1.kicad_pcb to expand net patterns...
+Pattern '*' matched 61 nets
+Exclusion '!GND' matched 1 net(s): GND
+Exclusion '!+3V3' matched 1 net(s): +3V3
+Exclusion '!VBUS' matched 1 net(s): VBUS
+Exclusion '!+5V' matched 1 net(s): +5V
+Exclusion '!+1V8' matched 1 net(s): +1V8
+Exclusion '!/VPLL' matched 1 net(s): /VPLL
+Exclusion '!/VPHY' matched 1 net(s): /VPHY
+Exclusion '!Vdrive' matched 1 net(s): Vdrive
+Routing 53 nets: ['/ACT_LED_K', '/ACT_LED_N', '/CTS_N', '/EE_CLK', '/EE_CS']...
+Netclass clearances for 8 net(s), capped at --clearance-ceiling 0.15 (mm: [0.15]); cross-class max(A,B) respected.
+Loading wk/gpm/12_steppenprobe/arms/P2/g1.kicad_pcb...
+Auto-read netclass track widths for 8 non-Default net(s) (#435 single-ended companion).
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Skipping 53 already-routed net(s): Already fully connected
+All nets are already fully connected - nothing to route!
+JSON_SUMMARY_MIN: {"escalations": 0, "failed": 0, "failed_single": [], "main_loop_time_s": null, "min_clearance_used": null, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 0, "nets": []}, "routed": 0, "scope": "merged", "status": "already_connected", "terminal_restores_broken": [], "vias": null}
+  route summary written to wk/gpm/12_steppenprobe/arms/P2/g2.json
+Wrote unchanged copy to wk/gpm/12_steppenprobe/arms/P2/g2.kicad_pcb (nothing to route)
+EXIT=0

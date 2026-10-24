@@ -1,0 +1,39 @@
+ENV KNOBS: none
+  bga_fanout: --clearance-ceiling 0.1: clearance capped at it for this run (was 0.25); the output project's classes are clamped down to it (#439).
+Parsing wk/gpm/_verify/V8/M05/in.kicad_pcb...
+
+Found U2: MT41J128M16JT-125_KTR:BGA96C80P6X16_800X1400X120
+  Position: (70.40, 103.40)
+  Rotation: 180.0deg
+  Pads: 96
+  Layer costs: excluding forbidden layer(s) In1.Cu, In2.Cu from the fanout
+BGA Grid Analysis for U2:
+  Pitch: 0.80 x 0.80 mm
+  Grid: 16 rows x 6 columns
+  Center: (70.40, 103.40)
+  Boundary: X[66.80, 74.00], Y[97.00, 109.80]
+  Under-pad: WARNING via 0.45mm is large for 0.80mm pitch (track 0.10, clearance 0.10); expect drops. No via fits: the smallest the fab ladder reaches is 0.45mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Hole-to-hole 0.25mm (from the board's own min_hole_to_hole)
+  Dog-bone: 19/20 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 42/42 signals escaped, 20 vias, 39 plane balls skipped, 8 already-fanned skipped, 0 failed
+  Dog-bone: 19 single-ended run(s) started at a gap via (19 gap sites assigned)
+  WARNING: under-pad 1 via-in-pad(s) (sub-0.45mm pads): dropped below the standard fab floor to the BOARD's own declared minimums; --escalation board bounds it there (it never reaches the advanced 0.25/0.15 via). Pass --fab-tier standard for a hard floor, or --escalation off to forbid the descent entirely
+  Under-pad: WARNING 1 pad(s) smaller than the fab via floor (0.45mm dia); via held at the floor and still bulges past the pad edge
+  Under-pad: WARNING via 0.45mm is large for 0.80mm pitch (track 0.10, clearance 0.10); expect drops. No via fits: the smallest the fab ladder reaches is 0.45mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Hole-to-hole 0.25mm (from the board's own min_hole_to_hole)
+  Plane drops (#424): 14 gap + 25 in-pad vias [GND 8+13, VMEM 6+12]
+  Under-pad escape: 0/0 signals escaped, 0 vias, 39 plane balls skipped, 49 already-fanned skipped, 0 failed
+  WARNING: under-pad 25 via-in-pad(s) (sub-0.45mm pads): dropped below the standard fab floor to the BOARD's own declared minimums; --escalation board bounds it there (it never reaches the advanced 0.25/0.15 via). Pass --fab-tier standard for a hard floor, or --escalation off to forbid the descent entirely
+  Under-pad: WARNING 25 pad(s) smaller than the fab via floor (0.45mm dia); via held at the floor and still bulges past the pad edge
+
+  FAB NOTE (BGA fanout): 32 via(s) in a pad or paste opening [C37.2 B.Paste (pad), C66.1, C66.2, C68.2 B.Paste (pad), C72 B.Paste (paste_only_pad), U2.A1 F.Paste (pad), U2.B1 F.Paste (pad), U2.B2 F.Paste (pad), +23 more] -- 0 stamped (capping yes) (filling yes), 0 already filled+capped, 32 NOT stampable (the file format cannot declare it per via: put it on the fab drawing), 32 shipped WITHOUT Type VII. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+
+Writing 369 tracks to wk/gpm/_verify/V8/M05/out_tol025.kicad_pcb...
+  Adding 59 vias
+Done!
+  DRC settings already consistent (wk/gpm/_verify/V8/M05/out_tol025.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.1 mm, unchanged by this step but still below the board's ORIGINAL 0.15mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+JSON_SUMMARY: {"component": "U2", "requested": 41, "escaped": 41, "failed": 0, "unescaped_nets": [], "skipped_nc": 7, "clearance": 0.1, "track_width": 0.1, "layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "drc_grazes": {"scope": "copper this step laid", "pad_via": 2, "via_segment": 0, "pad_segment": 28, "segment_segment": 0, "total": 30}, "min_clearance_used": 0.1, "deferred_fanout_nets": [], "plane_drop": {"nets": {"VMEM": {"gap": 6, "in_pad": 12, "existing": 0, "pour": 0, "failed": 0}, "GND": {"gap": 8, "in_pad": 13, "existing": 0, "pour": 0, "failed": 0}}, "gap_vias": 14, "pad_vias": 25, "skipped_existing": 0, "skipped_pour": 0, "track_connects": 0, "pour_tracks": 0, "failed": 0, "pour_served_pads": {}}, "env_knobs": {}, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"clearance": 0.08, "track_width": 0.1, "via_diameter": 0.45, "via_drill": 0.25, "hole_to_hole": 0.25, "annular": 0.07, "board_edge": 0.3}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 2, "fab_tier_contexts": ["under-pad 1 via-in-pad(s) (sub-0.45mm pads)", "under-pad 25 via-in-pad(s) (sub-0.45mm pads)"], "fab_tier_target": "board_floors"}}
+  Design rules [--escalation board, --fab-tier auto]: 2 fab-tier escalation(s) to the board's own declared floors. Details: JSON_SUMMARY design_rules.

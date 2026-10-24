@@ -1,0 +1,452 @@
+{
+  "advisory": {
+    "drc_rule_pairs": 0,
+    "drc_via_in_paste": 0
+  },
+  "blocking": 7,
+  "blocking_by": {
+    "assembly": 0,
+    "broken": 7,
+    "diff_pairs": null,
+    "drc": 0,
+    "floorplan": null,
+    "impedance": null,
+    "length": null,
+    "net_widths": null,
+    "undersized": 0,
+    "unrouted": 0
+  },
+  "board": "wk/gpm/09_StickHub/repro/gnd_verdict.kicad_pcb",
+  "board_sha": "249b7fad778d9d0705bbd2bdb0710bc836cfbe9919a962ee69387b14ee6b82ea",
+  "components": {
+    "assembly": {
+      "advisory_pairs": 0,
+      "buildable": true,
+      "coincident_origin_groups": [],
+      "coincident_origin_groups_count": 0,
+      "coincident_origin_groups_truncated": 0,
+      "conjuncts": {
+        "blocking": 0,
+        "body_edge_band_gating": 0,
+        "coincident_origins": 0,
+        "containment_blocking": 0,
+        "courtyard_blocking_gating": null,
+        "graphic_pad_gating": null,
+        "locked_contacts": 0,
+        "mating_keepout_count": 0,
+        "oob_pad_copper_gating_count": 0,
+        "own_pad_shorts": 0,
+        "pin_in_courtyard": 0,
+        "testpoint_covered_gating": null
+      },
+      "conjuncts_fired": [],
+      "conjuncts_unmeasured": [
+        "courtyard_blocking_gating",
+        "graphic_pad_gating",
+        "testpoint_covered_gating"
+      ],
+      "containments": [],
+      "containments_count": 0,
+      "containments_truncated": 0,
+      "count": 0,
+      "count_basis": "blocking (buildable)",
+      "courtyard_gating_armed": false,
+      "courtyard_gating_basis": "no-baseline: report-only",
+      "courtyard_gating_reason": "no --baseline was passed, so check_assembly's fifth conjunct (moved-vs-baseline courtyard interpenetration) is unarmed and publishes null, and so is its ninth (a test point a move left under a body, #1250). Pass --baseline <the board this one was derived from> to arm it (#1183)",
+      "live_conjuncts_fired": [],
+      "locked_contact_pairs": [],
+      "locked_contact_pairs_count": 0,
+      "locked_contact_pairs_truncated": 0,
+      "pairs": [],
+      "pairs_count": 0,
+      "pairs_truncated": 0,
+      "ran": true,
+      "verdict": "buildable (blocking 0)",
+      "waived_pairs": 25
+    },
+    "broken": {
+      "count": 7,
+      "nets": {
+        "+5V": {
+          "components": 2,
+          "handler": "route",
+          "joins_needed": 1,
+          "stranded_pads": [
+            {
+              "layer": "F.Cu",
+              "ref": "J6",
+              "x": 148.15,
+              "y": 103.25
+            }
+          ]
+        },
+        "/LED3": {
+          "components": 2,
+          "handler": "route",
+          "joins_needed": 1,
+          "stranded_pads": [
+            {
+              "layer": "B.Cu",
+              "ref": "R9",
+              "x": 146.16,
+              "y": 87.98
+            }
+          ]
+        },
+        "GND": {
+          "components": 6,
+          "handler": "route",
+          "joins_needed": 5,
+          "stranded_pads": []
+        }
+      },
+      "poured_nets": [
+        "GND"
+      ],
+      "poured_nets_meaning": "nets with at least one zone on the board. A broken one of these is fixed by route.py with the net inside its --nets: the step's in-run plane finalize (#562) taps and joins it at that step's own track and via sizes, checked against KiCad's exact fill, and runs even when the step has nothing else to route (#1112). This is NOT a list of plane/power nets and is NOT a safe --ignore-nets population: a board that pours signal nets puts them in here too (measured: 332 of 545 pads).",
+      "ran": true
+    },
+    "diff_pairs": {
+      "by_type": {},
+      "count": null,
+      "no_coupled_copper": [],
+      "pairs": {
+        "/D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "B.Cu": 15.561,
+            "F.Cu": 11.5802
+          },
+          "coupled_mm": 27.1412,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 36.5016,
+          "length_p_mm": 34.9342,
+          "match_n_mm": 38.0816,
+          "match_p_mm": 36.5142,
+          "n_net": "/D-",
+          "skew_mm": 1.5674,
+          "uncoupled_mm": 9.3604
+        },
+        "/U1D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "F.Cu": 8.2627
+          },
+          "coupled_mm": 8.2627,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 14.7024,
+          "length_p_mm": 13.0711,
+          "match_n_mm": 14.7024,
+          "match_p_mm": 13.0711,
+          "n_net": "/U1D-",
+          "skew_mm": 1.6314,
+          "uncoupled_mm": 6.4397
+        },
+        "/U2D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "B.Cu": 1.1,
+            "F.Cu": 0.1414
+          },
+          "coupled_mm": 1.2414,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 6.8385,
+          "length_p_mm": 3.1971,
+          "match_n_mm": 6.8385,
+          "match_p_mm": 3.1971,
+          "n_net": "/U2D-",
+          "skew_mm": 3.6414,
+          "uncoupled_mm": 5.5971
+        },
+        "/U3D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "B.Cu": 4.3627,
+            "F.Cu": 2.2899
+          },
+          "coupled_mm": 6.6527,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 13.9099,
+          "length_p_mm": 11.366,
+          "match_n_mm": 15.4899,
+          "match_p_mm": 11.366,
+          "n_net": "/U3D-",
+          "skew_mm": 4.1239,
+          "uncoupled_mm": 7.2572
+        },
+        "/U4D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "F.Cu": 6.4012
+          },
+          "coupled_mm": 6.4012,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 16.0652,
+          "length_p_mm": 20.3551,
+          "match_n_mm": 16.0652,
+          "match_p_mm": 21.9351,
+          "n_net": "/U4D-",
+          "skew_mm": 5.8699,
+          "uncoupled_mm": 13.9539
+        },
+        "/U5D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "B.Cu": 0.495,
+            "F.Cu": 0.7071
+          },
+          "coupled_mm": 1.2021,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 3.0627,
+          "length_p_mm": 6.1184,
+          "match_n_mm": 4.6427,
+          "match_p_mm": 6.1184,
+          "n_net": "/U5D-",
+          "skew_mm": 1.4756,
+          "uncoupled_mm": 4.9163
+        },
+        "/U6D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "B.Cu": 4.1556
+          },
+          "coupled_mm": 4.1556,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 11.1711,
+          "length_p_mm": 6.5556,
+          "match_n_mm": 12.7511,
+          "match_p_mm": 6.5556,
+          "n_net": "/U6D-",
+          "skew_mm": 6.1954,
+          "uncoupled_mm": 7.0154
+        },
+        "/U7D+": {
+          "arc_chords": 0,
+          "coupled_by_layer": {
+            "B.Cu": 0.2121,
+            "F.Cu": 9.0276
+          },
+          "coupled_mm": 9.2397,
+          "gap_window_mm": [
+            0.1,
+            null
+          ],
+          "layers_n": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "layers_p": [
+            "B.Cu",
+            "F.Cu"
+          ],
+          "length_n_mm": 86.3811,
+          "length_p_mm": 33.5362,
+          "match_n_mm": 89.5411,
+          "match_p_mm": 38.2762,
+          "n_net": "/U7D-",
+          "skew_mm": 51.2648,
+          "uncoupled_mm": 77.1414
+        }
+      },
+      "ran": false,
+      "reason": "no .kicad_dru skew / diff_pair_uncoupled rule declares what the pairs must meet; measured, not graded",
+      "unjoined_pairs": []
+    },
+    "drc": {
+      "by_type": {},
+      "count": 0,
+      "graded_at": 0.1,
+      "graphic_grazes_unverified": 0,
+      "ran": true,
+      "via_in_paste": {
+        "by_type": {},
+        "count": 0,
+        "ran": true,
+        "undeclarable": 0
+      }
+    },
+    "drc_rule_pairs": {
+      "by_type": {},
+      "count": 0,
+      "ran": true
+    },
+    "drc_via_in_paste": {
+      "by_type": {},
+      "count": 0,
+      "ran": true,
+      "undeclarable": 0
+    },
+    "floorplan": {
+      "count": null,
+      "ran": false,
+      "reason": "no --intent given; the floorplan is ungraded"
+    },
+    "impedance": {
+      "count": null,
+      "ran": false,
+      "reason": "no --impedance-nets given; impedance is ungraded"
+    },
+    "length": {
+      "count": null,
+      "ran": false,
+      "reason": "no --length-groups given; length matching is ungraded"
+    },
+    "net_widths": {
+      "count": null,
+      "ran": false,
+      "reason": "no --net-min-widths given; per-net widths are ungraded"
+    },
+    "undersized": {
+      "by_type": {},
+      "count": 0,
+      "ran": true
+    },
+    "unrouted": {
+      "count": 0,
+      "nets": [],
+      "open": [],
+      "pads": {},
+      "placement_blocked": {},
+      "placement_blocked_refs": [],
+      "ran": true
+    }
+  },
+  "connectivity_nets": [
+    "+5V",
+    "/LED3",
+    "GND"
+  ],
+  "floors": {
+    "board": {
+      "min_clearance": 0.1,
+      "min_copper_edge_clearance": 0.2,
+      "min_hole_to_hole": 0.25,
+      "min_through_hole_diameter": 0.15,
+      "min_track_width": 0.1,
+      "min_via_annular_width": 0.05,
+      "min_via_diameter": 0.25
+    },
+    "declares_no_floor": false,
+    "default_netclass": {
+      "clearance": 0.1,
+      "track_width": 0.15,
+      "via_diameter": 0.5,
+      "via_drill": 0.3
+    },
+    "requested": {},
+    "source": "wk/gpm/09_StickHub/repro/gnd_verdict.kicad_pro"
+  },
+  "joins_needed": 7,
+  "kind": "board-score",
+  "label": "",
+  "net_name_audit": {
+    "board_nets": 47,
+    "checked": 23,
+    "fields_checked": [
+      "components.broken.nets",
+      "components.broken.poured_nets",
+      "components.diff_pairs.pairs",
+      "connectivity_nets"
+    ],
+    "ran": true,
+    "unknown": {},
+    "unknown_count": 0
+  },
+  "quality": {
+    "copper_mm": 925.88,
+    "segments": 1510,
+    "vias": 137
+  },
+  "schema": 1,
+  "tool_seconds": {
+    "check_assembly.py": 0.66,
+    "check_connected.py": 1.11,
+    "check_drc.py": 0.44
+  },
+  "ungraded": [
+    "assembly.courtyard_gating",
+    "diff_pairs",
+    "floorplan",
+    "impedance",
+    "length",
+    "net_widths"
+  ],
+  "unknown": []
+}

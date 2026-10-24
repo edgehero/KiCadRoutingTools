@@ -1,0 +1,33 @@
+CMD: Python -X utf8 py_tools/check_assembly.py wk/gpm/_verify/V4/G29/g29.kicad_pcb --baseline wk/gpm/06_rp2350_fpga_eensy_prePlane/repro/fixed.kicad_pcb
+ENV KNOBS: none
+  grading at clearance 0.09mm  [board netclass]
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Assembly audit of wk/gpm/_verify/V4/G29/g29.kicad_pcb (clearance 0.09):
+  blocking 0  advisory 2  waived 0  contained 0  courtyard_blocking 0  new-vs-baseline 2
+  baseline wk/gpm/06_rp2350_fpga_eensy_prePlane/repro/fixed.kicad_pcb is a pile: its overlaps are staging, not a baseline (#1103), so every advisory pair counts as new
+    C17 <-> Y2  courtyard  0.1505mm2 side F  advisory  <-- NEW vs baseline
+    C17 <-> U2  courtyard  0.0951mm2 side F  advisory  <-- NEW vs baseline
+  pad/hole/oob echo: 0 pad pair(s), 0 hole conflict(s), 1 part(s) with pad copper off-board: U8 (2.67mm)
+    (part pad AABB -- pads PLUS NPTH drill circles, summed over the union rect's four sides -- against an outline inflated by the GRADING CLEARANCE. It moves when --clearance moves, so a hit here is not necessarily copper off the outline. The per-pad, margin-0 outline measure is render_placement's checklist.a_off_outline.pad_copper.)
+    ...on the outline by design, not gated: U8 (castellated pads, or a round pad whose bounding box, not its copper, crosses)
+  BODY COVERAGE: 59 of 61 part(s) draw a body the containment channel can judge (59 fab)
+    2 part(s) draw no usable body (no .Fab body, no usable silk), so the channel cannot judge them: J2, U8
+  ASSEMBLY SIDES: F 57 / B 4 pad-bearing part(s) of 61 block(s); 2 reflow pass(es), 3 through-hole part(s)
+    Through-hole F 3 / B 0 (plated barrels only), counted and never folded in: a drilled part on the front needs wave, selective or hand soldering, not a second reflow pass.
+    observed policy: sides=both -- counted per footprint BLOCK, verdict from the pad-bearing subset (parts_by_side_basis in --json has the rule in full)
+  BODY-TO-EDGE BAND: 11 of 59 part(s) have a body within 2.5mm of the board edge [derived_default: JLCPCB's assembly rule, one assembler's -- REPORT-ONLY; declare assembly.body_edge_mm in the intent to gate]  new_in_band 11
+    U8 0.0mm (pad_bbox, side F)  MOVED
+    C1 0.892mm (fab, side F)  MOVED
+    R12 0.943mm (fab, side F)  MOVED
+    R11 1.113mm (fab, side F)  MOVED
+    R13 1.215mm (fab, side F)  MOVED
+    J2 1.928mm (courtyard, side B)  MOVED
+    U7 2.233mm (fab, side F)  MOVED
+    D2 2.246mm (fab, side F)  MOVED
+    RN2 2.339mm (fab, side F)  MOVED
+    U5 2.399mm (fab, side F)  MOVED
+    U4 2.453mm (fab, side F)  MOVED
+    in the band but belonging at the edge, never counted (edge class, marker, or an edge the intent declares): J1 0.0mm [edge_receptacle]
+  CONTAINERS: U8 (pin_frame) -- a pin frame is graded on its pins, an outline is waived, neither on its rect
+  VERDICT: buildable (blocking 0)
+EXIT=0

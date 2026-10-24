@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  6                6
+  segments                             1948             5084
+  vias                                  267              444
+  total length mm                    2826.7           2785.8
+  distinct track widths                  17               16
+  nets with copper                       94               96
+  ours widths:   {0.089: 77, 0.097: 7, 0.1: 1, 0.104: 7, 0.112: 7, 0.117: 1, 0.119: 7, 0.127: 314, 0.13: 1, 0.14: 1, 0.147: 228, 0.15: 910, 0.2: 107, 0.4: 37, 0.8: 25, 1.6: 28, 2.0: 190}
+  orig widths:   {0.13: 2644, 0.14: 1644, 0.15: 91, 0.2: 299, 0.25: 127, 0.3: 105, 0.4: 75, 0.5: 12, 0.6: 45, 0.7: 9, 0.8: 8, 1.0: 13, 1.2: 3, 1.4: 4, 1.6: 2, 3.0: 3}
+  ours vias:     {'0.45/0.3': 224, '0.3/0.15': 16, '0.25/0.15': 26, '0.35/0.2': 1}
+  orig vias:     {'0.45/0.3': 444}
+
+  SUGGESTIONS:
+   - VIAS: 267 vs original 444 (0.6x) — comparable.
+   - COMPLETION: we put copper on 94 nets vs original 96 — 2 net(s) the human routed that we did not.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"], "n_segments": 1948, "n_vias": 267, "total_length_mm": 2826.7, "length_by_layer": {"B.Cu": 841.0, "In1.Cu": 464.6, "F.Cu": 708.5, "In3.Cu": 260.8, "In2.Cu": 409.6, "In4.Cu": 142.2}, "width_count": {"0.15": 910, "0.147": 228, "0.127": 314, "0.089": 77, "0.097": 7, "0.104": 7, "0.112": 7, "0.119": 7, "0.1": 1, "0.117": 1, "2.0": 190, "1.6": 28, "0.4": 37, "0.8": 25, "0.2": 107, "0.14": 1, "0.13": 1}, "via_count": {"0.45/0.3": 224, "0.3/0.15": 16, "0.25/0.15": 26, "0.35/0.2": 1}, "distinct_widths": 17, "nets_with_copper": 94, "n_multi_pad_nets": 96, "n_nets": 221}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"], "n_segments": 5084, "n_vias": 444, "total_length_mm": 2785.8, "length_by_layer": {"B.Cu": 913.1, "F.Cu": 1125.1, "In2.Cu": 619.5, "In3.Cu": 128.1}, "width_count": {"0.2": 299, "0.3": 105, "0.15": 91, "0.25": 127, "0.13": 2644, "0.5": 12, "0.8": 8, "0.6": 45, "0.4": 75, "1.0": 13, "0.7": 9, "0.14": 1644, "1.4": 4, "1.6": 2, "3.0": 3, "1.2": 3}, "via_count": {"0.45/0.3": 444}, "distinct_widths": 16, "nets_with_copper": 96, "n_multi_pad_nets": 96, "n_nets": 221}, "suggestions": ["VIAS: 267 vs original 444 (0.6x) \u2014 comparable.", "COMPLETION: we put copper on 94 nets vs original 96 \u2014 2 net(s) the human routed that we did not."]}

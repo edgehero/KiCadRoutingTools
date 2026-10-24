@@ -1,0 +1,6 @@
+python3 -X utf8 py_router/route_planes.py {in} {out} --nets GND --plane-layers B.Cu --skip-existing-zones
+python3 -X utf8 py_router/route.py {in} {out} --nets '*' --clearance-ceiling 0.508 --track-width 0.8636 \
+    --via-size 0.45 --via-drill 0.3 \
+    --power-nets GND 'Net-(P4-P1)' 'Net-(P4-PM)' --power-nets-widths 0.8636 0.8636 0.8636 \
+    --layer-costs 1.0 1.0 --via-cost 600 \
+    --json-out {dir}/route.json

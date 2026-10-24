@@ -1,0 +1,48 @@
+Loading wk/gpm/11_daplink/fixed.kicad_pcb...
+Extracting components...
+Found 35 components:
+  Auto-classified: 26
+  Needs AI analysis: 9
+======================================================================
+POWER PATH ANALYSIS REPORT
+======================================================================
+
+## Component Classification Summary
+
+  current_sink: 5 components
+  power_source: 2 components
+  shunt: 28 components
+
+## Power Sources
+
+  U1: AMS1117-3.3
+    Notes: AMS1117-3.3 LDO, rated 1 A; load estimated 300 mA (MCU 50 + LEDs + target power), thermally ~0.5 W at 5->3.3V
+  P1: USB_C_Receptacle_USB2.0
+    Notes: USB-C receptacle, 5k1 Rd sink: USB 2.0 default power 500 mA (estimate of the budget)
+
+## Current Sinks (ICs requiring power)
+
+  J3: Conn_01x05 (200mA)
+  U2: STM32F103CBTx (50mA)
+  D3: LEDR (3mA)
+  D2: LEDB (2mA)
+  D1: LEDG (2mA)
+
+## Traced Power Paths
+
+
+## Power Net Recommendations
+
+  Net Name                          | Width (mm)
+  --------------------------------------------------
+  +3.3V                               | 1.00
+  +5V                                 | 0.70
+  GND                                 | 2.00
+
+## Routing Configuration
+
+  --power-nets "+3.3V" "GND" "+5V"
+  --power-nets-widths 1.0 2.0 0.7
+
+======================================================================
+REC {'+3.3V': 1.0, 'GND': 2.0, '+5V': 0.7}

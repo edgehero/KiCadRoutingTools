@@ -1,0 +1,188 @@
+CMD: Python -X utf8 py_router/route_diff.py wk/gpm/12_steppenprobe/arms/Gs3/s1.kicad_pcb wk/gpm/12_steppenprobe/arms/Gs3/s2a.kicad_pcb --nets "/USB_D*" --track-width 0.15 --diff-pair-gap 0.15 --clearance-ceiling 0.15 --layer-costs 1.0 1.5 --escalation board --same-net-pad-clearance 0.1
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/12_steppenprobe/arms/Gs3/s1.kicad_pcb to expand net patterns...
+Pattern '/USB_D*' matched 2 nets
+Pattern '/USB_D*' matched 2 nets
+Routing 2 nets as differential pairs: ['/USB_DM', '/USB_DP']
+Netclass clearances for 8 net(s), capped at --clearance-ceiling 0.15 (mm: [0.15]); diff-pair routing respects cross-class max(A,B). Override with --net-clearances.
+Loading wk/gpm/12_steppenprobe/arms/Gs3/s1.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+Found 1 differential pair(s)
+  Polarity swaps disabled (no --polarity-swap-nets; pass '*' to allow all pairs)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+
+Analyzing layer swaps for 1 diff pair(s)...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 diff pairs + 0 single nets = 1 units with 0 crossing conflicts
+MPS Round 1: 1 units: /USB_D
+
+Routing 1 differential pair(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.03s
+Building diff pair obstacle map (extra clearance: 0.150mm)...
+Diff pair obstacle map built in 0.02s
+Blocking connector regions for 1 diff pair(s)...
+Found 61 unrouted nets in PCB for stub proximity
+GND net: 'GND' (id 33) (GND vias will be added as obstacles)
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.02s (61 nets)
+Plane fragility: exact-fill geometry (2 filled island(s) from KiCad refill)
+Plane fragility field: 236811 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, static)
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing diff pair /USB_D
+  P: /USB_DP (id=5)
+  N: /USB_DM (id=9)
+  Multi-point pair: 4 terminals, 3 legs
+  Chain: J1:B6/B7 -> J1:A6/A7 -> U3:1/6 -> U1:8/7
+  Leg 1/3: J1:B6/B7 -> J1:A6/A7
+    electrically short (< 3.0mm coupled) - deferring leg to single-ended
+  Leg 2/3: J1:A6/A7 -> U3:1/6
+    electrically short (< 3.0mm coupled) - deferring leg to single-ended
+  Leg 3/3: U3:1/6 -> U1:8/7
+      target: escape direction blocked at every setback - launching rotated +180deg at 0.22mm
+      source: escape direction blocked at every setback - launching rotated +180deg at 0.22mm
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      target: escape direction blocked at every setback - launching rotated +180deg at 0.22mm
+  Pose routing: src_theta=4 (-1.00,0.00), tgt_theta=0 (arriving from 1.00,-0.00)
+Route found in 405171 iterations, path: 289 poses -> 289 points -> 18 simplified
+  Connector grazes foreign pad U1.8 (net /USB_DP) by 0.021mm on F.Cu - rejecting pair route (issue #165)
+  (a connector/setback segment violates clearance to the partner or foreign copper; needs a cleaner connector route or a different terminal join)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1368, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 836, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_DM(1 pad), /VPLL(1 pad)
+        backward cell (1364, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1372, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 841, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /REF(1 pad), /USB_DP(1 pad)
+        backward cell (1366, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1368, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 836, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_DM(1 pad), /VPLL(1 pad)
+        backward cell (1364, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1372, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 841, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /REF(1 pad), /USB_DP(1 pad)
+        backward cell (1366, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      leg couple: best plan still ships 5.8mm uncoupled leg copper
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      No route found after 200000 iterations (forward), trying backward...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1372, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 836, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_DM(1 pad), /VPLL(1 pad)
+        backward cell (1366, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1368, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 841, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /REF(1 pad), /USB_DP(1 pad)
+        backward cell (1364, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1372, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 836, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /USB_DM(1 pad), /VPLL(1 pad)
+        backward cell (1366, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1368, 647, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1363, 841, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /REF(1 pad), /USB_DP(1 pad)
+        backward cell (1364, 787, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      leg couple: best plan still ships 4.3mm uncoupled leg copper
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 209561 (base 200000)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  DIRECT HYBRID: coupled middle on F.Cu + 35 leg seg(s) (190727 iters) [polarity flipped: cleaner/shorter legs]
+  Leg 3 via hybrid (coupled middle + single-ended escapes)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      No route found after 200000 iterations (forward), trying backward...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  SUCCESS: 1 legs, 59 segments, 190727 iterations (1.36s)
+
+============================================================
+2 net(s) have far-apart terminal pads peeled from the coupled chain - route them single-ended next:
+  /USB_DM
+  /USB_DP
+  e.g.  route.py <this_output> <out2> --nets '/USB_DM' '/USB_DP'
+============================================================
+
+Sync pcb_data: 59 -> 0 (kept stubs) -> 59 (after adding 59)
+
+============================================================
+Routing complete
+============================================================
+  Diff pairs:    1/1 routed
+  Member-incomplete: 1 pair(s) with disconnected member pads at this step (/USB_D) — JSON_SUMMARY.member_incomplete_pairs
+  Hybrid escape: 1 pair(s) routed as a coupled middle + point-to-point terminal legs (terminals NOT coupled): /USB_D — JSON_SUMMARY.pair_reports[].coupled_terminals
+  Total vias:    6
+  Total time:    1.36s
+  Iterations:    190,727
+JSON_SUMMARY: {"routed_diff_pairs": ["/USB_D"], "failed_diff_pairs": [], "partial_diff_pairs": [], "member_incomplete_pairs": ["/USB_D"], "uncoupled_diff_pairs": [], "single_ended_diff_pairs": [], "ripup_success_pairs": [], "rerouted_pairs": [], "polarity_swapped_pairs": [], "polarity_swap_denied_pairs": [], "single_ended_followup_nets": ["/USB_DM", "/USB_DP"], "skipped_bad_fanout": [], "target_swaps": [], "layer_swaps": 0, "intra_pair_matching": [], "successful": 1, "failed": 0, "total_time": 1.36, "total_iterations": 190727, "total_vias": 6, "min_clearance_used": 0.15, "pair_reports": [{"pair": "/USB_D", "p_net": "/USB_DP", "n_net": "/USB_DM", "outcome": "partial", "failure_reason": null, "failure_stage": null, "incomplete_members": ["/USB_DP", "/USB_DM"], "member_audit_mismatch": false, "no_coupled_trunk": false, "copper": {"coupled_mm": 19.3622, "length_p_mm": 27.5924, "length_n_mm": 31.4965, "uncoupled_mm": 12.1343, "coupled_by_layer": {"B.Cu": 2.0092, "F.Cu": 17.353}, "layers_p": ["B.Cu", "F.Cu"], "layers_n": ["B.Cu", "F.Cu"], "arc_chords": 0, "match_p_mm": null, "match_n_mm": null, "skew_mm": null, "gap_mm": 0.15, "gap_window_mm": [null, 0.225], "coupled_floor_mm": 0.3, "coupled": true}, "coupled_terminals": false, "escape": "hybrid"}], "casualty_reconcile": {"attempted": 0, "restored": [], "rerouted": [], "partial": [], "unrecovered": []}, "single_ended_fallback": {"attempted": [], "routed": [], "partial": [], "failed": []}, "gnd_vias_not_placed": [], "plane_fragility": {"source": "kicad_refill", "islands": 2, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/12_steppenprobe/arms/Gs3/s2a.kicad_pcb...
+Successfully wrote wk/gpm/12_steppenprobe/arms/Gs3/s2a.kicad_pcb
+  Route trace written to wk/gpm/12_steppenprobe/arms/Gs3/s2a_routetrace.json (1 events)
+  DRC settings: wrote 2 value(s) to wk/gpm/12_steppenprobe/arms/Gs3/s2a.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_hole_clearance: 0.25 -> 0.15 mm
+      rules.min_via_drill: None -> 0.3 mm
+PROJECT_WRITES_JSON: {"project": "wk/gpm/12_steppenprobe/arms/Gs3/s2a.kicad_pro", "writes": ["rules.min_hole_clearance: 0.25 -> 0.15 mm", "rules.min_via_drill: None -> 0.3 mm"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.25 -> 0.15 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  Protected nets (not ripped by later steps): 2 recorded in s2a.kicad_pro (+2 this step)
+  Same-net pad via clearance 0.1mm recorded in s2a.kicad_pro (later steps keep vias off same-net pads)
+EXIT=0

@@ -1,0 +1,6 @@
+# from WT at bda59fa0, PATH=$HOME/.venvs/krt/bin:$PATH
+M=wk/gpm/_verify/V3/G03/measure_net_currents.py   # bisects min_current_ma to read each net's accumulated mA
+python3 -X utf8 $M wk/gpm/11_daplink/repro/gap2_pile.kicad_pcb P1:POWER_SOURCE:500 U1:POWER_SOURCE:300 U2:CURRENT_SINK:50   > daplink_measured.txt
+python3 -X utf8 $M wk/gpm/12_steppenprobe/repro/pile.kicad_pcb U1:CURRENT_SINK:70 U2:POWER_SOURCE:200                        > steppenprobe_measured.txt
+python3 -X utf8 $M wk/gpm/06_rp2350_fpga_eensy_prePlane/repro/fixed.kicad_pcb U7:POWER_SOURCE:280 U6:CURRENT_SINK:150 U2:CURRENT_SINK:60 U1:CURRENT_SINK:30 > rp2350_measured.txt
+python3 -X utf8 $M wk/gpm/09_StickHub/repro/s7.kicad_pcb J1:POWER_SOURCE:500 J2..J8:CURRENT_SINK:100 U2:PASS_THROUGH:500 JP1:PASS_THROUGH:500 U1:CURRENT_SINK:167 > stickhub_measured.txt

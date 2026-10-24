@@ -1,0 +1,22 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              152              208
+  vias                                   18                3
+  total length mm                     556.2            637.8
+  distinct track widths                   1                3
+  nets with copper                       26               26
+  ours widths:   {0.635: 152}
+  orig widths:   {0.432: 7, 0.635: 173, 1.016: 28}
+  ours vias:     {'1.651/0.635': 18}
+  orig vias:     {'1.778/0.635': 3}
+
+  SUGGESTIONS:
+   - VIAS: we placed 18 vias vs original 3 (6.0x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+   - WIDTHS: original uses 3 track widths (up to 1.016mm, likely power/high-current) but we use only 1 ([0.635]). We under-build power nets — add per-net width (wide traces for power/GND-return) instead of one uniform width.
+   - LAYER BALANCE: ours 0.07 vs original 0.44 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 152, "n_vias": 18, "total_length_mm": 556.2, "length_by_layer": {"F.Cu": 520.2, "B.Cu": 36.0}, "width_count": {"0.635": 152}, "via_count": {"1.651/0.635": 18}, "distinct_widths": 1, "nets_with_copper": 26, "n_multi_pad_nets": 26, "n_nets": 43}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 208, "n_vias": 3, "total_length_mm": 637.8, "length_by_layer": {"F.Cu": 195.4, "B.Cu": 442.4}, "width_count": {"0.635": 173, "1.016": 28, "0.432": 7}, "via_count": {"1.778/0.635": 3}, "distinct_widths": 3, "nets_with_copper": 26, "n_multi_pad_nets": 26, "n_nets": 43}, "suggestions": ["VIAS: we placed 18 vias vs original 3 (6.0x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count.", "WIDTHS: original uses 3 track widths (up to 1.016mm, likely power/high-current) but we use only 1 ([0.635]). We under-build power nets \u2014 add per-net width (wide traces for power/GND-return) instead of one uniform width.", "LAYER BALANCE: ours 0.07 vs original 0.44 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

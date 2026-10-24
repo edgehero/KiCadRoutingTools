@@ -1,0 +1,847 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/12_steppenprobe/arms/P1/p1.kicad_pcb wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb --nets GND +3V3 VBUS +5V +1V8 /VPLL /VPHY Vdrive --power-nets GND +3V3 VBUS +5V +1V8 /VPLL /VPHY Vdrive --power-nets-widths 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 --clearance-ceiling 0.15 --layer-costs 1.0 1.5 --same-net-pad-clearance 0.1 --no-fix-drc-settings --track-width 0.3 --escalation off --json-out wk/gpm/12_steppenprobe/arms/P1/p2.json
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/12_steppenprobe/arms/P1/p1.kicad_pcb to expand net patterns...
+Routing 8 nets: ['GND', '+3V3', 'VBUS', '+5V', '+1V8']...
+Netclass clearances for 8 net(s), capped at --clearance-ceiling 0.15 (mm: [0.15]); cross-class max(A,B) respected.
+Loading wk/gpm/12_steppenprobe/arms/P1/p1.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Skipping 6 already-routed net(s): Already fully connected
+
+Analyzing layer swaps for 2 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 2 nets with 1 crossing conflicts detected
+MPS Round 1: 1 units: +3V3
+MPS Round 2: 1 units: +1V8
+
+Routing 2 single-ended net(s)...
+============================================================
+Building base obstacle map...
+57 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.05s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.08s (61 nets)
+Plane fragility: exact-fill geometry (3 filled island(s) from KiCad refill)
+Plane fragility field: 331669 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/2] Routing +3V3 (id=32)
+  Detected multi-point net with 26 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +65 region-laddered target(s) across 2 component(s) (phase 1)
+  Existing copper joins 26 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 19 and 18, length=2.98mm)
+  Phase 1 edge (pads 19,18) failed after 5136 iterations
+  Phase 1 exhausted from the pads; deferring 1 edge(s) to Phase 3's island-copper sources (base component: 25 terminal(s))
+  SUCCESS: 0 segments, 0 vias, 5136 iterations, length=5.15mm (stubs=5.15mm) (0.09s)
+
+[2/2] Routing +1V8 (id=1)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Existing copper joins 3 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=21.40mm)
+  Phase 1 edge (pads 0,2) failed after 610000 iterations
+  Phase 1 exhausted from the pads; deferring 1 edge(s) to Phase 3's island-copper sources (base component: 2 terminal(s))
+  SUCCESS: 0 segments, 0 vias, 610000 iterations, length=41.38mm (stubs=41.38mm) (0.15s)
+
+Sync pcb_data: 965 -> 965 (kept stubs) -> 965 (after adding 0)
+
+============================================================
+Multi-point Phase 3: Routing 2 tap connections
+============================================================
+
++3V3 (net 32):
+  POUR-LAUNCH v3: +65 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (115 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] Routing MST edge: pad 19 -> pad 18 (length=2.98mm) target=(138.06, 92.46)
+      backward stuck (136 < 5000), forward=5000
+        backward cell (1381, 925, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: +1V8(3 track, 1 pad)
+      Failed to route MST edge after 5136 iterations (0.00s)
+    Fallback: attempting orphaned pad 18 directly from connected copper
+    [2/2] (1 failed) Routing MST edge: pad 19 -> pad 18 (length=2.98mm) target=(138.06, 92.46)
+      backward stuck (136 < 5000), forward=5000
+        backward cell (1381, 925, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: +1V8(3 track, 1 pad)
+      Failed to route MST edge after 5136 iterations (0.00s)
+  Warning: 1 pad(s) not connected (1 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    Ripping +1V8 (net 1) to retry tap route...
+  POUR-LAUNCH v3: +65 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (115 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] (1 failed) Routing MST edge: pad 19 -> pad 18 (length=2.98mm) target=(138.06, 92.46)
+      backward stuck (136 < 5000), forward=5000
+        backward cell (1381, 925, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: +1V8(3 track, 1 pad)
+      Failed to route MST edge after 5136 iterations (0.01s)
+    Fallback: attempting orphaned pad 18 directly from connected copper
+    [2/2] (2 failed) Routing MST edge: pad 0 -> pad 18 (length=55.44mm) target=(138.06, 92.46)
+      backward stuck (146 < 5000), forward=5000
+        backward cell (1381, 925, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: +1V8(3 track, 1 pad)
+      Failed to route MST edge after 5146 iterations (0.01s)
+  Warning: 1 pad(s) not connected (2 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    +3V3: Retry FAILED (N=1): still 2 failed edges
+      Retry had 1548 blocked cells
+    Re-analyzing 1548 blocked cells from N=1 retry:
+      Frontier blocked by 3 nets (298 cells, 298 unique; near: 0 src, 101 tgt)
+      Coverage: 298/774 frontier cells attributed to routed nets; 476 static/unrippable
+      Top blockers:
+        1. /ACT_LED_N: 223 (74.8%), 223 uniq (100%), near: 0 src, 60 tgt
+        2. /EE_CS: 41 (13.8%), 41 uniq (100%), near: 0 src, 29 tgt
+        3. /RX_LED_N: 34 (11.4%), 34 uniq (100%), near: 0 src, 12 tgt
+    Extending to N=2: ripping /RX_LED_N (net 17)...
+      PRE-EXISTING rip: '/RX_LED_N' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  POUR-LAUNCH v3: +65 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (115 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] (1 failed) Routing MST edge: pad 19 -> pad 18 (length=2.98mm) target=(138.06, 92.46)
+      Routed in 128068 iterations (0.03s)
+  Phase 3 routing complete: 1 edges, 24 total segments, 4 total vias
+    +3V3: Retry SUCCESS (N=2): 1 -> 0 failed edges
+    Adding 24 tap segments, 4 tap vias to obstacles before re-routing...
+    Re-routing 2 ripped net(s)...
+
+  Re-routing +1V8 (net 1)...
+  Existing copper joins 3 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=21.40mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  No route found after 200000 iterations (forward), trying backward...
+  dynamic iterations (#529): search extended to 400000 (base 200000)
+  Phase 1 edge (pads 0,2) failed after 610000 iterations
+  Phase 1 exhausted from the pads; deferring 1 edge(s) to Phase 3's island-copper sources (base component: 2 terminal(s))
+
+  Re-routing /RX_LED_N (net 17)...
+forward stuck (14 < 5000), backward=5000
+  forward cell (1381, 905, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: unconnected-(U1-Pad53)(1 pad), /TX_LED_N(1 pad)
+No route found after 5014 iterations (both directions)
+    Failed to re-route
+    +3V3: tap rip-up lost 10 pad(s) to gain 1 (+1V8, /RX_LED_N); abandoning tap, re-routing victim(s)
+
+  Re-routing +1V8 (net 1)...
+  Existing copper joins 3 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=21.40mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  No route found after 200000 iterations (forward), trying backward...
+  dynamic iterations (#529): search extended to 400000 (base 200000)
+  Phase 1 edge (pads 0,2) failed after 610000 iterations
+  Phase 1 exhausted from the pads; deferring 1 edge(s) to Phase 3's island-copper sources (base component: 2 terminal(s))
+
+  Re-routing /RX_LED_N (net 17)...
+forward stuck (14 < 5000), backward=5000
+  forward cell (1381, 905, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: unconnected-(U1-Pad53)(1 pad), /TX_LED_N(1 pad)
+No route found after 5014 iterations (both directions)
+    Failed to re-route
+    RIP-RESTORE (#468): /RX_LED_N back on its pre-rip copper (connected)
+  NOT CONNECTED (so far): +3V3 - U1 pad 50 at (138.06, 92.46) - may still be recovered; final verdict in the end-of-run summary
+  Net total time: 0.55s, 15408 iterations
+
++1V8 (net 1):
+  Seeding tap sources from the base island's existing copper (368 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] (1 failed) Routing MST edge: pad 2 -> pad 0 (length=21.40mm) target=(130.95, 82.25)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 400000 (base 200000)
+      No route found after 400000 iterations (forward), trying backward...
+      Failed to route MST edge after 610000 iterations (0.12s)
+    Fallback: attempting orphaned pad 0 directly from connected copper
+    [2/2] (2 failed) Routing MST edge: pad 2 -> pad 0 (length=21.40mm) target=(130.95, 82.25)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 400000 (base 200000)
+      No route found after 400000 iterations (forward), trying backward...
+      Failed to route MST edge after 610000 iterations (0.12s)
+  Warning: 1 pad(s) not connected (1 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    Ripping /TXD (net 21) to retry tap route...
+      PRE-EXISTING rip: '/TXD' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  Seeding tap sources from the base island's existing copper (368 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] (2 failed) Routing MST edge: pad 2 -> pad 0 (length=21.40mm) target=(130.95, 82.25)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 400000 (base 200000)
+      No route found after 400000 iterations (forward), trying backward...
+      Failed to route MST edge after 610000 iterations (0.12s)
+    Fallback: attempting orphaned pad 0 directly from connected copper
+    [2/2] (3 failed) Routing MST edge: pad 1 -> pad 0 (length=23.10mm) target=(130.95, 82.25)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 400000 (base 200000)
+      No route found after 400000 iterations (forward), trying backward...
+      Failed to route MST edge after 610000 iterations (0.11s)
+  Warning: 1 pad(s) not connected (2 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    +1V8: Retry FAILED (N=1): still 2 failed edges
+      Retry had 40000 blocked cells
+    Re-analyzing 40000 blocked cells from N=1 retry:
+      Frontier blocked by 45 nets (9109 cells, 9103 unique; near: 0 src, 167 tgt)
+      Coverage: 9106/18765 frontier cells attributed to routed nets; 9659 static/unrippable
+      Top blockers:
+        1. /GPIO_C: 822 (9.0%), 822 uniq (100%)
+        2. /TCK: 575 (6.3%), 575 uniq (100%)
+        3. /GPIO_A: 522 (5.7%), 522 uniq (100%)
+        4. /SRST_N_TRGT: 415 (4.6%), 415 uniq (100%)
+        5. /TDO: 362 (4.0%), 362 uniq (100%)
+        6. /RXD_TRGT: 345 (3.8%), 345 uniq (100%)
+        7. /GPIO_B: 317 (3.5%), 317 uniq (100%), near: 0 src, 4 tgt
+        8. /RXD_IN: 302 (3.3%), 302 uniq (100%)
+        9. /REF: 258 (2.8%), 258 uniq (100%)
+        10. /EE_CLK: 239 (2.6%), 239 uniq (100%)
+        ... and 35 more nets (4952 cells)
+    Extending to N=2: ripping /GPIO_C (net 78)...
+      PRE-EXISTING rip: '/GPIO_C' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  Seeding tap sources from the base island's existing copper (368 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] (2 failed) Routing MST edge: pad 2 -> pad 0 (length=21.40mm) target=(130.95, 82.25)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 400000 (base 200000)
+      No route found after 400000 iterations (forward), trying backward...
+      Failed to route MST edge after 610000 iterations (0.12s)
+    Fallback: attempting orphaned pad 0 directly from connected copper
+    [2/2] (3 failed) Routing MST edge: pad 1 -> pad 0 (length=23.10mm) target=(130.95, 82.25)
+      Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+      dynamic iterations (#529): search extended to 400000 (base 200000)
+      No route found after 400000 iterations (forward), trying backward...
+      Failed to route MST edge after 610000 iterations (0.11s)
+  Warning: 1 pad(s) not connected (2 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    +1V8: Retry FAILED (N=2): still 2 failed edges
+      Retry had 40000 blocked cells
+    Re-analyzing 40000 blocked cells from N=2 retry:
+      Frontier blocked by 43 nets (8255 cells, 8249 unique; near: 0 src, 168 tgt)
+      Coverage: 8252/17540 frontier cells attributed to routed nets; 9288 static/unrippable
+      Top blockers:
+        1. /TCK: 553 (6.7%), 553 uniq (100%)
+        2. /GPIO_A: 514 (6.2%), 514 uniq (100%)
+        3. /SRST_N_TRGT: 390 (4.7%), 390 uniq (100%)
+        4. /TDO: 345 (4.2%), 345 uniq (100%)
+        5. /RXD_TRGT: 338 (4.1%), 338 uniq (100%)
+        6. /GPIO_B: 330 (4.0%), 330 uniq (100%), near: 0 src, 5 tgt
+        7. /REF: 263 (3.2%), 263 uniq (100%)
+        8. /EE_CLK: 260 (3.1%), 260 uniq (100%)
+        9. /EE_DATA: 225 (2.7%), 225 uniq (100%)
+        10. /EE_CS: 224 (2.7%), 224 uniq (100%)
+        ... and 33 more nets (4813 cells)
+    Extending to N=3: ripping /VPHY (net 29)...
+      PRE-EXISTING rip: '/VPHY' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  Seeding tap sources from the base island's existing copper (368 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/2] (2 failed) Routing MST edge: pad 2 -> pad 0 (length=21.40mm) target=(130.95, 82.25)
+      Routed in 551260 iterations (0.11s)
+  Phase 3 routing complete: 1 edges, 35 total segments, 3 total vias
+    +1V8: Retry SUCCESS (N=3): 1 -> 0 failed edges
+    Adding 35 tap segments, 3 tap vias to obstacles before re-routing...
+    Re-routing 3 ripped net(s)...
+
+  Re-routing /TXD (net 21)...
+backward stuck (14 < 5000), forward=5000
+  backward cell (1311, 949, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: +1V8(2 track, 1 pad), /RXD(1 track, 1 pad)
+No route found after 5014 iterations (both directions)
+    /TXD: main re-route blocked, ripping /RXD (N=1) to retry...
+      PRE-EXISTING rip: '/RXD' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+backward stuck (14 < 5000), forward=5000
+  backward cell (1311, 949, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: +1V8(2 track, 1 pad), /RXD(1 pad)
+No route found after 5014 iterations (both directions)
+    /TXD: main re-route blocked, ripping /TDI (N=2) to retry...
+      PRE-EXISTING rip: '/TDI' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+backward stuck (14 < 5000), forward=5000
+  backward cell (1311, 949, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: +1V8(2 track, 1 pad), /RXD(1 pad)
+No route found after 5014 iterations (both directions)
+    /TXD: main re-route blocked, ripping /TMS (N=3) to retry...
+      PRE-EXISTING rip: '/TMS' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+backward stuck (14 < 5000), forward=5000
+  backward cell (1311, 949, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: +1V8(2 track, 1 pad), /RXD(1 pad)
+No route found after 5014 iterations (both directions)
+    /TXD: main re-route rip-up failed, restoring 3 net(s)...
+    Failed to re-route
+    RIP-RESTORE (#468): /TXD back on its pre-rip copper (connected)
+
+  Re-routing /GPIO_C (net 78)...
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+dynamic iterations (#529): search extended to 332511 (base 200000)
+Route found in 342511 iterations, path length: 643
+    Re-routed main path: 33 segments, 2 vias
+
+  Re-routing /VPHY (net 29)...
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+No route found after 200000 iterations (forward), trying backward...
+No route found after 410000 iterations (both directions)
+    /VPHY: main re-route blocked, ripping /GPIO_C (N=1) to retry...
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 120714 iterations, path length: 418
+    /VPHY: main re-route rip-up SUCCESS (N=1)
+    Re-routed main path: 35 segments, 4 vias
+    Re-routing 1 net(s) ripped for /VPHY's main route...
+
+  Re-routing /GPIO_C (net 78)...
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+dynamic iterations (#529): search extended to 346510 (base 200000)
+Route found in 356510 iterations, path length: 628
+    Re-routed main path: 42 segments, 6 vias
+  Added 35 tap segments, 3 tap vias
+  #444 seam re-ask: +1V8 tree is 1.47x its MST bound -- re-asking whole
+
+  Re-routing +1V8 (net 1)...
+  Existing copper joins 3 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=21.40mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 59887 iterations, 35 segments
+    Re-routed main path: 35 segments, 3 vias
+  Net total time: 1.97s, 2381260 iterations
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing +3V3 (partial, 2 disconnected parts)
+    bare-ball escape: C2.1 dogbone (10 seg(s), 1 via(s)) (#666)
+    bare-ball escape: C14.1 dogbone (15 seg(s), 1 via(s)) (#666)
+    bare-ball escape: FB3.2 dogbone (11 seg(s), 1 via(s)) (#666)
+    bare-ball escape: D2.2 dogbone (11 seg(s), 1 via(s)) (#666)
+    endpoint cell blocked for D3.2 -- seeded 28 free on-pad cell(s)
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 218941 iterations, path length: 318
+    rescued a gap: grid 0.025, clearance 0.15, track 0.3 (48 segs, 1 vias, 218941 iters)
+    bare-ball escape via withdrawn: it joins nothing across layers (1 via(s)) (#666)
+    bare-ball escape via withdrawn: it joins nothing across layers (1 via(s)) (#666)
+    bare-ball escape via withdrawn: it joins nothing across layers (1 via(s)) (#666)
+    fully reconnected (2 -> 1 parts, 0.2s)
+Rescue pass: 1 recovered, 0 improved, 0 unchanged (0.2s)
+
+Pre-existing rip outcome(s) (7 net(s)):
+  '/RX_LED_N' (was blocking '+3V3'): original copper restored
+  '/RXD' (was blocking '/TXD'): original copper restored
+  '/TXD' (was blocking '+1V8'): original copper restored
+  '/TMS' (was blocking '/TXD'): original copper restored
+  '/TDI' (was blocking '/TXD'): original copper restored
+  '/VPHY' (was blocking '+1V8'): rerouted PARTIAL (pads still disconnected; original corridor taken -- reconciliation retries it)
+  '/GPIO_C' (was blocking '/VPHY'): rerouted
+Closed 1 stub gap(s) to same-net copper
+Cycle prune: removed 16 redundant loop segment(s) across 2 net(s)
+Octolinear smoothing: collapsed 63 staircase span(s) on 6 net(s), -5.50 mm of copper (#536)
+Bridged 1 same-net soft joint(s) with a tiny connector
+Merged 39 collinear joint(s) on 3 net(s): -39 redundant segment(s) (#811)
+Stripped 60 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+Stripping 5 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/2 routed
+  Multi-point:   34/35 pads connected (1 FAILED)
+  Total vias:    15
+  Total time:    0.24s
+  Iterations:    615,136
+  Fragility refresh (#466): 21 windows, 0.63s total
+  History congestion (#590): 9 contest + 9 rip + 10 blocked-frontier event(s) over 47664 cell(s), peak 0.50mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.01s of field upkeep
+
+Failed multi-point connections:
+  +3V3: U1 pad ? at (126.71, 86.96) not connected
+  /VPHY: C9 pad ? at (140.71, 82.17) not connected
+  /VPHY: U1 pad ? at (134.64, 83.53) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": ["+1V8"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "+3V3", "failed_pads": [{"component_ref": "U1", "pad_number": "?", "x": 126.7125, "y": 86.9599}]}, {"net_name": "/VPHY", "failed_pads": [{"component_ref": "C9", "pad_number": "?", "x": 140.7126, "y": 82.174}, {"component_ref": "U1", "pad_number": "?", "x": 134.6375, "y": 83.5349}]}], "multipoint_nets": 2, "multipoint_pads_connected": 34, "multipoint_pads_total": 35, "multipoint_edges_routed": 2, "multipoint_edges_failed": 1, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 1, "total_time": 0.24, "total_iterations": 615136, "total_vias": 15, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "off", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 3, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": ["+3V3"], "improved": [], "unchanged": [], "pads_reconnected": 1, "widths": {"+3V3": {"requested_mm": 0.3, "delivered_mm": 0.3, "rescue_min_mm": 0.3, "rescue_max_mm": 0.3, "rescue_segments_emitted": 95, "rescue_by_width": {"0.3": 95}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 0.17}, "preexisting_rips": {"/RX_LED_N": "original copper restored [was blocking '+3V3']", "/RXD": "original copper restored [was blocking '/TXD']", "/TXD": "original copper restored [was blocking '+1V8']", "/TMS": "original copper restored [was blocking '/TXD']", "/TDI": "original copper restored [was blocking '/TXD']", "/VPHY": "rerouted PARTIAL (pads still disconnected; original corridor taken -- reconciliation retries it) [was blocking '+1V8']", "/GPIO_C": "rerouted [was blocking '/VPHY']"}, "terminal_restores": {"/RX_LED_N": "full", "/TXD": "full"}, "oracle_check": "disabled", "ripped_open": ["/VPHY"], "ripped_open_uncounted": ["/VPHY"], "ripped_open_note": "ripped_open nets are OUTSIDE this run's --nets scope, so they move neither failed_single nor open_single. Those listed in ripped_open_uncounted are additionally not in either scoped term: if they are also outside the multipoint pad deficit, the run's open-net verdict is understated by that many.", "blockers": [{"net": "+3V3", "stage": "phase3", "blocked_by": [{"net": "/ACT_LED_N", "blocked_count": 223, "unique_cells": 223, "track_cells": 221, "via_cells": 5, "near_target_cells": 60, "near_source_cells": 0}, {"net": "/EE_CS", "blocked_count": 41, "unique_cells": 41, "track_cells": 41, "via_cells": 0, "near_target_cells": 29, "near_source_cells": 0}, {"net": "/RX_LED_N", "blocked_count": 34, "unique_cells": 34, "track_cells": 34, "via_cells": 0, "near_target_cells": 12, "near_source_cells": 0}]}, {"net": "/VPHY", "stage": "phase3_victim", "blocked_by": [{"net": "/GPIO_C", "blocked_count": 589, "unique_cells": 589, "track_cells": 547, "via_cells": 48, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/RXD_TRGT", "blocked_count": 328, "unique_cells": 328, "track_cells": 298, "via_cells": 30, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/GPIO_B", "blocked_count": 323, "unique_cells": 323, "track_cells": 320, "via_cells": 5, "near_target_cells": 95, "near_source_cells": 116}, {"net": "/GPIO_D", "blocked_count": 291, "unique_cells": 291, "track_cells": 277, "via_cells": 18, "near_target_cells": 29, "near_source_cells": 18}, {"net": "/GPIO_A", "blocked_count": 266, "unique_cells": 266, "track_cells": 266, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/OSCO", "blocked_count": 230, "unique_cells": 230, "track_cells": 127, "via_cells": 114, "near_target_cells": 71, "near_source_cells": 122}, {"net": "/REF", "blocked_count": 230, "unique_cells": 230, "track_cells": 196, "via_cells": 38, "near_target_cells": 16, "near_source_cells": 67}, {"net": "VBUS", "blocked_count": 195, "unique_cells": 195, "track_cells": 164, "via_cells": 37, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/TDO", "blocked_count": 122, "unique_cells": 122, "track_cells": 119, "via_cells": 5, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/USB_CC2", "blocked_count": 110, "unique_cells": 110, "track_cells": 71, "via_cells": 43, "near_target_cells": 0, "near_source_cells": 0}], "more": 12}], "pad_pairs_connected": 40, "pad_pairs_total": 43, "pad_pairs_open": [{"net": "+3V3", "pairs_connected": 25, "pairs_total": 26, "outcome": "open", "open_subtype": "partial"}, {"net": "/VPHY", "pairs_connected": 1, "pairs_total": 3, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 84.2}, {"net": "+3V3", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 17.9}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 44.7}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.8}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 178.3}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 25.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 36.6}], "scope": "run", "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb...
+Removed 281 dead-end input segment(s) from the output
+Removed 5 stale input via(s) from the output
+Successfully wrote wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb
+
+Plane finalize (#562): repairing 1 zone net(s) in-run (rip authority over blockers): +3V3
+  Plane finalize: snapped 59 in-memory coordinate(s) onto the nm grid
+Board bounds: (100.00, 50.00) to (150.00, 110.00)
+  Same-net pad via clearance 0.1mm (#581): repair vias stay off same-net pads
+Routing layers: F.Cu, B.Cu
+
+============================================================
+Routing disconnected plane regions
+============================================================
+  WARNING: 1 net(s) still have >=2 pads and ZERO copper (/VPHY) -- this step's tap vias will crowd their escape channels; route them first if their pads must connect (the pour is a one-way door for bare pads).
+    fill-model: pad U1.20 reaches only a pinched fill island -- queued for repair
+  (#517 ordering: net repair order = +3V3[1])
+
+[+3V3] on F.Cu (clearances: F.Cu=0.15mm):
+    fill-model: pad U1.20 reaches only a pinched fill island -- queued for repair
+  Pad repair: 1 pad(s) with no connection to the +3V3 plane:
+    Pad U1.20 (F.Cu)... (needs rip - deferred to phase 2)
+    (#517 ordering: phase 2 -- 1 rip-requiring pad(s) [adaptive: immediate])
+    Pad U1.20 (F.Cu)... blocked by /TMS - ripping... blocked by /ACT_LED_N - ripping... blocked by /SWD_EN - ripping... (restored 2/3 ripped net(s)) FAILED
+    (#517 ordering: immediate reconnect of 1 ripped net(s): /ACT_LED_N)
+Using provided PCB data...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /ACT_LED_N
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+56 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.01s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.03s (61 nets)
+Plane fragility: exact-fill geometry (3 filled island(s) from KiCad refill)
+Plane fragility field: 331669 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /ACT_LED_N (id=81)
+forward stuck (14 < 5000), backward=5000
+  forward cell (1267, 875, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: /SWD_EN(1 track, 1 pad), +3V3(1 pad)
+No route found after 5014 iterations (both directions)
+  FAILED: Could not find route (0.02s)
+  Forward direction failed fastest (14 iterations, 34 blocked cells)
+  Frontier blocked by 1 nets (12 cells, 12 unique; near: 12 src, 0 tgt)
+  Coverage: 12/34 frontier cells attributed to routed nets; 22 static/unrippable
+  Top blockers:
+    1. /SWD_EN: 12 (100.0%), 12 uniq (100%), near: 12 src, 0 tgt
+  Ripping up /SWD_EN to retry...
+      PRE-EXISTING rip: '/SWD_EN' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /SWD_EN
+forward stuck (14 < 5000), backward=5000
+  forward cell (1267, 875, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: +3V3(1 pad), /SWD_EN(1 pad)
+No route found after 5014 iterations (both directions)
+  RETRY FAILED (N=1)
+    Retry had 416 blocked cells
+  Re-analyzing 416 blocked cells from N=1 retry:
+    Frontier blocked by 1 nets (15 cells, 15 unique; near: 0 src, 14 tgt)
+    Coverage: 15/416 frontier cells attributed to routed nets; 401 static/unrippable
+    Top blockers:
+      1. /VPHY: 15 (100.0%), 15 uniq (100%), near: 0 src, 14 tgt
+  Slot-0 guard: re-analysis refutes /SWD_EN -> retrying /VPHY ALONE first
+  Ripping up /VPHY to retry...
+      PRE-EXISTING rip: '/VPHY' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /VPHY
+forward stuck (14 < 5000), backward=5000
+  forward cell (1267, 875, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: /SWD_EN(1 track, 1 pad), +3V3(1 pad)
+No route found after 5014 iterations (both directions)
+  RETRY FAILED (N=1)
+    Retry had 473 blocked cells
+  Re-analyzing 473 blocked cells from N=1 retry:
+    No previously-routed nets blocking (likely blocked by pads/stubs/zones)
+  No additional rippable blockers from retry analysis
+  All rip-up attempts failed: Restoring 1 net(s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5014 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.05 --clearance 0.15 --track-width 0.15 (current: grid 0.1, clearance 0.15, track 0.3 mm)
+
+Sync pcb_data: 847 -> 847 (kept stubs) -> 847 (after adding 0)
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing /ACT_LED_N (failed, 2 disconnected parts)
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.25mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 15 plane balls skipped, 24 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.21 /ACT_LED_N: no room for a 0.6mm via at the ball (/SWD_EN track on F.Cu 0.08mm from it); nearest foreign copper (edge to ball centre): F.Cu: /SWD_EN track 0.38mm; B.Cu: clear within 0.50mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.25mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 15 plane balls skipped, 24 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.21 /ACT_LED_N: no room for a 0.6mm via at the ball (/SWD_EN track on F.Cu 0.08mm from it); nearest foreign copper (edge to ball centre): F.Cu: /SWD_EN track 0.38mm; B.Cu: clear within 0.50mm
+    bare-ball escape: R7.1 dogbone (10 seg(s), 1 via(s)) (#666)
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 760682 iterations, path length: 991
+    rescued a gap: grid 0.025, clearance 0.15, track 0.3 (54 segs, 2 vias, 760682 iters)
+    bare-ball escape via withdrawn: it joins nothing across layers (1 via(s)) (#666)
+    fully reconnected (2 -> 1 parts, 0.5s)
+Rescue pass: 1 recovered, 0 improved, 0 unchanged (0.5s)
+
+Pre-existing rip outcome(s) (8 net(s)):
+  '/RX_LED_N': original copper restored
+  '/RXD': original copper restored
+  '/TXD': original copper restored
+  '/SWD_EN' (was blocking '/ACT_LED_N'): original copper restored
+  '/TMS': original copper restored
+  '/TDI': original copper restored
+  '/VPHY' (was blocking '/ACT_LED_N'): original copper restored
+  '/GPIO_C': original copper restored
+Cycle prune: removed 1 redundant loop segment(s) across 1 net(s)
+Dead-end sweep: trimmed 4 dead-end segment(s) and 0 unsupported via(s)
+Octolinear smoothing: collapsed 8 staircase span(s) on 2 net(s), -0.09 mm of copper (#536)
+Merged 6 collinear joint(s) on 2 net(s): -6 redundant segment(s) (#811)
+Stripped 2 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Total vias:    2
+  Total time:    0.02s
+  Iterations:    5,014
+  Fragility refresh (#466): 5 windows, 0.17s total
+  History congestion (#590): 2 contest + 2 rip + 3 blocked-frontier event(s) over 7543 cell(s), peak 0.28mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed multi-point connections:
+  /VPHY: C9 pad ? at (140.71, 82.17) not connected
+  /VPHY: U1 pad ? at (134.64, 83.53) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": ["/ACT_LED_N"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "/VPHY", "failed_pads": [{"component_ref": "C9", "pad_number": "?", "x": 140.7126, "y": 82.174}, {"component_ref": "U1", "pad_number": "?", "x": 134.6375, "y": 83.5349}]}], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.02, "total_iterations": 5014, "total_vias": 2, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "off", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 3, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": ["/ACT_LED_N"], "improved": [], "unchanged": [], "pads_reconnected": 0, "widths": {"/ACT_LED_N": {"requested_mm": 0.3, "delivered_mm": 0.3, "rescue_min_mm": 0.3, "rescue_max_mm": 0.3, "rescue_segments_emitted": 64, "rescue_by_width": {"0.3": 64}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 0.46}, "preexisting_rips": {"/RX_LED_N": "original copper restored", "/RXD": "original copper restored", "/TXD": "original copper restored", "/SWD_EN": "original copper restored [was blocking '/ACT_LED_N']", "/TMS": "original copper restored", "/TDI": "original copper restored", "/VPHY": "original copper restored [was blocking '/ACT_LED_N']", "/GPIO_C": "original copper restored"}, "oracle_check": "skipped (in-memory board)", "ripped_open": ["/VPHY"], "ripped_open_uncounted": ["/VPHY"], "ripped_open_note": "ripped_open nets are OUTSIDE this run's --nets scope, so they move neither failed_single nor open_single. Those listed in ripped_open_uncounted are additionally not in either scoped term: if they are also outside the multipoint pad deficit, the run's open-net verdict is understated by that many.", "pad_pairs_connected": 15, "pad_pairs_total": 17, "pad_pairs_open": [{"net": "/VPHY", "pairs_connected": 1, "pairs_total": 3, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 84.2}, {"net": "+3V3", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 17.9}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 44.7}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.8}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 178.3}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 25.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 36.6}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+  immediate-reconnect: consumed inner strip channel -- dropped 2 superseded write-list piece(s)
+    (#517 ordering: /ACT_LED_N reconnected in place)
+  Building obstacle map... done
+  Region discovery from fill model: 5 region(s) (60 fill island(s), 0 off-fill anchor(s), 2 orphan island(s))
+  Found 5 disconnected regions (31 total anchors)
+  Joining 5 regions incrementally (closest components first, 4 join(s) needed)...
+    [1/4] Component 1 (1 region(s), 1 pts) <-> Component 4 (1 region(s), 3 pts)... budget-x5 FAILED
+    [2/4] Component 0 (1 region(s), 414 pts) <-> Component 2 (1 region(s), 10 pts) (seed 24x10)... OK width=0.80mm, length=3.1mm, 9 seg(s), 2 layer(s), 2 via(s)
+    [3/4] Component 0 (2 region(s), 434 pts) <-> Component 1 (1 region(s), 1 pts) (seed 32x1)... retry-full budget-x5 FAILED
+    [4/4] Component 0 (2 region(s), 434 pts) <-> Component 4 (1 region(s), 3 pts) (seed 32x3)... OK width=0.20mm, length=24.0mm, 36 seg(s), 2 layer(s), 6 via(s)
+  Result: 2/4 join(s) succeeded, 2 attempt(s) failed
+  [+3V3] gate oracle: KiCad reports 1 unconnected link(s) for this net (1 total)
+
+[+3V3] guaranteed-join gate: authoritative check finds 2 component(s) after repair -- routing the remaining gaps as a multipoint net:
+    group 4: 27 pad(s): C2(127.8,69.4), C14(124.7,92.8), C15(138.0,96.8)
+    group 162: 1 pad(s): U1(126.7,87.0)
+Using provided PCB data...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+WARNING: Could not find pads for both stub groups in +3V3 (found 1 pads)
+MPS Round 1: 1 units: +3V3
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+57 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.01s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.03s (61 nets)
+Plane fragility: exact-fill geometry (3 filled island(s) from KiCad refill)
+Plane fragility field: 331669 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing +3V3 (id=32)
+  Detected multi-point net with 26 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +68 region-laddered target(s) across 2 component(s) (phase 1)
+  Existing copper joins 26 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 9 and 8, length=5.50mm)
+  Phase 1 routed in 5297 iterations, 2 segments
+  SUCCESS: 2 segments, 1 vias, 5297 iterations, length=47.85mm (stubs=44.97mm) (0.04s)
+
+Sync pcb_data: 911 -> 909 (kept stubs) -> 911 (after adding 2)
+
+============================================================
+Multi-point Phase 3: Routing 0 tap connections
+============================================================
+
++3V3 (net 32):
+  No remaining MST edges to route in Phase 3
+  Net total time: 0.01s, 5297 iterations
+
+Pre-existing rip outcome(s) (8 net(s)):
+  '/RX_LED_N': original copper restored
+  '/RXD': original copper restored
+  '/TXD': original copper restored
+  '/SWD_EN': original copper restored
+  '/TMS': original copper restored
+  '/TDI': original copper restored
+  '/VPHY': original copper restored
+  '/GPIO_C': original copper restored
+Closed 2 stub gap(s) to same-net copper
+Dead-end sweep: trimmed 1 dead-end segment(s) and 0 unsupported via(s)
+Dangle trim: cut 1 dead-end tail(s) back to their mid-body anchor
+Octolinear smoothing: collapsed 3 staircase span(s) on 1 net(s), -1.34 mm of copper (#536)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  1/1 routed
+  Multi-point:   27/27 pads connected (1 nets)
+  Total vias:    1
+  Total time:    0.04s
+  Iterations:    5,297
+  Fragility refresh (#466): 3 windows, 0.10s total
+
+Failed multi-point connections:
+  /TDI: U1 pad ? at (126.71, 85.46) not connected
+  /VPHY: C9 pad ? at (140.71, 82.17) not connected
+  /VPHY: U1 pad ? at (134.64, 83.53) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 0.74A max (0.200mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.74A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": ["+3V3"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "/TDI", "failed_pads": [{"component_ref": "U1", "pad_number": "?", "x": 126.7125, "y": 85.4599}]}, {"net_name": "/VPHY", "failed_pads": [{"component_ref": "C9", "pad_number": "?", "x": 140.7126, "y": 82.174}, {"component_ref": "U1", "pad_number": "?", "x": 134.6375, "y": 83.5349}]}], "multipoint_nets": 1, "multipoint_pads_connected": 27, "multipoint_pads_total": 27, "multipoint_edges_routed": 1, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 1, "failed": 0, "total_time": 0.04, "total_iterations": 5297, "total_vias": 1, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "off", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 3, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "preexisting_rips": {"/RX_LED_N": "original copper restored", "/RXD": "original copper restored", "/TXD": "original copper restored", "/SWD_EN": "original copper restored", "/TMS": "original copper restored", "/TDI": "original copper restored", "/VPHY": "original copper restored", "/GPIO_C": "original copper restored"}, "oracle_check": "skipped (in-memory board)", "ripped_open": ["/TDI", "/VPHY"], "ripped_open_uncounted": ["/TDI", "/VPHY"], "ripped_open_note": "ripped_open nets are OUTSIDE this run's --nets scope, so they move neither failed_single nor open_single. Those listed in ripped_open_uncounted are additionally not in either scoped term: if they are also outside the multipoint pad deficit, the run's open-net verdict is understated by that many.", "pad_pairs_connected": 39, "pad_pairs_total": 42, "pad_pairs_open": [{"net": "/TDI", "pairs_connected": 1, "pairs_total": 2, "outcome": "open", "open_subtype": "partial"}, {"net": "/VPHY", "pairs_connected": 1, "pairs_total": 3, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 84.2}, {"net": "+3V3", "bottleneck_width_mm": 0.2, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.74, "max_current_ipc2152_a": 0.74, "temp_rise_c": 10.0, "trace_length_mm": 45.4}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 44.7}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.8}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 178.3}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 25.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 36.6}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+  gate: consumed inner strip channel -- dropped 21 superseded write-list piece(s)
+  [+3V3] guaranteed-join gate: net now fully connected
+
+WARNING: this repair pass DISCONNECTED 2 previously-connected signal net(s) (issue #293) - re-route them before shipping:
+  /TDI: 1 pad(s) now disconnected
+  GND: 1 pad(s) now disconnected
+
+============================================================
+SUMMARY
+============================================================
+  Zones processed: 1
+  Total routes added: 2
+  Total vias added: 8
+  Pad repair: 0/1 unconnected pad(s) reconnected
+  1 reported-unconnected pad(s) are CONNECTED per KiCad's exact fill (model quantization): U1.20 (+3V3)
+  Pads still unconnected: none (all model-only; confirmed connected by the oracle)
+  Closed 8 soft joint(s) in repair copper
+
+Writing output to wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb...
+  Stripped 6 in-memory-removed input segment(s) from the output
+Output written to wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+  [finalize timing] engine leg: 4.7s
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  [finalize timing] cleanup leg: 0.1s
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck round 1: KiCad reports 1 missing link(s) on processed nets
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+Route found in 16310 iterations, path length: 141
+    GND: weld escalation REJECTED (copper reaches neither/only one gap endpoint on its layer -- unrelated fragment join, #648)
+  KiCad-oracle recheck: fetching exact fill islands (pcbnew refill)...
+    exact fill: 6 island(s) across 2 zone-layer(s)
+    GND: exact-fill tier: strapping nearest approach (132.59,78.97)<->(132.28,79.30) [B.Cu]
+    GND: (130.47,76.85)<->(130.16,77.18)  OK 11 seg(s), 0 via(s), w=0.30mm
+  [finalize timing] oracle leg: 3.5s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 1, "links_routed": 1, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+
+Final reconciliation: retrying 1 incomplete/custody net(s) against the finished board: /VPHY
+Loading wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /VPHY
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.02s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.02s (61 nets)
+Plane fragility: exact-fill geometry (6 filled island(s) from KiCad refill)
+Plane fragility field: 335727 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /VPHY (id=29)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=16.27mm)
+  Phase 1 edge (pads 0,1) failed after 5014 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/2) (pads 1 and 2, length=7.44mm)
+  Phase 1 edge (pads 1,2) failed after 5014 iterations
+  Phase 1 exhausted from the pads; deferring 2 edge(s) to Phase 3's island-copper sources (base component: 1 terminal(s))
+  SUCCESS: 0 segments, 0 vias, 10028 iterations, length=44.72mm (stubs=44.72mm) (0.03s)
+
+Sync pcb_data: 918 -> 918 (kept stubs) -> 918 (after adding 0)
+
+============================================================
+Multi-point Phase 3: Routing 2 tap connections
+============================================================
+
+/VPHY (net 29):
+  Seeding tap sources from the base island's existing copper (403 cell(s) across 1 island(s))
+  Multi-point net Phase 3: routing 2 remaining MST edges (longest first)
+    [1/2] Routing MST edge: pad 0 -> pad 1 (length=16.27mm) target=(134.64, 83.53)
+      backward stuck (14 < 5000), forward=5000
+        backward cell (1346, 835, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: GND(2 track, 1 pad), /OSCO(1 track, 1 pad)
+      Failed to route MST edge after 5014 iterations (0.00s)
+    Fallback: attempting orphaned pad 1 directly from connected copper
+    [2/2] (1 failed) Routing MST edge: pad 0 -> pad 1 (length=16.27mm) target=(134.64, 83.53)
+      backward stuck (14 < 5000), forward=5000
+        backward cell (1346, 835, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: GND(2 track, 1 pad), /OSCO(1 track, 1 pad)
+      Failed to route MST edge after 5014 iterations (0.00s)
+    Fallback: attempting orphaned pad 2 directly from connected copper
+    [2/2] (1 failed) Routing MST edge: pad 0 -> pad 2 (length=20.99mm) target=(140.71, 82.17)
+      Routed in 7352 iterations (0.00s)
+    [3/2] (1 failed) Routing MST edge: pad 2 -> pad 1 (length=7.44mm) target=(134.64, 83.53)
+      backward stuck (14 < 5000), forward=5000
+        backward cell (1346, 835, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: GND(2 track, 1 pad), /OSCO(1 track, 1 pad)
+      Failed to route MST edge after 5014 iterations (0.00s)
+  Warning: 1 pad(s) not connected (2 MST edge(s) failed)
+  Phase 3 routing complete: 1 edges, 8 total segments, 2 total vias
+  NOT CONNECTED (so far): /VPHY - U1 pad 4 at (134.64, 83.53) - may still be recovered; final verdict in the end-of-run summary
+  Added 8 tap segments, 2 tap vias
+  Net total time: 0.05s, 32422 iterations
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing /VPHY (partial, 2 disconnected parts)
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.25mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 15 plane balls skipped, 25 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.4 /VPHY: no room for a 0.6mm via at the ball (GND track on F.Cu 0.04mm from it, GND track on F.Cu 0.04mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.34mm, GND track 0.34mm; B.Cu: clear within 0.50mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.25mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 15 plane balls skipped, 25 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.4 /VPHY: no room for a 0.6mm via at the ball (GND track on F.Cu 0.04mm from it, GND track on F.Cu 0.04mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.34mm, GND track 0.34mm; B.Cu: clear within 0.50mm
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+No route found after 70743 iterations (forward), trying backward...
+No route found after 194751 iterations (both directions)
+Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+No route found after 70743 iterations (forward), trying backward...
+No route found after 194751 iterations (both directions)
+    rescue failed (0.3s)
+Rescue pass: 0 recovered, 0 improved, 1 unchanged (0.3s)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed
+  Multi-point:   3/4 pads connected (1 FAILED)
+  Total vias:    2
+  Total time:    0.03s
+  Iterations:    10,028
+  Fragility refresh (#466): 1 windows, 0.03s total
+  History congestion (#590): 0 contest + 0 rip + 1 blocked-frontier event(s) over 34 cell(s), peak 0.03mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed multi-point connections:
+  /VPHY: U1 pad ? at (134.64, 83.53) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 0.74A max (0.200mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.74A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "/VPHY", "failed_pads": [{"component_ref": "U1", "pad_number": "?", "x": 134.6375, "y": 83.5349}]}], "multipoint_nets": 1, "multipoint_pads_connected": 3, "multipoint_pads_total": 4, "multipoint_edges_routed": 1, "multipoint_edges_failed": 2, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.03, "total_iterations": 10028, "total_vias": 2, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "off", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 6, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": [], "unchanged": ["/VPHY"], "pads_reconnected": 0, "widths": {}, "time": 0.29}, "oracle_check": "skipped", "blockers": [{"net": "/VPHY", "stage": "phase3", "blocked_by": [{"net": "/OSCO", "blocked_count": 1, "unique_cells": 1, "track_cells": 1, "via_cells": 0, "near_target_cells": 1, "near_source_cells": 0}]}], "pad_pairs_connected": 2, "pad_pairs_total": 3, "pad_pairs_open": [{"net": "/VPHY", "pairs_connected": 2, "pairs_total": 3, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 84.2}, {"net": "+3V3", "bottleneck_width_mm": 0.2, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.74, "max_current_ipc2152_a": 0.74, "temp_rise_c": 10.0, "trace_length_mm": 45.4}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 47.5}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.8}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 182.8}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 25.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 36.6}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb...
+Successfully wrote wk/gpm/12_steppenprobe/arms/P1/p2.kicad_pcb
+  Route trace written to wk/gpm/12_steppenprobe/arms/P1/p2_routetrace.json (1 events)
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+
+Pour re-audit: re-auditing 2 zone net(s) KiCad verified complete before the final reconciliation: +3V3, GND
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  Pour re-audit: every verified pour is whole after the reconciliation (0 link(s) welded back)
+  Strict collapse (#1063, end of run): removed 29 redundant segment(s) on 12 net(s)
+
+  FAB NOTE (route): 1 via(s) in a pad or paste opening [FB2.2 F.Paste (pad)] -- 0 stamped (capping yes) (filling yes), 0 already filled+capped, 1 NOT stampable (the file format cannot declare it per via: put it on the fab drawing), 1 shipped WITHOUT Type VII. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 1, "sites": ["FB2.2 F.Paste (pad)"], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 1, "site_created": 0, "unprotected": [{"site": "FB2.2 F.Paste (pad)", "x": 126.9, "y": 77.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: +3V3 23.1/45.4 mm under the requested 0.3 (min 0.2) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.15, "design_rules": {"escalation_policy": "off", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 1, "nets": [32], "narrowed": [{"net": 32, "net_name": "+3V3", "kind": "track_width", "requested": 0.3, "delivered": 0.2, "site": "power copper shipped under width", "count": 1, "length_mm": 23.05}], "min_delivered": {"track_width": 0.2}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 13, "seconds": 0.14, "routed_single": ["+3V3", "+1V8"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "/TDI", "failed_pads": [{"x": 126.7125, "y": 85.4599, "component_ref": "U1", "pad_number": "?"}]}, {"net_name": "/VPHY", "failed_pads": [{"x": 134.6375, "y": 83.5349, "component_ref": "U1", "pad_number": "?"}]}], "multipoint_pads_total": 49, "multipoint_pads_connected": 47, "successful": 2, "failed": 2, "unowned_broken": [], "recovered": ["+3V3"], "pad_pairs": {"/VPHY": {"total": 3, "connected": 2, "copper": true}, "/TDI": {"total": 2, "connected": 1, "copper": true}}, "broken_by_run": ["/TDI", "/VPHY"]}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (13 net(s), 0.1s)
+============================================================
+  Single-ended:  2/2 routed
+  Multi-point:   47/49 pads connected (2 FAILED)
+  Broken by this run, outside its routing scope (connected on the input; ripped and not restored): /TDI, /VPHY
+  Recovered after a summary reported them failing: 1
+  Ships broken: 2 net(s) -- the `failed` count, over every net the run owns
+  route summary written to wk/gpm/12_steppenprobe/arms/P1/p2.json
+  Route trace written to wk/gpm/12_steppenprobe/arms/P1/p2_routetrace.json (28 events)
+
+IMPROVEMENT GATE: this run broke 2 previously-connected net(s) [/TDI, /VPHY], worsened 0, connected 2 -- ACCEPTED
+  broken by this run: /TDI, /VPHY
+  connected by this run: +1V8, +3V3
+  disconnected pads: 3 -> 2 over 61 multi-pad net(s)
+  shipped (the run connected at least as many nets as it broke)
+JSON_IMPROVEMENT_GATE: {"lost": ["/TDI", "/VPHY"], "gained": ["+1V8", "+3V3"], "lost_zone": [], "gained_zone": ["+3V3"], "worsened": [], "disconnected_pads_before": 3, "disconnected_pads_after": 2, "nets_compared": 61, "verdict": "accept"}
+  Design rules [--escalation off, --fab-tier auto]: 1 feature(s) on 1 net(s) delivered below the requested size (smallest track width 0.2 mm). Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 1, "failed": 2, "failed_single": [], "main_loop_time_s": 0.33, "min_clearance_used": 0.15, "multipoint_deficit": 2, "open_single": [], "pad_pairs_open": {"count": 2, "nets": ["/TDI", "/VPHY"]}, "regraded_nets": 13, "routed": 2, "scope": "merged", "terminal_restores_broken": [], "vias": 20}
+EXIT=0

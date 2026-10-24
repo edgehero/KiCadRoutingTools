@@ -1,0 +1,69 @@
+G01	finding CONFIRMED high	fill_for_delivery's KiCad 10 re-save turns accepted vias-in-paste into blocking violations, and the Type VII stamper cannot undo it
+G04	finding CONFIRMED-PARTIAL medium	check_complete (no --authored-from) says DONE on copper below the project's own recorded fab_floor_origin
+G19	finding CONFIRMED medium	The writeback lowers floors no shipped copper needed (#1319 follow-up): skip-existing pours, an LGA treated as a BGA lattice, route_diff's hole clearance, and a pad override read as the board floor
+G28	finding CONFIRMED-PARTIAL medium	check_complete --authored-from passes a lowered copper-to-hole floor: the KiCad grade refills zones at the authored value, and `reference_too` compares a minimum against an unplaced pile
+G35	finding CONFIRMED medium	design_rules lists narrowings that never shipped and misses one that did (rung-1 via search; route_diff)
+G02	finding CONFIRMED-PARTIAL high	route.py ships dangling vias its #1166 sweep refuses to remove, and loops only a second identical run removes
+G23	finding CONFIRMED-PARTIAL medium	check_weird reports a dangling end where the track's copper overlaps another same-net track's end (KiCad and check_orphan_stubs say connected)
+G25	finding CONFIRMED-PARTIAL medium	route.py's final re-grade: a landed forced link exempts the whole net from the #1339 exact-fill check; a model-only open is never cleared; "confirmed by the oracle" is a centre-distance match
+G26	finding CONFIRMED high	route.py ships a different-net tracks_crossing (sam9g25 RMII-TX0 × VDD-IO) and reports failed 0
+G30	finding CONFIRMED medium	KiCad track_dangling on delivered boards that check_weird and check_orphan_stubs call clean
+G03	finding CONFIRMED high	analyze_power_paths: get_power_net_recommendations sizes a net by part current × power-pad count, plus the source's rating (widths 2-7x)
+G07	finding CONFIRMED high	analyze_power_paths: classified sources and sinks never reach a net unless their pins are typed power_in/power_out, and FETs or load switches never pass current
+G14	finding CONFIRMED-PARTIAL medium	The power widths route.py is asked for, and a board's own Power netclass widths, reach no DONE grader; the routing and placement skills disagree on whether they are a spec
+G33	finding CONFIRMED low	trace_power_paths: sink_nets maps net → one sink, so a rail feeding several loads through a fuse, diode or ferrite is traced for one load only
+G34	finding CONFIRMED medium	trace_power_paths: regulators are traversed in both directions and every reachable source becomes a path, so loads are credited to the wrong regulators many times over
+G05	finding CONFIRMED-PARTIAL high	place_simple: decap limits are soft-priced, so every seed ships error-graded decap misses, and no tool repairs them
+G09	finding CONFIRMED-PARTIAL medium	judge_seeds: the quick-2 ranking inverts full-route rankings when every seed routes, and the skill gives no rule for which arm the judge chain carries
+G17	finding CONFIRMED medium	Edge seat drops a classless edge_connectors row that check_floorplan grades as an ERROR
+G29	finding CONFIRMED-PARTIAL medium	On a project with courtyards_overlap=error, sub-floor courtyard overlaps created by the run ship DONE while KiCad reports them as errors; place_pose --near snaps into courtyards
+G32	finding CONFIRMED medium	place_simple prices a part's drawn courtyard, but check_assembly gates courtyard plus pad copper: neighbours are parked over a pad that reaches past its courtyard
+G40	finding CONFIRMED-PARTIAL low-medium	Template drift is WARN-only, so judge_seeds ranks a seed with a buck inductor 6-19 mm off its datasheet pose first; a keep-out that forbids a template member is not flagged
+G08	finding CONFIRMED-PARTIAL medium	Declared diff pairs are measured, never graded without a .kicad_dru skew rule; check_complete reads DONE while the placement verifier FAILs the same board
+G15	finding CONFIRMED high	board_score/check_complete never read the project's net_impedance and grade only plane crossings: a 50 Ω declaration shipped at 64-80 Ω reads DONE
+G16	finding CONFIRMED medium	A .kicad_dru track_width rule with an insideCourtyard() condition is graded by nothing: check_drc clean, kicad_drc_compare CONSISTENT, KiCad 20 track_width errors
+G21	finding CONFIRMED-PARTIAL medium	route.py length matching cannot aim at a .kicad_dru length window: the target is the longest member, protected members leave the target silently, and an unmeanderable member ships with no status
+G36	finding CONFIRMED medium	check_floorplan prints no facing clause for an exempt edge part, so a side-push switch facing along its edge reads "pass"
+G44	finding CONFIRMED medium	board_score / check_complete keep only the last --impedance-nets; grade.py's repeatable --spec produces exactly that, so argument order hides a defect
+G06	finding CONFIRMED-PARTIAL high	route.py: a pad caged by the run's own copper fails as "no rippable blockers, boxed in by static obstacles", and the hint asks for a wider clearance and track
+G18	finding CONFIRMED medium	An exact-name --rip-existing-nets override is ignored by the plane finalize and its sub-runs, so a plane tap is refused on a net the run made rippable
+G38	finding CONFIRMED medium	#677 instances: a pair routed before the fanout takes a plane ball's only drop site; the ball ships open
+G39	finding CONFIRMED-PARTIAL low	check_join --keep-staged is a board-mutating step that never records into redo_commands.sh, so a chain with hand joins does not replay
+G42	finding CONFIRMED medium	route.py is not deterministic across processes: fill-model region discovery iterates a set of layer names, so the plane finalize follows PYTHONHASHSEED
+G45	finding CONFIRMED medium	route_diff has no way to re-route a connected pair, and the routing skill's #521 override recipe de-pairs it
+G46	finding CONFIRMED medium	A power-net tap that fails its neck-down retry is analysed for rip-up on the wide attempt's frontier, so the real wall is never named
+G10	finding CONFIRMED high	check_assembly never gates a part wholly inside another part's silk-drawn body; One-Air-Max's battery holder stopped gating after #1201
+G11	finding CONFIRMED high	check_reachability ignores the board outline, so it certifies a route across a mouse-bite row the router cannot cross, and no placement grader sees outline regions
+G12	finding CONFIRMED high	edge_connector's overhang reading sums every side and off-board corner, so "an overhang of x reads x" (#1301) is false: 3x on rounded outlines, and another edge's overhang read as the mating edge's
+G20	finding CONFIRMED-PARTIAL medium	route.py lays tracks 2 µm inside the board-edge floor at Edge.Cuts arcs; KiCad reports 5 errors, and kicad_drc_compare subtracts them as "#408 intentional edge"
+G41	finding CONFIRMED medium	A multi-pad `unconnected-*` net (a JST-SH's two MP tabs) is never routed and every DONE grader passes it, while KiCad reports it unconnected
+G47	finding CONFIRMED-PARTIAL medium	plan-pcb-routing tells the agent to add `--thermal-relief`, which its own R07 refuses; kicad_drc_compare names every KiCad 10 PTH starved thermal as pad "?" at the zone corner
+M01	finding CONFIRMED medium	Placement writer crashes on a KiCad 6/7 text `(at x y [a] unlocked)` when it rotates a footprint
+M02	finding CONFIRMED-PARTIAL medium	make_unplaced leaves a KiCad 6 footprint lock in place: the pile ships the part moved off the board and still locked
+M03	finding CONFIRMED medium	A footprint-carried Edge.Cuts window is reclassified as board outline once its part is off the board: the pile fails, and a part already off the board cannot come back
+M04	finding CONFIRMED low	route.py CLI: raw tracebacks for a missing board and mismatched power-net widths; a joined flag word in --nets routes silently at exit 0
+M05	finding CONFIRMED medium	bga_fanout --check-for-previous misses routes that end off a ball's centre: it re-fans them and lays foreign dog-bone vias on their tracks (shorts, failed 0)
+M06	finding CONFIRMED medium	Edge seat on a notched edge: the seat depth is measured at the edge's midpoint and used along the whole edge
+M07	finding CONFIRMED-PARTIAL low	Declared mouse-bite drills on the outline are refused in every seed (exit 4), and the gate judges identical drills differently by slot type
+M08	finding CONFIRMED medium	route.py keeps a path with two same-net vias closer than the drill floor when the #230 guarded retry fails, and reports nothing
+M09	finding CONFIRMED m	--no-fix-drc-settings` drops the #521 protected-nets record, so the next route.py rips and re-routes a routed diff pair
+M10	finding CONFIRMED l	fit_template writes a template row whose members violate the decap limit of the intent it was given
+M11	finding CONFIRMED-PARTIAL m	Placement §3.5 cannot read a datasheet without poppler, and names no fallback
+M12	finding CONFIRMED l	Skill silk-check commands call bare `kicad-cli`, which is not on PATH on macOS
+M13	finding CONFIRMED l	build_router.py judges "matches the release source" against `origin/main`, which on a fork is the fork
+M14	finding CONFIRMED-PARTIAL l	An intent emitted from a pile can never grade complete: check_floorplan exits 4 at 0 errors, and dispositions do not clear it
+M15	finding CONFIRMED-PARTIAL l	route_diff.py lacks route.py's `--json-out`; one chain flag fails one of the two routing CLIs
+M16	finding CONFIRMED l	plan-pcb-routing "Retrying a failed net" names `--rip-existing-nets` where `--force-reroute` is needed
+O1320	old #1320 STILL BROKEN (closed as not planned)	place_simple prices a supply-pin decap limit wider than the 5 mm tether radius at a flat 5 mm past the limit, (still on main)
+O1326	old #1326 PARTLY (closed as completed)	place_pose grades a castellated module's half-holes against the edge-clearance floor (the #1096 exemption stop (still on main)
+O1343	old #1343 STILL BROKEN (closed as not planned)	place_simple prices no far-face escape field under a BGA: back-face parts fill the ball field's outer escape r (still on main)
+O1345	old #1345 STILL BROKEN (closed as not planned)	place_simple prices a `proximity` claim without `pads` as every shared-net pad's reach, while check_floorplan (still on main)
+O1311	old #1311 PARTLY (closed as completed)	route.py's terminal restore of a ripped BGA escape is erased by the end-of-run stale-input strip, and the hint (still on main)
+O1318	old #1318 PARTLY (closed as completed)	route.py ships 0.15 mm necks on 0.3 mm power nets at 0.5 mm-pitch LQFP pins where a 0.3 track fits (fine-pitch (still on main)
+O1303	old #1303 PARTLY (closed as completed)	route_diff reports a pair "coupled" and "matched" that the written copper is not: the seam re-ask replaces the (still on main)
+O1348	old #1348 STILL BROKEN (closed as completed)	route_bus (joint) cages a non-bus ball of its array: U2.F1 (VMEM) PASSABLE before the step, CAGED for any widt (still on main)
+O1316	old #1316 STILL BROKEN (closed as completed)	route_bus writes OUT with .kicad_pro only: whole_route's best-round copy and flow_frame.SIBLINGS drop .kicad_d (still on main)
+O1313	old #1313 PARTLY (closed as completed)	A `.kicad_dru` length window (min/max) is graded by nothing: check_drc and board_score read clean while KiCad (still on main)
+O1349	old #1349 PARTLY (closed as completed)	list_nets --design-rules suggests a via whose drill exceeds its diameter (--via-size 0.45 --via-drill 0.508) (still on main)
+O1355	old #1355 STILL BROKEN (closed as completed)	ortools is an undeclared dependency of awx/route_bus.py (skill Step 1a); without it the bus step lays nothing (still on main)
+O1359	old #1359 PARTLY (closed as completed)	plan-pcb-routing: the DENSE layer-price recipe lets signals onto impedance reference planes, which the declare (still on main)

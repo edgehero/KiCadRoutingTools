@@ -1,0 +1,201 @@
+CMD: Python -X utf8 py_router/route_planes.py wk/gpm/_verify/V1/G19/in14.kicad_pcb wk/gpm/_verify/V1/G19/out14.kicad_pcb --nets GND --plane-layers In1.Cu --clearance-ceiling 0.1
+ENV KNOBS: none
+--track-width not given; using the board Default net-class 0.13mm.
+--via-size not given; using the board Default net-class 0.45mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1mm.
+--clearance-ceiling 0.1: every net class is capped at it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading PCB from wk/gpm/_verify/V1/G19/in14.kicad_pcb...
+Zone clearance: following routed clearance 0.1mm (--zone-clearance to override)
+Found net 'GND' with ID 13
+Note: Replacing existing zone on In1.Cu for net 'GND'; what the replacement changes is listed once the new pour is built (--skip-existing-zones keeps the existing pour)
+Board bounds: (63.60, 78.80) to (113.60, 128.80)
+  Full-stack: appended 1 unrequested copper layer(s) as FORBIDDEN obstacles: In2.Cu
+  Layer costs: F.Cu=1.0x, In1.Cu=3.0x, B.Cu=3.0x, In2.Cu=-1x
+  .kicad_dru rule 'byte0 delay matching': length is not routed to; check_drc grades it
+  .kicad_dru rule 'target length and skew': length is not routed to; check_drc grades it
+  Auto-read netclass clearances for 32 net(s) (cross-class max(A,B) respected for plane taps).
+
+============================================================
+Processing net 'GND' on layer In1.Cu
+============================================================
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 0
+  SMD pads on In1.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 0
+  Pads OUTSIDE the board outline (unreachable, skipped, #291): 177
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 69.9 mm (diagonal)
+    Avg width:   35.4 mm
+    Resistance:  0.948 mΩ
+    Max current: not rated -- 1919 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 15.86 A by extrapolation
+
+Results for 'GND':
+  Zone created on In1.Cu (replaced existing)
+  New vias placed: 0
+  Traces added: 0
+Replaced 'GND' pour on In1.Cu (--skip-existing-zones keeps it): 3 setting(s) changed
+    minimum width: 0.25 mm -> 0.1 mm  [--min-thickness]
+    thermal gap / spoke width: 0.5 mm / 0.5 mm -> 0.2 mm / 0.2 mm  [route_planes' fixed spoke geometry; unused while pads connect solid]
+    outline: 4-vertex outline (62.60, 78.80)..(113.40, 129.60) -> 4-vertex outline (63.90, 79.10)..(113.30, 128.50)  [the board's bounding box inset 0.3 mm (--board-edge-clearance)]
+
+Writing output to wk/gpm/_verify/V1/G19/out14.kicad_pcb...
+Output written to wk/gpm/_verify/V1/G19/out14.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+
+============================================================
+GEOMETRIC VERIFICATION (re-parsed output)
+============================================================
+  GND: 39/177 pads connected to plane on In1.Cu
+      unconnected pad C76 on 'GND' at (88.25, 140.79) [F.Cu]
+      unconnected pad U6 on 'GND' at (89.96, 143.71) [F.Cu]
+      unconnected pad C19 on 'GND' at (90.75, 139.12) [F.Cu]
+      unconnected pad R67 on 'GND' at (89.94, 143.29) [F.Cu]
+      unconnected pad C17 on 'GND' at (89.11, 139.12) [F.Cu]
+      unconnected pad C25 on 'GND' at (87.83, 139.54) [F.Cu]
+      unconnected pad C6 on 'GND' at (87.00, 140.38) [F.Cu]
+      unconnected pad C21 on 'GND' at (86.58, 139.54) [F.Cu]
+      unconnected pad J6 on 'GND' at (89.68, 142.53) [F.Cu]
+      unconnected pad U4 on 'GND' at (89.13, 143.71) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 137.71) [F.Cu]
+      unconnected pad U2 on 'GND' at (86.65, 138.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (88.25, 138.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 138.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (86.65, 140.11) [F.Cu]
+      unconnected pad U2 on 'GND' at (92.25, 140.11) [F.Cu]
+      unconnected pad U2 on 'GND' at (86.65, 140.91) [F.Cu]
+      unconnected pad U2 on 'GND' at (87.45, 140.91) [F.Cu]
+      unconnected pad U2 on 'GND' at (92.25, 140.91) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 141.71) [F.Cu]
+      unconnected pad U2 on 'GND' at (92.25, 142.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 142.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (92.25, 144.11) [F.Cu]
+      unconnected pad U2 on 'GND' at (86.65, 146.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 146.51) [F.Cu]
+      unconnected pad U2 on 'GND' at (86.65, 148.11) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 148.11) [F.Cu]
+      unconnected pad U2 on 'GND' at (86.65, 149.71) [F.Cu]
+      unconnected pad U2 on 'GND' at (93.05, 149.71) [F.Cu]
+      unconnected pad U5 on 'GND' at (89.55, 143.71) [F.Cu]
+      unconnected pad J5 on 'GND' at (89.77, 142.53) [F.Cu]
+      unconnected pad C26 on 'GND' at (88.25, 139.54) [F.Cu]
+      unconnected pad J7 on 'GND' at (90.10, 142.53) [F.Cu]
+      unconnected pad C22 on 'GND' at (87.00, 139.54) [F.Cu]
+      unconnected pad C27 on 'GND' at (88.66, 139.54) [F.Cu]
+      unconnected pad C15 on 'GND' at (89.08, 139.12) [F.Cu]
+      unconnected pad C11 on 'GND' at (87.41, 139.12) [F.Cu]
+      unconnected pad C20 on 'GND' at (91.58, 139.12) [F.Cu]
+      unconnected pad C63 on 'GND' at (88.66, 140.38) [F.Cu]
+      unconnected pad R8 on 'GND' at (87.86, 143.71) [F.Cu]
+      unconnected pad C40 on 'GND' at (88.50, 139.96) [F.Cu]
+      unconnected pad C64 on 'GND' at (89.08, 140.38) [F.Cu]
+      unconnected pad R11 on 'GND' at (91.61, 141.21) [F.Cu]
+      unconnected pad C28 on 'GND' at (89.08, 139.54) [F.Cu]
+      unconnected pad C16 on 'GND' at (89.34, 139.12) [F.Cu]
+      unconnected pad U1 on 'GND' at (83.03, 137.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (95.83, 137.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (84.63, 138.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 138.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.03, 138.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (94.23, 138.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (88.63, 140.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.03, 140.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.03, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (88.63, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (89.43, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (90.23, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.03, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 141.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (84.63, 142.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (86.23, 142.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 142.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 142.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (94.23, 142.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 142.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 143.71) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 143.71) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 144.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (84.63, 145.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 145.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 146.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (88.63, 146.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (89.43, 146.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (90.23, 146.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.03, 146.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.83, 146.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (84.63, 146.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (86.23, 146.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 146.91) [F.Cu]
+      unconnected pad U1 on 'GND' at (84.63, 148.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (86.23, 148.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (87.83, 148.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (91.03, 148.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (95.03, 148.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (95.83, 148.51) [F.Cu]
+      unconnected pad U1 on 'GND' at (93.43, 149.31) [F.Cu]
+      unconnected pad U1 on 'GND' at (83.03, 150.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (93.43, 150.11) [F.Cu]
+      unconnected pad U1 on 'GND' at (95.83, 150.11) [F.Cu]
+      unconnected pad J2 on 'GND' at (84.57, 139.94) [F.Cu]
+      unconnected pad J2 on 'GND' at (84.57, 141.21) [F.Cu]
+      unconnected pad SW3 on 'GND' at (91.07, 144.51) [F.Cu]
+      unconnected pad C48 on 'GND' at (90.59, 139.96) [B.Cu]
+      unconnected pad C34 on 'GND' at (91.00, 139.54) [B.Cu]
+      unconnected pad C72 on 'GND' at (86.42, 140.79) [B.Cu]
+      unconnected pad C74 on 'GND' at (87.25, 140.79) [B.Cu]
+      unconnected pad C31 on 'GND' at (89.75, 139.54) [B.Cu]
+      unconnected pad C32 on 'GND' at (90.17, 139.54) [B.Cu]
+      unconnected pad C67 on 'GND' at (90.17, 140.38) [B.Cu]
+      unconnected pad C14 on 'GND' at (88.66, 139.12) [B.Cu]
+      unconnected pad R54 on 'GND' at (88.51, 142.88) [B.Cu]
+      unconnected pad C60 on 'GND' at (87.25, 140.38) [B.Cu]
+      unconnected pad C46 on 'GND' at (89.75, 139.96) [B.Cu]
+      unconnected pad C52 on 'GND' at (91.58, 139.96) [B.Cu]
+      unconnected pad C66 on 'GND' at (89.75, 140.38) [B.Cu]
+      unconnected pad C13 on 'GND' at (88.09, 139.12) [B.Cu]
+      unconnected pad C10 on 'GND' at (87.00, 139.12) [B.Cu]
+      unconnected pad C65 on 'GND' at (89.34, 140.38) [B.Cu]
+      unconnected pad J4 on 'GND' at (84.62, 148.93) [B.Cu]
+      unconnected pad C5 on 'GND' at (91.00, 139.96) [B.Cu]
+      unconnected pad C39 on 'GND' at (87.67, 139.96) [B.Cu]
+      unconnected pad C61 on 'GND' at (87.67, 140.38) [B.Cu]
+      unconnected pad C12 on 'GND' at (87.67, 139.12) [B.Cu]
+      unconnected pad C4 on 'GND' at (88.25, 139.96) [B.Cu]
+      unconnected pad C42 on 'GND' at (89.50, 139.96) [B.Cu]
+      unconnected pad C37 on 'GND' at (87.00, 139.96) [B.Cu]
+      unconnected pad C7 on 'GND' at (91.42, 140.38) [B.Cu]
+      unconnected pad C23 on 'GND' at (87.41, 139.54) [B.Cu]
+      unconnected pad C18 on 'GND' at (90.17, 139.12) [B.Cu]
+      unconnected pad C3 on 'GND' at (89.34, 139.54) [B.Cu]
+      unconnected pad C68 on 'GND' at (90.75, 140.38) [B.Cu]
+      unconnected pad R56 on 'GND' at (89.34, 142.88) [B.Cu]
+      unconnected pad C8 on 'GND' at (88.66, 140.79) [B.Cu]
+      unconnected pad C62 on 'GND' at (88.09, 140.38) [B.Cu]
+      unconnected pad C2 on 'GND' at (91.00, 139.12) [B.Cu]
+      unconnected pad C33 on 'GND' at (90.59, 139.54) [B.Cu]
+      unconnected pad C75 on 'GND' at (87.67, 140.79) [B.Cu]
+      unconnected pad C9 on 'GND' at (88.92, 140.79) [B.Cu]
+      unconnected pad C69 on 'GND' at (91.00, 140.38) [B.Cu]
+      unconnected pad C47 on 'GND' at (90.17, 139.96) [B.Cu]
+      unconnected pad C1 on 'GND' at (86.42, 139.12) [B.Cu]
+      unconnected pad C35 on 'GND' at (91.42, 139.54) [B.Cu]
+      unconnected pad C53 on 'GND' at (86.42, 140.38) [B.Cu]
+      unconnected pad R58 on 'GND' at (90.17, 142.88) [B.Cu]
+      unconnected pad C41 on 'GND' at (88.92, 139.96) [B.Cu]
+      unconnected pad C73 on 'GND' at (86.84, 140.79) [B.Cu]
+      unconnected pad C38 on 'GND' at (87.25, 139.96) [B.Cu]
+
+  138 pad(s) are not connected to their plane by the pour alone -- EXPECTED (#562): the plane step places no taps. They are welded during the route step's normal routing (pour-launch); its in-run finalize then verifies against KiCad's exact fill and repairs any residue. Grade the board AFTER the route step, not here (see per-net breakdown above).
+  Bare pour (no track or via drawn): writing the copper clearance only -- no size or copper-to-hole floor (#1319)
+  DRC settings: wrote 2 value(s) to wk/gpm/_verify/V1/G19/out14.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_clearance: 0.1 -> 0.08 mm
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/_verify/V1/G19/out14.kicad_pro", "writes": ["rules.min_clearance: 0.1 -> 0.08 mm", "kicad_routing_tools.fab_floor_origin: recorded"]}
+JSON_SUMMARY: {"complete": true, "env_knobs": {}, "min_clearance_used": 0.1, "pads": {"geometric_failed": 138}, "pads_scope": "all zones in this run, summed -- not per zone; see plane_zones for what was poured", "plane_nets": ["GND"], "plane_resistance": [{"avg_width_mm": 35.367, "copper_oz": 1.0000000000000002, "max_current_a": 15.86, "max_current_ipc2152_a": 31.73, "net": "GND", "path_basis": "route", "path_length_mm": 69.86, "resistance_ohms": 0.000948, "temp_rise_c": 10.0}], "plane_zones": [{"layer": "In1.Cu", "net": "GND"}], "status": "ok", "zone_replacements": [{"changes": [{"new": "0.1 mm", "old": "0.25 mm", "setting": "minimum width", "why": "--min-thickness"}, {"new": "0.2 mm / 0.2 mm", "old": "0.5 mm / 0.5 mm", "setting": "thermal gap / spoke width", "why": "route_planes' fixed spoke geometry; unused while pads connect solid"}, {"new": "4-vertex outline (63.90, 79.10)..(113.30, 128.50)", "old": "4-vertex outline (62.60, 78.80)..(113.40, 129.60)", "setting": "outline", "why": "the board's bounding box inset 0.3 mm (--board-edge-clearance)"}], "layers": ["In1.Cu"], "net": "GND", "replaced_uuid": "c27701b9-998f-4354-af99-44cb574c6e60"}]}
+EXIT=0
+python3 -X utf8 py_router/route_planes.py $V/in14.kicad_pcb $V/out14.kicad_pc  1,05s user 0,04s system 99% cpu 1,098 total

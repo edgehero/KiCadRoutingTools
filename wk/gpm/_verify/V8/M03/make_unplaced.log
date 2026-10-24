@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 395, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 391, in main
+    return build(a.src, a.dst, a.keep_locked, a.keep_local_zones)
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 259, in build
+    if not write_placed_output(src, dst, placements, pcb_data=pcb):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "py_placer/placement/writer.py", line 1356, in write_placed_output
+    raise OutlineOwnerMove(
+    ...<4 lines>...
+        f"produced the placement list (#829).")
+placement.writer.OutlineOwnerMove: this write would have CHANGED THE BOARD OUTLINE of wk/gpm/_verify/V8/M03/p.kicad_pcb. The placement stack does not resize boards: size, cutouts and slots are mechanical decisions the user owns. Nothing was written. This is a bug in whatever produced the placement list (#829).

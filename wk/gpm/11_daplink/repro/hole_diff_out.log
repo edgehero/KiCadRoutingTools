@@ -1,0 +1,539 @@
+CMD: Python -X utf8 py_router/route_diff.py wk/gpm/11_daplink/repro/hole_in.kicad_pcb wk/gpm/11_daplink/repro/hole_diff_out.kicad_pcb --nets /D+ /D- --track-width 0.2 --diff-pair-gap 0.2 --clearance-ceiling 0.2 --via-size 0.5 --via-drill 0.3
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.2mm.
+--clearance-ceiling 0.2: every net class is capped at it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.0mm [fixed default].
+  WARNING: --board-edge-clearance 0.0 is below the physical fab floor 0.2 (the advanced rung, or your --fab-overrides); pinning up to 0.2. Pass --fab-overrides to declare a smaller fab capability, or raise the value to silence this.
+Loading wk/gpm/11_daplink/repro/hole_in.kicad_pcb to expand net patterns...
+Routing 2 nets as differential pairs: ['/D+', '/D-']
+Loading wk/gpm/11_daplink/repro/hole_in.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+No BGA components detected - no exclusion zones needed
+Found 1 differential pair(s)
+  Polarity swaps disabled (no --polarity-swap-nets; pass '*' to allow all pairs)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+
+Analyzing layer swaps for 1 diff pair(s)...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 diff pairs + 0 single nets = 1 units with 0 crossing conflicts
+MPS Round 1: 1 units: /D
+
+Routing 1 differential pair(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.01s
+Building diff pair obstacle map (extra clearance: 0.200mm)...
+Diff pair obstacle map built in 0.01s
+Blocking connector regions for 1 diff pair(s)...
+Found 29 unrouted nets in PCB for stub proximity
+GND net: 'GND' (id 4) (GND vias will be added as obstacles)
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.01s (29 nets)
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing diff pair /D
+  P: /D+ (id=2)
+  N: /D- (id=46)
+  Multi-point pair: 3 terminals, 2 legs
+  Chain: R13:2/2 -> P1:B6/A7 -> P1:A6/B7
+  Leg 1/2: R13:2/2 -> P1:B6/A7
+Route found in 943 iterations, path: 69 poses -> 69 points -> 10 simplified
+  Connector grazes foreign pad C9.2 (net GND) by 0.264mm on F.Cu - rejecting pair route (issue #165)
+  (a connector/setback segment violates clearance to the partner or foreign copper; needs a cleaner connector route or a different terminal join)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+  HYBRID failed (/D): 2 layer-combo(s) rejected -- no clear diff-pair-wide launch swath at a terminal; terminal legs could not attach to the coupled middle
+  Leg 1 FAILED (could not route) - ripping 0 committed leg(s)
+  Trying alternative chain order (2/4)...
+  Chain: P1:A6/B7 -> P1:B6/A7 -> R13:2/2
+  Leg 1/2: P1:A6/B7 -> P1:B6/A7
+    electrically short (< 4.0mm coupled) - deferring leg to single-ended
+  Leg 2/2: P1:B6/A7 -> R13:2/2
+Route found in 1653 iterations, path: 75 poses -> 75 points -> 8 simplified
+  Connector grazes foreign pad C9.2 (net GND) by 0.264mm on F.Cu - rejecting pair route (issue #165)
+  (a connector/setback segment violates clearance to the partner or foreign copper; needs a cleaner connector route or a different terminal join)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+        backward cell (1079, 1130, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1134, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(2 pad)
+        backward cell (1079, 1134, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1129, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D+(2 pad)
+  HYBRID failed (/D): 2 layer-combo(s) rejected -- no clear diff-pair-wide launch swath at a terminal; terminal legs could not attach to the coupled middle
+  Leg 2 FAILED (could not route) - ripping 0 committed leg(s)
+  Trying alternative chain order (3/4)...
+  Chain: R13:2/2 -> P1:A6/B7 -> P1:B6/A7
+  Leg 1/2: R13:2/2 -> P1:A6/B7
+Route found in 1076 iterations, path: 66 poses -> 66 points -> 6 simplified
+  Connector grazes foreign pad C9.2 (net GND) by 0.264mm on F.Cu - rejecting pair route (issue #165)
+  (a connector/setback segment violates clearance to the partner or foreign copper; needs a cleaner connector route or a different terminal join)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1130, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      backward stuck (21 < 5000), forward=5000
+        backward cell (1144, 1130, layer=0): ok, 7/8 neighbors blocked
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1130, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1130, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1130, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1144, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1131, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      backward stuck (1 < 5000), forward=5000
+        backward cell (1150, 1127, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+  HYBRID failed (/D): 2 layer-combo(s) rejected -- terminal legs could not attach to the coupled middle (x2)
+  Leg 1 FAILED (could not route) - ripping 0 committed leg(s)
+  Trying alternative chain order (4/4)...
+  Chain: P1:B6/A7 -> P1:A6/B7 -> R13:2/2
+  Leg 1/2: P1:B6/A7 -> P1:A6/B7
+    electrically short (< 4.0mm coupled) - deferring leg to single-ended
+  Leg 2/2: P1:A6/B7 -> R13:2/2
+Route found in 1447 iterations, path: 71 poses -> 71 points -> 6 simplified
+  Connector grazes foreign pad C9.2 (net GND) by 0.264mm on F.Cu - rejecting pair route (issue #165)
+  (a connector/setback segment violates clearance to the partner or foreign copper; needs a cleaner connector route or a different terminal join)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1095, 1122, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+        backward cell (1095, 1126, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: /D-(2 pad)
+        backward cell (1079, 1120, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (1 < 5000), backward=5000
+        forward cell (1079, 1124, layer=0): ok, 8/8 neighbors blocked
+          Blocking obstacles: /D-(2 pad)
+      Both directions stuck (forward=1, backward=1 < 5000)
+        forward cell (1079, 1119, layer=0): ok, 8/8 neighbors blocked (margin=2)
+          Blocking obstacles: Net-(P1-CC1)(1 pad), /D+(1 pad)
+        backward cell (1079, 1124, layer=1): ok, 8/8 neighbors blocked (margin=2)
+      forward stuck (10 < 5000), backward=5000
+        forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+          Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+  HYBRID failed (/D): 2 layer-combo(s) rejected -- terminal legs could not attach to the coupled middle (x2)
+  Leg 2 FAILED (could not route) - ripping 0 committed leg(s)
+    Relocated terminal R13:2/2 F.Cu(56%) -> B.Cu(0%)
+  WARNING: layer-switch pad via (net 2): escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+           NOTE: --via-size cannot prevent this. The via is re-derived from min(pad.size_x, pad.size_y) floored at the fab ladder, so RAISING --via-size makes the clamp fire more readily, never less. A hard tier or --fab-overrides is what forbids the escalation.
+      layer-switch via stepped down to 0.25/0.15 at (107.86,112.42) (nominal 0.5 does not fit)
+  WARNING: layer-switch pad via (net 46): escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+      layer-switch via stepped down to 0.25/0.15 at (107.86,111.92) (nominal 0.5 does not fit)
+    Relocated terminal P1:A6/B7 F.Cu(47%) -> B.Cu(0%)
+      layer-switch via stepped down to 0.25/0.15 at (107.86,113.42) (nominal 0.5 does not fit)
+      layer-switch via stepped down to 0.25/0.15 at (107.86,112.92) (nominal 0.5 does not fit)
+    Relocated terminal P1:B6/A7 F.Cu(50%) -> B.Cu(0%)
+  Retrying chain with 3 terminal(s) relocated to B.Cu...
+  Chain: R13:2/2 -> P1:B6/A7 -> P1:A6/B7
+  Leg 1/2: R13:2/2 -> P1:B6/A7
+    electrically short (< 4.0mm coupled) - deferring leg to single-ended
+  Leg 2/2: P1:B6/A7 -> P1:A6/B7
+    electrically short (< 4.0mm coupled) - deferring leg to single-ended
+  All 2 legs electrically short - whole pair left for single-ended
+
+============================================================
+2 net(s) have far-apart terminal pads peeled from the coupled chain - route them single-ended next:
+  /D+
+  /D-
+  e.g.  route.py <this_output> <out2> --nets '/D+' '/D-'
+============================================================
+
+============================================================
+Single-ended member fallback: 1 non-coupled pair(s) - attempting BOTH members P->P / N->N (no rip-up)
+============================================================
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=4.12mm)
+  forward stuck (10 < 5000), backward=5000
+    forward cell (1079, 1124, layer=0): ok, 6/8 neighbors blocked
+      Blocking obstacles: /D-(2 pad)
+  WARNING: plane tap P1.A6: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 0,2) failed after 5010 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/2) (pads 0 and 1, length=1.00mm)
+  Both directions stuck (forward=10, backward=10 < 5000)
+    forward cell (1079, 1124, layer=0): ok, 6/8 neighbors blocked
+      Blocking obstacles: /D-(2 pad)
+    backward cell (1079, 1134, layer=0): ok, 6/8 neighbors blocked
+      Blocking obstacles: unconnected-(P1-SBU1-PadA8)(1 pad), /D-(1 pad)
+  WARNING: plane tap P1.B6: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 0,1) failed after 20 iterations
+  Failed to route a main edge after 5030 iterations (2 edge(s) tried)
+  SE FALLBACK FAILED /D+ (/D P member) - left for the downstream single-ended pass
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=10.77mm)
+  forward stuck (10 < 5000), backward=5000
+    forward cell (1079, 1129, layer=0): ok, 6/8 neighbors blocked
+      Blocking obstacles: /D+(2 pad)
+  WARNING: plane tap P1.A7: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 1,2) failed after 5010 iterations - trying next MST edge
+  Multi-point net Phase 1: retrying with next MST edge (2/2) (pads 0 and 1, length=1.00mm)
+  Both directions stuck (forward=10, backward=10 < 5000)
+    forward cell (1079, 1119, layer=0): ok, 6/8 neighbors blocked
+      Blocking obstacles: /D+(1 pad), Net-(P1-CC1)(1 pad)
+    backward cell (1079, 1129, layer=0): ok, 6/8 neighbors blocked
+      Blocking obstacles: /D+(2 pad)
+  WARNING: plane tap P1.B7: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+  Phase 1 edge (pads 0,1) failed after 20 iterations
+  Failed to route a main edge after 5030 iterations (2 edge(s) tried)
+  SE FALLBACK FAILED /D- (/D N member) - left for the downstream single-ended pass
+
+============================================================
+Routing complete
+============================================================
+  Diff pairs:    0/1 routed
+  Member-incomplete: 1 pair(s) with disconnected member pads at this step (/D) — JSON_SUMMARY.member_incomplete_pairs
+  Single-ended:  1 (deferred to single-ended routing: 1 electrically short)
+  SE fallback:   0/2 member net(s) routed, 2 FAILED
+  Total vias:    0
+  Total time:    0.20s
+  Iterations:    0
+JSON_SUMMARY: {"routed_diff_pairs": [], "failed_diff_pairs": [], "partial_diff_pairs": [], "member_incomplete_pairs": ["/D"], "uncoupled_diff_pairs": [], "single_ended_diff_pairs": ["/D"], "ripup_success_pairs": [], "rerouted_pairs": [], "polarity_swapped_pairs": [], "polarity_swap_denied_pairs": [], "single_ended_followup_nets": ["/D+", "/D-"], "skipped_bad_fanout": [], "target_swaps": [], "layer_swaps": 0, "intra_pair_matching": [], "successful": 0, "failed": 0, "total_time": 0.2, "total_iterations": 0, "total_vias": 0, "min_clearance_used": 0.2, "pair_reports": [{"pair": "/D", "p_net": "/D+", "n_net": "/D-", "outcome": "deferred", "failure_reason": "electrically-short", "failure_stage": "multipoint", "incomplete_members": ["/D+", "/D-"], "member_audit_mismatch": false, "no_coupled_trunk": false, "se_fallback": {"p": "failed", "n": "failed"}}], "casualty_reconcile": {"attempted": 0, "restored": [], "rerouted": [], "partial": [], "unrecovered": []}, "single_ended_fallback": {"attempted": ["/D+", "/D-"], "routed": [], "partial": [], "failed": ["/D+", "/D-"]}, "gnd_vias_not_placed": [], "plane_fragility": {"source": "none", "islands": 0, "refill_status": null, "why": "the board has no zones", "machine_dependent": false}, "env_knobs": {}, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"via_diameter": 0.5, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.1, "clearance": 0.2}, "count": 28, "nets": [2, 46], "narrowed": [{"net": 46, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.127, "site": "terminal neck", "count": 1}, {"net": 2, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.197, "site": "pair partner neck", "count": 1}, {"net": 2, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.197, "site": "pair partner neck", "count": 1}, {"net": 46, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.127, "site": "terminal neck", "count": 1}, {"net": 46, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.127, "site": "terminal neck", "count": 1}, {"net": 2, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.197, "site": "pair partner neck", "count": 1}, {"net": 2, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.197, "site": "pair partner neck", "count": 1}, {"net": 46, "net_name": null, "kind": "track_width", "requested": 0.2, "delivered": 0.127, "site": "terminal neck", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "layer-switch pad via", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "layer-switch pad via", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "layer-switch pad via", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.25, "site": "layer-switch pad via", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 2, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.5, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 46, "net_name": null, "kind": "via_diameter", "requested": 0.45, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}], "min_delivered": {"track_width": 0.127, "via_diameter": 0.25}, "fab_tier_escalations": 20, "fab_tier_contexts": ["layer-switch pad via (net 2)", "layer-switch pad via (net 46)", "layer-switch pad via (net 2)", "layer-switch pad via (net 46)", "plane tap P1.A6", "plane tap P1.A6", "plane tap P1.A6", "plane tap P1.A6", "plane tap P1.B6", "plane tap P1.B6", "plane tap P1.B6", "plane tap P1.B6", "plane tap P1.A7", "plane tap P1.A7", "plane tap P1.A7", "plane tap P1.A7", "plane tap P1.B7", "plane tap P1.B7", "plane tap P1.B7", "plane tap P1.B7"], "fab_tier_target": "advanced"}}
+
+All diff pairs deferred to single-ended (no coupled copper added); wrote board through to wk/gpm/11_daplink/repro/hole_diff_out.kicad_pcb for the single-ended pass
+  DRC settings: wrote 4 value(s) to wk/gpm/11_daplink/repro/hole_diff_out.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_hole_clearance: 0.25 -> 0.2 mm
+      rules.min_copper_edge_clearance: 0.0 -> 0.2 mm (fab-edge pin)
+      rules.min_via_drill: None -> 0.3 mm
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/11_daplink/repro/hole_diff_out.kicad_pro", "writes": ["rules.min_hole_clearance: 0.25 -> 0.2 mm", "rules.min_copper_edge_clearance: 0.0 -> 0.2 mm (fab-edge pin)", "rules.min_via_drill: None -> 0.3 mm", "kicad_routing_tools.fab_floor_origin: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.25 -> 0.2 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  Design rules [--escalation fab, --fab-tier auto]: 28 feature(s) on 2 net(s) delivered below the requested size (smallest track width 0.127 mm, smallest via diameter 0.25 mm); 20 fab-tier escalation(s) to advanced. Details: JSON_SUMMARY design_rules.
+EXIT=0

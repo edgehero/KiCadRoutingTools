@@ -1,0 +1,464 @@
+{
+  "board": "wk/gpm/_cmp/daplink/ours_stripped.kicad_pcb",
+  "clearance": 0.1452,
+  "kind": "placement-terms",
+  "length_groups": {
+    "cannot_see": [
+      "detours around obstacles: each floor is a straight 0/45/90 run between pad centres",
+      "layer assignment (outer vs inner velocity), vias and via barrel length",
+      "meander room near the short members: copper_to_add_mm says how much copper the group must add, not whether it fits",
+      "fly-by and T topologies: a multipoint floor (farthest pad pair on different parts) bounds the total copper of any tree that spans the net, not one driver-to-receiver path",
+      "where a track enters a pad (pad-edge entry). Not pad die_length: since #1248 each floor adds its pads' pad-to-die length as board_score does (pad_to_die_mm) and the ps figure their die_delay (pad_to_die_ps)",
+      "`mode: pin_pair` only picks the pad-to-die pads (the first two, as board_score): the copper floor is the net floor above, not the pads[0] -> pads[1] path board_score grades in that mode"
+    ],
+    "groups": {},
+    "ran": false,
+    "reason": "no --length-groups given; no matched group's length floors are measured",
+    "report_only": true,
+    "source": null
+  },
+  "schema": 1,
+  "segments": 0,
+  "term_order": [
+    "pair_length",
+    "pin_order_crossings",
+    "cluster_to_pin",
+    "plane_cut_proxy",
+    "balance",
+    "edge_facing"
+  ],
+  "terms": {
+    "balance": {
+      "aperture_pads_excluded": 2,
+      "axis": "x",
+      "basis": [
+        "copper-pads: NPTH and aperture-only pads excluded (#1143)"
+      ],
+      "centre_mm": 125.002,
+      "centroid_mm": 125.239,
+      "direction": "lower-is-better",
+      "npth_pads_excluded": 2,
+      "pad_area_mm2": 155.435,
+      "pads": 144,
+      "ran": true,
+      "reason": null,
+      "span_mm": 50.004,
+      "unit": "fraction of span",
+      "value": 0.0047,
+      "weight": "pad_bbox_area"
+    },
+    "cluster_to_pin": {
+      "basis": [
+        "C1~U1",
+        "C2~U1",
+        "C3~U1",
+        "C4~U2",
+        "C5~U2",
+        "C6~U2",
+        "C8~U2",
+        "C9~U2"
+      ],
+      "declared": 0,
+      "direction": "lower-is-better",
+      "inferred": 8,
+      "ran": true,
+      "reason": null,
+      "rows": [
+        {
+          "claim": null,
+          "gap_mm": 4.33,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U2",
+          "passes": null,
+          "ref": "C9",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 3.399,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U2",
+          "passes": null,
+          "ref": "C5",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 3.2931,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U2",
+          "passes": null,
+          "ref": "C6",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 3.1029,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U2",
+          "passes": null,
+          "ref": "C8",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 2.0517,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U2",
+          "passes": null,
+          "ref": "C4",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 1.7314,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U1",
+          "passes": null,
+          "ref": "C3",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 1.6895,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U1",
+          "passes": null,
+          "ref": "C2",
+          "source": "inferred"
+        },
+        {
+          "claim": null,
+          "gap_mm": 1.681,
+          "geom": "centre",
+          "limit_mm": null,
+          "near": "U1",
+          "passes": null,
+          "ref": "C1",
+          "source": "inferred"
+        }
+      ],
+      "scored": "inferred",
+      "unit": "mm",
+      "unresolved": 0,
+      "unresolved_claims": [],
+      "value": 4.33,
+      "worst_pair": "C9~U2"
+    },
+    "edge_facing": {
+      "basis": [
+        "J1",
+        "J2",
+        "J3",
+        "U1",
+        "U2"
+      ],
+      "by_part": {
+        "J1": {
+          "faces": {},
+          "gaps": {},
+          "pads": 4,
+          "to_edge": 0
+        },
+        "J2": {
+          "faces": {
+            "south": 1
+          },
+          "gaps": {
+            "south": 1.6494
+          },
+          "pads": 5,
+          "to_edge": 1
+        },
+        "J3": {
+          "faces": {
+            "north": 1
+          },
+          "gaps": {
+            "north": 1.5449
+          },
+          "pads": 5,
+          "to_edge": 1
+        },
+        "U1": {
+          "faces": {},
+          "gaps": {},
+          "pads": 4,
+          "to_edge": 0
+        },
+        "U2": {
+          "faces": {},
+          "gaps": {},
+          "pads": 48,
+          "to_edge": 0
+        }
+      },
+      "direction": "lower-is-better",
+      "edge_mm": 2.0,
+      "excluded": [
+        "P1",
+        "RST1"
+      ],
+      "exclusion_basis": "part_class",
+      "ran": true,
+      "reason": null,
+      "share": 0.0303,
+      "unit": "pads",
+      "value": 2
+    },
+    "pair_length": {
+      "basis": null,
+      "direction": "lower-is-better",
+      "not_measured": [
+        {
+          "carried_whole_by": [
+            "P1"
+          ],
+          "pair": "/D+//D-",
+          "why": "carried whole by P1 only, and no series part joins it end to end to another detected pair"
+        }
+      ],
+      "pairs_found": 1,
+      "ran": false,
+      "reason": "list_nets.find_differential_pairs found 1 pair(s), but none is carried whole by two parts and none composes end to end through per-leg series parts: /D+//D- (carried whole by P1 only, and no series part joins it end to end to another detected pair)",
+      "unit": "mm",
+      "value": null
+    },
+    "pin_order_crossings": {
+      "basis": [
+        "C1~P1",
+        "C1~U1",
+        "C2~P1",
+        "C2~U1",
+        "C3~J1",
+        "C3~J2",
+        "C3~J3",
+        "C3~U1",
+        "C3~U2",
+        "C4~U2",
+        "C5~U2",
+        "C6~U2",
+        "C7~U2",
+        "C8~J3",
+        "C8~RST1",
+        "C8~U2",
+        "C9~U2",
+        "J1~J2",
+        "J1~J3",
+        "J1~U1",
+        "J1~U2",
+        "J2~U1",
+        "J2~U2",
+        "J3~R11",
+        "J3~RST1",
+        "J3~U1",
+        "J3~U2",
+        "P1~R1",
+        "P1~R14",
+        "P1~U1",
+        "R10~U2",
+        "R11~U2",
+        "R15~U2",
+        "R2~U2",
+        "R3~U2",
+        "R4~U2",
+        "R5~U2",
+        "R9~U2",
+        "RST1~U2",
+        "U1~U2",
+        "U2~Y1"
+      ],
+      "direction": "lower-is-better",
+      "inversions": 27,
+      "pairs": [
+        {
+          "a": "J3",
+          "b": "U2",
+          "inversions": 4,
+          "nets": 5,
+          "span_mm": 23.38
+        },
+        {
+          "a": "J1",
+          "b": "U2",
+          "inversions": 2,
+          "nets": 4,
+          "span_mm": 13.631
+        },
+        {
+          "a": "J2",
+          "b": "U2",
+          "inversions": 2,
+          "nets": 4,
+          "span_mm": 22.226
+        },
+        {
+          "a": "C1",
+          "b": "P1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 11.803
+        },
+        {
+          "a": "C2",
+          "b": "U1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 6.508
+        },
+        {
+          "a": "C3",
+          "b": "J1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 20.366
+        },
+        {
+          "a": "C3",
+          "b": "J3",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 28.823
+        },
+        {
+          "a": "C3",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 16.679
+        },
+        {
+          "a": "C4",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 12.725
+        },
+        {
+          "a": "C6",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 13.912
+        },
+        {
+          "a": "C8",
+          "b": "RST1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 11.112
+        },
+        {
+          "a": "J1",
+          "b": "J2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 15.545
+        },
+        {
+          "a": "J1",
+          "b": "J3",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 14.457
+        },
+        {
+          "a": "J2",
+          "b": "U1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 34.498
+        },
+        {
+          "a": "J3",
+          "b": "RST1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 10.317
+        },
+        {
+          "a": "J3",
+          "b": "U1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 35.944
+        },
+        {
+          "a": "P1",
+          "b": "R14",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 4.207
+        },
+        {
+          "a": "P1",
+          "b": "U1",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 8.024
+        },
+        {
+          "a": "R11",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 16.569
+        },
+        {
+          "a": "R3",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 12.773
+        },
+        {
+          "a": "R4",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 13.145
+        },
+        {
+          "a": "RST1",
+          "b": "U2",
+          "inversions": 1,
+          "nets": 2,
+          "span_mm": 20.871
+        }
+      ],
+      "ran": true,
+      "reason": null,
+      "rows": 43,
+      "undetermined": 2,
+      "unit": "crossed part pairs",
+      "value": 22
+    },
+    "plane_cut_proxy": {
+      "basis": [
+        "P1",
+        "RST1"
+      ],
+      "blockers": 2,
+      "definition": "length of each net's diameter chord lying INSIDE a locked part's drawn body, summed over parts; ground and power nets excluded",
+      "direction": "lower-is-better",
+      "excluded_nets": [
+        "+3.3V",
+        "+5V",
+        "GND"
+      ],
+      "nets": 0,
+      "ran": true,
+      "reason": null,
+      "rows": [],
+      "unit": "mm",
+      "value": 0.0
+    }
+  }
+}

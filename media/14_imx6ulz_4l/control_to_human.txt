@@ -1,0 +1,20 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                             2262             2399
+  vias                                  354              315
+  total length mm                    2773.2           2579.1
+  distinct track widths                   7                4
+  nets with copper                      134              134
+  ours widths:   {0.089: 48, 0.1: 286, 0.116: 9, 0.13: 1842, 0.2: 10, 0.4: 24, 0.8: 43}
+  orig widths:   {0.1: 1812, 0.13: 378, 0.2: 86, 0.4: 123}
+  ours vias:     {'0.45/0.3': 323, '0.37/0.22': 7, '0.41/0.26': 6, '0.3/0.15': 13, '0.25/0.15': 3, '0.4/0.25': 2}
+  orig vias:     {'0.45/0.3': 313, '0.6/0.3': 2}
+
+  SUGGESTIONS:
+   - VIAS: 354 vs original 315 (1.12x) — comparable.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 2262, "n_vias": 354, "total_length_mm": 2773.2, "length_by_layer": {"F.Cu": 1179.5, "B.Cu": 1086.9, "In1.Cu": 312.0, "In2.Cu": 194.8}, "width_count": {"0.13": 1842, "0.1": 286, "0.116": 9, "0.089": 48, "0.8": 43, "0.2": 10, "0.4": 24}, "via_count": {"0.45/0.3": 323, "0.37/0.22": 7, "0.41/0.26": 6, "0.3/0.15": 13, "0.25/0.15": 3, "0.4/0.25": 2}, "distinct_widths": 7, "nets_with_copper": 134, "n_multi_pad_nets": 135, "n_nets": 249}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 2399, "n_vias": 315, "total_length_mm": 2579.1, "length_by_layer": {"F.Cu": 1047.8, "B.Cu": 1473.7, "In2.Cu": 57.6}, "width_count": {"0.13": 378, "0.4": 123, "0.1": 1812, "0.2": 86}, "via_count": {"0.45/0.3": 313, "0.6/0.3": 2}, "distinct_widths": 4, "nets_with_copper": 134, "n_multi_pad_nets": 135, "n_nets": 249}, "suggestions": ["VIAS: 354 vs original 315 (1.12x) \u2014 comparable."]}

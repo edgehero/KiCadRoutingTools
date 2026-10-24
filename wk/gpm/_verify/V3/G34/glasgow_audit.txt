@@ -1,0 +1,14 @@
+regulators with out->in adjacency: {'U14': (['Net-(U14-OUT)'], ['+5V']), 'U31': (['Net-(U31-OUT)'], ['+5V']), 'U8': (['+3V3'], ['+5V']), 'U36': (['+1V2'], ['+5V'])}
+paths: 10
+paths per sink: {'U13': 3, 'U30': 3, 'U7': 4}
+  U14 -> U13 100 mA nets ['+3V3', '+5V', 'Net-(U14-OUT)'] via ['U8', 'U14']  <-- U14 crossed IN(+5V)->OUT(Net-(U14-OUT)) walking upstream = downstream into another branch; sink rail +3V3 is the OUTPUT of ['U8'], never credited (line 343 skips the sink net)
+  U31 -> U13 100 mA nets ['+3V3', '+5V', 'Net-(U31-OUT)'] via ['U8', 'U31']  <-- U31 crossed IN(+5V)->OUT(Net-(U31-OUT)) walking upstream = downstream into another branch; sink rail +3V3 is the OUTPUT of ['U8'], never credited (line 343 skips the sink net)
+  U36 -> U13 100 mA nets ['+3V3', '+5V', '+1V2'] via ['U8', 'U36']  <-- U36 crossed IN(+5V)->OUT(+1V2) walking upstream = downstream into another branch; sink rail +3V3 is the OUTPUT of ['U8'], never credited (line 343 skips the sink net)
+  U14 -> U30 100 mA nets ['+1V2', '+5V', 'Net-(U14-OUT)'] via ['U36', 'U14']  <-- U14 crossed IN(+5V)->OUT(Net-(U14-OUT)) walking upstream = downstream into another branch; sink rail +1V2 is the OUTPUT of ['U36'], never credited (line 343 skips the sink net)
+  U31 -> U30 100 mA nets ['+1V2', '+5V', 'Net-(U31-OUT)'] via ['U36', 'U31']  <-- U31 crossed IN(+5V)->OUT(Net-(U31-OUT)) walking upstream = downstream into another branch; sink rail +1V2 is the OUTPUT of ['U36'], never credited (line 343 skips the sink net)
+  U8 -> U30 100 mA nets ['+1V2', '+5V', '+3V3'] via ['U36', 'U8']  <-- U8 crossed IN(+5V)->OUT(+3V3) walking upstream = downstream into another branch; sink rail +1V2 is the OUTPUT of ['U36'], never credited (line 343 skips the sink net)
+  U14 -> U7 100 mA nets ['+5V', 'Net-(U14-OUT)'] via ['U14']  <-- U14 crossed IN(+5V)->OUT(Net-(U14-OUT)) walking upstream = downstream into another branch
+  U31 -> U7 100 mA nets ['+5V', 'Net-(U31-OUT)'] via ['U31']  <-- U31 crossed IN(+5V)->OUT(Net-(U31-OUT)) walking upstream = downstream into another branch
+  U8 -> U7 100 mA nets ['+5V', '+3V3'] via ['U8']  <-- U8 crossed IN(+5V)->OUT(+3V3) walking upstream = downstream into another branch
+  U36 -> U7 100 mA nets ['+5V', '+1V2'] via ['U36']  <-- U36 crossed IN(+5V)->OUT(+1V2) walking upstream = downstream into another branch
+paths flagged: 10 of 10

@@ -1,0 +1,30 @@
+CMD: Python -X utf8 py_router/route_diff.py wk/gpm/_verify/V6/G45/done1.kicad_pcb wk/gpm/_verify/V6/G45/done1_rediff.kicad_pcb --nets "/DRAM/DRAM_CLK0_*" "/DRAM/DRAM_DQS*" --track-width 0.1 --diff-pair-gap 0.1 --clearance-ceiling 0.1 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 -1 2.5 1.0 --via-size 0.45 --via-drill 0.25 --escalation board --diff-pair-intra-match
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1mm.
+--clearance-ceiling 0.1: every net class is capped at it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/_verify/V6/G45/done1.kicad_pcb to expand net patterns...
+Pattern '/DRAM/DRAM_CLK0_*' matched 2 nets
+Pattern '/DRAM/DRAM_DQS*' matched 4 nets
+Pattern '/DRAM/DRAM_CLK0_*' matched 2 nets
+Pattern '/DRAM/DRAM_DQS*' matched 4 nets
+Routing 6 nets as differential pairs: ['/DRAM/DRAM_CLK0_N', '/DRAM/DRAM_CLK0_P', '/DRAM/DRAM_DQS0_N', '/DRAM/DRAM_DQS0_P', '/DRAM/DRAM_DQS1_N']...
+Netclass clearances for 32 net(s), capped at --clearance-ceiling 0.1 (mm: [0.1]); diff-pair routing respects cross-class max(A,B). Override with --net-clearances.
+Loading wk/gpm/_verify/V6/G45/done1.kicad_pcb...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=-1.0x, In2.Cu=2.5x, B.Cu=1.0x
+  U2: zone DISABLED -- bare ball(s) of selected net(s) inside it (/DRAM/DRAM_DQS1_P) (#472)
+Auto-detected 1 BGA exclusion zone(s):
+  U1: (80.2, 103.6) to (93.4, 116.8), edge_tol=0.88mm
+Found 3 differential pair(s)
+  Polarity swaps disabled (no --polarity-swap-nets; pass '*' to allow all pairs)
+
+Skipping 6 already-routed net(s): Already fully connected
+All nets are already fully connected - nothing to route!
+Wrote unchanged copy to wk/gpm/_verify/V6/G45/done1_rediff.kicad_pcb (nothing to route)
+  DRC settings already consistent (wk/gpm/_verify/V6/G45/done1_rediff.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.1 mm, unchanged by this step but still below the board's ORIGINAL 0.15mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+EXIT=0

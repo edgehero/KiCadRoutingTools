@@ -1,0 +1,22 @@
+CMD: Python -X utf8 py_tools/check_assembly.py wk/gpm/12_steppenprobe/delivered.kicad_pcb --intent wk/gpm/12_steppenprobe/intent_run.json --baseline wk/gpm/12_steppenprobe/steppenprobe.kicad_pcb
+ENV KNOBS: none
+  grading at clearance 0.15mm  [board netclass]
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Assembly audit of wk/gpm/12_steppenprobe/delivered.kicad_pcb (clearance 0.15):
+  blocking 0  advisory 0  waived 0  contained 0  courtyard_blocking 0  new-vs-baseline 0
+  baseline wk/gpm/12_steppenprobe/steppenprobe.kicad_pcb is a pile: its overlaps are staging, not a baseline (#1103), so every advisory pair counts as new
+  pad/hole/oob echo: 0 pad pair(s), 0 hole conflict(s), 0 part(s) with pad copper off-board
+  BODY COVERAGE: 80 of 84 part(s) draw a body the containment channel can judge (78 fab, 2 silk)
+    A silk body is the LAST resort and never gates: a library may draw an assembly outline there rather than the part (esp_prog's SOT89 draws corner brackets 5.2mm apart around a 4.5mm part). Such pairs are reported, with their source, and excluded from the blocking channels.
+    4 part(s) draw no usable body (no .Fab body, no usable silk), so the channel cannot judge them: H1, H2, H3, H4
+  ASSEMBLY SIDES: F 84 / B 0 pad-bearing part(s) of 84 block(s); 1 reflow pass(es), 2 through-hole part(s)
+    Through-hole F 2 / B 0 (plated barrels only), counted and never folded in: a drilled part on the front needs wave, selective or hand soldering, not a second reflow pass.
+      (`sides_occupied` answers the OBSTRUCTION question instead, and would call this board two-sided.)
+    Unsoldered F 4 / B 0: every pad an unplated hole -- mounting, tooling or alignment. No process attaches these, so they are in neither count above.
+    observed policy: sides=F -- counted per footprint BLOCK, verdict from the pad-bearing subset (parts_by_side_basis in --json has the rule in full)
+  BODY-TO-EDGE BAND: 2 of 72 part(s) have a body within 2.5mm of the board edge [derived_default: JLCPCB's assembly rule, one assembler's -- REPORT-ONLY; declare assembly.body_edge_mm in the intent to gate]  new_in_band 2
+    J4 0.838mm (fab, side F)  MOVED
+    D1 1.238mm (fab, side F)  MOVED
+    in the band but belonging at the edge, never counted (edge class, marker, or an edge the intent declares): H1 0.0mm [mount_hole], H2 0.0mm [mount_hole], H3 0.0mm [mount_hole], H4 0.0mm [mount_hole], J1 0.0mm [edge_receptacle], SW1 0.25mm [edge_actuator]
+  VERDICT: buildable (blocking 0)
+EXIT=0

@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=delivered.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                             1234             3993
+  vias                                  133               87
+  total length mm                     907.2            742.7
+  distinct track widths                  47                7
+  nets with copper                       45               45
+  ours widths:   {0.1: 716, 0.125: 3, 0.127: 1, 0.14: 4, 0.15: 12, 0.175: 10, 0.18: 11, 0.2: 51, 0.21: 3, 0.22: 13, 0.24: 3, 0.25: 26, 0.26: 11, 0.265: 1, 0.27: 7, 0.275: 2, 0.28: 6, 0.29: 4, 0.3: 71, 0.31: 3, 0.34: 12, 0.35: 53, 0.355: 1, 0.37: 2, 0.385: 1, 0.39: 5, 0.4: 28, 0.41: 2, 0.42: 10, 0.425: 2, 0.43: 5, 0.45: 2, 0.46: 7, 0.47: 6, 0.49: 9, 0.5: 33, 0.51: 4, 0.53: 2, 0.55: 14, 0.56: 7, 0.58: 7, 0.59: 1, 0.6: 5, 0.63: 7, 0.65: 3, 0.7: 45, 0.8: 3}
+  orig widths:   {0.15: 2972, 0.2: 58, 0.25: 435, 0.3: 140, 0.4: 112, 0.5: 81, 0.6: 195}
+  ours vias:     {'0.25/0.15': 107, '0.5/0.25': 26}
+  orig vias:     {'0.5/0.3': 81, '0.6/0.4': 6}
+
+  SUGGESTIONS:
+   - VIAS: we placed 133 vias vs original 87 (1.53x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+   - LAYER BALANCE: ours 0.95 vs original 0.9 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 1234, "n_vias": 133, "total_length_mm": 907.2, "length_by_layer": {"F.Cu": 442.7, "B.Cu": 464.5}, "width_count": {"0.3": 71, "0.4": 28, "0.15": 12, "0.27": 7, "0.2": 51, "0.1": 716, "0.14": 4, "0.24": 3, "0.21": 3, "0.18": 11, "0.8": 3, "0.22": 13, "0.26": 11, "0.41": 2, "0.47": 6, "0.7": 45, "0.65": 3, "0.35": 53, "0.53": 2, "0.49": 9, "0.175": 10, "0.63": 7, "0.56": 7, "0.6": 5, "0.385": 1, "0.355": 1, "0.42": 10, "0.59": 1, "0.31": 3, "0.265": 1, "0.28": 6, "0.55": 14, "0.39": 5, "0.51": 4, "0.45": 2, "0.43": 5, "0.5": 33, "0.25": 26, "0.34": 12, "0.37": 2, "0.29": 4, "0.425": 2, "0.125": 3, "0.275": 2, "0.127": 1, "0.46": 7, "0.58": 7}, "via_count": {"0.25/0.15": 107, "0.5/0.25": 26}, "distinct_widths": 47, "nets_with_copper": 45, "n_multi_pad_nets": 45, "n_nets": 47}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 3993, "n_vias": 87, "total_length_mm": 742.7, "length_by_layer": {"F.Cu": 390.7, "B.Cu": 352.0}, "width_count": {"0.15": 2972, "0.6": 195, "0.25": 435, "0.4": 112, "0.5": 81, "0.3": 140, "0.2": 58}, "via_count": {"0.5/0.3": 81, "0.6/0.4": 6}, "distinct_widths": 7, "nets_with_copper": 45, "n_multi_pad_nets": 46, "n_nets": 48}, "suggestions": ["VIAS: we placed 133 vias vs original 87 (1.53x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count.", "LAYER BALANCE: ours 0.95 vs original 0.9 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

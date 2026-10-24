@@ -1,0 +1,169 @@
+CMD: Python -X utf8 py_router/route_planes.py wk/gpm/_verify/V1/G19/in17.kicad_pcb wk/gpm/_verify/V1/G19/out17.kicad_pcb --nets GND GND GND +3V3 --plane-layers F.Cu In1.Cu B.Cu In2.Cu --skip-existing-zones
+ENV KNOBS: none
+--track-width not given; using the board Default net-class 0.15mm.
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.25mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.5mm [fixed default].
+Loading PCB from wk/gpm/_verify/V1/G19/in17.kicad_pcb...
+Zone clearance: following routed clearance 0.15mm (--zone-clearance to override)
+  Zone clearance tightened 0.15 -> 0.119mm so the pour threads U6's via lattice (0.648mm pitch, 0.3mm vias, min width 0.1; fab floor 0.1)
+Found net 'GND' with ID 1
+Found net 'GND' with ID 1
+Found net 'GND' with ID 1
+Found net '+3V3' with ID 2
+Note: zone for 'GND' already exists on F.Cu - keeping it (no new zone; thermal-array/--stitch-vias features still apply; pads are welded by the route step)
+Note: zone for 'GND' already exists on In1.Cu - keeping it (no new zone; thermal-array/--stitch-vias features still apply; pads are welded by the route step)
+Note: zone for 'GND' already exists on B.Cu - keeping it (no new zone; thermal-array/--stitch-vias features still apply; pads are welded by the route step)
+Note: zone for '+3V3' already exists on In2.Cu - keeping it (no new zone; thermal-array/--stitch-vias features still apply; pads are welded by the route step)
+Board bounds: (160.00, 113.50) to (210.00, 140.00)
+  Layer costs: F.Cu=1.0x, In1.Cu=1.0x, B.Cu=1.0x, In2.Cu=1.0x
+
+============================================================
+Processing net 'GND' on layer F.Cu
+============================================================
+  2 pad(s) on 'GND' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 0
+  SMD pads on F.Cu (no via needed): 70
+  SMD pads kept for thermal via arrays (via needed): 0
+
+Results for 'GND':
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+Processing net 'GND' on layer In1.Cu
+============================================================
+  1 exposed/thermal pad(s) get a via ARRAY (#487)
+  71 pad(s) on 'GND' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 0
+  SMD pads on In1.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 1
+
+Building obstacle map for via placement...
+  Grid: 500 x 265 = 132,500 cells (grid_step=0.1mm)
+  Vias: 0 vias in 0.00s
+  Segments: 0 tracks in 0.00s
+  Pads: 253 pads in 0.01s
+  Board edge: 0.00s
+  Drill holes: 0.00s
+  Total obstacle build: 0.01s
+
+Placing thermal via arrays under 1 exposed pad(s) on In1.Cu:
+  Pad U1.33... thermal via array: 9 via(s) over 3.5x3.5mm pad
+
+Results for 'GND':
+  New vias placed: 9
+  Traces added: 0
+
+============================================================
+Processing net 'GND' on layer B.Cu
+============================================================
+  69 pad(s) on 'GND' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 0
+  SMD pads on B.Cu (no via needed): 2
+  SMD pads already routed to plane (no via needed): 1
+  SMD pads kept for thermal via arrays (via needed): 0
+
+Results for 'GND':
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+Processing net '+3V3' on layer In2.Cu
+============================================================
+  36 pad(s) on '+3V3' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net '+3V3':
+  Through-hole pads (no via needed): 0
+  SMD pads on In2.Cu (no via needed): 0
+  SMD pads kept for thermal via arrays (via needed): 0
+
+Results for '+3V3':
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+OVERALL TOTALS
+============================================================
+  Nets processed: 4
+  Total new vias placed: 9
+  Total traces added: 0
+
+  FAB NOTE (plane stitching vias): 9 via(s) in a pad or paste opening [U1 F.Paste (graphic)] -- 0 stamped (capping yes) (filling yes), 0 already filled+capped, 9 NOT stampable (the file format cannot declare it per via: put it on the fab drawing), 9 shipped WITHOUT Type VII. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+
+Writing output to wk/gpm/_verify/V1/G19/out17.kicad_pcb...
+Output written to wk/gpm/_verify/V1/G19/out17.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+
+============================================================
+GEOMETRIC VERIFICATION (re-parsed output)
+============================================================
+  GND: 65/72 pads connected to plane on F.Cu
+      unconnected pad U5 on 'GND' at (201.23, 119.48) [F.Cu]
+      unconnected pad C26 on 'GND' at (206.88, 116.59) [F.Cu]
+      unconnected pad C28 on 'GND' at (206.88, 118.11) [F.Cu]
+      unconnected pad R36 on 'GND' at (201.50, 115.10) [F.Cu]
+      unconnected pad U6 on 'GND' at (202.70, 118.06) [F.Cu]
+      unconnected pad U6 on 'GND' at (204.75, 117.41) [F.Cu]
+      unconnected pad C27 on 'GND' at (204.44, 119.32) [F.Cu]
+  +3V3: 1/36 pads connected to plane on In2.Cu
+      unconnected pad J2 on '+3V3' at (199.95, 134.98) [F.Cu]
+      unconnected pad C18 on '+3V3' at (180.82, 119.89) [F.Cu]
+      unconnected pad C11 on '+3V3' at (191.00, 121.58) [F.Cu]
+      unconnected pad U5 on '+3V3' at (202.03, 119.48) [F.Cu]
+      unconnected pad C17 on '+3V3' at (189.37, 126.08) [F.Cu]
+      unconnected pad C10 on '+3V3' at (169.29, 136.75) [F.Cu]
+      unconnected pad C26 on '+3V3' at (205.92, 116.59) [F.Cu]
+      unconnected pad R35 on '+3V3' at (201.50, 118.06) [F.Cu]
+      unconnected pad TP9 on '+3V3' at (167.84, 137.18) [F.Cu]
+      unconnected pad U4 on '+3V3' at (194.25, 128.60) [F.Cu]
+      unconnected pad U2 on '+3V3' at (170.62, 136.90) [F.Cu]
+      unconnected pad R33 on '+3V3' at (195.74, 130.11) [F.Cu]
+      unconnected pad C25 on '+3V3' at (192.33, 129.49) [F.Cu]
+      unconnected pad R31 on '+3V3' at (197.75, 130.48) [F.Cu]
+      unconnected pad C9 on '+3V3' at (168.11, 138.28) [F.Cu]
+      unconnected pad C13 on '+3V3' at (202.85, 130.72) [F.Cu]
+      unconnected pad U3 on '+3V3' at (186.29, 129.59) [F.Cu]
+      unconnected pad U3 on '+3V3' at (187.74, 122.64) [F.Cu]
+      unconnected pad U3 on '+3V3' at (180.79, 121.19) [F.Cu]
+      unconnected pad R26 on '+3V3' at (195.49, 131.67) [F.Cu]
+      unconnected pad C15 on '+3V3' at (186.45, 131.94) [F.Cu]
+      unconnected pad R19 on '+3V3' at (182.15, 118.91) [F.Cu]
+      unconnected pad R37 on '+3V3' at (201.76, 129.96) [F.Cu]
+      unconnected pad D9 on '+3V3' at (195.39, 132.93) [F.Cu]
+      unconnected pad R24 on '+3V3' at (174.21, 124.02) [F.Cu]
+      unconnected pad C12 on '+3V3' at (181.52, 117.84) [F.Cu]
+      unconnected pad FB3 on '+3V3' at (189.50, 129.47) [F.Cu]
+      unconnected pad R29 on '+3V3' at (190.13, 119.11) [F.Cu]
+      unconnected pad C28 on '+3V3' at (205.92, 118.11) [F.Cu]
+      unconnected pad D7 on '+3V3' at (204.82, 130.39) [F.Cu]
+      unconnected pad U6 on '+3V3' at (202.70, 117.41) [F.Cu]
+      unconnected pad U6 on '+3V3' at (204.75, 116.76) [F.Cu]
+      unconnected pad U6 on '+3V3' at (204.75, 118.06) [F.Cu]
+      unconnected pad C27 on '+3V3' at (203.48, 119.32) [F.Cu]
+      unconnected pad J3 on '+3V3' at (193.64, 134.98) [B.Cu]
+
+  42 pad(s) are not connected to their plane by the pour alone -- EXPECTED (#562): the plane step places no taps. They are welded during the route step's normal routing (pour-launch); its in-run finalize then verifies against KiCad's exact fill and repairs any residue. Grade the board AFTER the route step, not here (see per-net breakdown above).
+  Min clearance used: 0.119 mm (below nominal 0.15; fine-pitch taps) - grading at this floor
+  DRC settings: wrote 6 value(s) to wk/gpm/_verify/V1/G19/out17.kicad_pro to match the routed floors (close+reopen in KiCad if it is open). WRITES, not changes: a key the project never declared counts here, and one logical value is written once per net class:
+      rules.min_clearance: 0.15 -> 0.119 mm
+      rules.min_hole_clearance: 0.15 -> 0.119 mm
+      rules.min_copper_edge_clearance: 0.0 -> 0.2 mm (fab-edge pin)
+      rules.min_via_drill: None -> 0.25 mm
+      net_class[Default].clearance: 0.15 -> 0.119 mm
+      kicad_routing_tools.fab_floor_origin: recorded
+PROJECT_WRITES_JSON: {"project": "wk/gpm/_verify/V1/G19/out17.kicad_pro", "writes": ["rules.min_clearance: 0.15 -> 0.119 mm", "rules.min_hole_clearance: 0.15 -> 0.119 mm", "rules.min_copper_edge_clearance: 0.0 -> 0.2 mm (fab-edge pin)", "rules.min_via_drill: None -> 0.25 mm", "net_class[Default].clearance: 0.15 -> 0.119 mm", "kicad_routing_tools.fab_floor_origin: recorded"]}
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.15 -> 0.119 mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+JSON_SUMMARY: {"complete": true, "env_knobs": {}, "min_clearance_used": 0.11900000000000001, "pads": {"failed_pads": 0, "geometric_failed": 42, "pads_needing_vias": 1}, "pads_scope": "all zones in this run, summed -- not per zone; see plane_zones for what was poured", "plane_nets": ["+3V3", "GND"], "plane_zones": [{"layer": "F.Cu", "net": "GND"}, {"layer": "In1.Cu", "net": "GND"}, {"layer": "B.Cu", "net": "GND"}, {"layer": "In2.Cu", "net": "+3V3"}], "status": "ok"}
+EXIT=0
+python3 -X utf8 py_router/route_planes.py $V/in17.kicad_pcb $V/out17.kicad_pc  4,81s user 0,06s system 99% cpu 4,895 total

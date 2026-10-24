@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 395, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 391, in main
+    return build(a.src, a.dst, a.keep_locked, a.keep_local_zones)
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 259, in build
+    if not write_placed_output(src, dst, placements, pcb_data=pcb):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "py_placer/placement/writer.py", line 1177, in write_placed_output
+    new_fp_text = _rotate_text_angles(new_fp_text, delta_rot, key)
+  File "py_placer/placement/writer.py", line 300, in _rotate_text_angles
+    return _rewrite_text_ats(fp_text, ref, rotated, 'this rotation')
+  File "py_placer/placement/writer.py", line 354, in _rewrite_text_ats
+    rep = new_at(m.group(1), m.group(2), m.group(3))
+  File "py_placer/placement/writer.py", line 296, in rotated
+    na = round(((float(a) if a is not None else 0.0) + delta_rot) % 360, 6)
+                 ~~~~~^^^
+ValueError: could not convert string to float: 'unlocked'

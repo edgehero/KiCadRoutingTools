@@ -1,0 +1,180 @@
+{
+ "schema": 1,
+ "board": "steppenprobe.kicad_pcb",
+ "note": "FT2232HL USB debug probe: USB-C in (north), LDO to +3V3, FT2232H core, 74LVC1G125/126 level buffers on the target's Vdrive with 100R series resistors to the STDC14 (J2) and 1x16 (J4) target headers. Mounting holes and fiducials are seated by the intent's fixed_poses[].",
+ "groups": [
+  {
+   "name": "usb_in",
+   "role": "interface",
+   "refs": [
+    "J1",
+    "R1",
+    "R2",
+    "U3"
+   ],
+   "anchor": "J1",
+   "near": [
+    "core",
+    "power"
+   ],
+   "why": "USB-C receptacle (declared north edge) with its two 5k1 CC pull-downs (R1 on CC2, R2 on CC1) and the SRV05-4 ESD array on D+/D-/CC1/CC2/VBUS, which goes right behind the pin row"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "refs": [
+    "FB1",
+    "U2",
+    "C1",
+    "C2"
+   ],
+   "anchor": "U2",
+   "near": [
+    "usb_in",
+    "core"
+   ],
+   "why": "VBUS ferrite FB1 into +5V, the XC6206P332 LDO (SOT-23, VI pin 3, VO pin 2) with its 4u7 input cap C1 (+5V) and 4u7 output cap C2 (+3V3); an LDO, so no template; by its entry, not on an edge"
+  },
+  {
+   "name": "core",
+   "role": "core",
+   "refs": [
+    "U1",
+    "Y1",
+    "C3",
+    "C4",
+    "C7",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14",
+    "C15",
+    "C16",
+    "FB2",
+    "C5",
+    "C8",
+    "FB3",
+    "C6",
+    "C9",
+    "R4",
+    "R6",
+    "TP1",
+    "TP2"
+   ],
+   "anchor": "U1",
+   "near": [
+    "usb_in",
+    "target",
+    "eeprom"
+   ],
+   "why": "FT2232HL with its 12 MHz crystal and 27 pF load caps, the +1V8 VCORE/VREGOUT caps (C7 4u7, C10-C12), four +3V3 VCCIO/VREGIN 100 nF caps (C13-C16), the VPLL (FB2, C5, C8) and VPHY (FB3, C6, C9) bead filters, the 12k REF resistor R4, the RESET# pull-up R6, and the RTS#/CTS# test points TP1/TP2 that probe U1 pins 40/41"
+  },
+  {
+   "name": "eeprom",
+   "role": "core",
+   "refs": [
+    "U4",
+    "R3",
+    "R5",
+    "C18"
+   ],
+   "anchor": "U4",
+   "near": [
+    "core"
+   ],
+   "why": "93LC46B config EEPROM on U1's EECS/EECLK/EEDATA (pins 61-63) with its 10k CS pull-down R3, the 2k DO-to-DI resistor R5 the FT2232H datasheet asks for, and one +3V3 100 nF decap (C18) for its VCC pin"
+  },
+  {
+   "name": "target",
+   "role": "interface",
+   "refs": [
+    "J4",
+    "J2",
+    "U5",
+    "U6",
+    "U7",
+    "U8",
+    "U9",
+    "U10",
+    "U11",
+    "U12",
+    "R11",
+    "R12",
+    "R13",
+    "R14",
+    "R15",
+    "R16",
+    "R19",
+    "R20",
+    "R22",
+    "R23",
+    "R25",
+    "C17",
+    "C19",
+    "C20",
+    "C21",
+    "C22"
+   ],
+   "anchor": "J4",
+   "near": [
+    "core",
+    "reset",
+    "select"
+   ],
+   "why": "the target side: 1x16 2.54 mm header J4 and STDC14 (2x7 1.27 mm) J2 carrying the same target signals, the 100R series resistors on each target line (R12-R16, R19, R20) and the Vdrive feed R11, the 74LVC1G125/126 buffers (U7-U10, U12 on Vdrive driving the target; U5, U6, U11 on +3V3 reading it back), their Vdrive decaps C17/C19-C21 and one +3V3 decap C22 for the read-back buffers, the SWD_EN pull-down R22, SWDIO_OE# pull-up R23, RXD_IN pull-up R25 (SW1 is in its own group, `select`). J4 is seated on the east edge by the intent (pass 2)."
+  },
+  {
+   "name": "reset",
+   "role": "ui",
+   "refs": [
+    "Q1",
+    "R24",
+    "R17",
+    "SW2"
+   ],
+   "anchor": "Q1",
+   "near": [
+    "target",
+    "core"
+   ],
+   "why": "target reset: the 2N7002 Q1 driven from U1's SRST (ADBUS7) with its 10k gate pull-down R24, the 10k Vdrive pull-up R17 on SRST_N_R, and the reset push button SW2 (PTS645 top-actuated 6 mm tact, so no edge) to GND"
+  },
+  {
+   "name": "leds",
+   "role": "ui",
+   "refs": [
+    "D1",
+    "R7",
+    "D2",
+    "R8",
+    "D3",
+    "R9",
+    "D4",
+    "R10",
+    "D5",
+    "R18",
+    "D6",
+    "R21"
+   ],
+   "anchor": "D1",
+   "edge": "S",
+   "near": [
+    "core"
+   ],
+   "why": "status LEDs with their 1k resistors as units: ACT/RX/TX/USB (D1-D4, anodes on +3V3, cathodes through R7-R10 to U1), the power LED D5/R18 and the SWD-enable LED D6/R21 on SWD_EN; a row toward the free south edge (east now holds J4)"
+  },
+  {
+   "name": "select",
+   "role": "interface",
+   "refs": [
+    "SW1"
+   ],
+   "anchor": "SW1",
+   "near": [
+    "target"
+   ],
+   "why": "SW1, the slide switch declared on the west edge, that sends the target VCP_TX line (R20) to the TDO buffer U5 or the UART RX buffer U11; its own group so the target group is not stretched across the board between the west edge and J4 on the east edge"
+  }
+ ]
+}

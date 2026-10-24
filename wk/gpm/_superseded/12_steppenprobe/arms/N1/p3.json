@@ -1,0 +1,554 @@
+{
+ "routed_single": [],
+ "failed_single": [
+  "GND"
+ ],
+ "open_single": [],
+ "failed_multipoint": [
+  {
+   "net_name": "+1V8",
+   "failed_pads": [
+    {
+     "x": 130.6375,
+     "y": 83.5349,
+     "component_ref": "U1",
+     "pad_number": "?"
+    },
+    {
+     "x": 130.6375,
+     "y": 94.8849,
+     "component_ref": "U1",
+     "pad_number": "?"
+    },
+    {
+     "x": 138.0625,
+     "y": 92.9599,
+     "component_ref": "U1",
+     "pad_number": "?"
+    },
+    {
+     "x": 130.1748,
+     "y": 81.6148,
+     "component_ref": "C7",
+     "pad_number": "?"
+    }
+   ]
+  },
+  {
+   "net_name": "+3V3",
+   "failed_pads": [
+    {
+     "x": 117.9929,
+     "y": 82.2569,
+     "component_ref": "U6",
+     "pad_number": "?"
+    },
+    {
+     "x": 126.7125,
+     "y": 86.9599,
+     "component_ref": "U1",
+     "pad_number": "?"
+    }
+   ]
+  },
+  {
+   "net_name": "VBUS",
+   "failed_pads": [
+    {
+     "x": 132.1123,
+     "y": 56.06,
+     "component_ref": "J1",
+     "pad_number": "?"
+    },
+    {
+     "x": 132.1123,
+     "y": 54.71,
+     "component_ref": "J1",
+     "pad_number": "?"
+    },
+    {
+     "x": 133.7001,
+     "y": 65.6997,
+     "component_ref": "U3",
+     "pad_number": "?"
+    },
+    {
+     "x": 132.9492,
+     "y": 68.1871,
+     "component_ref": "FB1",
+     "pad_number": "?"
+    }
+   ]
+  }
+ ],
+ "multipoint_nets": 3,
+ "multipoint_pads_connected": 52,
+ "multipoint_pads_total": 62,
+ "multipoint_edges_routed": 3,
+ "multipoint_edges_failed": 10,
+ "ripup_success_pairs": [],
+ "rerouted_pairs": [],
+ "single_ended_target_swaps": [],
+ "layer_swaps": 0,
+ "successful": 0,
+ "failed": 4,
+ "total_time": 2.13,
+ "total_iterations": 882520,
+ "total_vias": 38,
+ "cleanup_disconnected": [],
+ "min_clearance_used": 0.15,
+ "design_rules": {
+  "escalation_policy": "off",
+  "fab_tier": "auto",
+  "board_floors": {
+   "track_width": 0.15,
+   "via_diameter": 0.6,
+   "via_drill": 0.3,
+   "hole_to_hole": 0.25,
+   "annular": 0.049999999999999996,
+   "board_edge": 0.3,
+   "clearance": 0.15
+  },
+  "count": 4,
+  "nets": [
+   1,
+   6,
+   32,
+   33
+  ],
+  "narrowed": [
+   {
+    "net": 1,
+    "net_name": "+1V8",
+    "kind": "track_width",
+    "requested": 0.5,
+    "delivered": 0.3,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 1.94
+   },
+   {
+    "net": 6,
+    "net_name": "VBUS",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.3,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 7.46
+   },
+   {
+    "net": 32,
+    "net_name": "+3V3",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.3,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 29.71
+   },
+   {
+    "net": 33,
+    "net_name": "GND",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.3,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 26.64
+   }
+  ],
+  "min_delivered": {
+   "track_width": 0.3
+  },
+  "fab_tier_escalations": 0,
+  "fab_tier_contexts": [],
+  "fab_tier_target": "advanced",
+  "unsupported_rules": []
+ },
+ "plane_fragility": {
+  "source": "kicad_refill",
+  "islands": 7,
+  "refill_status": "ok",
+  "why": "the KiCad refill succeeded",
+  "machine_dependent": false
+ },
+ "rescue": {
+  "attempted": 3,
+  "recovered": [],
+  "improved": [
+   "+3V3"
+  ],
+  "unchanged": [
+   "GND",
+   "VBUS"
+  ],
+  "pads_reconnected": 1,
+  "widths": {
+   "+3V3": {
+    "requested_mm": 0.7,
+    "delivered_mm": 0.3,
+    "rescue_min_mm": 0.3,
+    "rescue_max_mm": 0.3,
+    "rescue_segments_emitted": 40,
+    "rescue_by_width": {
+     "0.3": 40
+    },
+    "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."
+   }
+  },
+  "time": 6.3
+ },
+ "preexisting_rips": {
+  "+1V8": "rerouted PARTIAL (pads still disconnected; original corridor taken -- reconciliation retries it) [was blocking 'GND']",
+  "Vdrive": "original copper restored"
+ },
+ "oracle_check": "disabled",
+ "ripped_open": [
+  "+1V8"
+ ],
+ "ripped_open_uncounted": [
+  "+1V8"
+ ],
+ "ripped_open_note": "ripped_open nets are OUTSIDE this run's --nets scope, so they move neither failed_single nor open_single. Those listed in ripped_open_uncounted are additionally not in either scoped term: if they are also outside the multipoint pad deficit, the run's open-net verdict is understated by that many.",
+ "blockers": [
+  {
+   "net": "GND",
+   "stage": "preexisting",
+   "blocked_by": [
+    {
+     "net": "+1V8",
+     "preexisting": true
+    },
+    {
+     "net": "/RESET_N",
+     "preexisting": true
+    }
+   ]
+  },
+  {
+   "net": "+3V3",
+   "stage": "phase3",
+   "blocked_by": [
+    {
+     "net": "/SWD_EN",
+     "blocked_count": 1,
+     "unique_cells": 1,
+     "track_cells": 1,
+     "via_cells": 0,
+     "near_target_cells": 1,
+     "near_source_cells": 0
+    }
+   ]
+  }
+ ],
+ "boxed_in": [
+  {
+   "verdict": "boxed_in_static",
+   "iterations": 2,
+   "geometry": {
+    "grid_step": 0.1,
+    "clearance": 0.15,
+    "track_width": 0.3,
+    "via_diameter": null
+   },
+   "net": "+3V3"
+  },
+  {
+   "verdict": "boxed_in_static",
+   "iterations": 2,
+   "geometry": {
+    "grid_step": 0.1,
+    "clearance": 0.15,
+    "track_width": 0.3,
+    "via_diameter": null
+   },
+   "net": "GND"
+  }
+ ],
+ "sealed_by_snpc": [
+  {
+   "verdict": "sealed_by_snpc",
+   "pad": "U12.1",
+   "aperture": [],
+   "same_net_pad_clearance": 0.1,
+   "required_surround_mm": 0.45,
+   "escape_reach_mm": 1.0,
+   "net": "GND"
+  }
+ ],
+ "pad_pairs_connected": 105,
+ "pad_pairs_total": 119,
+ "pad_pairs_open": [
+  {
+   "net": "+1V8",
+   "pairs_connected": 3,
+   "pairs_total": 7,
+   "outcome": "open",
+   "open_subtype": "collision_refused"
+  },
+  {
+   "net": "+3V3",
+   "pairs_connected": 24,
+   "pairs_total": 26,
+   "outcome": "open",
+   "open_subtype": "partial"
+  },
+  {
+   "net": "GND",
+   "pairs_connected": 66,
+   "pairs_total": 72,
+   "outcome": "open",
+   "open_subtype": "unrouted"
+  },
+  {
+   "net": "VBUS",
+   "pairs_connected": 3,
+   "pairs_total": 5,
+   "outcome": "open",
+   "open_subtype": "partial"
+  }
+ ],
+ "power_trace_ampacity": [
+  {
+   "net": "+1V8",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 24.1
+  },
+  {
+   "net": "+3V3",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 52.5
+  },
+  {
+   "net": "+5V",
+   "bottleneck_width_mm": 0.7,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.85,
+   "max_current_ipc2152_a": 1.85,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 5.2
+  },
+  {
+   "net": "/VPHY",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 19.9
+  },
+  {
+   "net": "/VPLL",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 8.6
+  },
+  {
+   "net": "GND",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 219.5
+  },
+  {
+   "net": "VBUS",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 9.4
+  },
+  {
+   "net": "Vdrive",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 40.0
+  }
+ ],
+ "scope": "merged",
+ "board_scoped_keys": [
+  "power_trace_ampacity",
+  "min_clearance_used"
+ ],
+ "env_knobs": {
+  "KICAD_ROUTE_TRACE": "1"
+ },
+ "power_widths": {
+  "+1V8": {
+   "requested_mm": 0.5,
+   "length_mm": 24.13,
+   "under_mm": 1.94,
+   "under_share": 0.0802,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 1.94,
+    "0.5": 22.2
+   },
+   "in_run_scope": true
+  },
+  "VBUS": {
+   "requested_mm": 0.7,
+   "length_mm": 9.4,
+   "under_mm": 7.46,
+   "under_share": 0.7941,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 4.62,
+    "0.35": 2.84,
+    "0.7": 1.94
+   },
+   "in_run_scope": true
+  },
+  "/VPLL": {
+   "requested_mm": 0.3,
+   "length_mm": 8.58,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 8.58
+   },
+   "in_run_scope": true
+  },
+  "/VPHY": {
+   "requested_mm": 0.3,
+   "length_mm": 19.94,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 19.94
+   },
+   "in_run_scope": true
+  },
+  "+3V3": {
+   "requested_mm": 0.7,
+   "length_mm": 52.47,
+   "under_mm": 29.71,
+   "under_share": 0.5662,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 27.22,
+    "0.4": 2.49,
+    "0.7": 20.43,
+    "2": 2.33
+   },
+   "in_run_scope": true
+  },
+  "GND": {
+   "requested_mm": 0.7,
+   "length_mm": 219.54,
+   "under_mm": 26.64,
+   "under_share": 0.1214,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 20.52,
+    "0.35": 0.48,
+    "0.4": 3.68,
+    "0.65": 1.96,
+    "0.7": 192.9
+   },
+   "in_run_scope": true
+  },
+  "Vdrive": {
+   "requested_mm": 0.3,
+   "length_mm": 39.15,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 39.15
+   },
+   "in_run_scope": true
+  },
+  "+5V": {
+   "requested_mm": 0.7,
+   "length_mm": 5.15,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": 0.7,
+   "by_width_mm": {
+    "0.7": 5.15
+   },
+   "in_run_scope": true
+  }
+ },
+ "power_widths_measured_on": "written board",
+ "power_widths_run_scope": [
+  "+1V8",
+  "+3V3",
+  "+5V",
+  "/VPHY",
+  "/VPLL",
+  "GND",
+  "VBUS",
+  "Vdrive"
+ ],
+ "coverage_gate_nets": [
+  "+1V8"
+ ],
+ "regrade": {
+  "board": "file",
+  "graded_nets": 14,
+  "seconds": 0.18,
+  "unowned_broken": [],
+  "recovered": [
+   "/GPIO_A"
+  ],
+  "broken_by_run": [
+   "+1V8"
+  ]
+ },
+ "via_in_pad": {
+  "count": 0,
+  "sites": [],
+  "stamped": 0,
+  "restored": 0,
+  "protected": 0,
+  "unstampable": 0,
+  "site_created": 0,
+  "unprotected": [],
+  "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"
+ },
+ "improvement_gate": {
+  "lost": [
+   "+1V8"
+  ],
+  "gained": [],
+  "lost_zone": [],
+  "gained_zone": [],
+  "worsened": [],
+  "disconnected_pads_before": 16,
+  "disconnected_pads_after": 16,
+  "nets_compared": 61,
+  "verdict": "reject"
+ },
+ "shipped": "input board",
+ "shipped_note": "the improvement gate REJECTED this run and the output is the input board; every tally in this file describes the rejected attempt, not the shipped board"
+}

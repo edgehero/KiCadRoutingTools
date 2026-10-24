@@ -1,0 +1,102 @@
+CMD: Python -X utf8 py_tools/check_assembly.py wk/gpm/08_CM5_MINIMA_3/s6.kicad_pcb --baseline wk/gpm/08_CM5_MINIMA_3/fixed.kicad_pcb --intent wk/gpm/08_CM5_MINIMA_3/intent_run.json
+ENV KNOBS: none
+  grading at clearance 0.13mm  [board netclass]
+Assembly audit of wk/gpm/08_CM5_MINIMA_3/s6.kicad_pcb (clearance 0.13):
+  blocking 0  advisory 12  waived 21  contained 25  courtyard_blocking 0  new-vs-baseline 12
+  baseline wk/gpm/08_CM5_MINIMA_3/fixed.kicad_pcb is a pile: its overlaps are staging, not a baseline (#1103), so every advisory pair counts as new
+    CN1 <-> Module302  pads_under_body  10.4325mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> U1  body(silk/fab)  8.7188mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    D403 <-> Module302  body(silk/silk)  2.9976mm2 side B  advisory  <-- NEW vs baseline
+    Module302 <-> U401  body(silk/fab)  2.4688mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> U402  body(silk/fab)  2.4688mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> R102  body(silk/fab)  0.567mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> R103  body(silk/fab)  0.567mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> R104  body(silk/fab)  0.567mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> R107  body(silk/fab)  0.567mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    C503 <-> Module302  body(fab/silk)  0.5mm2 side B  advisory  CONTAINED 100%  <-- NEW vs baseline
+    Module302 <-> R108  body(silk/fab)  0.4264mm2 side B  advisory  CONTAINED 75%  <-- NEW vs baseline
+    D606 <-> R606  body(silk/fab)  0.0494mm2 side F  advisory  <-- NEW vs baseline
+    Module301 <-> Module302  body(silk/silk)  2200.0mm2 side B  waived:edge_class  CONTAINED 100%
+    M701 <-> Module301  pads_under_body  20.25mm2 side B  waived:marker_class  CONTAINED 100%
+    M701 <-> Module302  pads_under_body  20.25mm2 side B  waived:marker_class  CONTAINED 100%
+    M702 <-> Module301  pads_under_body  20.25mm2 side B  waived:marker_class  CONTAINED 100%
+    M702 <-> Module302  pads_under_body  20.25mm2 side B  waived:marker_class  CONTAINED 100%
+    Module301 <-> Module302  courtyard  14.58mm2 side F  waived:fixed_pose_accepted
+    CN1 <-> Module301  pads_under_body  10.4325mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> U1  body(silk/fab)  8.7188mm2 side B  waived:edge_class  CONTAINED 100%
+    H102 <-> J1  courtyard  4.6038mm2 side F  waived:fixed_pose_accepted
+    Module301 <-> SW101  body(silk/silk)  4.0841mm2 side B  waived:edge_class
+    Module302 <-> SW101  body(silk/silk)  4.0841mm2 side B  waived:edge_class
+    D403 <-> Module301  body(silk/silk)  2.9976mm2 side B  waived:edge_class
+    Module301 <-> U401  body(silk/fab)  2.4688mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> U402  body(silk/fab)  2.4688mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> R102  body(silk/fab)  0.567mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> R103  body(silk/fab)  0.567mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> R104  body(silk/fab)  0.567mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> R107  body(silk/fab)  0.567mm2 side B  waived:edge_class  CONTAINED 100%
+    C503 <-> Module301  body(fab/silk)  0.5mm2 side B  waived:edge_class  CONTAINED 100%
+    Module301 <-> R108  body(silk/fab)  0.4264mm2 side B  waived:edge_class  CONTAINED 75%
+    J101 <-> J501  body(silk/silk)  0.2258mm2 side F  waived:edge_class
+  SHARED ORIGINS, not stacks (1): no copper pad box, hole or drawn body shared on a face both occupy, or the pair is in the intent's overlap_waivers
+    Module301 Module302 @ (127.25, 77.6)  [apart]
+  pad/hole/oob echo: 0 pad pair(s), 0 hole conflict(s), 5 part(s) with pad copper off-board: H103 (2.7047mm), H102 (2.6969mm), H105 (2.6841mm), H104 (2.6754mm), J1 (0.13mm)
+    (part pad AABB -- pads PLUS NPTH drill circles, summed over the union rect's four sides -- against an outline inflated by the GRADING CLEARANCE. It moves when --clearance moves, so a hit here is not necessarily copper off the outline. The per-pad, margin-0 outline measure is render_placement's checklist.a_off_outline.pad_copper.)
+    ...on the outline by design, not gated: H102, H103, H104, H105 (castellated pads, or a round pad whose bounding box, not its copper, crosses)
+  CONTAINMENT (25): a part's drawn body (its .Fab outline, else its silk united with its pads) lies wholly or mostly inside another part's.
+    CN1 <-> Module302  10.4325mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> U1  8.7188mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> U401  2.4688mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> U402  2.4688mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> R102  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> R103  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> R104  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> R107  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    C503 <-> Module302  0.5mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module302 <-> R108  0.4264mm2  75% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> Module302  2200.0mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    M701 <-> Module301  20.25mm2  100% of the smaller body  [does not gate: a mount-hole/fiducial/testpoint is involved]
+    M701 <-> Module302  20.25mm2  100% of the smaller body  [does not gate: a mount-hole/fiducial/testpoint is involved]
+    M702 <-> Module301  20.25mm2  100% of the smaller body  [does not gate: a mount-hole/fiducial/testpoint is involved]
+    M702 <-> Module302  20.25mm2  100% of the smaller body  [does not gate: a mount-hole/fiducial/testpoint is involved]
+    CN1 <-> Module301  10.4325mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> U1  8.7188mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> U401  2.4688mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> U402  2.4688mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> R102  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> R103  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> R104  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> R107  0.567mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    C503 <-> Module301  0.5mm2  100% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    Module301 <-> R108  0.4264mm2  75% of the smaller body  [does not gate: a silk-drawn body, which never gates (#896)]
+    None of these BLOCK: 4 a mount-hole/fiducial/testpoint is involved; 21 a silk-drawn body, which never gates (#896).
+  BODY COVERAGE: 76 of 84 part(s) draw a body the containment channel can judge (57 fab, 19 silk)
+    A silk body is the LAST resort and never gates: a library may draw an assembly outline there rather than the part (esp_prog's SOT89 draws corner brackets 5.2mm apart around a 4.5mm part). Such pairs are reported, with their source, and excluded from the blocking channels.
+    12 part(s) draw only a .Fab marking (under 2% of the pad box: a pin-1 dot, a single line; #1201), which is not their body: their drawn body is their silk where they draw one, and what they occupy is unchanged (their courtyard, else the marking united with their pads): CN1, D401, D402, D403, D605, D606, D702, J101 ...
+    8 part(s) draw no usable body (no .Fab body, no usable silk), so the channel cannot judge them: CN1, H101, H102, H103, H104, H105, M701, M702
+  ASSEMBLY SIDES: F 69 / B 15 pad-bearing part(s) of 84 block(s); 2 reflow pass(es), 14 through-hole part(s)
+    Through-hole F 14 / B 0 (plated barrels only), counted and never folded in: a drilled part on the front needs wave, selective or hand soldering, not a second reflow pass.
+    observed policy: sides=both -- counted per footprint BLOCK, verdict from the pad-bearing subset (parts_by_side_basis in --json has the rule in full)
+  COURTYARD ACCEPTED BY A DECLARED POSE (2): waived, named in the intent's fixed_poses[].accept_courtyard_overlap -- courtyard only; a drawn-body containment, pads and holes keep their gates
+    Module301 <-> Module302  courtyard  14.58mm2  depth 2.7mm  side F
+    H102 <-> J1  courtyard  4.6038mm2  depth 1.3647mm  side F
+  TEST POINT COVERED (4): a test point's pad copper lies under another part's drawn body, where no probe can reach it -- 0 of 4 GATE (a member moved vs the baseline)
+    TP104 under Module301  100% of its pad copper  body silk  side B  never gates: the body is drawn on silk
+    TP104 under Module302  100% of its pad copper  body silk  side B  never gates: the body is drawn on silk
+    TP105 under Module301  100% of its pad copper  body silk  side B  never gates: the body is drawn on silk
+    TP105 under Module302  100% of its pad copper  body silk  side B  never gates: the body is drawn on silk
+    A deliberate pose is accepted by naming the pair in the intent's `overlap_waivers`.
+  BODY-TO-EDGE BAND: 11 of 65 part(s) have a body within 2.5mm of the board edge [derived_default: JLCPCB's assembly rule, one assembler's -- REPORT-ONLY; declare assembly.body_edge_mm in the intent to gate]  new_in_band 11
+    J1 0.0mm (fab, side F)  MOVED
+    J701 0.0mm (fab, side F)  MOVED
+    Module302 0.0mm (silk, side B)  MOVED
+    R606 0.767mm (fab, side F)  MOVED
+    R403 0.823mm (fab, side B)  MOVED
+    D606 1.188mm (silk, side F)  MOVED
+    D605 1.223mm (silk, side F)  MOVED
+    J502 1.409mm (fab, side F)  MOVED
+    C705 1.424mm (fab, side F)  MOVED
+    C706 1.727mm (fab, side F)  MOVED
+    R108 2.02mm (fab, side B)  MOVED
+    in the band but belonging at the edge, never counted (edge class, marker, or an edge the intent declares): H102 0.0mm [mount_hole], H103 0.0mm [mount_hole], H104 0.0mm [mount_hole], H105 0.0mm [mount_hole], J101 0.0mm [edge_receptacle], Module301 0.0mm [edge_receptacle], SW101 0.0mm [edge_actuator], USB701 0.0mm [edge_receptacle] ...
+  VERDICT: buildable (blocking 0)
+EXIT=0

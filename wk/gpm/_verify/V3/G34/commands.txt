@@ -1,0 +1,4 @@
+A=wk/gpm/_verify/V3/G34/paths_audit.py   # flags a regulator crossed IN->OUT walking from sink to source, and a sink whose own-rail regulator is never credited
+python3 -X utf8 $A wk/gpm/10_glasgow_revC/repro/fixed.kicad_pcb J1:POWER_SOURCE:500 U15:PASS_THROUGH:500 U8:POWER_SOURCE:500 U36:POWER_SOURCE:300 U14:POWER_SOURCE:150 U31:POWER_SOURCE:150 U1:CURRENT_SINK:85 U30:CURRENT_SINK:100 > glasgow_audit.txt
+python3 -X utf8 $A wk/gpm/13_pico_ice_rev3/repro/pile.kicad_pcb (classifications of 13/repro/power_paths_repro.py) > picoice_audit.txt ; picoice_pathsum.txt
+python3 -X utf8 $A wk/gpm/14_imx6ulz_4l/repro/pile.kicad_pcb (classifications of 14/helpers/power_widths_repro.py) > imx6_audit.txt

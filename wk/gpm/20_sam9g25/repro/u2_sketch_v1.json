@@ -1,0 +1,20 @@
+{"anchor": "U2", "kind": "switching stage",
+ "source": "Microchip MCP16501 DS20006388B (rev B, 2020): Typical Application Circuit (p.3) and Sec. 4.1/4.2 (input decoupling per buck channel, COUT 22uF min, LDO 2.2uF and LFB divider); the datasheet has NO layout figure, so members carry no side",
+ "members": [
+  {"ref": "C24", "pads": {"C24": ["1", "2"], "U2": ["24", "22"]}, "note": "CIN1 (datasheet C4 4.7uF) across PVIN1 24 / PGND1 22"},
+  {"ref": "C25", "pads": {"C25": ["1", "2"], "U2": ["7", "9"]}, "note": "CIN2 (datasheet C5) across PVIN2 7 / PGND2 9"},
+  {"ref": "C26", "pads": {"C26": ["1", "2"], "U2": ["12", "10"]}, "note": "CIN3 (datasheet C6) across PVIN3 12 / PGND3 10"},
+  {"ref": "L1", "pads": {"L1": ["1"], "U2": ["23"]}, "note": "L1 on SW1 23 (VDD-IO buck)"},
+  {"ref": "L2", "pads": {"L2": ["1"], "U2": ["8"]}, "note": "L2 on SW2 8 (VDD_DDR buck)"},
+  {"ref": "L3", "pads": {"L3": ["1"], "U2": ["11"]}, "note": "L3 on SW3 11 (VDD_CORE buck)"},
+  {"ref": "C27", "pads": {"C27": ["1", "2"], "U2": ["17", "16"]}, "note": "VIN bypass (datasheet C7 2.2uF) across VIN 17 / SGND 16"},
+  {"ref": "C11", "pads": {"C11": ["1", "2"], "U2": ["18", "16"]}, "note": "LDO output cap (datasheet C8 2.2uF) at LOUT 18"},
+  {"ref": "R9", "pads": {"R9": ["1", "2"], "U2": ["18", "19"]}, "note": "LDO divider top (datasheet R4) LOUT 18 -> LFB 19"},
+  {"ref": "R10", "pads": {"R10": ["1"], "U2": ["19"]}, "note": "LDO divider bottom (datasheet R3) LFB 19 -> GND"},
+  {"ref": "C12", "pads": {"C12": ["1", "2"], "L1": ["2"], "C24": ["2"]}, "note": "COUT1 (datasheet C1 22uF = 2x10uF) at L1's output, ground by CIN1's"},
+  {"ref": "C13", "pads": {"C13": ["1", "2"], "L2": ["2"], "C25": ["2"]}, "note": "COUT2 (datasheet C2) at L2's output, ground by CIN2's"},
+  {"ref": "C14", "pads": {"C14": ["1", "2"], "L3": ["2"], "C26": ["2"]}, "note": "COUT3 (datasheet C3) at L3's output, ground by CIN3's"},
+  {"ref": "C8", "pads": {"C8": ["1", "2"], "C12": ["1", "2"]}, "note": "second 10uF of COUT1, beside the first"},
+  {"ref": "C9", "pads": {"C9": ["1", "2"], "C13": ["1", "2"]}, "note": "second 10uF of COUT2, beside the first"},
+  {"ref": "C10", "pads": {"C10": ["1", "2"], "C14": ["1", "2"]}, "note": "second 10uF of COUT3, beside the first"}
+ ]}

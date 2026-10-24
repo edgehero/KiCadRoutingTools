@@ -1,0 +1,21 @@
+WARNING: 2 footprint block(s) share 1 reference(s) -- G*** x2. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 95 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                              512              650
+  vias                                  133              292
+  total length mm                    1012.2           1036.6
+  distinct track widths                   3                3
+  nets with copper                       55               55
+  ours widths:   {0.105: 1, 0.13: 509, 0.8: 2}
+  orig widths:   {0.13: 637, 0.23: 2, 1.0: 11}
+  ours vias:     {'0.45/0.25': 131, '0.3/0.15': 2}
+  orig vias:     {'0.45/0.25': 292}
+
+  SUGGESTIONS:
+   - VIAS: 133 vs original 292 (0.46x) — comparable.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 512, "n_vias": 133, "total_length_mm": 1012.2, "length_by_layer": {"F.Cu": 312.8, "In1.Cu": 276.6, "In2.Cu": 244.2, "B.Cu": 178.6}, "width_count": {"0.13": 509, "0.8": 2, "0.105": 1}, "via_count": {"0.45/0.25": 131, "0.3/0.15": 2}, "distinct_widths": 3, "nets_with_copper": 55, "n_multi_pad_nets": 56, "n_nets": 68}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 650, "n_vias": 292, "total_length_mm": 1036.6, "length_by_layer": {"F.Cu": 444.7, "In1.Cu": 408.1, "In2.Cu": 183.8}, "width_count": {"0.13": 637, "0.23": 2, "1.0": 11}, "via_count": {"0.45/0.25": 292}, "distinct_widths": 3, "nets_with_copper": 55, "n_multi_pad_nets": 56, "n_nets": 68}, "suggestions": ["VIAS: 133 vs original 292 (0.46x) \u2014 comparable."]}

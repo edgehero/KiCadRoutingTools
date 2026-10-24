@@ -1,0 +1,235 @@
+{
+ "routed_single": [
+  "Net-(AE1-Pad1)",
+  "Net-(C10-Pad1)"
+ ],
+ "failed_single": [],
+ "open_single": [],
+ "failed_multipoint": [],
+ "multipoint_nets": 1,
+ "multipoint_pads_connected": 3,
+ "multipoint_pads_total": 3,
+ "multipoint_edges_routed": 1,
+ "multipoint_edges_failed": 1,
+ "ripup_success_pairs": [],
+ "rerouted_pairs": [],
+ "single_ended_target_swaps": [],
+ "layer_swaps": 0,
+ "successful": 2,
+ "failed": 0,
+ "total_time": 0.02,
+ "total_iterations": 3172,
+ "total_vias": 0,
+ "cleanup_disconnected": [],
+ "min_clearance_used": 0.1442,
+ "design_rules": {
+  "escalation_policy": "fab",
+  "fab_tier": "auto",
+  "board_floors": {
+   "track_width": 0.19,
+   "via_diameter": 0.4,
+   "via_drill": 0.3,
+   "hole_to_hole": 0.25,
+   "annular": 0.05,
+   "board_edge": 0.1,
+   "clearance": 0.15
+  },
+  "count": 6,
+  "nets": [
+   29,
+   81
+  ],
+  "narrowed": [
+   {
+    "net": 29,
+    "net_name": null,
+    "kind": "via_diameter",
+    "requested": 0.45,
+    "delivered": 0.25,
+    "site": "via-in-pad clamp (floor)",
+    "count": 1
+   },
+   {
+    "net": 29,
+    "net_name": null,
+    "kind": "via_diameter",
+    "requested": 0.45,
+    "delivered": 0.25,
+    "site": "via-in-pad clamp (floor)",
+    "count": 1
+   },
+   {
+    "net": 29,
+    "net_name": "Net-(C10-Pad1)",
+    "kind": "clearance",
+    "requested": 0.15,
+    "delivered": 0.1442,
+    "site": "fine-pitch plane tap",
+    "count": 1
+   },
+   {
+    "net": 29,
+    "net_name": null,
+    "kind": "via_diameter",
+    "requested": 0.45,
+    "delivered": 0.25,
+    "site": "last-resort via-in-pad",
+    "count": 1
+   },
+   {
+    "net": 81,
+    "net_name": "Net-(AE1-Pad1)",
+    "kind": "track_width",
+    "requested": 0.9201,
+    "delivered": 0.4601,
+    "site": "impedance copper shipped under width",
+    "count": 1,
+    "length_mm": 1.6
+   },
+   {
+    "net": 29,
+    "net_name": "Net-(C10-Pad1)",
+    "kind": "track_width",
+    "requested": 0.9201,
+    "delivered": 0.23,
+    "site": "impedance copper shipped under width",
+    "count": 1,
+    "length_mm": 2.53
+   }
+  ],
+  "min_delivered": {
+   "via_diameter": 0.25,
+   "clearance": 0.1442,
+   "track_width": 0.23
+  },
+  "fab_tier_escalations": 4,
+  "fab_tier_contexts": [
+   "plane tap U1.30",
+   "plane tap U1.30",
+   "last-resort via for net 29 (0.25/0.15mm)",
+   "net rescue net_29"
+  ],
+  "fab_tier_target": "advanced",
+  "unsupported_rules": []
+ },
+ "plane_fragility": {
+  "source": "kicad_refill",
+  "islands": 5,
+  "refill_status": "ok",
+  "why": "the KiCad refill succeeded (memo hit)",
+  "machine_dependent": false
+ },
+ "pour_guard": {
+  "source": "kicad_refill",
+  "why": "",
+  "pours": [
+   {
+    "net": "GND",
+    "layer": "B.Cu",
+    "blocked_islands": 0,
+    "blocked_mm2": 0,
+    "crossable_islands": 1,
+    "minor_islands": 0
+   },
+   {
+    "net": "GND",
+    "layer": "F.Cu",
+    "blocked_islands": 0,
+    "blocked_mm2": 0,
+    "crossable_islands": 1,
+    "minor_islands": 1
+   },
+   {
+    "net": "GNDA",
+    "layer": "B.Cu",
+    "blocked_islands": 0,
+    "blocked_mm2": 0,
+    "crossable_islands": 0,
+    "minor_islands": 1
+   },
+   {
+    "net": "GNDA",
+    "layer": "F.Cu",
+    "blocked_islands": 1,
+    "blocked_mm2": 202.8,
+    "crossable_islands": 0,
+    "minor_islands": 0
+   }
+  ]
+ },
+ "rescue": {
+  "attempted": 1,
+  "recovered": [
+   "Net-(C10-Pad1)"
+  ],
+  "improved": [],
+  "unchanged": [],
+  "pads_reconnected": 1,
+  "widths": {
+   "Net-(C10-Pad1)": {
+    "requested_mm": 0.9201,
+    "delivered_mm": 0.23,
+    "rescue_min_mm": 0.23,
+    "rescue_max_mm": 0.23,
+    "rescue_segments_emitted": 4,
+    "rescue_by_width": {
+     "0.23": 4
+    },
+    "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."
+   }
+  },
+  "time": 0.27
+ },
+ "oracle_check": "disabled",
+ "pad_pairs_connected": 3,
+ "pad_pairs_total": 3,
+ "scope": "merged",
+ "env_knobs": {},
+ "finalize_excluded_nets": [
+  "GND",
+  "GNDA"
+ ],
+ "regrade": {
+  "board": "file",
+  "graded_nets": 2,
+  "seconds": 0.71,
+  "unowned_broken": [],
+  "recovered": [],
+  "broken_by_run": [],
+  "pour_fill": {
+   "graded_on": "kicad_refill",
+   "islands": {
+    "GND on B.Cu": 1,
+    "GND on F.Cu": 2,
+    "GNDA on B.Cu": 1,
+    "GNDA on F.Cu": 1
+   },
+   "poured_nothing": []
+  }
+ },
+ "via_in_pad": {
+  "count": 0,
+  "sites": [],
+  "stamped": 0,
+  "restored": 0,
+  "protected": 0,
+  "unstampable": 0,
+  "site_created": 0,
+  "unprotected": [],
+  "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"
+ },
+ "improvement_gate": {
+  "lost": [],
+  "gained": [
+   "Net-(AE1-Pad1)",
+   "Net-(C10-Pad1)"
+  ],
+  "lost_zone": [],
+  "gained_zone": [],
+  "worsened": [],
+  "disconnected_pads_before": 134,
+  "disconnected_pads_after": 131,
+  "nets_compared": 59,
+  "verdict": "accept"
+ }
+}

@@ -1,0 +1,252 @@
+{
+ "schema": 1,
+ "board": "fixed.kicad_pcb",
+ "groups": [
+  {
+   "name": "core",
+   "role": "core",
+   "anchor": "U1",
+   "refs": [
+    "U1",
+    "Y1",
+    "Y2",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C16",
+    "R14",
+    "R2",
+    "R3",
+    "R4",
+    "R5",
+    "R15",
+    "R16",
+    "C100",
+    "C101",
+    "C102",
+    "C103",
+    "C104",
+    "C15",
+    "C17",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "C22",
+    "C23",
+    "C5",
+    "C6",
+    "C7"
+   ],
+   "near": [
+    "ddr",
+    "power"
+   ],
+   "why": "the SAM9 MPU (BGA-217) with its VDDCORE/VDDIOP/VDDIOM/+1V0 decaps (C100-C104, C15, C17-C23, C5-C7, mostly on B.Cu under the ball field), its two crystals and load caps, the VBG bias pair C16/R14 on U17, and the 39R USB series resistors at its HFSD pins (R2/R3 USB0, R4/R5 USB2, R15/R16 USB1: source termination at the MPU); C34/C36 (100nF/1uF VDD-IO, on the IO sheet) are held here as VDD-IO decaps: no IC of the sdcard group carries VDD-IO, so there they would sit outside the decap term while the grade still holds any VDD-IO cap within 5mm of an IC to the 4.24mm limit"
+  },
+  {
+   "name": "ddr",
+   "role": "memory",
+   "anchor": "U200",
+   "refs": [
+    "U200",
+    "C201",
+    "C202",
+    "C203",
+    "C204",
+    "C205",
+    "C206",
+    "C207",
+    "C208",
+    "C209",
+    "C210",
+    "C211",
+    "C212",
+    "C213",
+    "C215",
+    "C200",
+    "C217",
+    "C218",
+    "R17",
+    "R18"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "the DDR2 x16 (BGA-84) with its 14 VDD_DDR decaps and the DDR_VREF divider R17/R18 with its caps C200/C217/C218 at the VREF ball J2; 44 bus nets go to U1"
+  },
+  {
+   "name": "power",
+   "role": "power",
+   "anchor": "U2",
+   "refs": [
+    "U2",
+    "L1",
+    "L2",
+    "L3",
+    "C24",
+    "C25",
+    "C26",
+    "C27",
+    "C8",
+    "C12",
+    "C9",
+    "C13",
+    "C10",
+    "C14",
+    "C11",
+    "R9",
+    "R10",
+    "R7",
+    "R8",
+    "Q1",
+    "D2",
+    "R1",
+    "R6",
+    "TP4",
+    "TP6",
+    "TP7",
+    "TP8",
+    "TP9",
+    "SW1"
+   ],
+   "near": [
+    "usb",
+    "core"
+   ],
+   "templates": [
+    {
+     "chip": "U2",
+     "kind": "switching stage",
+     "why": "MCP16501A PMIC: three 2 MHz bucks (SW1-SW3 into L1-L3) plus a 300 mA LDO; datasheet DS20006388B has no layout figure, so a template from its Typical Application Circuit pin assignments (CIN per PVINx/PGNDx, L on SWx, COUT 22uF = 2x10uF per rail, LDO divider at LFB, 2.2uF at LOUT)"
+    }
+   ],
+   "why": "the PMIC with its three buck stages (inductors L1-L3, 220nF input caps C24-C27 on PVIN1/2/3 and VIN, 2x10uF output caps per rail), the LDO's divider R9/R10 and output cap C11, its PWRHLD/nSTRTO pull-ups R7/R8, the power path into VIN (D2 from ACIN, P-FET Q1 from VBUS, AC_DET divider R1/R6), the rail test points TP4/TP6-TP9, and the power button SW1 on nSTRT (declared on the west edge, beside the USB-C entry)"
+  },
+  {
+   "name": "usb",
+   "role": "interface",
+   "anchor": "J2",
+   "refs": [
+    "J2",
+    "U7",
+    "R12",
+    "R13",
+    "C33",
+    "R11",
+    "R25",
+    "R26"
+   ],
+   "near": [
+    "power",
+    "core"
+   ],
+   "why": "the USB-C receptacle (west edge, power entry VBUS and USB0 device data) with its ESD array U7, CC pull-downs R12/R13, VBUS cap C33, VBUS load R11 and the USB_DET divider R25/R26"
+  },
+  {
+   "name": "wifi",
+   "role": "interface",
+   "anchor": "U6",
+   "refs": [
+    "U6",
+    "AE1",
+    "C912",
+    "C914"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "the RTL8188CUS WiFi module on USB1 with its U.FL antenna connector AE1 on the module's ANT pad and its own VDD-IO caps C912/C914 (not on any schematic sheet of the MPU)",
+   "templates": [
+    {
+     "chip": "U6",
+     "kind": "none",
+     "why": "RTL8188CUS is a WiFi MODULE that holds its own RF front end; its ANT pad goes straight to the U.FL AE1 with no parts between, so there is no matching network to template"
+    }
+   ]
+  },
+  {
+   "name": "sdcard",
+   "role": "interface",
+   "anchor": "J1",
+   "refs": [
+    "J1",
+    "C34",
+    "C36"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "the microSD socket on MCI0 (its 7 MCI0 nets come from U1's south-west balls)"
+  },
+  {
+   "name": "flash",
+   "role": "memory",
+   "anchor": "U5",
+   "refs": [
+    "U5",
+    "C38"
+   ],
+   "near": [
+    "core",
+    "expansion"
+   ],
+   "why": "the W25Q128 SPI NOR flash on SPI0 with its 100nF decap; its SPI nets also reach J3"
+  },
+  {
+   "name": "lcd",
+   "role": "interface",
+   "anchor": "J6",
+   "refs": [
+    "J6"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "the 2x22 1.27mm LCD header: 23 bus nets from U1's ball columns 1-3; declared on the east edge in intent_run.json edge_connectors (a through-hole wall goes on an edge, not through the routing field)",
+   "edge": "E"
+  },
+  {
+   "name": "expansion",
+   "role": "interface",
+   "anchor": "J3",
+   "refs": [
+    "J3"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "the 2x18 2.54mm expansion header on B.Cu (GPIO, UART, SPI, I2C, CAN, ACIN, VBAT); declared on the north edge in intent_run.json edge_connectors (45.7mm long, it can only lie along a 66mm edge)",
+   "edge": "N"
+  },
+  {
+   "name": "aux_headers",
+   "role": "interface",
+   "anchor": "J4",
+   "refs": [
+    "J4",
+    "J5",
+    "J7"
+   ],
+   "near": [
+    "core"
+   ],
+   "why": "the three 2x04 1.27mm headers: RMII RX (J4) and TX (J5) from U1's NW ball corner, and USB2 (J7) off R4/R5"
+  },
+  {
+   "name": "ui",
+   "role": "ui",
+   "anchor": "SW2",
+   "refs": [
+    "SW2",
+    "C37",
+    "D4",
+    "R20",
+    "R21",
+    "R22"
+   ],
+   "why": "the user button SW2 (declared on the south edge) with its 1uF debounce cap C37, and the RGB status LED D4 with its three 180R resistors"
+  }
+ ]
+}

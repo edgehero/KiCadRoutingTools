@@ -1,0 +1,541 @@
+{
+ "routed_single": [],
+ "failed_single": [],
+ "open_single": [],
+ "failed_multipoint": [
+  {
+   "net_name": "+3V3",
+   "failed_pads": [
+    {
+     "x": 117.9929,
+     "y": 82.2569,
+     "component_ref": "U6",
+     "pad_number": "?"
+    }
+   ]
+  },
+  {
+   "net_name": "/USB_DM",
+   "failed_pads": [
+    {
+     "x": 133.1375,
+     "y": 83.5349,
+     "component_ref": "U1",
+     "pad_number": "?"
+    }
+   ]
+  },
+  {
+   "net_name": "/VPHY",
+   "failed_pads": [
+    {
+     "x": 134.6014,
+     "y": 81.6241,
+     "component_ref": "C6",
+     "pad_number": "?"
+    }
+   ]
+  }
+ ],
+ "multipoint_nets": 2,
+ "multipoint_pads_connected": 32,
+ "multipoint_pads_total": 35,
+ "multipoint_edges_routed": 0,
+ "multipoint_edges_failed": 2,
+ "ripup_success_pairs": [],
+ "rerouted_pairs": [],
+ "single_ended_target_swaps": [],
+ "layer_swaps": 0,
+ "successful": 0,
+ "failed": 3,
+ "total_time": 0.32,
+ "total_iterations": 53112,
+ "total_vias": 5,
+ "cleanup_disconnected": [],
+ "min_clearance_used": 0.15,
+ "design_rules": {
+  "escalation_policy": "board",
+  "fab_tier": "auto",
+  "board_floors": {
+   "track_width": 0.15,
+   "via_diameter": 0.6,
+   "via_drill": 0.3,
+   "hole_to_hole": 0.25,
+   "annular": 0.049999999999999996,
+   "board_edge": 0.3,
+   "clearance": 0.15
+  },
+  "count": 6,
+  "nets": [
+   1,
+   6,
+   28,
+   29,
+   32,
+   33
+  ],
+  "narrowed": [
+   {
+    "net": 1,
+    "net_name": "+1V8",
+    "kind": "track_width",
+    "requested": 0.5,
+    "delivered": 0.15,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 17.16
+   },
+   {
+    "net": 6,
+    "net_name": "VBUS",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.175,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 10.34
+   },
+   {
+    "net": 28,
+    "net_name": "/VPLL",
+    "kind": "track_width",
+    "requested": 0.3,
+    "delivered": 0.15,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 3.29
+   },
+   {
+    "net": 29,
+    "net_name": "/VPHY",
+    "kind": "track_width",
+    "requested": 0.3,
+    "delivered": 0.15,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 1.84
+   },
+   {
+    "net": 32,
+    "net_name": "+3V3",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.15,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 20.02
+   },
+   {
+    "net": 33,
+    "net_name": "GND",
+    "kind": "track_width",
+    "requested": 0.7,
+    "delivered": 0.15,
+    "site": "power copper shipped under width",
+    "count": 1,
+    "length_mm": 126.28
+   }
+  ],
+  "min_delivered": {
+   "track_width": 0.15
+  },
+  "fab_tier_escalations": 0,
+  "fab_tier_contexts": [],
+  "fab_tier_target": "board_floors",
+  "unsupported_rules": []
+ },
+ "plane_fragility": {
+  "source": "kicad_refill",
+  "islands": 4,
+  "refill_status": "ok",
+  "why": "the KiCad refill succeeded (memo hit)",
+  "machine_dependent": false
+ },
+ "rescue": {
+  "attempted": 2,
+  "recovered": [],
+  "improved": [],
+  "unchanged": [
+   "/USB_DM",
+   "/VPHY"
+  ],
+  "pads_reconnected": 0,
+  "widths": {},
+  "time": 0.53
+ },
+ "terminal_escalations": {
+  "/VPHY": "unrecovered"
+ },
+ "stacked_copper": [
+  {
+   "category": "stacked-copper",
+   "net": "+3V3",
+   "layer": "F.Cu",
+   "x": 118.0,
+   "y": 81.5,
+   "detail": "2 duplicate segments stacked on (118.000, 81.500)-(118.000, 82.300)",
+   "size": 0.7999999999999972
+  }
+ ],
+ "oracle_check": "disabled",
+ "blockers": [
+  {
+   "net": "/VPHY",
+   "stage": "preexisting",
+   "blocked_by": [
+    {
+     "net": "/SWD_EN",
+     "preexisting": true
+    },
+    {
+     "net": "+1V8",
+     "preexisting": true
+    }
+   ]
+  },
+  {
+   "net": "/USB_DM",
+   "stage": "phase3",
+   "blocked_by": [
+    {
+     "net": "/VPLL",
+     "blocked_count": 1,
+     "unique_cells": 1,
+     "track_cells": 1,
+     "via_cells": 0,
+     "near_target_cells": 1,
+     "near_source_cells": 0
+    }
+   ]
+  }
+ ],
+ "pad_pairs_connected": 29,
+ "pad_pairs_total": 32,
+ "pad_pairs_open": [
+  {
+   "net": "+3V3",
+   "pairs_connected": 25,
+   "pairs_total": 26,
+   "outcome": "open",
+   "open_subtype": "partial"
+  },
+  {
+   "net": "/USB_DM",
+   "pairs_connected": 2,
+   "pairs_total": 3,
+   "outcome": "open",
+   "open_subtype": "partial"
+  },
+  {
+   "net": "/VPHY",
+   "pairs_connected": 2,
+   "pairs_total": 3,
+   "outcome": "open",
+   "open_subtype": "partial"
+  }
+ ],
+ "power_trace_ampacity": [
+  {
+   "net": "+1V8",
+   "bottleneck_width_mm": 0.15,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 0.6,
+   "max_current_ipc2152_a": 0.6,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 44.1
+  },
+  {
+   "net": "+3V3",
+   "bottleneck_width_mm": 0.15,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 0.6,
+   "max_current_ipc2152_a": 0.6,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 29.3
+  },
+  {
+   "net": "+5V",
+   "bottleneck_width_mm": 0.7,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.85,
+   "max_current_ipc2152_a": 1.85,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 5.2
+  },
+  {
+   "net": "/VPHY",
+   "bottleneck_width_mm": 0.15,
+   "bottleneck_layer": "F.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 0.6,
+   "max_current_ipc2152_a": 0.6,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 10.1
+  },
+  {
+   "net": "/VPLL",
+   "bottleneck_width_mm": 0.15,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 0.6,
+   "max_current_ipc2152_a": 0.6,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 17.9
+  },
+  {
+   "net": "GND",
+   "bottleneck_width_mm": 0.15,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 0.6,
+   "max_current_ipc2152_a": 0.6,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 331.7
+  },
+  {
+   "net": "VBUS",
+   "bottleneck_width_mm": 0.175,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 0.68,
+   "max_current_ipc2152_a": 0.68,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 25.0
+  },
+  {
+   "net": "Vdrive",
+   "bottleneck_width_mm": 0.3,
+   "bottleneck_layer": "B.Cu",
+   "copper_oz": 1.0000000000000002,
+   "max_current_a": 1.0,
+   "max_current_ipc2152_a": 1.0,
+   "temp_rise_c": 10.0,
+   "trace_length_mm": 40.3
+  }
+ ],
+ "scope": "merged",
+ "board_scoped_keys": [
+  "stacked_copper",
+  "power_trace_ampacity",
+  "min_clearance_used"
+ ],
+ "env_knobs": {
+  "KICAD_ROUTE_TRACE": "1"
+ },
+ "power_widths": {
+  "+1V8": {
+   "requested_mm": 0.5,
+   "length_mm": 44.05,
+   "under_mm": 17.16,
+   "under_share": 0.3895,
+   "min_mm": 0.15,
+   "by_width_mm": {
+    "0.15": 8.22,
+    "0.18": 0.16,
+    "0.21": 0.16,
+    "0.22": 0.11,
+    "0.24": 0.16,
+    "0.25": 2.84,
+    "0.27": 0.16,
+    "0.29": 0.11,
+    "0.3": 3.95,
+    "0.35": 0.35,
+    "0.36": 0.11,
+    "0.4": 0.35,
+    "0.43": 0.11,
+    "0.45": 0.35,
+    "0.5": 26.9
+   },
+   "in_run_scope": true
+  },
+  "VBUS": {
+   "requested_mm": 0.7,
+   "length_mm": 25.04,
+   "under_mm": 10.34,
+   "under_share": 0.4131,
+   "min_mm": 0.175,
+   "by_width_mm": {
+    "0.175": 4.15,
+    "0.28": 0.2,
+    "0.35": 4.11,
+    "0.385": 0.2,
+    "0.42": 0.09,
+    "0.49": 0.29,
+    "0.56": 0.09,
+    "0.595": 0.2,
+    "0.63": 0.09,
+    "0.65": 0.9,
+    "0.7": 14.7
+   },
+   "in_run_scope": true
+  },
+  "/VPLL": {
+   "requested_mm": 0.3,
+   "length_mm": 17.94,
+   "under_mm": 3.29,
+   "under_share": 0.1832,
+   "min_mm": 0.15,
+   "by_width_mm": {
+    "0.15": 3.02,
+    "0.18": 0.07,
+    "0.21": 0.07,
+    "0.24": 0.07,
+    "0.27": 0.07,
+    "0.3": 14.66
+   },
+   "in_run_scope": true
+  },
+  "/VPHY": {
+   "requested_mm": 0.3,
+   "length_mm": 10.14,
+   "under_mm": 1.84,
+   "under_share": 0.1815,
+   "min_mm": 0.15,
+   "by_width_mm": {
+    "0.15": 1.56,
+    "0.18": 0.07,
+    "0.21": 0.07,
+    "0.24": 0.07,
+    "0.27": 0.07,
+    "0.3": 8.3
+   },
+   "in_run_scope": true
+  },
+  "+3V3": {
+   "requested_mm": 0.7,
+   "length_mm": 28.47,
+   "under_mm": 20.02,
+   "under_share": 0.7031,
+   "min_mm": 0.15,
+   "by_width_mm": {
+    "0.15": 11.54,
+    "0.175": 3.45,
+    "0.28": 0.05,
+    "0.385": 0.05,
+    "0.4": 4.84,
+    "0.49": 0.05,
+    "0.595": 0.05,
+    "0.7": 2.12,
+    "0.8": 6.33
+   },
+   "in_run_scope": true
+  },
+  "GND": {
+   "requested_mm": 0.7,
+   "length_mm": 331.71,
+   "under_mm": 126.28,
+   "under_share": 0.3807,
+   "min_mm": 0.15,
+   "by_width_mm": {
+    "0.15": 55.36,
+    "0.175": 2.4,
+    "0.18": 0.38,
+    "0.21": 0.36,
+    "0.24": 0.38,
+    "0.26": 1.02,
+    "0.27": 0.36,
+    "0.28": 0.26,
+    "0.3": 19.13,
+    "0.35": 14.7,
+    "0.36": 0.36,
+    "0.37": 1.4,
+    "0.38": 0.36,
+    "0.385": 0.26,
+    "0.39": 0.36,
+    "0.4": 22.31,
+    "0.42": 0.63,
+    "0.48": 1.02,
+    "0.49": 0.89,
+    "0.56": 0.63,
+    "0.59": 1.03,
+    "0.595": 0.26,
+    "0.63": 0.63,
+    "0.65": 1.77,
+    "0.7": 199.22,
+    "2": 6.21
+   },
+   "in_run_scope": true
+  },
+  "Vdrive": {
+   "requested_mm": 0.3,
+   "length_mm": 40.29,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": 0.3,
+   "by_width_mm": {
+    "0.3": 40.29
+   },
+   "in_run_scope": true
+  },
+  "+5V": {
+   "requested_mm": 0.7,
+   "length_mm": 5.15,
+   "under_mm": 0,
+   "under_share": 0.0,
+   "min_mm": 0.7,
+   "by_width_mm": {
+    "0.7": 5.15
+   },
+   "in_run_scope": true
+  }
+ },
+ "power_widths_measured_on": "written board",
+ "power_widths_run_scope": [
+  "+1V8",
+  "+3V3",
+  "+5V",
+  "/VPHY",
+  "/VPLL",
+  "GND",
+  "VBUS",
+  "Vdrive"
+ ],
+ "regrade": {
+  "board": "file",
+  "graded_nets": 11,
+  "seconds": 0.1,
+  "unowned_broken": [],
+  "recovered": [],
+  "broken_by_run": [
+   "/USB_DM"
+  ]
+ },
+ "via_in_pad": {
+  "count": 1,
+  "sites": [
+   "FB2.2 F.Paste (pad)"
+  ],
+  "stamped": 0,
+  "restored": 0,
+  "protected": 0,
+  "unstampable": 0,
+  "site_created": 0,
+  "unprotected": [
+   {
+    "site": "FB2.2 F.Paste (pad)",
+    "x": 126.4,
+    "y": 77.4,
+    "why": "at the spot of an input via, kept as the input had it"
+   }
+  ],
+  "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"
+ },
+ "improvement_gate": {
+  "lost": [
+   "/USB_DM"
+  ],
+  "gained": [],
+  "lost_zone": [],
+  "gained_zone": [],
+  "worsened": [],
+  "disconnected_pads_before": 2,
+  "disconnected_pads_after": 3,
+  "nets_compared": 61,
+  "verdict": "reject"
+ },
+ "shipped": "input board",
+ "shipped_note": "the improvement gate REJECTED this run and the output is the input board; every tally in this file describes the rejected attempt, not the shipped board"
+}

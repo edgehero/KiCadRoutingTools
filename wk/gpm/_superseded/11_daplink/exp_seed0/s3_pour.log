@@ -1,0 +1,87 @@
+CMD: Python -X utf8 py_router/route_planes.py wk/gpm/11_daplink/exp_seed0/s2_signal.kicad_pcb wk/gpm/11_daplink/exp_seed0/s3_pour.kicad_pcb --nets GND GND --plane-layers F.Cu B.Cu
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--track-width not given; using the board Default net-class 0.25mm.
+--via-size not given; using the board Default net-class 0.8mm.
+--via-drill not given; using the board Default net-class 0.4mm.
+  Default class clearance 0.1818 mm, unchanged by this step but below the 0.2 mm an earlier step asked for: an automatic descent on +3.3V, /IF_RST, /IF_SWDIO, /OSCIN, /OSCOUT, /PA0 (+6 more) lowered it.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.2 to route the other nets at 0.2 again.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1818mm.
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading PCB from wk/gpm/11_daplink/exp_seed0/s2_signal.kicad_pcb...
+Zone clearance: following routed clearance 0.1818mm (--zone-clearance to override)
+Found net 'GND' with ID 4
+Found net 'GND' with ID 4
+Board bounds: (100.00, 100.00) to (150.00, 120.00)
+  Layer costs: F.Cu=1.0x, B.Cu=3.0x
+
+============================================================
+Processing net 'GND' on layer F.Cu
+============================================================
+  1 pad(s) on 'GND' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 5
+  SMD pads on F.Cu (no via needed): 27
+  SMD pads kept for thermal via arrays (via needed): 0
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 53.3 mm (diagonal)
+    Avg width:   18.3 mm
+    Resistance:  1.396 mΩ
+    Max current: not rated -- 995 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 19.71 A by extrapolation
+
+Results for 'GND':
+  Zone created on F.Cu
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+Processing net 'GND' on layer B.Cu
+============================================================
+  27 pad(s) on 'GND' deferred to the route step, each kept as a virtual via for the split
+
+Pad analysis for net 'GND':
+  Through-hole pads (no via needed): 5
+  SMD pads on B.Cu (no via needed): 1
+  SMD pads kept for thermal via arrays (via needed): 0
+
+  Plane Resistance Analysis (1 oz copper, 10°C rise):
+    Path length: 53.3 mm (diagonal)
+    Avg width:   18.3 mm
+    Resistance:  1.396 mΩ
+    Max current: not rated -- 995 mils² cross-section is past the IPC-2221 chart range (700 mils²); the fit would say 19.71 A by extrapolation
+
+Results for 'GND':
+  Zone created on B.Cu
+  New vias placed: 0
+  Traces added: 0
+
+============================================================
+OVERALL TOTALS
+============================================================
+  Nets processed: 2
+  Total new vias placed: 0
+  Total traces added: 0
+
+Writing output to wk/gpm/11_daplink/exp_seed0/s3_pour.kicad_pcb...
+Output written to wk/gpm/11_daplink/exp_seed0/s3_pour.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+
+============================================================
+GEOMETRIC VERIFICATION (re-parsed output)
+============================================================
+  GND: 33/33 pads connected to plane on F.Cu
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  Bare pour (no track or via drawn): writing the copper clearance only -- no size or copper-to-hole floor (#1319)
+  DRC settings already consistent (wk/gpm/11_daplink/exp_seed0/s3_pour.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    via diameter: 0.3 mm, unchanged by this step but still below the board's ORIGINAL 0.5mm; 8 of 33 object(s) on this board are below the ORIGINAL 0.5mm
+    via annular ring: 0.05 mm, unchanged by this step but still below the board's ORIGINAL 0.1mm; 8 of 33 object(s) on this board are below the ORIGINAL 0.1mm
+    hole diameter: 0.2 mm, unchanged by this step but still below the board's ORIGINAL 0.3mm
+    copper-to-hole clearance: 0.1818 mm, unchanged by this step but still below the board's ORIGINAL 0.25mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+  Default class clearance 0.1818 mm, unchanged by this step but below the 0.2 mm an earlier step asked for: an automatic descent on +3.3V, /IF_RST, /IF_SWDIO, /OSCIN, /OSCOUT, /PA0 (+6 more) lowered it.
+    Every later step that reads this project routes EVERY Default net at the lower value, and every checker grades against it, so the copper reads clean. Pass --clearance 0.2 to route the other nets at 0.2 again.
+JSON_SUMMARY: {"complete": true, "env_knobs": {"KICAD_ROUTE_TRACE": "1"}, "min_clearance_used": 0.1818, "pads": {"failed_pads": 0, "geometric_failed": 0, "pads_needing_vias": 0}, "pads_scope": "all zones in this run, summed -- not per zone; see plane_zones for what was poured", "plane_nets": ["GND"], "plane_resistance": [{"avg_width_mm": 18.343, "copper_oz": 1.0, "max_current_a": 19.71, "max_current_ipc2152_a": 19.71, "net": "GND", "path_basis": "route", "path_length_mm": 53.34, "resistance_ohms": 0.001396, "temp_rise_c": 10.0}], "plane_zones": [{"layer": "F.Cu", "net": "GND"}, {"layer": "B.Cu", "net": "GND"}], "status": "ok"}
+EXIT=0

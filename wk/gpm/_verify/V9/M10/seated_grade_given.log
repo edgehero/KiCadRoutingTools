@@ -1,0 +1,92 @@
+CMD: Python -X utf8 py_tools/check_floorplan.py wk/gpm/_verify/V9/M10/seated.kicad_pcb --intent wk/gpm/20_sam9g25/repro/intent_given.json --json wk/gpm/_verify/V9/M10/seated_grade_given.json
+ENV KNOBS: none
+design brief seated.design-brief.json: 3 interface(s), 0 keep-out(s), 3 declared UNKNOWN, 2 tier-0 field(s) not declared
+grading at clearance 0.195 (board netclass), edge 0.3 (board constraint)
+  WARNING [placement]: 1 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: U6
+  WARNING [placement]: 1 footprint(s) have no courtyard (F/B.CrtYd) and fall back to their pad bounding box, which carries no courtyard margin: U6
+Modified 3 footprint positions
+Successfully wrote /var/folders/4p/jsszrt7d1153_5y6w3ylmjnr0000gn/T/edge_seat_prdxhqfb/seated.kicad_pcb
+  NOTE [placement]: 1 footprint(s) draw no courtyard and are seated on an ESTIMATED one, what they occupy (body and pads, #1300) -- fab: U6
+Floorplan: seated.kicad_pcb vs intent_given.json
+  111 footprints, 4 block(s), 104 part(s) covered
+  outline: 1 ring(s), 0 cutout(s), 0 milled contour(s)
+  ALSO NOT FULLY GRADED: 2 budget_abstained, 1 rules_skipped_armed -- the violations below are what WAS measured, not all of it
+  12 error(s), 17 warning(s) from 9 rule(s)
+    [ERROR] decap_pin_distance: U1 pin K8 (VDD_CORE) is 5.20mm from C14, the nearest decoupling cap on that rail (limit 3.63mm)
+    [ERROR] decap_pin_distance: U1 pin K9 (VDD_CORE) is 4.53mm from C14, the nearest decoupling cap on that rail (limit 3.63mm)
+    [ERROR] decap_pin_distance: U1 pin P7 (VDD-IO) is 5.61mm from C912, the nearest decoupling cap on that rail (limit 3.63mm)
+    [ERROR] decap_pin_distance: U200 pin J9 (VDD_DDR) is 3.70mm from C7, the nearest decoupling cap on that rail (limit 3.63mm)
+    [ERROR] decap_pin_distance: U200 pin M9 (VDD_DDR) is 5.84mm from C7, the nearest decoupling cap on that rail (limit 3.63mm)
+    [ERROR] decap_pin_distance: U6 pin 4 (VDD-IO) is 5.42mm from C20, the nearest decoupling cap on that rail (limit 3.63mm)
+    [warn ] decap_pin_distance_inferred: U2 pin 6 (VDD_DDR) is 3.82mm from C5, the nearest decoupling cap on that rail (limit 3.63mm) -- pin inferred from the net NAME, not from a pintype or pinfunction
+    [warn ] decap_pin_distance_inferred: U7 pin 5 (VBUS) is 6.05mm from C33, the nearest decoupling cap on that rail (limit 3.63mm) -- pin inferred from the net NAME, not from a pintype or pinfunction
+    [ERROR] edge_connector: J2 sits nearest the south edge but is declared on the west edge
+    [ERROR] edge_connector: J2's body leaves its pad row toward the south (courtyard+fab+marker, 1.14mm), away from its declared west edge -- its mating face points south, not out of the west edge
+    [ERROR] edge_connector: SW1 sits nearest the south edge but is declared on the west edge
+    [warn ] pins_to_edge: D4: 2 of 4 connected pads sit on a row facing the south edge (-49.37mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: J4: 2 of 8 connected pads sit on a row facing the south edge (-52.56mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: J5: 2 of 8 connected pads sit on a row facing the south edge (-53.11mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: J6: 2 of 44 connected pads sit on a row facing the south edge (-75.97mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: J7: 1 of 8 connected pads sit on a row facing the south edge (-53.11mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: U1: 14 of 217 connected pads sit on a row facing the south edge (-57.36mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: U200: 4 of 84 connected pads sit on a row facing the south edge (-56.56mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: U5: 1 of 8 connected pads sit on a row facing the south edge (-52.86mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: U6: 1 of 6 connected pads sit on a row facing the south edge (-57.06mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: U7: 1 of 6 connected pads sit on a row facing the south edge (-51.91mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] pins_to_edge: Y1: 1 of 4 connected pads sit on a row facing the south edge (-51.81mm) with no partner beyond -- their nets can only leave along the edge strip or under the part
+    [warn ] proximity: C1 pad 1 is 5.97mm from Y1 pad 1 on /cpu/hse_in, past the declared 2.20mm proximity limit
+    [warn ] proximity: C2 pad 1 is 3.85mm from Y2 pad 1 on /cpu/lse_in, past the declared 2.20mm proximity limit
+    [warn ] proximity: C3 pad 1 is 6.13mm from Y2 pad 2 on /cpu/lse_out, past the declared 2.20mm proximity limit
+    [warn ] proximity: C4 pad 1 is 3.51mm from Y1 pad 3 on /cpu/hse_out, past the declared 2.20mm proximity limit
+    [ERROR] zone_containment: H1 courtyard extends 50.52mm past the south edge of block 'fixed:H1' -- the anchor is H1's declared pose in wk/gpm/20_sam9g25/repro/intent_given.json fixed_poses[]
+    [ERROR] zone_containment: H2 courtyard extends 50.52mm past the south edge of block 'fixed:H2' -- the anchor is H2's declared pose in wk/gpm/20_sam9g25/repro/intent_given.json fixed_poses[]
+    [ERROR] zone_containment: H4 courtyard extends 86.52mm past the south edge of block 'fixed:H4' -- the anchor is H4's declared pose in wk/gpm/20_sam9g25/repro/intent_given.json fixed_poses[]
+  pad stacks: 583 (two parts' pad copper overlapping, any net -- check_assembly's pad_intersection, exact; printed, not a floorplan rule) -- check_assembly grades these NOT BUILDABLE
+    AE1 <-> C203  0.2611mm2  side F
+    AE1 <-> C205  0.2611mm2  side F
+    AE1 <-> C215  0.3472mm2  side F
+    AE1 <-> C217  0.3472mm2  side F
+    AE1 <-> C218  0.1242mm2  side F
+    ... 578 more
+  along-edge seating (measured, not a verdict -- a violation needs a declared center_on_edge or along_edge_band):
+    SW1 west: +71.73mm (+199.2% of the 36.00mm edge, ring)
+    J2 west: +69.46mm (+192.9% of the 36.00mm edge, ring)
+    SW2 south: +2.21mm (+3.7% of the 60.00mm edge, ring)
+  edge connector overhang (measured; the band's own currency is named):
+    J2 west: overhang 246.7495mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm fail; facing south [courtyard+fab+marker, strong] FAIL
+    SW1 west: overhang 255.6770mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm fail
+    SW2 south: overhang 255.6770mm [legacy_occupancy@margin=0] pass; pad copper unmeasured vs 0.3mm fail
+  decap pins: 38 on 6 of 9 candidate IC(s) -- pinfunction 16, pintype 11, rail_net 11
+    1 chip(s) where a lower channel would have named a DIFFERENT pin set (U1)
+  2 declared value(s) NOT DERIVABLE -- not graded, not passed:
+    - oob_count: the board is a pile: its off-board count is staging, not a baseline (#1103)
+    - overlap_area: the board is a pile: its overlap is staging, not a baseline (#1103)
+  9 rule(s) did not run:
+    - array_formation: the intent declares no arrays
+    - keep_away: the intent declares no keep_away rules
+    - keepout: the intent declares no keepouts
+    - legality: the intent declares no legality_budget; the emitter WITHHELD oob_count (the board is a pile: its off-board count is staging, not a baseline (#1103)), overlap_area (the board is a pile: its overlap is staging, not a baseline (#1103))
+    - must_lock: the intent declares no must_lock patterns
+    - replicate: the intent declares no replicate copies
+    - template: the intent declares no templates
+    - zone_containment: no block declares a zone
+    - zone_exclusive: no block is marked exclusive
+  rule roster: 9 armed, 9 not; 2 rule(s) owe a written answer
+    [OWED] zone_containment: no block declares a zone
+    [policy] zone_exclusive: a policy about who may enter a zone; nothing on the board says that a zone is reserved
+    [not applicable] keepout: nothing declares a keep-out: the brief (if any) names none, and the board file has none this intent can grade
+    [policy] keep_away: a design relation between two net groups; nothing on the board says which nets are noisy and which are sensitive
+    [not applicable] must_lock: must_lock is a plan's choice, not a requirement no board fact can excuse: the design brief never compiles one, so leaving it dark owes nothing
+    [OWED] legality: the intent declares no legality_budget
+    [policy] array_formation: a design decision about which parts form one row; nothing on the board says which identical parts belong together
+    [policy] replicate: a design decision about which sheet instance is the template; the board says which instances are siblings, not that they must be laid out alike
+    [policy] template: an arrangement read from a part's datasheet; the board says which parts are wired to the chip, not where its datasheet puts them
+    OWED: zone_containment: dark -- no block declares a zone. It applies here (every movable block can be given a zone). Arm it with `blocks[].zone` if the design has that requirement, or write why it does not: dispositions.rules.zone_containment
+    OWED: legality: dark -- the intent declares no legality_budget. It applies here (every placement has a legality to measure). Arm it with `legality_budget` if the design has that requirement, or write why it does not: dispositions.rules.legality
+  DRIFT J2:edge: brief 'west' [declared]; intent 'west' [declared]; board 'south' [inferred] -> brief wins
+  DRIFT SW1:edge: brief 'west' [declared]; intent 'west' [declared]; board 'south' [inferred] -> brief wins
+  brief clause coverage: 3 graded, 0 uncovered, 0 abstained, 3 declared unknown, 0 carried
+  wrote wk/gpm/_verify/V9/M10/seated_grade_given.json
+JSON_SUMMARY: {"blocks": 4, "blocks_resolved": 4, "board": "seated.kicad_pcb", "brief": "wk/gpm/_verify/V9/M10/seated.design-brief.json", "brief_absent": 2, "brief_clauses": 6, "brief_clauses_abstained": 0, "brief_clauses_carried": 0, "brief_clauses_drifted": 0, "brief_clauses_graded": 3, "brief_clauses_not_claimed": 3, "brief_clauses_uncovered": 0, "brief_coverage_complete": true, "brief_declared": 3, "brief_drift": 0, "brief_unknown": 3, "brief_unknown_keys": ["interfaces[J2].along_edge", "interfaces[SW1].along_edge", "interfaces[SW2].along_edge"], "budget_abstained": 2, "budget_abstained_keys": ["oob_count", "overlap_area"], "carried_facts": [], "clearance_used": {"source": "board netclass", "value": 0.195}, "complete": false, "contradiction_ids": [], "contradictions": 0, "contradictions_undispositioned": [], "cutouts": 0, "decap_pins_by_channel": {"pinfunction": 16, "pintype": 11, "rail_net": 11, "role": 0}, "decap_pins_graded": 38, "derived_default_clauses": [], "edge_clearance_used": {"source": "board constraint", "value": 0.3}, "edge_contours": 0, "edge_seating_abstained": 0, "edge_seating_declared": 0, "edge_seating_rows": 3, "edge_seating_worst_offset_pct": 199.25, "errors": 12, "hole_shortfall": 181.5488, "hpwl": 2579.0139, "intent": "intent_given.json", "keep_away_unpriced": 0, "keepout_pad_amount": 0.0, "keepout_pad_parts": 0, "ledger_status": {"dark": 2, "graded_fail": 6, "graded_pass": 9, "inapplicable": 2, "policy": 5, "unknown": 3}, "locked_contact_pairs": 0, "mechanical": null, "not_graded": {"budget_abstained": 2, "rules_skipped_armed": 1}, "oob_amount": 27379.9515, "oob_area": 1893.79, "oob_count": 111, "overlap_area": 5477.4877, "pad_conflict_pairs": 685, "pad_intersection_pairs": 588, "pad_overlap_pairs": 573, "pad_shortfall": 797.4006, "pad_stack_count": 583, "parts_covered": 104, "parts_total": 111, "pass": false, "rules_dark_undispositioned": ["zone_containment", "legality"], "rules_run": 9, "rules_skipped": 9, "stale_dispositions": [], "state_duplicate_fraction": 0.0, "state_has_copper": false, "state_outside_fraction": 1.0, "state_partially_unplaced": false, "state_spread_ratio": 0.216, "state_unplaced": false, "unmeasured_facts": [], "violations": 29, "violations_by_rule": {"decap_pin_distance": 6, "decap_pin_distance_inferred": 2, "edge_connector": 3, "pins_to_edge": 11, "proximity": 4, "zone_containment": 3}, "warnings": 17}
+  NOT FULLY GRADED: 2 budget_abstained, 1 rules_skipped_armed. A channel the intent asked for was never measured, so this is an absent verdict, not a clean one.
+EXIT=4

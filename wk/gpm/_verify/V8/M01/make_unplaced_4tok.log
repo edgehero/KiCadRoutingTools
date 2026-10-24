@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 395, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 391, in main
+    return build(a.src, a.dst, a.keep_locked, a.keep_local_zones)
+  File ".claude/skills/plan-pcb-placement/scripts/make_unplaced.py", line 259, in build
+    if not write_placed_output(src, dst, placements, pcb_data=pcb):
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "py_placer/placement/writer.py", line 1177, in write_placed_output
+    new_fp_text = _rotate_text_angles(new_fp_text, delta_rot, key)
+  File "py_placer/placement/writer.py", line 300, in _rotate_text_angles
+    return _rewrite_text_ats(fp_text, ref, rotated, 'this rotation')
+  File "py_placer/placement/writer.py", line 348, in _rewrite_text_ats
+    raise SideFlipUnsupported(
+    ...<3 lines>...
+        f"text where it was: {node[:120]!r}")
+placement.writer.SideFlipUnsupported: P1: a text node has an `(at ...)` this rotation cannot parse -- expected two or three plain numbers. Refusing rather than rotating the pads and leaving the text where it was: '(fp_text reference "P1" (at -5.987 2.555 0 unlocked) (layer "F.SilkS")\n        (effects (font (size 1 1) (thickness 0.15'

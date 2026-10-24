@@ -1,0 +1,22 @@
+WARNING: 4 footprint block(s) share 2 reference(s) -- G*** x2, REF** x2. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 96 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              675              543
+  vias                                  104              216
+  total length mm                    1085.7            878.6
+  distinct track widths                   8                7
+  nets with copper                       35               35
+  ours widths:   {0.127: 5, 0.2: 82, 0.209: 22, 0.223: 1, 0.25: 529, 0.4: 31, 1.6: 2, 2.0: 3}
+  orig widths:   {0.152: 418, 0.25: 4, 0.254: 34, 0.406: 7, 0.508: 67, 0.61: 12, 0.762: 1}
+  ours vias:     {'0.8/0.4': 92, '0.4/0.3': 1, '0.45/0.2': 9, '0.25/0.15': 2}
+  orig vias:     {'0.6/0.3': 204, '0.8/0.4': 12}
+
+  SUGGESTIONS:
+   - VIAS: 104 vs original 216 (0.48x) — comparable.
+   - LAYER BALANCE: ours 0.98 vs original 0.87 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 675, "n_vias": 104, "total_length_mm": 1085.7, "length_by_layer": {"F.Cu": 549.2, "B.Cu": 536.5}, "width_count": {"0.25": 529, "0.127": 5, "0.4": 31, "2.0": 3, "0.2": 82, "0.209": 22, "1.6": 2, "0.223": 1}, "via_count": {"0.8/0.4": 92, "0.4/0.3": 1, "0.45/0.2": 9, "0.25/0.15": 2}, "distinct_widths": 8, "nets_with_copper": 35, "n_multi_pad_nets": 35, "n_nets": 63}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 543, "n_vias": 216, "total_length_mm": 878.6, "length_by_layer": {"F.Cu": 409.7, "B.Cu": 469.0}, "width_count": {"0.508": 67, "0.762": 1, "0.25": 4, "0.254": 34, "0.406": 7, "0.152": 418, "0.61": 12}, "via_count": {"0.6/0.3": 204, "0.8/0.4": 12}, "distinct_widths": 7, "nets_with_copper": 35, "n_multi_pad_nets": 35, "n_nets": 63}, "suggestions": ["VIAS: 104 vs original 216 (0.48x) \u2014 comparable.", "LAYER BALANCE: ours 0.98 vs original 0.87 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

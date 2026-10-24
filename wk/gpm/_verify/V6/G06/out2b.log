@@ -1,0 +1,425 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V6/G06/out1.kicad_pcb wk/gpm/_verify/V6/G06/out2b.kicad_pcb --nets "/RP2354A/FPGA.~{STATUS}" GND +3V3 --track-width 0.0762 --clearance-ceiling 0.09 --via-size 0.25 --via-drill 0.15 --layers F.Cu In1.Cu In2.Cu In3.Cu In4.Cu B.Cu --layer-costs 1.0 6.0 2.5 1.0 1.0 1.0 --no-bga-zones --max-ripup 5 --power-nets GND +3V3 "Net-(D2-K)" /VIN "Net-(D2-A)" "Net-(U7-SW)" +1V1 /RP2354A/1V1 "Net-(U6-VREG_LX)" "Net-(U6-VREG_AVDD)" --power-nets-widths 0.7 0.7 0.7 0.7 0.7 0.7 0.5 0.5 0.5 0.3
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.09mm.
+--clearance-ceiling 0.09: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.2mm [board constraint].
+Loading wk/gpm/_verify/V6/G06/out1.kicad_pcb to expand net patterns...
+Routing 3 nets: ['/RP2354A/FPGA.~{STATUS}', 'GND', '+3V3']
+Loading wk/gpm/_verify/V6/G06/out1.kicad_pcb...
+Using 6 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'In3.Cu', 'In4.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=6.0x, In2.Cu=2.5x, In3.Cu=1.0x, In4.Cu=1.0x, B.Cu=1.0x
+BGA exclusion zones disabled (all)
+
+Power net width assignments (10 nets):
+  0.3mm: Net-(U6-VREG_AVDD)
+  0.5mm: +1V1, /RP2354A/1V1, Net-(U6-VREG_LX)
+  0.7mm: 6 nets (+3V3, GND, Net-(D2-K)...)
+
+WARNING: 5 target pad(s) at/over the board outline:
+    GND (U8.1) at (139.85, 88.50) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    GND (U8.17) at (148.50, 122.55) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    GND (U8.32) at (157.15, 91.03) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    +3V3 (U8.16) at (145.96, 122.55) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+    +3V3 (U8.31) at (157.15, 93.58) is at/near the board edge (inside the edge keep-out) -- may be unroutable
+
+Skipping 2 already-routed net(s): Already fully connected
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: /RP2354A/FPGA.~{STATUS}
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+68 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.05s
+Found 74 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.08s (74 nets)
+Plane fragility: exact-fill geometry (2 filled island(s) from KiCad refill)
+Plane fragility field: 88818 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing /RP2354A/FPGA.~{STATUS} (id=6)
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 5016 iterations (both directions)
+  FAILED: Could not find route (0.07s)
+  Forward direction failed fastest (16 iterations, 20 blocked cells)
+  Frontier blocked by 2 nets (11 cells, 11 unique; near: 11 src, 0 tgt)
+  Coverage: 11/20 frontier cells attributed to routed nets; 9 static/unrippable
+  Top blockers:
+    1. /T8F49I2X/PIN.4: 8 (72.7%), 8 uniq (100%), near: 8 src, 0 tgt
+    2. /T8F49I2X/PIN.20: 3 (27.3%), 3 uniq (100%), near: 3 src, 0 tgt
+  Via-in-pad decline blamed Net-(U2-GPIOL_20_PLLIN) (copper under the boxed pad) - ripping it first
+  Ripping up Net-(U2-GPIOL_20_PLLIN) to retry...
+      PRE-EXISTING rip: 'Net-(U2-GPIOL_20_PLLIN)' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped Net-(U2-GPIOL_20_PLLIN)
+forward stuck (20 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 0/8 neighbors blocked
+No route found after 5020 iterations (both directions)
+  RETRY FAILED (N=1)
+    Retry had 1075 blocked cells
+  Re-analyzing 1075 blocked cells from N=1 retry:
+    Frontier blocked by 14 nets (619 cells, 619 unique; near: 12 src, 86 tgt)
+    Coverage: 619/1075 frontier cells attributed to routed nets; 456 static/unrippable
+    Top blockers:
+      1. /RP2354A/PROGRAM: 100 (16.2%), 100 uniq (100%), near: 0 src, 26 tgt
+      2. /RP2354A/FPGA.MOSI: 81 (13.1%), 81 uniq (100%), near: 0 src, 5 tgt
+      3. /T8F49I2X/R: 71 (11.5%), 71 uniq (100%)
+      4. /T8F49I2X/PIN.5: 66 (10.7%), 66 uniq (100%), near: 0 src, 11 tgt
+      5. Net-(U6-XOUT): 54 (8.7%), 54 uniq (100%)
+      6. /RP2354A/ON{slash}OFF: 51 (8.2%), 51 uniq (100%)
+      7. Net-(U6-XIN): 45 (7.3%), 45 uniq (100%)
+      8. /RP2354A/RP.UART0_RX: 41 (6.6%), 41 uniq (100%)
+      9. /RP2354A/FPGA.DONE: 39 (6.3%), 39 uniq (100%), near: 0 src, 39 tgt
+      10. /RP2354A/FPGA.~{CS}: 35 (5.7%), 35 uniq (100%)
+      ... and 4 more nets (36 cells)
+  Slot-0 guard: re-analysis refutes Net-(U2-GPIOL_20_PLLIN) -> retrying /RP2354A/PROGRAM ALONE first
+  Ripping up /RP2354A/PROGRAM to retry...
+      PRE-EXISTING rip: '/RP2354A/PROGRAM' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /RP2354A/PROGRAM
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 5016 iterations (both directions)
+  RETRY FAILED (N=1)
+    Retry had 915 blocked cells
+  Re-analyzing 915 blocked cells from N=1 retry:
+    Frontier blocked by 12 nets (460 cells, 460 unique; near: 11 src, 70 tgt)
+    Coverage: 460/915 frontier cells attributed to routed nets; 455 static/unrippable
+    Top blockers:
+      1. /RP2354A/FPGA.MOSI: 91 (19.8%), 91 uniq (100%), near: 0 src, 5 tgt
+      2. /RP2354A/FPGA.DONE: 74 (16.1%), 74 uniq (100%), near: 0 src, 55 tgt
+      3. /RP2354A/ON{slash}OFF: 51 (11.1%), 51 uniq (100%)
+      4. Net-(U6-XOUT): 50 (10.9%), 50 uniq (100%)
+      5. /T8F49I2X/R: 47 (10.2%), 47 uniq (100%)
+      6. /RP2354A/RP.UART0_RX: 45 (9.8%), 45 uniq (100%)
+      7. Net-(U6-XIN): 45 (9.8%), 45 uniq (100%)
+      8. /RP2354A/FPGA.~{CS}: 36 (7.8%), 36 uniq (100%)
+      9. /T8F49I2X/PIN.4: 8 (1.7%), 8 uniq (100%), near: 8 src, 0 tgt
+      10. /RP2354A/FPGA.~{RESET}: 7 (1.5%), 7 uniq (100%), near: 0 src, 7 tgt
+      ... and 2 more nets (6 cells)
+  Extending to N=2: ripping /RP2354A/FPGA.MOSI...
+      PRE-EXISTING rip: '/RP2354A/FPGA.MOSI' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /RP2354A/FPGA.MOSI
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 5016 iterations (both directions)
+  RETRY FAILED (N=2)
+    Retry had 915 blocked cells
+  Re-analyzing 915 blocked cells from N=2 retry:
+    Frontier blocked by 13 nets (436 cells, 436 unique; near: 11 src, 104 tgt)
+    Coverage: 436/915 frontier cells attributed to routed nets; 479 static/unrippable
+    Top blockers:
+      1. /RP2354A/FPGA.DONE: 72 (16.5%), 72 uniq (100%), near: 0 src, 53 tgt
+      2. /RP2354A/ON{slash}OFF: 51 (11.7%), 51 uniq (100%)
+      3. Net-(U6-XOUT): 50 (11.5%), 50 uniq (100%)
+      4. /T8F49I2X/R: 46 (10.6%), 46 uniq (100%)
+      5. Net-(U6-XIN): 45 (10.3%), 45 uniq (100%)
+      6. /RP2354A/RP.UART0_RX: 43 (9.9%), 43 uniq (100%)
+      7. /RP2354A/RP.UART1_RX: 42 (9.6%), 42 uniq (100%), near: 0 src, 41 tgt
+      8. /RP2354A/FPGA.~{CS}: 35 (8.0%), 35 uniq (100%)
+      9. /RP2354A/FPGA.CLK: 31 (7.1%), 31 uniq (100%)
+      10. /T8F49I2X/PIN.4: 8 (1.8%), 8 uniq (100%), near: 8 src, 0 tgt
+      ... and 3 more nets (13 cells)
+  Extending to N=3: ripping /RP2354A/FPGA.DONE...
+      PRE-EXISTING rip: '/RP2354A/FPGA.DONE' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /RP2354A/FPGA.DONE
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 5016 iterations (both directions)
+  RETRY FAILED (N=3)
+    Retry had 873 blocked cells
+  Re-analyzing 873 blocked cells from N=3 retry:
+    Frontier blocked by 11 nets (411 cells, 411 unique; near: 11 src, 78 tgt)
+    Coverage: 411/873 frontier cells attributed to routed nets; 462 static/unrippable
+    Top blockers:
+      1. /RP2354A/ON{slash}OFF: 51 (12.4%), 51 uniq (100%)
+      2. /RP2354A/FPGA.~{RESET}: 50 (12.2%), 50 uniq (100%), near: 0 src, 37 tgt
+      3. Net-(U6-XOUT): 50 (12.2%), 50 uniq (100%)
+      4. /T8F49I2X/R: 47 (11.4%), 47 uniq (100%)
+      5. /RP2354A/RP.UART0_RX: 45 (10.9%), 45 uniq (100%)
+      6. Net-(U6-XIN): 45 (10.9%), 45 uniq (100%)
+      7. /RP2354A/RP.UART1_RX: 41 (10.0%), 41 uniq (100%), near: 0 src, 41 tgt
+      8. /RP2354A/FPGA.~{CS}: 37 (9.0%), 37 uniq (100%)
+      9. /RP2354A/FPGA.CLK: 34 (8.3%), 34 uniq (100%)
+      10. /T8F49I2X/PIN.4: 8 (1.9%), 8 uniq (100%), near: 8 src, 0 tgt
+      ... and 1 more nets (3 cells)
+  Extending to N=4: ripping /RP2354A/ON{slash}OFF...
+      PRE-EXISTING rip: '/RP2354A/ON{slash}OFF' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /RP2354A/ON{slash}OFF
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 5016 iterations (both directions)
+  RETRY FAILED (N=4)
+    Retry had 841 blocked cells
+  Re-analyzing 841 blocked cells from N=4 retry:
+    Frontier blocked by 10 nets (304 cells, 304 unique; near: 24 src, 78 tgt)
+    Coverage: 304/841 frontier cells attributed to routed nets; 537 static/unrippable
+    Top blockers:
+      1. /T8F49I2X/R: 55 (18.1%), 55 uniq (100%), near: 13 src, 0 tgt
+      2. /RP2354A/FPGA.~{RESET}: 50 (16.4%), 50 uniq (100%), near: 0 src, 37 tgt
+      3. Net-(U6-XOUT): 50 (16.4%), 50 uniq (100%)
+      4. /RP2354A/RP.UART1_RX: 41 (13.5%), 41 uniq (100%), near: 0 src, 41 tgt
+      5. Net-(U6-XIN): 40 (13.2%), 40 uniq (100%)
+      6. /RP2354A/FPGA.~{CS}: 32 (10.5%), 32 uniq (100%)
+      7. /RP2354A/FPGA.OSC_EN: 18 (5.9%), 18 uniq (100%)
+      8. /T8F49I2X/PIN.4: 8 (2.6%), 8 uniq (100%), near: 8 src, 0 tgt
+      9. /RP2354A/RP.UART0_RX: 7 (2.3%), 7 uniq (100%)
+      10. /T8F49I2X/PIN.20: 3 (1.0%), 3 uniq (100%), near: 3 src, 0 tgt
+  Extending to N=5: ripping /T8F49I2X/R...
+      PRE-EXISTING rip: '/T8F49I2X/R' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped /T8F49I2X/R
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 5016 iterations (both directions)
+  RETRY FAILED (N=5)
+    Retry had 813 blocked cells
+  All rip-up attempts failed: Restoring 5 net(s)
+      restore skipped (net 28): saved copper would short other-net copper; left ripped (#134)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5016 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.05 --clearance 0.15 --track-width 0.15 (current: grid 0.1, clearance 0.09, track 0.0762 mm)
+  Hint: the blocking copper belongs to 1 pre-existing net(s) committed by an earlier run/step; 1 of them this run may not rip. Retry with --rip-existing-nets '+1V1' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+Sync pcb_data: 1055 -> 1055 (kept stubs) -> 1055 (after adding 0)
+Issue #134 recovery: re-routing 1 net(s) left ripped to avoid a short: /RP2354A/FPGA.MOSI
+
+[REROUTE 2/2] Re-routing ripped net /RP2354A/FPGA.MOSI
+forward stuck (2 < 5000), backward=5000
+  forward cell (1508, 1138, layer=0): ok, 7/8 neighbors blocked
+No route found after 5002 iterations (both directions)
+  REROUTE FAILED: (0.02s) - attempting rip-up and retry...
+  No previously-routed nets blocking (likely blocked by pads/stubs/zones)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5002 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion.  [rationale as above]
+Issue #134 last resort: /RP2354A/FPGA.MOSI reroute failed; restored 4 segment(s) + 1 via(s) of its pre-rip route (dropped 1 colliding piece(s)); net remains PARTIAL for a later reconnect pass
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing /RP2354A/FPGA.~{STATUS} (failed, 2 disconnected parts)
+forward stuck (583 < 5000), backward=5000
+  forward cell (6111, 4585, layer=0): ok, 0/8 neighbors blocked
+No route found after 5583 iterations (both directions)
+forward stuck (583 < 5000), backward=5000
+  forward cell (6111, 4585, layer=0): ok, 0/8 neighbors blocked
+No route found after 5583 iterations (both directions)
+    rescue failed (0.2s)
+Rescue pass: 0 recovered, 0 improved, 1 unchanged (0.2s)
+
+Pre-existing rip outcome(s) (6 net(s)):
+  'Net-(U2-GPIOL_20_PLLIN)' (was blocking '/RP2354A/FPGA.~{STATUS}'): original copper restored
+  '/T8F49I2X/R' (was blocking '/RP2354A/FPGA.~{STATUS}'): original copper restored
+  '/RP2354A/FPGA.MOSI' (was blocking '/RP2354A/FPGA.~{STATUS}'): original copper restored
+  '/RP2354A/FPGA.DONE' (was blocking '/RP2354A/FPGA.~{STATUS}'): original copper restored
+  '/RP2354A/ON{slash}OFF' (was blocking '/RP2354A/FPGA.~{STATUS}'): original copper restored
+  '/RP2354A/PROGRAM' (was blocking '/RP2354A/FPGA.~{STATUS}'): original copper restored
+Closed 1 stub gap(s) to same-net copper
+Octolinear smoothing: collapsed 2 staircase span(s) on 2 net(s), -0.10 mm of copper (#536)
+Stripping 1 stale input via(s) of ripped/re-routed nets not on the final board
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Total vias:    0
+  Total time:    0.07s
+  Iterations:    5,016
+  Fragility refresh (#466): 9 windows, 0.06s total
+  History congestion (#590): 6 contest + 6 rip + 7 blocked-frontier event(s) over 6327 cell(s), peak 0.50mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed single-ended nets:
+  /RP2354A/FPGA.~{STATUS}
+
+Failed multi-point connections:
+  /RP2354A/FPGA.MOSI: U6 pad ? at (144.18, 102.97) not connected
+
+============================================================
+FAILED NET HISTORIES
+============================================================
+
+/RP2354A/FPGA.~{STATUS}:
+  [0] blocked_by
+  [0] Re-route FAILED: all rip-up attempts failed
+         Blocked by: /RP2354A/PROGRAM, /RP2354A/FPGA.MOSI, /RP2354A/FPGA.DONE
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 5016 iteration(s) (grid 0.1, clearance 0.09, track 0.0762 mm)
+  [0] Blocked by pre-existing copper: +1V1
+         Hint: the blocking copper belongs to 1 pre-existing net(s) committed by an earlier run/step; 1 of them this run may not rip. Retry with --rip-existing-nets '+1V1' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_failed
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V1: 0.37A max (0.076mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  +3V3: 0.37A max (0.076mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  /RP2354A/1V1: 0.37A max (0.076mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.18A)
+  /VIN: 1.12A max (0.350mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.56A)
+  GND: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Net-(D2-A): 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Net-(D2-K): 0.37A max (0.076mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  Net-(U6-VREG_AVDD): 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Net-(U6-VREG_LX): 1.45A max (0.500mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.72A)
+  Net-(U7-SW): 1.85A max (0.700mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": ["/RP2354A/FPGA.~{STATUS}"], "open_single": [], "failed_multipoint": [{"net_name": "/RP2354A/FPGA.MOSI", "failed_pads": [{"component_ref": "U6", "pad_number": "?", "x": 144.1794, "y": 102.9671}]}], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.07, "total_iterations": 5016, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.09, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.075, "via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.09}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 2, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": [], "unchanged": ["/RP2354A/FPGA.~{STATUS}"], "pads_reconnected": 0, "widths": {}, "time": 0.2}, "preexisting_rips": {"Net-(U2-GPIOL_20_PLLIN)": "original copper restored [was blocking '/RP2354A/FPGA.~{STATUS}']", "/T8F49I2X/R": "original copper restored [was blocking '/RP2354A/FPGA.~{STATUS}']", "/RP2354A/FPGA.MOSI": "original copper restored [was blocking '/RP2354A/FPGA.~{STATUS}']", "/RP2354A/FPGA.DONE": "original copper restored [was blocking '/RP2354A/FPGA.~{STATUS}']", "/RP2354A/ON{slash}OFF": "original copper restored [was blocking '/RP2354A/FPGA.~{STATUS}']", "/RP2354A/PROGRAM": "original copper restored [was blocking '/RP2354A/FPGA.~{STATUS}']"}, "oracle_check": "disabled", "ripped_open": ["/RP2354A/FPGA.MOSI"], "ripped_open_uncounted": ["/RP2354A/FPGA.MOSI"], "ripped_open_note": "ripped_open nets are OUTSIDE this run's --nets scope, so they move neither failed_single nor open_single. Those listed in ripped_open_uncounted are additionally not in either scoped term: if they are also outside the multipoint pad deficit, the run's open-net verdict is understated by that many.", "blockers": [{"net": "/RP2354A/FPGA.~{STATUS}", "stage": "single_ended", "blocked_by": [{"net": "/T8F49I2X/R", "blocked_count": 55, "unique_cells": 55, "track_cells": 55, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 13}, {"net": "/RP2354A/FPGA.~{RESET}", "blocked_count": 50, "unique_cells": 50, "track_cells": 44, "via_cells": 6, "near_target_cells": 37, "near_source_cells": 0}, {"net": "Net-(U6-XOUT)", "blocked_count": 50, "unique_cells": 50, "track_cells": 48, "via_cells": 2, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/RP2354A/RP.UART1_RX", "blocked_count": 41, "unique_cells": 41, "track_cells": 41, "via_cells": 0, "near_target_cells": 41, "near_source_cells": 0}, {"net": "Net-(U6-XIN)", "blocked_count": 40, "unique_cells": 40, "track_cells": 40, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/RP2354A/FPGA.~{CS}", "blocked_count": 32, "unique_cells": 32, "track_cells": 25, "via_cells": 8, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/RP2354A/FPGA.OSC_EN", "blocked_count": 18, "unique_cells": 18, "track_cells": 18, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/T8F49I2X/PIN.4", "blocked_count": 8, "unique_cells": 8, "track_cells": 8, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 8}, {"net": "/RP2354A/RP.UART0_RX", "blocked_count": 7, "unique_cells": 7, "track_cells": 7, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 0}, {"net": "/T8F49I2X/PIN.20", "blocked_count": 3, "unique_cells": 3, "track_cells": 3, "via_cells": 0, "near_target_cells": 0, "near_source_cells": 3}]}, {"net": "/RP2354A/FPGA.~{STATUS}", "stage": "preexisting", "blocked_by": [{"net": "+1V1", "preexisting": true}]}], "boxed_in": [{"verdict": "boxed_in_static", "iterations": 5016, "geometry": {"grid_step": 0.1, "clearance": 0.09, "track_width": 0.0762, "via_diameter": null}, "net": "/RP2354A/FPGA.~{STATUS}"}, {"verdict": "boxed_in_static", "iterations": 5002, "geometry": {"grid_step": 0.1, "clearance": 0.09, "track_width": 0.0762, "via_diameter": null}, "net": "/RP2354A/FPGA.MOSI"}], "pad_pairs_connected": 8, "pad_pairs_total": 10, "pad_pairs_open": [{"net": "/RP2354A/FPGA.MOSI", "pairs_connected": 0, "pairs_total": 1, "outcome": "open", "open_subtype": "collision_refused"}, {"net": "/RP2354A/FPGA.~{STATUS}", "pairs_connected": 0, "pairs_total": 1, "outcome": "open", "open_subtype": "unrouted"}], "power_trace_ampacity": [{"net": "+1V1", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 33.2}, {"net": "+3V3", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 43.1}, {"net": "/RP2354A/1V1", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.18, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 24.3}, {"net": "/VIN", "bottleneck_width_mm": 0.35, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.56, "max_current_ipc2152_a": 1.12, "temp_rise_c": 10.0, "trace_length_mm": 3.3}, {"net": "GND", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 109.0}, {"net": "Net-(D2-A)", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 8.5}, {"net": "Net-(D2-K)", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 25.5}, {"net": "Net-(U6-VREG_AVDD)", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 2.9}, {"net": "Net-(U6-VREG_LX)", "bottleneck_width_mm": 0.5, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.72, "max_current_ipc2152_a": 1.45, "temp_rise_c": 10.0, "trace_length_mm": 3.4}, {"net": "Net-(U7-SW)", "bottleneck_width_mm": 0.7, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 2.1}], "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/_verify/V6/G06/out2b.kicad_pcb...
+Removed 5 dead-end input segment(s) from the output
+Removed 1 stale input via(s) from the output
+Successfully wrote wk/gpm/_verify/V6/G06/out2b.kicad_pcb
+
+Plane finalize (#562): all zone nets complete (fill-aware) -- skipping engine/cleanup legs, oracle verifies
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 1.4s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+
+Final reconciliation: retrying 2 incomplete/custody net(s) against the finished board: /RP2354A/FPGA.~{STATUS}, /RP2354A/FPGA.MOSI
+  Preserving routed width 0.0889mm for reconciled net /RP2354A/FPGA.~{STATUS} (original copper was wider than this run's 0.0762mm default)
+Loading wk/gpm/_verify/V6/G06/out2b.kicad_pcb...
+Using 6 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'In3.Cu', 'In4.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=6.0x, In2.Cu=2.5x, In3.Cu=1.0x, In4.Cu=1.0x, B.Cu=1.0x
+BGA exclusion zones disabled (all)
+
+Power net width assignments (11 nets):
+  0.0889mm: /RP2354A/FPGA.~{STATUS}
+  0.3mm: Net-(U6-VREG_AVDD)
+  0.5mm: +1V1, /RP2354A/1V1, Net-(U6-VREG_LX)
+  0.7mm: 6 nets (+3V3, GND, Net-(D2-K)...)
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 2 nets with 1 crossing conflicts detected
+MPS Round 1: 1 units: /RP2354A/FPGA.MOSI
+MPS Round 2: 1 units: /RP2354A/FPGA.~{STATUS}
+Direct-first ordering (#472): 1 bare-ball net(s) moved to the front: /RP2354A/FPGA.MOSI
+
+Routing 2 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.03s
+Found 74 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.02s (74 nets)
+Plane fragility: exact-fill geometry (2 filled island(s) from KiCad refill)
+Plane fragility field: 88848 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/2] Routing /RP2354A/FPGA.MOSI (id=28)
+backward stuck (2 < 5000), forward=5000
+  backward cell (1508, 1138, layer=0): ok, 7/8 neighbors blocked
+No route found after 5002 iterations (both directions)
+  FAILED: Could not find route (0.02s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5002 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.05 --clearance 0.15 --track-width 0.15 (current: grid 0.1, clearance 0.09, track 0.0762 mm)
+  Hint: the blocking copper belongs to 15 pre-existing net(s) committed by an earlier run/step; 15 of them this run may not rip. Retry with --rip-existing-nets '/RP2354A/1V1' '/RP2354A/RP.UART1_RX' '/T8F49I2X/R' '/T8F49I2X/PIN.4' '/RP2354A/FPGA.CLK' '+1V1' '/RP2354A/FPGA.~{RESET}' '/RP2354A/FPGA.~{CS}' '/RP2354A/ON{slash}OFF' '/T8F49I2X/B' '/T8F49I2X/PIN.12' '/T8F49I2X/PIN.22' '/T8F49I2X/G' '/RP2354A/FPGA.DONE' '/T8F49I2X/PIN.23' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+[2/2 (1 failed)] Routing /RP2354A/FPGA.~{STATUS} (id=6)
+Wide route blocked - retrying at default track width (neck-down)
+forward stuck (5 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 8/8 neighbors blocked (margin=2)
+    Blocking obstacles: /T8F49I2X/PIN.20(3 track, 1 pad), /T8F49I2X/PIN.4(3 track, 1 pad), /T8F49I2X/PIN.17(1 track, 1 pad), Net-(U2-GPIOL_20_PLLIN)(1 track, 1 pad), unconnected-(U2-GPIOR_02_RESERVED_OUT-PadB5)(1 pad)
+forward stuck (16 < 5000), backward=5000
+  forward cell (1528, 1146, layer=0): ok, 3/8 neighbors blocked
+No route found after 10021 iterations (both directions)
+  FAILED: Could not find route (0.02s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5005 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion.  [rationale as above]
+  Hint: the blocking copper belongs to 14 pre-existing net(s) committed by an earlier run/step; 14 of them this run may not rip. Retry with --rip-existing-nets 'Net-(U2-GPIOL_20_PLLIN)' '/RP2354A/SCL' '/RP2354A/SDA' '/T8F49I2X/PIN.4' '/RP2354A/PROGRAM' '/T8F49I2X/PIN.21' '/T8F49I2X/PIN.17' '+1V1' '/T8F49I2X/PIN.20' '/T8F49I2X/PIN.16' '/RP2354A/FPGA.MOSI' '/RP2354A/FPGA.DONE' '/RP2354A/FPGA.~{RESET}' '/RP2354A/RP.UART1_RX' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+Per-net fine-parameter rescue (#331/#371): 2 candidate net(s)
+  Rescuing /RP2354A/FPGA.MOSI (failed, 2 disconnected parts)
+backward stuck (165 < 5000), forward=5000
+  backward cell (6031, 4553, layer=0): ok, 0/8 neighbors blocked
+No route found after 5165 iterations (both directions)
+backward stuck (165 < 5000), forward=5000
+  backward cell (6031, 4553, layer=0): ok, 0/8 neighbors blocked
+No route found after 5165 iterations (both directions)
+    rescue failed (0.1s)
+  Rescuing /RP2354A/FPGA.~{STATUS} (failed, 2 disconnected parts)
+forward stuck (384 < 5000), backward=5000
+  forward cell (6111, 4585, layer=0): ok, 0/8 neighbors blocked (margin=2)
+Wide route blocked - retrying at default track width (neck-down)
+forward stuck (583 < 5000), backward=5000
+  forward cell (6111, 4585, layer=0): ok, 0/8 neighbors blocked
+No route found after 10967 iterations (both directions)
+forward stuck (499 < 5000), backward=5000
+  forward cell (6111, 4585, layer=0): ok, 0/8 neighbors blocked
+No route found after 5499 iterations (both directions)
+    rescue failed (0.3s)
+Rescue pass: 0 recovered, 0 improved, 2 unchanged (0.3s)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/2 routed (2 FAILED)
+  Total vias:    0
+  Total time:    0.04s
+  Iterations:    15,023
+
+Failed single-ended nets:
+  /RP2354A/FPGA.MOSI
+  /RP2354A/FPGA.~{STATUS}
+
+============================================================
+FAILED NET HISTORIES
+============================================================
+
+/RP2354A/FPGA.MOSI:
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 5002 iteration(s) (grid 0.1, clearance 0.09, track 0.0762 mm)
+  [0] Blocked by pre-existing copper: /RP2354A/1V1, /RP2354A/RP.UART1_RX, /T8F49I2X/R (+12 more)
+         Hint: the blocking copper belongs to 15 pre-existing net(s) committed by an earlier run/step; 15 of them this run may not rip. Retry with --rip-existing-nets '/RP2354A/1V1' '/RP2354A/RP.UART1_RX' '/T8F49I2X/R' '/T8F49I2X/PIN.4' '/RP2354A/FPGA.CLK' '+1V1' '/RP2354A/FPGA.~{RESET}' '/RP2354A/FPGA.~{CS}' '/RP2354A/ON{slash}OFF' '/T8F49I2X/B' '/T8F49I2X/PIN.12' '/T8F49I2X/PIN.22' '/T8F49I2X/G' '/RP2354A/FPGA.DONE' '/T8F49I2X/PIN.23' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_failed
+
+/RP2354A/FPGA.~{STATUS}:
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 5005 iteration(s) (grid 0.1, clearance 0.09, track 0.0762 mm)
+  [0] Blocked by pre-existing copper: Net-(U2-GPIOL_20_PLLIN), /RP2354A/SCL, /RP2354A/SDA (+11 more)
+         Hint: the blocking copper belongs to 14 pre-existing net(s) committed by an earlier run/step; 14 of them this run may not rip. Retry with --rip-existing-nets 'Net-(U2-GPIOL_20_PLLIN)' '/RP2354A/SCL' '/RP2354A/SDA' '/T8F49I2X/PIN.4' '/RP2354A/PROGRAM' '/T8F49I2X/PIN.21' '/T8F49I2X/PIN.17' '+1V1' '/T8F49I2X/PIN.20' '/T8F49I2X/PIN.16' '/RP2354A/FPGA.MOSI' '/RP2354A/FPGA.DONE' '/RP2354A/FPGA.~{RESET}' '/RP2354A/RP.UART1_RX' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_failed
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V1: 0.37A max (0.076mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  +3V3: 0.37A max (0.076mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  /RP2354A/1V1: 0.37A max (0.076mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.18A)
+  /RP2354A/FPGA.~{STATUS}: 0.41A max (0.089mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.41A)
+  /VIN: 1.12A max (0.350mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.56A)
+  GND: 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Net-(D2-A): 0.68A max (0.175mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Net-(D2-K): 0.37A max (0.076mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.37A)
+  Net-(U6-VREG_AVDD): 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Net-(U6-VREG_LX): 1.45A max (0.500mm on In3.Cu (1 oz copper, 10°C rise), IPC-2221: 0.72A)
+  Net-(U7-SW): 1.85A max (0.700mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": ["/RP2354A/FPGA.MOSI", "/RP2354A/FPGA.~{STATUS}"], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 2, "total_time": 0.04, "total_iterations": 15023, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.09, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.075, "via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.09}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 2, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "rescue": {"attempted": 2, "recovered": [], "improved": [], "unchanged": ["/RP2354A/FPGA.MOSI", "/RP2354A/FPGA.~{STATUS}"], "pads_reconnected": 0, "widths": {}, "time": 0.32}, "oracle_check": "skipped", "blockers": [{"net": "/RP2354A/FPGA.MOSI", "stage": "preexisting", "blocked_by": [{"net": "/RP2354A/1V1", "preexisting": true}, {"net": "/RP2354A/RP.UART1_RX", "preexisting": true}, {"net": "/T8F49I2X/R", "preexisting": true}, {"net": "/T8F49I2X/PIN.4", "preexisting": true}, {"net": "/RP2354A/FPGA.CLK", "preexisting": true}, {"net": "+1V1", "preexisting": true}, {"net": "/RP2354A/FPGA.~{RESET}", "preexisting": true}, {"net": "/RP2354A/FPGA.~{CS}", "preexisting": true}, {"net": "/RP2354A/ON{slash}OFF", "preexisting": true}, {"net": "/T8F49I2X/B", "preexisting": true}, {"net": "/T8F49I2X/PIN.12", "preexisting": true}, {"net": "/T8F49I2X/PIN.22", "preexisting": true}, {"net": "/T8F49I2X/G", "preexisting": true}, {"net": "/RP2354A/FPGA.DONE", "preexisting": true}, {"net": "/T8F49I2X/PIN.23", "preexisting": true}]}, {"net": "/RP2354A/FPGA.~{STATUS}", "stage": "preexisting", "blocked_by": [{"net": "Net-(U2-GPIOL_20_PLLIN)", "preexisting": true}, {"net": "/RP2354A/SCL", "preexisting": true}, {"net": "/RP2354A/SDA", "preexisting": true}, {"net": "/T8F49I2X/PIN.4", "preexisting": true}, {"net": "/RP2354A/PROGRAM", "preexisting": true}, {"net": "/T8F49I2X/PIN.21", "preexisting": true}, {"net": "/T8F49I2X/PIN.17", "preexisting": true}, {"net": "+1V1", "preexisting": true}, {"net": "/T8F49I2X/PIN.20", "preexisting": true}, {"net": "/T8F49I2X/PIN.16", "preexisting": true}, {"net": "/RP2354A/FPGA.MOSI", "preexisting": true}, {"net": "/RP2354A/FPGA.DONE", "preexisting": true}, {"net": "/RP2354A/FPGA.~{RESET}", "preexisting": true}, {"net": "/RP2354A/RP.UART1_RX", "preexisting": true}]}], "boxed_in": [{"verdict": "boxed_in_static", "iterations": 5002, "geometry": {"grid_step": 0.1, "clearance": 0.09, "track_width": 0.0762, "via_diameter": null}, "net": "/RP2354A/FPGA.MOSI"}, {"verdict": "boxed_in_static", "iterations": 5005, "geometry": {"grid_step": 0.1, "clearance": 0.09, "track_width": 0.0762, "via_diameter": null}, "net": "/RP2354A/FPGA.~{STATUS}"}], "pad_pairs_connected": 0, "pad_pairs_total": 2, "pad_pairs_open": [{"net": "/RP2354A/FPGA.MOSI", "pairs_connected": 0, "pairs_total": 1, "outcome": "open", "open_subtype": "unrouted"}, {"net": "/RP2354A/FPGA.~{STATUS}", "pairs_connected": 0, "pairs_total": 1, "outcome": "open", "open_subtype": "unrouted"}], "power_trace_ampacity": [{"net": "+1V1", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 33.2}, {"net": "+3V3", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 43.1}, {"net": "/RP2354A/1V1", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.18, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 24.3}, {"net": "/RP2354A/FPGA.~{STATUS}", "bottleneck_width_mm": 0.0889, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.41, "max_current_ipc2152_a": 0.41, "temp_rise_c": 10.0, "trace_length_mm": 0.2}, {"net": "/VIN", "bottleneck_width_mm": 0.35, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.56, "max_current_ipc2152_a": 1.12, "temp_rise_c": 10.0, "trace_length_mm": 3.3}, {"net": "GND", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 109.0}, {"net": "Net-(D2-A)", "bottleneck_width_mm": 0.175, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 8.5}, {"net": "Net-(D2-K)", "bottleneck_width_mm": 0.0762, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.37, "max_current_ipc2152_a": 0.37, "temp_rise_c": 10.0, "trace_length_mm": 25.5}, {"net": "Net-(U6-VREG_AVDD)", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 2.9}, {"net": "Net-(U6-VREG_LX)", "bottleneck_width_mm": 0.5, "bottleneck_layer": "In3.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.72, "max_current_ipc2152_a": 1.45, "temp_rise_c": 10.0, "trace_length_mm": 3.4}, {"net": "Net-(U7-SW)", "bottleneck_width_mm": 0.7, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 2.1}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {}}
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+
+Pour re-audit: re-auditing 2 zone net(s) KiCad verified complete before the final reconciliation: +3V3, GND
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  Pour re-audit: every verified pour is whole after the reconciliation (0 link(s) welded back)
+
+  FAB NOTE (route): 114 via(s) in a pad or paste opening [C1 F.Paste (paste_only_pad), C11 F.Paste (paste_only_pad), C13 F.Paste (paste_only_pad), C16 F.Paste (paste_only_pad), C17 F.Paste (paste_only_pad), C18 F.Paste (paste_only_pad), C19 F.Paste (paste_only_pad), C20 F.Paste (paste_only_pad), +101 more] -- 0 stamped (capping yes) (filling yes), 114 already filled+capped. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 114, "sites": ["C1 F.Paste (paste_only_pad)", "C11 F.Paste (paste_only_pad)", "C13 F.Paste (paste_only_pad)", "C16 F.Paste (paste_only_pad)", "C17 F.Paste (paste_only_pad)", "C18 F.Paste (paste_only_pad)", "C19 F.Paste (paste_only_pad)", "C20 F.Paste (paste_only_pad)", "C21 F.Paste (paste_only_pad)", "C22 F.Paste (paste_only_pad)", "C24 F.Paste (paste_only_pad)", "C25 F.Paste (paste_only_pad)", "C26.2 F.Paste (pad)", "C27.1 F.Paste (pad)", "C27.2 F.Paste (pad)", "C28 F.Paste (paste_only_pad)", "C29 F.Paste (paste_only_pad)", "C3 F.Paste (paste_only_pad)", "C30 F.Paste (paste_only_pad)", "C5 F.Paste (paste_only_pad)", "C6 F.Paste (paste_only_pad)", "C7 F.Paste (paste_only_pad)", "C8 F.Paste (paste_only_pad)", "C9 F.Paste (paste_only_pad)", "C9.1", "D1.1 F.Paste (pad)", "D2 F.Paste (paste_only_pad)", "J1.A1 F.Paste (pad)", "J1.A12 F.Paste (pad)", "J2.1", "J3.1 B.Paste (pad)", "L1.1 F.Paste (pad)", "L1.2 F.Paste (pad)", "L2.1 F.Paste (pad)", "R11 F.Paste (paste_only_pad)", "R2 F.Paste (paste_only_pad)", "R3 F.Paste (paste_only_pad)", "R6 F.Paste (paste_only_pad)", "RN1.7 F.Paste (pad)", "RN2.1 F.Paste (pad)", "RN2.2 F.Paste (pad)", "RN2.3 F.Paste (pad)", "RN2.5 F.Paste (pad)", "RN2.8 F.Paste (pad)", "U1.8 B.Paste (pad)", "U2.A2 F.Paste (pad)", "U2.A6 F.Paste (pad)", "U2.B1 F.Paste (pad)", "U2.B2 F.Paste (pad)", "U2.B3 F.Paste (pad)", "U2.B4 F.Paste (pad)", "U2.B6 F.Paste (pad)", "U2.C1 F.Paste (pad)", "U2.C2 F.Paste (pad)", "U2.C5 F.Paste (pad)", "U2.C6 F.Paste (pad)", "U2.D1 F.Paste (pad)", "U2.D2 F.Paste (pad)", "U2.D4 F.Paste (pad)", "U2.D5 F.Paste (pad)", "U2.D6 F.Paste (pad)", "U2.E2 F.Paste (pad)", "U2.E5 F.Paste (pad)", "U2.E7 F.Paste (pad)", "U2.F1 F.Paste (pad)", "U2.F3 F.Paste (pad)", "U2.F4 F.Paste (pad)", "U2.F5 F.Paste (pad)", "U2.F6 F.Paste (pad)", "U2.F7 F.Paste (pad)", "U3.2 F.Paste (pad)", "U3.4 F.Paste (pad)", "U3.5 F.Paste (pad)", "U3.6 F.Paste (pad)", "U4 F.Paste (paste_only_pad)", "U5.2 F.Paste (pad)", "U5.5 F.Paste (pad)", "U5.6 F.Paste (pad)", "U5.9 F.Paste (pad)", "U6.11 F.Paste (pad)", "U6.2 F.Paste (pad)", "U6.20 F.Paste (pad)", "U6.24 F.Paste (pad)", "U6.25 F.Paste (pad)", "U6.26 F.Paste (pad)", "U6.30 F.Paste (pad)", "U6.38 F.Paste (pad)", "U6.4 F.Paste (pad)", "U6.42 F.Paste (pad)", "U6.43 F.Paste (pad)", "U6.46 F.Paste (pad)", "U6.47 F.Paste (pad)", "U6.48 F.Paste (pad)", "U6.50 F.Paste (pad)", "U6.53 F.Paste (pad)", "U6.55 F.Paste (pad)", "U6.56 F.Paste (pad)", "U6.57 F.Paste (pad)", "U6.58 F.Paste (pad)", "U6.59 F.Paste (pad)", "U6.6 F.Paste (pad)", "U6.9 F.Paste (pad)", "U7 F.Paste (paste_only_pad)", "U7.2 F.Paste (pad)", "U7.5 F.Paste (pad)", "U7.7 F.Paste (pad)", "Y1.1 F.Paste (pad)", "Y2.2 F.Paste (pad)", "Y2.4 F.Paste (pad)"], "stamped": 0, "restored": 0, "protected": 114, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: +3V3 34.7/43.1 mm under the requested 0.7 (min 0.0762); GND 60.6/109.0 mm under the requested 0.7 (min 0.175); Net-(D2-K) 24.6/25.4 mm under the requested 0.7 (min 0.0762); +1V1 29.4/33.2 mm under the requested 0.5 (min 0.0762); /RP2354A/1V1 16.1/24.3 mm under the requested 0.5 (min 0.0762); /VIN 1.9/3.3 mm under the requested 0.7 (min 0.35); Net-(D2-A) 8.5/8.5 mm under the requested 0.7 (min 0.175) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.09, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.075, "via_diameter": 0.25, "via_drill": 0.15, "hole_to_hole": 0.25, "annular": 0.05, "board_edge": 0.2, "clearance": 0.09}, "count": 2, "nets": [1, 2], "narrowed": [{"net": 1, "net_name": "+3V3", "kind": "track_width", "requested": 0.7, "delivered": 0.0762, "site": "power copper shipped under width", "count": 1, "length_mm": 34.73}, {"net": 2, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.175, "site": "power copper shipped under width", "count": 1, "length_mm": 60.56}], "min_delivered": {"track_width": 0.0762}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 8, "seconds": 0.07, "routed_single": [], "failed_single": ["/RP2354A/FPGA.MOSI", "/RP2354A/FPGA.~{STATUS}"], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 9, "multipoint_pads_connected": 9, "successful": 0, "failed": 2, "unowned_broken": [], "recovered": [], "pad_pairs": {"/RP2354A/FPGA.~{STATUS}": {"total": 1, "connected": 0, "copper": true}, "/RP2354A/FPGA.MOSI": {"total": 1, "connected": 0, "copper": true}}, "broken_by_run": ["/RP2354A/FPGA.MOSI"]}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (8 net(s), 0.1s)
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Multi-point:   9/9 pads connected
+  Broken by this run, outside its routing scope (connected on the input; ripped and not restored): /RP2354A/FPGA.MOSI
+  Ships broken: 2 net(s) -- the `failed` count, over every net the run owns
+
+IMPROVEMENT GATE: this run broke 1 previously-connected net(s) [/RP2354A/FPGA.MOSI], worsened 0, connected 0 -- REJECTED
+  broken by this run: /RP2354A/FPGA.MOSI
+  disconnected pads: 1 -> 2 over 74 multi-pad net(s)
+  REVERTED wk/gpm/_verify/V6/G06/out2b.kicad_pcb to the input board (the pre-rip board is the better artifact). This run did not fail to execute -- it ran and was REJECTED, so re-running it with MORE rip authority cannot help: change the approach (thinner track / finer grid / different layers), or accept the open nets and report them. See docs/rip-up-reroute.md 'Improvement gate'. KICAD_IMPROVEMENT_GATE=0 ships the regression instead.
+JSON_IMPROVEMENT_GATE: {"lost": ["/RP2354A/FPGA.MOSI"], "gained": [], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 1, "disconnected_pads_after": 2, "nets_compared": 74, "verdict": "reject"}
+  Design rules [--escalation fab, --fab-tier auto]: 2 feature(s) on 2 net(s) delivered below the requested size (smallest track width 0.0762 mm). Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 2, "failed": 2, "failed_single": ["/RP2354A/FPGA.MOSI", "/RP2354A/FPGA.~{STATUS}"], "improvement_gate": "reverted", "main_loop_time_s": 0.11000000000000001, "min_clearance_used": 0.09, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 2, "nets": ["/RP2354A/FPGA.MOSI", "/RP2354A/FPGA.~{STATUS}"]}, "regraded_nets": 8, "routed": 0, "scope": "merged", "terminal_restores_broken": [], "vias": 0}
+  (improvement gate reverted the output -- skipping the castellated retract and the DRC-settings writeback; the output is the input board, project and rules included)
+EXIT=0

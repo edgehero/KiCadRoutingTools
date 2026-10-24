@@ -1,0 +1,35 @@
+CMD: Python -X utf8 py_tools/check_assembly.py wk/gpm/_verify/V4/G32/p1.kicad_pcb --baseline wk/gpm/18_uecg/repro/fixed.kicad_pcb
+ENV KNOBS: none
+  grading at clearance 0.15mm  [board netclass]
+Assembly audit of wk/gpm/_verify/V4/G32/p1.kicad_pcb (clearance 0.15):
+  blocking 0  advisory 1  waived 1  contained 0  courtyard_blocking 1  new-vs-baseline 1
+  baseline wk/gpm/18_uecg/repro/fixed.kicad_pcb is a pile: its overlaps are staging, not a baseline (#1103), so every advisory pair counts as new
+    E+1 <-> U9  courtyard  0.6304mm2 side F  COURTYARD-BLOCKING  <-- NEW vs baseline
+    E+1 <-> J2  courtyard  0.0241mm2 side F  waived:edge_class
+  pad/hole/oob echo: 0 pad pair(s), 0 hole conflict(s), 0 part(s) with pad copper off-board
+  BODY COVERAGE: 72 of 75 part(s) draw a body the containment channel can judge (71 fab, 1 silk)
+    A silk body is the LAST resort and never gates: a library may draw an assembly outline there rather than the part (esp_prog's SOT89 draws corner brackets 5.2mm apart around a 4.5mm part). Such pairs are reported, with their source, and excluded from the blocking channels.
+    3 part(s) draw no usable body (no .Fab body, no usable silk), so the channel cannot judge them: GC1, SC1, SW1
+  ASSEMBLY SIDES: F 74 / B 1 pad-bearing part(s) of 75 block(s); 2 reflow pass(es), 4 through-hole part(s)
+    Through-hole F 4 / B 0 (plated barrels only), counted and never folded in: a drilled part on the front needs wave, selective or hand soldering, not a second reflow pass.
+    observed policy: sides=both -- counted per footprint BLOCK, verdict from the pad-bearing subset (parts_by_side_basis in --json has the rule in full)
+  COURTYARD BLOCKING (1): unwaived courtyard interpenetration past the floors (area >= 0.5mm2 OR >= 25% of the smaller courtyard, AND depth >= 0.3mm) -- 1 of 1 GATE (a member moved vs the baseline)
+    E+1 <-> U9  0.6304mm2  depth 0.3509mm  side F  GATES (moved: E+1 U9)
+    A deliberate overlap is accepted by naming the pair in the intent's `overlap_waivers`, where the acceptance is visible.
+  BODY-TO-EDGE BAND: 14 of 71 part(s) have a body within 2.5mm of the board edge [derived_default: JLCPCB's assembly rule, one assembler's -- REPORT-ONLY; declare assembly.body_edge_mm in the intent to gate]  new_in_band 14
+    F1 0.585mm (fab, side F)  MOVED
+    J6 0.73mm (fab, side F)  MOVED
+    J5 0.747mm (fab, side F)  MOVED
+    C16 1.101mm (fab, side F)  MOVED
+    R9 1.152mm (fab, side F)  MOVED
+    U4 1.217mm (fab, side F)  MOVED
+    R1 1.457mm (fab, side F)  MOVED
+    U9 1.607mm (fab, side F)  MOVED
+    IC3 2.072mm (fab, side F)  MOVED
+    C8 2.081mm (fab, side F)  MOVED
+    R18 2.232mm (fab, side F)  MOVED
+    U8 2.295mm (fab, side F)  MOVED
+    ... +2 more (--json)
+    in the band but belonging at the edge, never counted (edge class, marker, or an edge the intent declares): J2 0.0mm [edge_receptacle], SW2 0.0mm [edge_actuator], AE1 0.711mm [edge_receptacle]
+  VERDICT: NOT BUILDABLE
+EXIT=4

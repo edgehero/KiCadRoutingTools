@@ -1,0 +1,24 @@
+WARNING: 58 footprint block(s) share 1 reference(s) -- REF** x58. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 191 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+WARNING: 59 footprint block(s) share 1 reference(s) -- REF** x59. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 192 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+WARNING: reclassified 3 Edge.Cuts contour(s) mis-read as board cutout(s) -- each encloses pads, so it is an inner outline / keep-out, not a hole (as a cutout it would have marked the enclosed pads off-board). Kept as a milled edge for clearance.
+WARNING: reclassified 3 Edge.Cuts contour(s) mis-read as board cutout(s) -- each encloses pads, so it is an inner outline / keep-out, not a hole (as a cutout it would have marked the enclosed pads off-board). Kept as a milled edge for clearance.
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                             1355             1404
+  vias                                  238              157
+  total length mm                    2065.2           2024.3
+  distinct track widths                   9                3
+  nets with copper                      126              126
+  ours widths:   {0.089: 43, 0.113: 2, 0.116: 1, 0.131: 1, 0.15: 1272, 0.2: 9, 0.3: 4, 0.4: 20, 0.8: 3}
+  orig widths:   {0.15: 1296, 0.2: 15, 0.3: 93}
+  ours vias:     {'0.5/0.3': 224, '0.3/0.15': 11, '0.25/0.15': 1, '0.45/0.2': 2}
+  orig vias:     {'0.5/0.3': 157}
+
+  SUGGESTIONS:
+   - VIAS: we placed 238 vias vs original 157 (1.52x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 1355, "n_vias": 238, "total_length_mm": 2065.2, "length_by_layer": {"F.Cu": 613.4, "B.Cu": 424.0, "In1.Cu": 508.4, "In2.Cu": 519.4}, "width_count": {"0.15": 1272, "0.131": 1, "0.113": 2, "0.089": 43, "0.116": 1, "0.4": 20, "0.2": 9, "0.8": 3, "0.3": 4}, "via_count": {"0.5/0.3": 224, "0.3/0.15": 11, "0.25/0.15": 1, "0.45/0.2": 2}, "distinct_widths": 9, "nets_with_copper": 126, "n_multi_pad_nets": 127, "n_nets": 127}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 1404, "n_vias": 157, "total_length_mm": 2024.3, "length_by_layer": {"F.Cu": 1131.5, "B.Cu": 726.4, "In2.Cu": 166.4}, "width_count": {"0.15": 1296, "0.2": 15, "0.3": 93}, "via_count": {"0.5/0.3": 157}, "distinct_widths": 3, "nets_with_copper": 126, "n_multi_pad_nets": 127, "n_nets": 127}, "suggestions": ["VIAS: we placed 238 vias vs original 157 (1.52x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count."]}

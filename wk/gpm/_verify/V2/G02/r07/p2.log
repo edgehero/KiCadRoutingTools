@@ -1,0 +1,369 @@
+CMD: Python -u -X utf8 py_router/route.py wk/gpm/_verify/V2/G02/r07/p1.kicad_pcb wk/gpm/_verify/V2/G02/r07/p2.kicad_pcb --nets "*" --track-width 0.15 --via-size 0.608 --via-drill 0.508 --clearance-ceiling 0.1 --layers F.Cu In1.Cu In2.Cu B.Cu --layer-costs 1.0 3.0 3.0 1.0 --max-ripup 5 --via-cost 150 --escalation board --same-net-pad-clearance 0.1 --power-nets GND PGND +3V3 +5V +5VBAT +5VUSB /VMUX /Solar_module/Solar+ /Solar_module/VBAT /Solar_module/SYS "Net-(U5-PMID)" /Solar_module/SW1 /Solar_module/SW2 "Net-(U6-EN)" "Net-(U6-SW)" "Net-(U2-SW)" /Battery_holder/VBAT+ "Net-(F2-Pad2)" BAT- "Net-(C24-Pad2)" "Net-(Q1-D)" /VOUT1 /VOUT2 /VOUT3 /VOUT4 /VOUT5 /VOUT6 --power-nets-widths 0.5 0.7 0.7 1.0 1.0 0.7 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 0.7 0.7 0.7 0.7 0.7 0.7 --json-out wk/gpm/_verify/V2/G02/r07/p2.json
+ENV KNOBS: none
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.1mm.
+--clearance-ceiling 0.1: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.2mm [fixed default].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/_verify/V2/G02/r07/p1.kicad_pcb to expand net patterns...
+Pattern '*' matched 121 nets
+Routing 121 nets: ['+3V3', '+5V', '+5VBAT', '+5VUSB', '/A0']...
+Loading wk/gpm/_verify/V2/G02/r07/p1.kicad_pcb...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=3.0x, In2.Cu=3.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (27 nets):
+  0.5mm: GND
+  0.7mm: 9 nets (+3V3, +5VUSB, /VOUT3...)
+  1.0mm: 17 nets (+5V, /Battery_holder/VBAT+, Net-(Q1-D)...)
+
+Skipping 120 already-routed net(s): 119 x Already fully connected, 1 x Only 1 pad(s)
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: Net-(U2-MODE{slash}S-CONF)
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+  3 PROTECTED net(s) excluded from pre-existing rip candidacy (diff-pair: /USB_D-, /USB-, /USB+) -- name a net exactly (no glob) to override
+102 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.24s
+Found 120 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.27s (120 nets)
+Plane fragility: exact-fill geometry (9 filled island(s) from KiCad refill)
+Plane fragility field: 1263508 cells near the edges of 5 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing Net-(U2-MODE{slash}S-CONF) (id=127)
+  WARNING: plane tap U2.7: dropped below the standard fab floor to the BOARD's own declared minimums; --escalation board bounds it there (it never reaches the advanced 0.25/0.15 via). Pass --fab-tier standard for a hard floor, or --escalation off to forbid the descent entirely
+backward stuck (37 < 5000), forward=5000  [x2]
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked  [x2]
+No route found after 5037 iterations (both directions)
+  FAILED: Could not find route (0.08s)
+  Backward direction failed fastest (37 iterations, 29 blocked cells)
+  Frontier blocked by 1 nets (3 cells, 3 unique; near: 3 src, 3 tgt)
+  Coverage: 3/29 frontier cells attributed to routed nets; 26 static/unrippable
+  Top blockers:
+    1. Net-(U2-SS{slash}TR): 3 (100.0%), 3 uniq (100%), near: 3 src, 3 tgt
+  Ripping up Net-(U2-SS{slash}TR) to retry...
+      PRE-EXISTING rip: 'Net-(U2-SS{slash}TR)' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped Net-(U2-SS{slash}TR)
+backward stuck (41 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+backward stuck (41 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5041 iterations (both directions)
+  RETRY FAILED (N=1)
+    Retry had 371 blocked cells
+  Re-analyzing 371 blocked cells from N=1 retry:
+    No previously-routed nets blocking (likely blocked by pads/stubs/zones)
+  No additional rippable blockers from retry analysis
+  All rip-up attempts failed: Restoring 1 net(s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5037 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.05 --clearance 0.15 --track-width 0.15 (current: grid 0.1, clearance 0.1, track 0.15 mm)
+  Hint: the blocking copper belongs to 2 pre-existing net(s) committed by an earlier run/step; 2 of them this run may not rip. Retry with --rip-existing-nets '+5V' '/Battery_holder/VBAT+' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+Sync pcb_data: 1805 -> 1805 (kept stubs) -> 1805 (after adding 0)
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing Net-(U2-MODE{slash}S-CONF) (failed, 2 disconnected parts)
+backward stuck (967 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 5967 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+    rescue failed (0.5s)
+Rescue pass: 0 recovered, 0 improved, 1 unchanged (0.5s)
+
+Terminal geometry escalation (better than shipping opens): 1 candidate net(s)
+  terminal escalation: Net-(U2-MODE{slash}S-CONF) at track 0.1296 via 0.45/0.508 (rung 1/3)
+backward stuck (40 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5040 iterations (both directions)
+  terminal escalation: Net-(U2-MODE{slash}S-CONF) at track 0.1093 via 0.45/0.508 (rung 2/3)
+backward stuck (42 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5042 iterations (both directions)
+  terminal escalation: Net-(U2-MODE{slash}S-CONF) at track 0.0889 via 0.45/0.508 (rung 3/3)
+backward stuck (42 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5042 iterations (both directions)
+    terminal escalation: Net-(U2-MODE{slash}S-CONF) unrecovered (0.4s)
+Terminal escalation: 0 recovered, 1 unrecovered (0.4s)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  'Net-(U2-SS{slash}TR)' (was blocking 'Net-(U2-MODE{slash}S-CONF)'): original copper restored
+Closed 1 stub gap(s) to same-net copper
+Cycle prune: removed 4 redundant loop segment(s) across 4 net(s)
+Octolinear smoothing: collapsed 22 staircase span(s) on 8 net(s), -9.23 mm of copper (#536)
+Merged 3 collinear joint(s) on 3 net(s): -3 redundant segment(s) (#811)
+Stripped 7 stale input segment(s) of ripped/re-routed nets not on the final board (#220)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Total vias:    0
+  Total time:    0.08s
+  Iterations:    5,037
+  Fragility refresh (#466): 2 windows, 0.18s total
+  History congestion (#590): 1 contest + 1 rip + 2 blocked-frontier event(s) over 420 cell(s), peak 0.25mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed single-ended nets:
+  Net-(U2-MODE{slash}S-CONF)
+
+============================================================
+FAILED NET HISTORIES
+============================================================
+
+Net-(U2-MODE{slash}S-CONF):
+  [0] blocked_by
+  [0] Re-route FAILED: all rip-up attempts failed
+         Blocked by: Net-(U2-SS{slash}TR)
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 5037 iteration(s) (grid 0.1, clearance 0.1, track 0.15 mm)
+  [0] Blocked by pre-existing copper: +5V, /Battery_holder/VBAT+
+         Hint: the blocking copper belongs to 2 pre-existing net(s) committed by an earlier run/step; 2 of them this run may not rip. Retry with --rip-existing-nets '+5V' '/Battery_holder/VBAT+' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_failed
+  [0] terminal_escalation_failed
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3V3: 0.68A max (0.175mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  +5V: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5VBAT: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5VUSB: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  /Battery_holder/VBAT+: 1.53A max (0.540mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.53A)
+  /Solar_module/SW1: 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  /Solar_module/SW2: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  /Solar_module/SYS: 0.41A max (0.089mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.41A)
+  /Solar_module/Solar+: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  /Solar_module/VBAT: 0.74A max (0.200mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.74A)
+  /VMUX: 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  /VOUT1: 1.85A max (0.700mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+  /VOUT2: 1.85A max (0.700mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+  /VOUT3: 1.53A max (0.540mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.53A)
+  /VOUT4: 1.65A max (0.600mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.65A)
+  /VOUT5: 1.85A max (0.700mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+  /VOUT6: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  BAT-: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  GND: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  Net-(C24-Pad2): 1.53A max (0.540mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.53A)
+  Net-(F2-Pad2): 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  Net-(Q1-D): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  Net-(U2-SW): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  Net-(U5-PMID): 0.41A max (0.089mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.41A)
+  Net-(U6-EN): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  Net-(U6-SW): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  PGND: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": ["Net-(U2-MODE{slash}S-CONF)"], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.08, "total_iterations": 5037, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.1, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"via_diameter": 0.3, "via_drill": 0.508, "board_edge": 0.3, "clearance": 0.1}, "count": 2, "nets": [127], "narrowed": [{"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}], "min_delivered": {"via_diameter": 0.45}, "fab_tier_escalations": 2, "fab_tier_contexts": ["plane tap U2.7", "plane tap U2.7"], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 9, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": [], "unchanged": ["Net-(U2-MODE{slash}S-CONF)"], "pads_reconnected": 0, "widths": {}, "time": 0.5}, "terminal_escalations": {"Net-(U2-MODE{slash}S-CONF)": "unrecovered"}, "preexisting_rips": {"Net-(U2-SS{slash}TR)": "original copper restored [was blocking 'Net-(U2-MODE{slash}S-CONF)']"}, "oracle_check": "disabled", "protected_skipped": {"pre-existing rip candidacy": {"/USB_D-": "diff-pair", "/USB-": "diff-pair", "/USB+": "diff-pair"}}, "blockers": [{"net": "Net-(U2-MODE{slash}S-CONF)", "stage": "single_ended", "blocked_by": [{"net": "Net-(U2-SS{slash}TR)", "blocked_count": 3, "unique_cells": 3, "track_cells": 3, "via_cells": 0, "near_target_cells": 3, "near_source_cells": 3}]}, {"net": "Net-(U2-MODE{slash}S-CONF)", "stage": "preexisting", "blocked_by": [{"net": "+5V", "preexisting": true}, {"net": "/Battery_holder/VBAT+", "preexisting": true}]}], "boxed_in": [{"verdict": "boxed_in_static", "iterations": 5037, "geometry": {"grid_step": 0.1, "clearance": 0.1, "track_width": 0.15, "via_diameter": null}, "net": "Net-(U2-MODE{slash}S-CONF)"}], "pad_pairs_connected": 1, "pad_pairs_total": 2, "pad_pairs_open": [{"net": "Net-(U2-MODE{slash}S-CONF)", "pairs_connected": 0, "pairs_total": 1, "outcome": "open", "open_subtype": "unrouted"}], "power_trace_ampacity": [{"net": "+3V3", "bottleneck_width_mm": 0.175, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 121.9}, {"net": "+5V", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 87.9}, {"net": "+5VBAT", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 87.6}, {"net": "+5VUSB", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 25.3}, {"net": "/Battery_holder/VBAT+", "bottleneck_width_mm": 0.54, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.53, "max_current_ipc2152_a": 1.53, "temp_rise_c": 10.0, "trace_length_mm": 143.0}, {"net": "/Solar_module/SW1", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 10.0}, {"net": "/Solar_module/SW2", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "/Solar_module/SYS", "bottleneck_width_mm": 0.0889, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.41, "max_current_ipc2152_a": 0.41, "temp_rise_c": 10.0, "trace_length_mm": 46.9}, {"net": "/Solar_module/Solar+", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 98.5}, {"net": "/Solar_module/VBAT", "bottleneck_width_mm": 0.2, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.74, "max_current_ipc2152_a": 0.74, "temp_rise_c": 10.0, "trace_length_mm": 86.7}, {"net": "/VMUX", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 3.3}, {"net": "/VOUT1", "bottleneck_width_mm": 0.7, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 25.4}, {"net": "/VOUT2", "bottleneck_width_mm": 0.7, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 14.4}, {"net": "/VOUT3", "bottleneck_width_mm": 0.54, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.53, "max_current_ipc2152_a": 1.53, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "/VOUT4", "bottleneck_width_mm": 0.6, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.65, "max_current_ipc2152_a": 1.65, "temp_rise_c": 10.0, "trace_length_mm": 8.8}, {"net": "/VOUT5", "bottleneck_width_mm": 0.7, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 6.2}, {"net": "/VOUT6", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 31.2}, {"net": "BAT-", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 82.1}, {"net": "GND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 4.2}, {"net": "Net-(C24-Pad2)", "bottleneck_width_mm": 0.54, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.53, "max_current_ipc2152_a": 1.53, "temp_rise_c": 10.0, "trace_length_mm": 14.1}, {"net": "Net-(F2-Pad2)", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 103.0}, {"net": "Net-(Q1-D)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 17.7}, {"net": "Net-(U2-SW)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 2.5}, {"net": "Net-(U5-PMID)", "bottleneck_width_mm": 0.0889, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.41, "max_current_ipc2152_a": 0.41, "temp_rise_c": 10.0, "trace_length_mm": 8.7}, {"net": "Net-(U6-EN)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 8.3}, {"net": "Net-(U6-SW)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 2.3}, {"net": "PGND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 131.5}], "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/_verify/V2/G02/r07/p2.kicad_pcb...
+  Kept 3 footprint copper shape(s) on copper (a part's own land pattern, not decoration)
+Removed 91 dead-end input segment(s) from the output
+Successfully wrote wk/gpm/_verify/V2/G02/r07/p2.kicad_pcb
+
+Plane finalize (#562): all zone nets complete (fill-aware) -- skipping engine/cleanup legs, oracle verifies
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 2.9s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+
+Final reconciliation: retrying 1 incomplete/custody net(s) against the finished board: Net-(U2-MODE{slash}S-CONF)
+  Reconciliation rip authority (#103): --rip-existing-nets over hinted blockers +5V, /Battery_holder/VBAT+
+Loading wk/gpm/_verify/V2/G02/r07/p2.kicad_pcb...
+Using 4 routing layers: ['F.Cu', 'In1.Cu', 'In2.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, In1.Cu=3.0x, In2.Cu=3.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (27 nets):
+  0.5mm: GND
+  0.7mm: 9 nets (+3V3, +5VUSB, /VOUT3...)
+  1.0mm: 17 nets (+5V, /Battery_holder/VBAT+, Net-(Q1-D)...)
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+MPS Round 1: 1 units: Net-(U2-MODE{slash}S-CONF)
+
+Routing 1 single-ended net(s)...
+============================================================
+2 pre-existing net(s) eligible for rip-up: +5V, /Battery_holder/VBAT+
+Building base obstacle map...
+Base obstacle map built in 0.06s
+Found 120 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.11s (120 nets)
+Plane fragility: exact-fill geometry (9 filled island(s) from KiCad refill)
+Plane fragility field: 1263925 cells near the edges of 5 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing Net-(U2-MODE{slash}S-CONF) (id=127)
+backward stuck (38 < 5000), forward=5000  [x2]
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked  [x2]
+No route found after 5038 iterations (both directions)
+  FAILED: Could not find route (0.04s)
+  Backward direction failed fastest (38 iterations, 29 blocked cells)
+  Frontier blocked by 1 nets (5 cells, 5 unique; near: 5 src, 5 tgt)
+  Coverage: 5/29 frontier cells attributed to routed nets; 24 static/unrippable
+  Top blockers:
+    1. +5V: 5 (100.0%), 5 uniq (100%), near: 5 src, 5 tgt
+  Via-in-pad decline blamed PRE-EXISTING net(s) 'Net-(U2-SS{slash}TR)' - not rippable this run; retry with --rip-existing-nets to authorize
+  Ripping up +5V to retry...
+      PRE-EXISTING rip: '+5V' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+    Ripped +5V
+backward stuck (43 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+backward stuck (43 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5043 iterations (both directions)
+  RETRY FAILED (N=1)
+    Retry had 598 blocked cells
+  Re-analyzing 598 blocked cells from N=1 retry:
+    No previously-routed nets blocking (likely blocked by pads/stubs/zones)
+  No additional rippable blockers from retry analysis
+  All rip-up attempts failed: Restoring 1 net(s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 5038 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.05 --clearance 0.15 --track-width 0.15 (current: grid 0.1, clearance 0.1, track 0.15 mm)
+  Hint: the blocking copper belongs to 2 pre-existing net(s) committed by an earlier run/step; 2 of them this run may not rip. Retry with --rip-existing-nets '/EN_NO2' 'Net-(U2-SS{slash}TR)' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+Sync pcb_data: 1765 -> 1765 (kept stubs) -> 1765 (after adding 0)
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing Net-(U2-MODE{slash}S-CONF) (failed, 2 disconnected parts)
+backward stuck (967 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 5967 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+backward stuck (1161 < 5000), forward=5000
+  backward cell (5726, 4222, layer=3): ok, 0/8 neighbors blocked
+No route found after 6161 iterations (both directions)
+    rescue failed (0.4s)
+Rescue pass: 0 recovered, 0 improved, 1 unchanged (0.4s)
+
+Terminal geometry escalation (better than shipping opens): 1 candidate net(s)
+  terminal escalation: Net-(U2-MODE{slash}S-CONF) at track 0.1296 via 0.45/0.508 (rung 1/3)
+backward stuck (40 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5040 iterations (both directions)
+  terminal escalation: Net-(U2-MODE{slash}S-CONF) at track 0.1093 via 0.45/0.508 (rung 2/3)
+backward stuck (42 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5042 iterations (both directions)
+  terminal escalation: Net-(U2-MODE{slash}S-CONF) at track 0.0889 via 0.45/0.508 (rung 3/3)
+backward stuck (42 < 5000), forward=5000
+  backward cell (1431, 1056, layer=3): ok, 0/8 neighbors blocked
+No route found after 5042 iterations (both directions)
+    terminal escalation: Net-(U2-MODE{slash}S-CONF) unrecovered (0.2s)
+Terminal escalation: 0 recovered, 1 unrecovered (0.2s)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '+5V' (was blocking 'Net-(U2-MODE{slash}S-CONF)'): original copper restored
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Total vias:    0
+  Total time:    0.04s
+  Iterations:    5,038
+  Fragility refresh (#466): 2 windows, 0.22s total
+  History congestion (#590): 1 contest + 1 rip + 2 blocked-frontier event(s) over 13677 cell(s), peak 0.25mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed single-ended nets:
+  Net-(U2-MODE{slash}S-CONF)
+
+============================================================
+FAILED NET HISTORIES
+============================================================
+
+Net-(U2-MODE{slash}S-CONF):
+  [0] blocked_by
+  [0] Re-route FAILED: all rip-up attempts failed
+         Blocked by: +5V
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 5038 iteration(s) (grid 0.1, clearance 0.1, track 0.15 mm)
+  [0] Blocked by pre-existing copper: /EN_NO2, Net-(U2-SS{slash}TR)
+         Hint: the blocking copper belongs to 2 pre-existing net(s) committed by an earlier run/step; 2 of them this run may not rip. Retry with --rip-existing-nets '/EN_NO2' 'Net-(U2-SS{slash}TR)' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_failed
+  [0] terminal_escalation_failed
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +3V3: 0.68A max (0.175mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  +5V: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5VBAT: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5VUSB: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  /Battery_holder/VBAT+: 1.53A max (0.540mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.53A)
+  /Solar_module/SW1: 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  /Solar_module/SW2: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  /Solar_module/SYS: 0.41A max (0.089mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.41A)
+  /Solar_module/Solar+: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  /Solar_module/VBAT: 0.74A max (0.200mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.74A)
+  /VMUX: 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  /VOUT1: 1.85A max (0.700mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+  /VOUT2: 1.85A max (0.700mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+  /VOUT3: 1.53A max (0.540mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.53A)
+  /VOUT4: 1.65A max (0.600mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.65A)
+  /VOUT5: 1.85A max (0.700mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.85A)
+  /VOUT6: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  BAT-: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  GND: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  Net-(C24-Pad2): 1.53A max (0.540mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.53A)
+  Net-(F2-Pad2): 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  Net-(Q1-D): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  Net-(U2-SW): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  Net-(U5-PMID): 0.41A max (0.089mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.41A)
+  Net-(U6-EN): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  Net-(U6-SW): 0.88A max (0.250mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.88A)
+  PGND: 0.60A max (0.150mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": ["Net-(U2-MODE{slash}S-CONF)"], "open_single": [], "failed_multipoint": [], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.04, "total_iterations": 5038, "total_vias": 0, "cleanup_disconnected": [], "min_clearance_used": 0.1, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"via_diameter": 0.3, "via_drill": 0.508, "board_edge": 0.3, "clearance": 0.1}, "count": 4, "nets": [127], "narrowed": [{"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}], "min_delivered": {"via_diameter": 0.45}, "fab_tier_escalations": 4, "fab_tier_contexts": ["plane tap U2.7", "plane tap U2.7", "plane tap U2.7", "plane tap U2.7"], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 9, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": [], "unchanged": ["Net-(U2-MODE{slash}S-CONF)"], "pads_reconnected": 0, "widths": {}, "time": 0.43}, "terminal_escalations": {"Net-(U2-MODE{slash}S-CONF)": "unrecovered"}, "preexisting_rips": {"+5V": "original copper restored [was blocking 'Net-(U2-MODE{slash}S-CONF)']"}, "oracle_check": "skipped", "protected_skipped": {"pre-existing rip candidacy": {"/USB_D-": "diff-pair", "/USB-": "diff-pair", "/USB+": "diff-pair"}}, "blockers": [{"net": "Net-(U2-MODE{slash}S-CONF)", "stage": "single_ended", "blocked_by": [{"net": "+5V", "blocked_count": 5, "unique_cells": 5, "track_cells": 5, "via_cells": 0, "near_target_cells": 5, "near_source_cells": 5}]}, {"net": "Net-(U2-MODE{slash}S-CONF)", "stage": "preexisting", "blocked_by": [{"net": "/EN_NO2", "preexisting": true}, {"net": "Net-(U2-SS{slash}TR)", "preexisting": true}]}], "boxed_in": [{"verdict": "boxed_in_static", "iterations": 5038, "geometry": {"grid_step": 0.1, "clearance": 0.1, "track_width": 0.15, "via_diameter": null}, "net": "Net-(U2-MODE{slash}S-CONF)"}], "pad_pairs_connected": 20, "pad_pairs_total": 21, "pad_pairs_open": [{"net": "Net-(U2-MODE{slash}S-CONF)", "pairs_connected": 0, "pairs_total": 1, "outcome": "open", "open_subtype": "unrouted"}], "power_trace_ampacity": [{"net": "+3V3", "bottleneck_width_mm": 0.175, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 121.9}, {"net": "+5V", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 87.9}, {"net": "+5VBAT", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 87.6}, {"net": "+5VUSB", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 25.3}, {"net": "/Battery_holder/VBAT+", "bottleneck_width_mm": 0.54, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.53, "max_current_ipc2152_a": 1.53, "temp_rise_c": 10.0, "trace_length_mm": 143.0}, {"net": "/Solar_module/SW1", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 10.0}, {"net": "/Solar_module/SW2", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "/Solar_module/SYS", "bottleneck_width_mm": 0.0889, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.41, "max_current_ipc2152_a": 0.41, "temp_rise_c": 10.0, "trace_length_mm": 46.9}, {"net": "/Solar_module/Solar+", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 98.5}, {"net": "/Solar_module/VBAT", "bottleneck_width_mm": 0.2, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.74, "max_current_ipc2152_a": 0.74, "temp_rise_c": 10.0, "trace_length_mm": 86.7}, {"net": "/VMUX", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 3.3}, {"net": "/VOUT1", "bottleneck_width_mm": 0.7, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 25.4}, {"net": "/VOUT2", "bottleneck_width_mm": 0.7, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 14.4}, {"net": "/VOUT3", "bottleneck_width_mm": 0.54, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.53, "max_current_ipc2152_a": 1.53, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "/VOUT4", "bottleneck_width_mm": 0.6, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.65, "max_current_ipc2152_a": 1.65, "temp_rise_c": 10.0, "trace_length_mm": 8.8}, {"net": "/VOUT5", "bottleneck_width_mm": 0.7, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.85, "max_current_ipc2152_a": 1.85, "temp_rise_c": 10.0, "trace_length_mm": 6.2}, {"net": "/VOUT6", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 31.2}, {"net": "BAT-", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 82.1}, {"net": "GND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 4.2}, {"net": "Net-(C24-Pad2)", "bottleneck_width_mm": 0.54, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.53, "max_current_ipc2152_a": 1.53, "temp_rise_c": 10.0, "trace_length_mm": 14.1}, {"net": "Net-(F2-Pad2)", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 103.0}, {"net": "Net-(Q1-D)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 17.7}, {"net": "Net-(U2-SW)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 2.5}, {"net": "Net-(U5-PMID)", "bottleneck_width_mm": 0.0889, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.41, "max_current_ipc2152_a": 0.41, "temp_rise_c": 10.0, "trace_length_mm": 8.7}, {"net": "Net-(U6-EN)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 8.3}, {"net": "Net-(U6-SW)", "bottleneck_width_mm": 0.25, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.88, "max_current_ipc2152_a": 0.88, "temp_rise_c": 10.0, "trace_length_mm": 2.3}, {"net": "PGND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 131.5}], "scope": "reconciliation-subset", "board_scoped_keys": ["power_trace_ampacity", "min_clearance_used"], "env_knobs": {}}
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+
+Pour re-audit: re-auditing 3 zone net(s) KiCad verified complete before the final reconciliation: +3V3, GND, PGND
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  Pour re-audit: every verified pour is whole after the reconciliation (0 link(s) welded back)
+  KiCad-dangling joints (#1217, end of run): split 1 track(s) at the joint landing on them, on 1 net(s); copper unchanged (1 joint(s) no split clears)
+  Strict collapse (#1063, end of run): removed 1 redundant segment(s) on 1 net(s)
+VIA_IN_PAD_JSON: {"count": 0, "sites": [], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: GND 4.2/4.2 mm under the requested 0.5 (min 0.15); +5V 32.6/87.9 mm under the requested 1 (min 0.15); +3V3 32.6/121.9 mm under the requested 0.7 (min 0.175); /Battery_holder/VBAT+ 2.9/143.0 mm under the requested 1 (min 0.54); Net-(Q1-D) 12.1/17.7 mm under the requested 1 (min 0.25); Net-(C24-Pad2) 0.9/14.1 mm under the requested 1 (min 0.54); /Solar_module/SYS 9.8/46.9 mm under the requested 1 (min 0.0889); /Solar_module/SW1 7.8/10.0 mm under the requested 1 (min 0.25); /Solar_module/SW2 6.1/8.6 mm under the requested 1 (min 0.15); /Solar_module/Solar+ 17.9/98.5 mm under the requested 1 (min 0.15); Net-(U5-PMID) 5.5/8.8 mm under the requested 1 (min 0.0889); Net-(U6-SW) 2.3/2.3 mm under the requested 1 (min 0.25); +5VUSB 12.0/25.3 mm under the requested 0.7 (min 0.15); +5VBAT 11.0/87.6 mm under the requested 1 (min 0.15); /VMUX 3.3/3.3 mm under the requested 1 (min 0.25); /Solar_module/VBAT 6.6/86.7 mm under the requested 1 (min 0.2); BAT- 18.8/82.2 mm under the requested 1 (min 0.15); Net-(F2-Pad2) 10.9/103.0 mm under the requested 1 (min 0.15); /VOUT3 1.6/8.6 mm under the requested 0.7 (min 0.54); PGND 29.8/131.5 mm under the requested 0.7 (min 0.15); Net-(U2-SW) 2.5/2.5 mm under the requested 1 (min 0.25); /VOUT4 1.0/8.8 mm under the requested 0.7 (min 0.6); Net-(U6-EN) 3.0/8.3 mm under the requested 1 (min 0.25); /VOUT6 5.0/31.2 mm under the requested 0.7 (min 0.15) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.1, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"via_diameter": 0.3, "via_drill": 0.508, "board_edge": 0.3, "clearance": 0.1}, "count": 28, "nets": [2, 3, 4, 37, 42, 44, 52, 53, 59, 61, 62, 73, 84, 85, 88, 108, 115, 116, 119, 123, 125, 127, 138, 146, 147], "narrowed": [{"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 127, "net_name": null, "kind": "via_diameter", "requested": 0.608, "delivered": 0.45, "site": "via-in-pad clamp (floor)", "count": 1}, {"net": 2, "net_name": "GND", "kind": "track_width", "requested": 0.5, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 4.24}, {"net": 3, "net_name": "+5V", "kind": "track_width", "requested": 1.0, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 32.62}, {"net": 4, "net_name": "+3V3", "kind": "track_width", "requested": 0.7, "delivered": 0.175, "site": "power copper shipped under width", "count": 1, "length_mm": 32.58}, {"net": 37, "net_name": "/Battery_holder/VBAT+", "kind": "track_width", "requested": 1.0, "delivered": 0.54, "site": "power copper shipped under width", "count": 1, "length_mm": 2.87}, {"net": 42, "net_name": "Net-(Q1-D)", "kind": "track_width", "requested": 1.0, "delivered": 0.25, "site": "power copper shipped under width", "count": 1, "length_mm": 12.11}, {"net": 44, "net_name": "Net-(C24-Pad2)", "kind": "track_width", "requested": 1.0, "delivered": 0.54, "site": "power copper shipped under width", "count": 1, "length_mm": 0.89}, {"net": 52, "net_name": "/Solar_module/SYS", "kind": "track_width", "requested": 1.0, "delivered": 0.0889, "site": "power copper shipped under width", "count": 1, "length_mm": 9.79}, {"net": 53, "net_name": "/Solar_module/SW1", "kind": "track_width", "requested": 1.0, "delivered": 0.25, "site": "power copper shipped under width", "count": 1, "length_mm": 7.81}, {"net": 59, "net_name": "/Solar_module/SW2", "kind": "track_width", "requested": 1.0, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 6.08}, {"net": 61, "net_name": "/Solar_module/Solar+", "kind": "track_width", "requested": 1.0, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 17.89}, {"net": 62, "net_name": "Net-(U5-PMID)", "kind": "track_width", "requested": 1.0, "delivered": 0.0889, "site": "power copper shipped under width", "count": 1, "length_mm": 5.53}, {"net": 73, "net_name": "Net-(U6-SW)", "kind": "track_width", "requested": 1.0, "delivered": 0.25, "site": "power copper shipped under width", "count": 1, "length_mm": 2.34}, {"net": 84, "net_name": "+5VUSB", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 12.0}, {"net": 85, "net_name": "+5VBAT", "kind": "track_width", "requested": 1.0, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 10.96}, {"net": 88, "net_name": "/VMUX", "kind": "track_width", "requested": 1.0, "delivered": 0.25, "site": "power copper shipped under width", "count": 1, "length_mm": 3.27}, {"net": 108, "net_name": "/Solar_module/VBAT", "kind": "track_width", "requested": 1.0, "delivered": 0.2, "site": "power copper shipped under width", "count": 1, "length_mm": 6.62}, {"net": 115, "net_name": "BAT-", "kind": "track_width", "requested": 1.0, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 18.8}, {"net": 116, "net_name": "Net-(F2-Pad2)", "kind": "track_width", "requested": 1.0, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 10.86}, {"net": 119, "net_name": "/VOUT3", "kind": "track_width", "requested": 0.7, "delivered": 0.54, "site": "power copper shipped under width", "count": 1, "length_mm": 1.57}, {"net": 123, "net_name": "PGND", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 29.81}, {"net": 125, "net_name": "Net-(U2-SW)", "kind": "track_width", "requested": 1.0, "delivered": 0.25, "site": "power copper shipped under width", "count": 1, "length_mm": 2.46}, {"net": 138, "net_name": "/VOUT4", "kind": "track_width", "requested": 0.7, "delivered": 0.6, "site": "power copper shipped under width", "count": 1, "length_mm": 1.0}, {"net": 146, "net_name": "Net-(U6-EN)", "kind": "track_width", "requested": 1.0, "delivered": 0.25, "site": "power copper shipped under width", "count": 1, "length_mm": 3.03}, {"net": 147, "net_name": "/VOUT6", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 4.98}], "min_delivered": {"via_diameter": 0.45, "track_width": 0.0889}, "fab_tier_escalations": 4, "fab_tier_contexts": ["plane tap U2.7", "plane tap U2.7", "plane tap U2.7", "plane tap U2.7"], "fab_tier_target": "board_floors"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 17, "seconds": 0.27, "routed_single": [], "failed_single": ["Net-(U2-MODE{slash}S-CONF)"], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 21, "multipoint_pads_connected": 21, "successful": 0, "failed": 1, "unowned_broken": [], "recovered": [], "pad_pairs": {"Net-(U2-MODE{slash}S-CONF)": {"total": 1, "connected": 0, "copper": false}}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (17 net(s), 0.3s)
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Multi-point:   21/21 pads connected
+  Ships broken: 1 net(s) -- the `failed` count, over every net the run owns
+  route summary written to wk/gpm/_verify/V2/G02/r07/p2.json
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": [], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 1, "disconnected_pads_after": 1, "nets_compared": 120, "verdict": "accept"}
+  Design rules [--escalation board, --fab-tier auto]: 28 feature(s) on 25 net(s) delivered below the requested size (smallest track width 0.0889 mm, smallest via diameter 0.45 mm); 4 fab-tier escalation(s) to the board's own declared floors. Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 32, "failed": 1, "failed_single": ["Net-(U2-MODE{slash}S-CONF)"], "main_loop_time_s": 0.12, "min_clearance_used": 0.1, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 1, "nets": ["Net-(U2-MODE{slash}S-CONF)"]}, "regraded_nets": 17, "routed": 0, "scope": "merged", "terminal_restores_broken": [], "vias": 0}
+  DRC settings already consistent (wk/gpm/_verify/V2/G02/r07/p2.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.1 mm, unchanged by this step but still below the board's ORIGINAL 0.127mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+EXIT=0

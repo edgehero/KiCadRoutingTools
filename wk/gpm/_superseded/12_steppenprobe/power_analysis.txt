@@ -1,0 +1,68 @@
+Loading wk/gpm/12_steppenprobe/fixed.kicad_pcb...
+Extracting components...
+Found 84 components:
+  Auto-classified: 64
+  Needs AI analysis: 20
+======================================================================
+POWER PATH ANALYSIS REPORT
+======================================================================
+
+## Component Classification Summary
+
+  current_sink: 17 components
+  pass_through: 5 components
+  power_source: 2 components
+  shunt: 60 components
+
+## Power Sources
+
+  J1: 
+    Notes: USB-C USB4085 receptacle: VBUS from the host, USB 2.0 default 500 mA (estimate)
+  U2: 
+    Notes: XC6206P332MR 3.3 V LDO, 200 mA max output
+
+## Current Sinks (ICs requiring power)
+
+  U12:  (5mA)
+  D2:  (2mA)
+  U4:  (2mA)
+  D5:  (2mA)
+  U9:  (5mA)
+  U6:  (5mA)
+  U10:  (5mA)
+  U7:  (5mA)
+  U8:  (5mA)
+  U5:  (5mA)
+  D3:  (2mA)
+  U1:  (70mA)
+  J4:  (100mA)
+  D6:  (2mA)
+  D1:  (2mA)
+  D4:  (2mA)
+  U11:  (5mA)
+
+## Traced Power Paths
+
+  Path 1: U2 -> U1
+    Current: 70mA
+    Nets: /VPHY -> +3V3
+    Via: FB3
+
+## Power Net Recommendations
+
+  Net Name                          | Width (mm)
+  --------------------------------------------------
+  +1V8                                | 0.70
+  +3V3                                | 1.00
+  +5V                                 | 0.70
+  /VPHY                               | 0.70
+  GND                                 | 2.00
+  VBUS                                | 1.00
+
+## Routing Configuration
+
+  --power-nets "/VPHY" "+3V3" "GND" "VBUS" "+1V8" "+5V"
+  --power-nets-widths 0.7 1.0 2.0 1.0 0.7 0.7
+
+======================================================================
+REC {'/VPHY': 0.7, '+3V3': 1.0, 'GND': 2.0, 'VBUS': 1.0, '+1V8': 0.7, '+5V': 0.7}

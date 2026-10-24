@@ -1,0 +1,1241 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/12_steppenprobe/arms/C/s2a.kicad_pcb wk/gpm/12_steppenprobe/arms/C/s2.kicad_pcb --nets "*" --clearance-ceiling 0.15 --power-nets GND +3V3 VBUS +5V +1V8 /VPLL /VPHY Vdrive --power-nets-widths 0.7 0.7 0.7 0.7 0.5 0.3 0.3 0.3 --layer-costs 1.0 1.0 --json-out wk/gpm/12_steppenprobe/arms/C/s2.json
+ENV KNOBS: KICAD_ROUTE_TRACE=1
+--track-width not given; using the board Default net-class 0.15mm.
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/12_steppenprobe/arms/C/s2a.kicad_pcb to expand net patterns...
+Pattern '*' matched 61 nets
+Routing 61 nets: ['+1V8', '+3V3', '+5V', '/ACT_LED_K', '/ACT_LED_N']...
+Netclass clearances for 8 net(s), capped at --clearance-ceiling 0.15 (mm: [0.15]); cross-class max(A,B) respected.
+Loading wk/gpm/12_steppenprobe/arms/C/s2a.kicad_pcb...
+Auto-read netclass track widths for 8 non-Default net(s) (#435 single-ended companion).
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+
+Power net width assignments (8 nets):
+  0.3mm: /VPLL, /VPHY, Vdrive
+  0.5mm: +1V8
+  0.7mm: VBUS, +3V3, GND, +5V
+
+Skipping 1 already-routed net(s): Already fully connected
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 60 nets with 157 crossing conflicts detected
+MPS Round 1: 31 units: /VPHY, /PWR_LED_A, /ACT_LED_K, /RX_LED_K, /TCK_R, /SWD_EN_LED, /TX_LED_K, /RTS_N, /VPLL, +5V, /TDI, /SRST_N_R, /USB_LED_K, VBUS, /OSCI, /OSCO, /TXD_R, /SWDIO_OE_N, /RESET_N, /RX_LED_N, /USB_CC1, /EE_DO, /TXD_TRGT, /EE_DATA, /EE_CLK, /CTS_N, /SRST_N_TRGT, /TDO_TRGT, /TCK_TRGT, /RXD_IN, /GPIO_A
+MPS Round 2: 11 units: /EE_CS, /USB_CC2, /TDI_TRGT, /TMS_R, /ACT_LED_N, /TXD, /USB_LED_N, /REF, /RXD, /RXD_R, /TDI_R
+MPS Round 3: 6 units: /TMS, +1V8, /TMS_TRGT, /USB_DM, /SRST, /GPIO_B
+MPS Round 4: 4 units: /SWD_EN, /VDRIVE_TRGT, /TX_LED_N, /USB_DP
+MPS Round 5: 3 units: /TDO, /TCK, /RXD_TRGT
+MPS Round 6: 2 units: /GPIO_C, /TDO_R
+MPS Round 7: 1 units: GND
+MPS Round 8: 1 units: Vdrive
+MPS Round 9: 1 units: /GPIO_D
+
+Routing 60 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.02s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.06s (61 nets)
+Plane fragility: exact-fill geometry (2 filled island(s) from KiCad refill)
+Plane fragility field: 254153 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/60] Routing /VPHY (id=29)
+  Detected multi-point net with 4 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 3, length=2.76mm)
+  Wide power route blocked - routed short edge at 0.1500mm (down from 0.3000)
+  Phase 1 routed in 5499 iterations, 7 segments
+  SUCCESS: 7 segments, 0 vias, 5499 iterations, length=2.39mm (stubs=0.00mm) (0.02s)
+
+[2/60] Routing /PWR_LED_A (id=59)
+  SUCCESS: 3 segments, 0 vias, 369 iterations, length=1.69mm (stubs=0.00mm) (0.00s)
+
+[3/60] Routing /ACT_LED_K (id=76)
+  SUCCESS: 3 segments, 0 vias, 306 iterations, length=1.70mm (stubs=0.00mm) (0.00s)
+
+[4/60] Routing /RX_LED_K (id=2)
+  SUCCESS: 4 segments, 0 vias, 380 iterations, length=1.74mm (stubs=0.00mm) (0.00s)
+
+[5/60] Routing /TCK_R (id=61)
+  SUCCESS: 7 segments, 0 vias, 629 iterations, length=2.06mm (stubs=0.00mm) (0.00s)
+
+[6/60] Routing /SWD_EN_LED (id=72)
+  SUCCESS: 9 segments, 0 vias, 414 iterations, length=2.22mm (stubs=0.00mm) (0.00s)
+
+[7/60] Routing /TX_LED_K (id=3)
+  SUCCESS: 6 segments, 0 vias, 422 iterations, length=2.24mm (stubs=0.00mm) (0.00s)
+
+[8/60] Routing /RTS_N (id=19)
+  SUCCESS: 7 segments, 0 vias, 664 iterations, length=2.56mm (stubs=0.00mm) (0.00s)
+
+[9/60] Routing /VPLL (id=28)
+  Detected multi-point net with 4 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=2.47mm)
+  Phase 1 routed in 397 iterations, 7 segments
+  SUCCESS: 7 segments, 0 vias, 397 iterations, length=2.11mm (stubs=0.00mm) (0.00s)
+
+[10/60] Routing +5V (id=35)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=3.54mm)
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+  Phase 1 routed in 54237 iterations, 54 segments
+  SUCCESS: 54 segments, 2 vias, 54237 iterations, length=32.29mm (stubs=0.00mm) (0.11s)
+
+[11/60] Routing /TDI (id=25)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=10.05mm)
+  Phase 1 routed in 6956 iterations, 8 segments
+  SUCCESS: 8 segments, 2 vias, 6956 iterations, length=12.26mm (stubs=0.00mm) (0.01s)
+
+[12/60] Routing /SRST_N_R (id=60)
+  Detected multi-point net with 5 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=6.11mm)
+  Phase 1 routed in 18239 iterations, 12 segments
+  SUCCESS: 12 segments, 0 vias, 18239 iterations, length=7.75mm (stubs=0.00mm) (0.01s)
+
+[13/60] Routing /USB_LED_K (id=4)
+  SUCCESS: 5 segments, 2 vias, 1673 iterations, length=6.45mm (stubs=0.00mm) (0.00s)
+
+[14/60] Routing VBUS (id=6)
+  Detected multi-point net with 6 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=5.10mm)
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+  Phase 1 routed in 64883 iterations, 38 segments
+  SUCCESS: 38 segments, 2 vias, 64883 iterations, length=19.05mm (stubs=0.00mm) (0.11s)
+
+[15/60] Routing /OSCI (id=31)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=6.99mm)
+  Phase 1 routed in 6410 iterations, 10 segments
+  SUCCESS: 10 segments, 2 vias, 6410 iterations, length=9.15mm (stubs=0.00mm) (0.01s)
+
+[16/60] Routing /OSCO (id=30)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 1, length=7.55mm)
+  Phase 1 routed in 6194 iterations, 11 segments
+  SUCCESS: 11 segments, 2 vias, 6194 iterations, length=12.73mm (stubs=0.00mm) (0.01s)
+
+[17/60] Routing /TXD_R (id=65)
+  SUCCESS: 6 segments, 2 vias, 1404 iterations, length=8.37mm (stubs=0.00mm) (0.00s)
+
+[18/60] Routing /SWDIO_OE_N (id=75)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=6.47mm)
+  Phase 1 routed in 8487 iterations, 15 segments
+  SUCCESS: 15 segments, 0 vias, 8487 iterations, length=8.13mm (stubs=0.00mm) (0.01s)
+
+[19/60] Routing /RESET_N (id=27)
+  SUCCESS: 9 segments, 2 vias, 2185 iterations, length=9.98mm (stubs=0.00mm) (0.01s)
+
+[20/60] Routing /RX_LED_N (id=17)
+  SUCCESS: 13 segments, 0 vias, 22556 iterations, length=6.95mm (stubs=0.00mm) (0.01s)
+
+[21/60] Routing /USB_CC1 (id=11)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=7.55mm)
+  Phase 1 routed in 72360 iterations, 20 segments
+  SUCCESS: 20 segments, 0 vias, 72360 iterations, length=9.17mm (stubs=0.00mm) (0.07s)
+
+[22/60] Routing /EE_DO (id=36)
+  SUCCESS: 10 segments, 2 vias, 7622 iterations, length=10.14mm (stubs=0.00mm) (0.01s)
+
+[23/60] Routing /TXD_TRGT (id=69)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=5.45mm)
+  Phase 1 routed in 15197 iterations, 10 segments
+  SUCCESS: 10 segments, 0 vias, 15197 iterations, length=6.60mm (stubs=0.00mm) (0.01s)
+
+[24/60] Routing /EE_DATA (id=14)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 1, length=6.13mm)
+  Phase 1 routed in 21815 iterations, 11 segments
+  SUCCESS: 11 segments, 2 vias, 21815 iterations, length=12.21mm (stubs=0.00mm) (0.01s)
+
+[25/60] Routing /EE_CLK (id=13)
+  SUCCESS: 20 segments, 0 vias, 48211 iterations, length=9.88mm (stubs=0.00mm) (0.02s)
+
+[26/60] Routing /CTS_N (id=18)
+  SUCCESS: 15 segments, 2 vias, 40226 iterations, length=12.52mm (stubs=0.00mm) (0.02s)
+
+[27/60] Routing /SRST_N_TRGT (id=37)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=13.16mm)
+  Phase 1 routed in 15554 iterations, 5 segments
+  SUCCESS: 5 segments, 1 vias, 15554 iterations, length=12.45mm (stubs=0.00mm) (0.01s)
+
+[28/60] Routing /TDO_TRGT (id=39)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=15.70mm)
+  Phase 1 routed in 17904 iterations, 9 segments
+  SUCCESS: 9 segments, 1 vias, 17904 iterations, length=13.45mm (stubs=0.00mm) (0.01s)
+
+[29/60] Routing /TCK_TRGT (id=40)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=19.51mm)
+  Phase 1 routed in 17161 iterations, 9 segments
+  SUCCESS: 9 segments, 1 vias, 17161 iterations, length=16.29mm (stubs=0.00mm) (0.01s)
+
+[30/60] Routing /RXD_IN (id=67)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=23.32mm)
+  Phase 1 routed in 83074 iterations, 34 segments
+  SUCCESS: 34 segments, 2 vias, 83074 iterations, length=27.37mm (stubs=0.00mm) (0.03s)
+
+[31/60] Routing /GPIO_A (id=80)
+  SUCCESS: 9 segments, 1 vias, 28386 iterations, length=25.70mm (stubs=0.00mm) (0.01s)
+
+[32/60] Routing /EE_CS (id=12)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=8.01mm)
+  Phase 1 routed in 57640 iterations, 16 segments
+  SUCCESS: 16 segments, 2 vias, 57640 iterations, length=13.53mm (stubs=0.00mm) (0.03s)
+
+[33/60] Routing /USB_CC2 (id=7)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=4.87mm)
+  Phase 1 routed in 148361 iterations, 43 segments
+  SUCCESS: 43 segments, 0 vias, 148361 iterations, length=28.36mm (stubs=0.00mm) (0.05s)
+
+[34/60] Routing /TDI_TRGT (id=38)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=19.51mm)
+  Phase 1 routed in 30857 iterations, 15 segments
+  SUCCESS: 15 segments, 2 vias, 30857 iterations, length=23.54mm (stubs=0.00mm) (0.02s)
+
+[35/60] Routing /TMS_R (id=62)
+  Detected multi-point net with 4 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 3, length=12.93mm)
+  Phase 1 routed in 21649 iterations, 10 segments
+  SUCCESS: 10 segments, 2 vias, 21649 iterations, length=17.33mm (stubs=0.00mm) (0.01s)
+
+[36/60] Routing /ACT_LED_N (id=81)
+  SUCCESS: 11 segments, 0 vias, 4277 iterations, length=7.93mm (stubs=0.00mm) (0.01s)
+
+[37/60] Routing /TXD (id=21)
+  SUCCESS: 12 segments, 2 vias, 47694 iterations, length=12.35mm (stubs=0.00mm) (0.02s)
+
+[38/60] Routing /USB_LED_N (id=15)
+  SUCCESS: 18 segments, 0 vias, 59941 iterations, length=13.80mm (stubs=0.00mm) (0.02s)
+
+[39/60] Routing /REF (id=58)
+  SUCCESS: 15 segments, 2 vias, 6466 iterations, length=17.96mm (stubs=0.00mm) (0.01s)
+
+[40/60] Routing /RXD (id=20)
+  SUCCESS: 16 segments, 2 vias, 23401 iterations, length=18.86mm (stubs=0.00mm) (0.01s)
+
+[41/60] Routing /RXD_R (id=66)
+  SUCCESS: 45 segments, 2 vias, 417609 iterations, length=47.80mm (stubs=0.00mm) (0.13s)
+
+[42/60] Routing /TDI_R (id=64)
+  SUCCESS: 13 segments, 0 vias, 113078 iterations, length=29.29mm (stubs=0.00mm) (0.03s)
+
+[43/60] Routing /TMS (id=23)
+  SUCCESS: 8 segments, 2 vias, 32328 iterations, length=15.11mm (stubs=0.00mm) (0.02s)
+
+[44/60] Routing +1V8 (id=1)
+  Detected multi-point net with 8 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=9.35mm)
+  Wide power route blocked - routed short edge at 0.1500mm (down from 0.5000)
+  Phase 1 routed in 48889 iterations, 28 segments
+  SUCCESS: 28 segments, 0 vias, 48889 iterations, length=14.20mm (stubs=0.00mm) (0.02s)
+
+[45/60] Routing /TMS_TRGT (id=41)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=10.62mm)
+  Phase 1 routed in 25203 iterations, 16 segments
+  SUCCESS: 16 segments, 2 vias, 25203 iterations, length=14.73mm (stubs=0.00mm) (0.01s)
+
+[46/60] Routing /USB_DM (id=9)
+  SUCCESS: 5 segments, 0 vias, 393 iterations, length=80.98mm (stubs=79.16mm) (0.01s)
+
+[47/60] Routing /SRST (id=74)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=32.94mm)
+  Phase 1 routed in 240020 iterations, 40 segments
+  SUCCESS: 40 segments, 2 vias, 240020 iterations, length=41.91mm (stubs=0.00mm) (0.08s)
+
+[48/60] Routing /GPIO_B (id=79)
+  SUCCESS: 12 segments, 1 vias, 29148 iterations, length=27.63mm (stubs=0.00mm) (0.01s)
+
+[49/60] Routing /SWD_EN (id=22)
+  Detected multi-point net with 7 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=8.01mm)
+  Phase 1 routed in 34610 iterations, 18 segments
+  SUCCESS: 18 segments, 0 vias, 34610 iterations, length=21.49mm (stubs=0.00mm) (0.02s)
+
+[50/60] Routing /VDRIVE_TRGT (id=73)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=16.74mm)
+  Phase 1 routed in 305021 iterations, 25 segments
+  SUCCESS: 25 segments, 2 vias, 305021 iterations, length=39.57mm (stubs=0.00mm) (0.10s)
+
+[51/60] Routing /TX_LED_N (id=16)
+  SUCCESS: 31 segments, 2 vias, 45623 iterations, length=20.06mm (stubs=0.00mm) (0.02s)
+
+[52/60] Routing /USB_DP (id=5)
+  SUCCESS: 6 segments, 0 vias, 408 iterations, length=80.07mm (stubs=78.23mm) (0.01s)
+
+[53/60] Routing /TDO (id=24)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=16.37mm)
+  Phase 1 routed in 226284 iterations, 43 segments
+  SUCCESS: 43 segments, 2 vias, 226284 iterations, length=34.49mm (stubs=0.00mm) (0.08s)
+
+[54/60] Routing /TCK (id=26)
+  SUCCESS: 40 segments, 2 vias, 551541 iterations, length=34.95mm (stubs=0.00mm) (0.16s)
+
+[55/60] Routing /RXD_TRGT (id=68)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=28.08mm)
+  Phase 1 routed in 57430 iterations, 12 segments
+  SUCCESS: 12 segments, 1 vias, 57430 iterations, length=50.32mm (stubs=0.00mm) (0.02s)
+
+[56/60] Routing /GPIO_C (id=78)
+  SUCCESS: 23 segments, 1 vias, 55565 iterations, length=30.94mm (stubs=0.00mm) (0.02s)
+
+[57/60] Routing /TDO_R (id=63)
+  Detected multi-point net with 3 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=44.20mm)
+  Phase 1 routed in 138757 iterations, 47 segments
+  SUCCESS: 47 segments, 4 vias, 138757 iterations, length=50.19mm (stubs=0.00mm) (0.05s)
+
+[58/60] Routing GND (id=33)
+  Detected multi-point net with 73 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +369 region-laddered target(s) across 1 component(s) (phase 1)
+  Existing copper joins 73 terminals into 63 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 67 and 72, length=9.23mm)
+  Phase 1 routed in 25174 iterations, 13 segments
+  SUCCESS: 13 segments, 2 vias, 25174 iterations, length=18.73mm (stubs=0.00mm) (0.17s)
+
+[59/60] Routing Vdrive (id=34)
+  Detected multi-point net with 12 pads (Phase 1: main route only)
+  Multi-point net Phase 1: routing longest MST edge (pads 7 and 8, length=18.36mm)
+  Phase 1 routed in 58995 iterations, 28 segments
+  SUCCESS: 28 segments, 4 vias, 58995 iterations, length=28.37mm (stubs=0.00mm) (0.08s)
+
+[60/60] Routing /GPIO_D (id=77)
+  SUCCESS: 44 segments, 1 vias, 53691 iterations, length=35.05mm (stubs=0.00mm) (0.02s)
+
+Sync pcb_data: 1157 -> 119 (kept stubs) -> 1157 (after adding 1038)
+
+============================================================
+Multi-point Phase 3: Routing 116 tap connections
+============================================================
+Phase 3 order (boxed-in risk first): /VPLL, /EE_DATA, +1V8, GND, /TDO_R, /TDI, VBUS, /SWDIO_OE_N, /RXD_IN, /VPHY, /USB_CC1, /USB_CC2, /SWD_EN, +5V, /SRST_N_R, /OSCI, /OSCO, /TXD_TRGT, /SRST_N_TRGT, /TDO_TRGT, /TCK_TRGT, /EE_CS, /TDI_TRGT, /TMS_R, /TMS_TRGT, /SRST, /VDRIVE_TRGT, /TDO, /RXD_TRGT, Vdrive
+
+/VPLL (net 28):
+  Multi-point net Phase 3: routing 2 remaining MST edges (longest first)
+    [1/116] Routing MST edge: pad 0 -> pad 2 (length=2.46mm) target=(104.06, 83.27)
+      Routed in 689 iterations (0.00s)
+    [2/116] Routing MST edge: pad 2 -> pad 3 (length=1.91mm) target=(105.93, 83.31)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.3000)
+      Routed in 13061 iterations (0.01s)
+  Phase 3 routing complete: 2 edges, 26 total segments, 2 total vias
+  Added 19 tap segments, 2 tap vias
+  #444 seam re-ask: /VPLL tree is 1.78x its MST bound -- re-asking whole
+
+  Re-routing /VPLL (net 28)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=2.47mm)
+  Phase 1 routed in 398 iterations, 7 segments
+    Re-routed main path: 7 segments, 0 vias
+  Multi-point net Phase 3: routing 2 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 0 -> pad 2 (length=2.46mm) target=(104.06, 83.27)
+      Routed in 689 iterations (0.00s)
+    [2/0] Routing MST edge: pad 2 -> pad 3 (length=1.91mm) target=(105.93, 83.31)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.3000)
+      Routed in 13061 iterations (0.01s)
+  Phase 3 routing complete: 2 edges, 26 total segments, 2 total vias
+    Re-routed 19 tap segments, 2 tap vias
+  Net total time: 0.26s, 14147 iterations
+
+/EE_DATA (net 14):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [3/116] Routing MST edge: pad 2 -> pad 0 (length=4.10mm) target=(109.36, 77.39)
+      Routed in 2205 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 16 total segments, 2 total vias
+  Added 5 tap segments, 0 tap vias
+  #444 seam re-ask: /EE_DATA tree is 1.40x its MST bound -- re-asking whole
+
+  Re-routing /EE_DATA (net 14)...
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 1, length=6.13mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 20376 iterations, 18 segments
+    Re-routed main path: 18 segments, 2 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 0 (length=4.10mm) target=(109.36, 77.39)
+      Routed in 2392 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 23 total segments, 2 total vias
+    Re-routed 5 tap segments, 0 tap vias
+  Net total time: 0.23s, 24020 iterations
+
++1V8 (net 1):
+  Multi-point net Phase 3: routing 6 remaining MST edges (longest first)
+    [4/116] Routing MST edge: pad 2 -> pad 5 (length=7.50mm) target=(115.36, 77.39)
+      Wide power route blocked - routed short edge at 0.2500mm (down from 0.5000)
+      Routed in 33108 iterations (0.05s)
+    [5/116] Routing MST edge: pad 5 -> pad 6 (length=9.35mm) target=(117.28, 84.81)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.5000)
+      Routed in 34250 iterations (0.03s)
+    [6/116] Routing MST edge: pad 1 -> pad 0 (length=5.46mm) target=(104.01, 88.35)
+      Routed in 124126 iterations (0.30s)
+    [7/116] Routing MST edge: pad 2 -> pad 3 (length=4.21mm) target=(108.61, 73.93)
+      Routed in 177126 iterations (0.42s)
+    [8/116] Routing MST edge: pad 5 -> pad 4 (length=1.91mm) target=(115.36, 75.48)
+      Routed in 156 iterations (0.00s)
+    [9/116] Routing MST edge: pad 6 -> pad 7 (length=1.91mm) target=(119.19, 84.81)
+      Routed in 305823 iterations (0.73s)
+  Phase 3 routing complete: 6 edges, 202 total segments, 10 total vias
+  Added 174 tap segments, 10 tap vias
+  #444 seam re-ask: +1V8 tree is 3.27x its MST bound -- re-asking whole
+
+  Re-routing +1V8 (net 1)...
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=9.35mm)
+  Both directions stuck (forward=1, backward=1 < 5000)
+    forward cell (1059, 848, layer=0): ok, 8/8 neighbors blocked (margin=4)
+      Blocking obstacles: GND(2 pad)
+    backward cell (1079, 774, layer=0): ok, 8/8 neighbors blocked (margin=4)
+      Blocking obstacles: /EE_CS(3 track, 1 pad)
+  Both directions stuck (forward=14, backward=1 < 5000)
+    forward cell (1059, 848, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Blocking obstacles: GND(2 pad)
+    backward cell (1079, 774, layer=0): ok, 8/8 neighbors blocked (margin=2)
+      Blocking obstacles: /EE_CS(2 track, 1 pad)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Wide power route blocked - routed short edge at 0.1500mm (down from 0.5000)
+  Phase 1 routed in 19138 iterations, 30 segments
+    Re-routed main path: 30 segments, 0 vias
+  Multi-point net Phase 3: routing 6 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 5 (length=7.50mm) target=(115.36, 77.39)
+      Wide power route blocked - routed short edge at 0.2500mm (down from 0.5000)
+      Routed in 32715 iterations (0.05s)
+    [2/0] Routing MST edge: pad 5 -> pad 6 (length=9.35mm) target=(117.28, 84.81)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.5000)
+      Routed in 34862 iterations (0.03s)
+    [3/0] Routing MST edge: pad 1 -> pad 0 (length=5.46mm) target=(104.01, 88.35)
+      Routed in 124012 iterations (0.29s)
+    [4/0] Routing MST edge: pad 2 -> pad 3 (length=4.21mm) target=(108.61, 73.93)
+      Routed in 177226 iterations (0.41s)
+    [5/0] Routing MST edge: pad 5 -> pad 4 (length=1.91mm) target=(115.36, 75.48)
+      Routed in 156 iterations (0.00s)
+    [6/0] Routing MST edge: pad 6 -> pad 7 (length=1.91mm) target=(119.19, 84.81)
+      Routed in 305823 iterations (0.72s)
+  Phase 3 routing complete: 6 edges, 205 total segments, 10 total vias
+    Re-routed 175 tap segments, 10 tap vias
+  Net total time: 3.48s, 723478 iterations
+
+GND (net 33):
+  POUR-LAUNCH v3: +360 region-laddered target(s) across 1 component(s) (phase 3)
+  Multi-point net Phase 3: routing 61 remaining MST edges (longest first)
+    [10/116] Routing MST edge: pad 72 -> pad 71 (length=9.10mm) target=(143.56, 69.64)
+      Routed in 2 iterations (0.00s)
+    [11/116] Routing MST edge: pad 67 -> pad 66 (length=1.93mm) target=(133.43, 79.45)
+      Routed in 586 iterations (0.00s)
+    [12/116] Routing MST edge: pad 66 -> pad 63 (length=7.48mm) target=(130.52, 74.88)
+      Routed in 19 iterations (0.00s)
+    [13/116] Routing MST edge: pad 64 -> pad 69 (length=6.19mm) target=(135.71, 89.12)
+      Routed in 1079 iterations (0.00s)
+    [14/116] Routing MST edge: pad 63 -> pad 62 (length=3.86mm) target=(127.04, 75.26)
+      Routed in 2610 iterations (0.01s)
+    [15/116] Routing MST edge: pad 36 -> pad 41 (length=3.64mm) target=(117.65, 60.21)
+      Routed in 9 iterations (0.00s)
+    [16/116] Routing MST edge: pad 41 -> pad 43 (length=3.79mm) target=(118.15, 63.51)
+      Routed in 96 iterations (0.00s)
+    [17/116] Routing MST edge: pad 43 -> pad 31 (length=4.92mm) target=(114.33, 64.61)
+      Routed in 1527 iterations (0.01s)
+    [18/116] Routing MST edge: pad 62 -> pad 58 (length=3.55mm) target=(123.61, 75.37)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 10532 iterations (0.03s)
+    [19/116] Routing MST edge: pad 58 -> pad 54 (length=4.05mm) target=(123.06, 71.87)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5553 iterations (0.02s)
+    [20/116] Routing MST edge: pad 43 -> pad 45 (length=2.89mm) target=(119.46, 65.09)
+      Routed in 213 iterations (0.00s)
+    [21/116] Routing MST edge: pad 45 -> pad 40 (length=4.70mm) target=(117.44, 67.76)
+      Routed in 1072 iterations (0.00s)
+    [22/116] Routing MST edge: pad 31 -> pad 27 (length=2.60mm) target=(112.65, 63.69)
+      Routed in 537 iterations (0.00s)
+    [23/116] Routing MST edge: pad 27 -> pad 21 (length=4.16mm) target=(111.70, 60.47)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 6248 iterations (0.02s)
+    [24/116] Routing MST edge: pad 27 -> pad 23 (length=2.92mm) target=(111.89, 65.86)
+      Routed in 1148 iterations (0.00s)
+    [25/116] Routing MST edge: pad 23 -> pad 28 (length=4.49mm) target=(113.05, 69.19)
+      Routed in 1134 iterations (0.00s)
+    [26/116] Routing MST edge: pad 28 -> pad 26 (length=3.56mm) target=(112.62, 72.31)
+      Routed in 744 iterations (0.00s)
+    [27/116] Routing MST edge: pad 26 -> pad 30 (length=4.32mm) target=(113.78, 75.48)
+      Routed in 430 iterations (0.00s)
+    [28/116] Routing MST edge: pad 30 -> pad 18 (length=5.20mm) target=(108.61, 75.51)
+      Routed in 5884 iterations (0.02s)
+    [29/116] Routing MST edge: pad 18 -> pad 17 (length=3.03mm) target=(106.34, 74.75)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5004 iterations (0.02s)
+    [30/116] Routing MST edge: pad 69 -> pad 70 (length=2.54mm) target=(135.71, 91.66)
+      Routed in 18152 iterations (0.06s)
+    [31/116] Routing MST edge: pad 30 -> pad 32 (length=2.48mm) target=(114.36, 77.39)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 15356 iterations (0.03s)
+    [32/116] Routing MST edge: pad 32 -> pad 38 (length=5.35mm) target=(117.28, 79.81)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 21793 iterations (0.04s)
+    [33/116] Routing MST edge: pad 38 -> pad 39 (length=6.00mm) target=(117.28, 85.81)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 15583 iterations (0.03s)
+    [34/116] Routing MST edge: pad 38 -> pad 47 (length=5.16mm) target=(121.33, 80.92)
+      Routed in 107 iterations (0.00s)
+    [35/116] Routing MST edge: pad 39 -> pad 44 (length=2.48mm) target=(119.19, 86.39)
+      Routed in 6 iterations (0.00s)
+    [36/116] Routing MST edge: pad 44 -> pad 60 (length=5.74mm) target=(124.60, 86.71)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 7295 iterations (0.02s)
+    [37/116] Routing MST edge: pad 60 -> pad 55 (length=4.22mm) target=(123.25, 89.58)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 10454 iterations (0.03s)
+    [38/116] Routing MST edge: pad 55 -> pad 61 (length=3.48mm) target=(124.96, 91.35)
+      Routed in 29 iterations (0.00s)
+    [39/116] Routing MST edge: pad 17 -> pad 9 (length=2.01mm) target=(104.46, 74.87)
+      Routed in 163 iterations (0.00s)
+    [40/116] Routing MST edge: pad 9 -> pad 2 (length=3.90mm) target=(102.26, 73.17)
+      Routed in 841 iterations (0.00s)
+    [41/116] Routing MST edge: pad 2 -> pad 0 (length=3.91mm) target=(101.46, 70.06)
+      Routed in 1314 iterations (0.00s)
+    [42/116] Routing MST edge: pad 0 -> pad 10 (length=5.99mm) target=(104.92, 67.53)
+      Routed in 588 iterations (0.00s)
+    [43/116] Routing MST edge: pad 9 -> pad 6 (length=2.41mm) target=(104.02, 76.85)
+      Routed in 1365 iterations (0.00s)
+    [44/116] Routing MST edge: pad 6 -> pad 11 (length=4.37mm) target=(105.93, 79.31)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 11864 iterations (0.03s)
+    [45/116] Routing MST edge: pad 6 -> pad 1 (length=3.16mm) target=(102.17, 78.15)
+      Routed in 1366 iterations (0.00s)
+    [46/116] Routing MST edge: pad 11 -> pad 12 (length=2.00mm) target=(105.93, 81.31)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 18173 iterations (0.04s)
+    [47/116] Routing MST edge: pad 12 -> pad 13 (length=2.50mm) target=(105.93, 83.81)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 16626 iterations (0.04s)
+    [48/116] Routing MST edge: pad 12 -> pad 7 (length=2.13mm) target=(104.02, 81.53)
+      Routed in 2 iterations (0.00s)
+    [49/116] Routing MST edge: pad 7 -> pad 5 (length=3.28mm) target=(102.48, 83.27)
+      Routed in 6016 iterations (0.02s)
+    [50/116] Routing MST edge: pad 5 -> pad 4 (length=3.28mm) target=(102.47, 86.55)
+      Routed in 1078 iterations (0.00s)
+    [51/116] Routing MST edge: pad 4 -> pad 3 (length=1.84mm) target=(102.44, 88.35)
+      Routed in 2 iterations (0.00s)
+    [52/116] Routing MST edge: pad 3 -> pad 8 (length=4.14mm) target=(104.13, 90.80)
+      Routed in 566 iterations (0.00s)
+    [53/116] Routing MST edge: pad 54 -> pad 49 (length=1.30mm) target=(121.76, 71.87)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 13839 iterations (0.03s)
+    [54/116] Routing MST edge: pad 55 -> pad 52 (length=1.30mm) target=(121.95, 89.58)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 9226 iterations (0.03s)
+    [55/116] Routing MST edge: pad 52 -> pad 48 (length=3.86mm) target=(121.54, 93.03)
+      Routed in 234 iterations (0.00s)
+    [56/116] Routing MST edge: pad 48 -> pad 53 (length=2.52mm) target=(122.02, 95.07)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 11306 iterations (0.03s)
+    [57/116] Routing MST edge: pad 53 -> pad 42 (length=4.81mm) target=(117.67, 95.53)
+      Routed in 902 iterations (0.00s)
+    [58/116] Routing MST edge: pad 42 -> pad 46 (length=6.37mm) target=(120.02, 99.54)
+      Routed in 452 iterations (0.00s)
+    [59/116] Routing MST edge: pad 42 -> pad 24 (length=6.19mm) target=(112.17, 96.23)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 10606 iterations (0.03s)
+    [60/116] Routing MST edge: pad 24 -> pad 29 (length=6.49mm) target=(113.09, 90.66)
+      Routed in 476 iterations (0.00s)
+    [61/116] Routing MST edge: pad 24 -> pad 20 (length=3.34mm) target=(109.30, 96.69)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5221 iterations (0.02s)
+    [62/116] Routing MST edge: pad 20 -> pad 19 (length=3.93mm) target=(108.81, 100.14)
+      Routed in 6 iterations (0.00s)
+    [63/116] Routing MST edge: pad 29 -> pad 22 (length=3.15mm) target=(111.86, 88.74)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 21278 iterations (0.04s)
+    [64/116] Routing MST edge: pad 24 -> pad 25 (length=2.95mm) target=(112.17, 99.18)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 5948 iterations (0.02s)
+    [65/116] Routing MST edge: pad 42 -> pad 37 (length=2.08mm) target=(117.18, 93.93)
+      Routed in 2 iterations (0.00s)
+    [66/116] Routing MST edge: pad 58 -> pad 59 (length=1.30mm) target=(123.61, 76.67)
+      Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+      Routed in 6351 iterations (0.02s)
+    [67/116] Routing MST edge: pad 69 -> pad 68 (length=1.27mm) target=(135.71, 87.85)
+      Routed in 3 iterations (0.00s)
+    [68/116] Routing MST edge: pad 13 -> pad 14 (length=0.50mm) target=(105.93, 84.31)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 10008 iterations (0.03s)
+    [69/116] Routing MST edge: pad 14 -> pad 15 (length=1.00mm) target=(105.93, 85.31)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 20896 iterations (0.04s)
+    [70/116] Routing MST edge: pad 15 -> pad 16 (length=1.00mm) target=(105.93, 86.31)
+      Wide power route blocked - routed short edge at 0.1500mm (down from 0.7000)
+      Routed in 18876 iterations (0.04s)
+  Phase 3 routing complete: 61 edges, 319 total segments, 46 total vias
+  Added 307 tap segments, 44 tap vias
+  Net total time: 1.21s, 353970 iterations
+
+/TDO_R (net 63):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [71/116] Routing MST edge: pad 2 -> pad 1 (length=6.60mm) target=(124.60, 87.36)
+      Routed in 112277 iterations (0.03s)
+  Phase 3 routing complete: 1 edges, 67 total segments, 4 total vias
+  Added 20 tap segments, 0 tap vias
+  #444 seam re-ask: /TDO_R tree is 1.56x its MST bound -- re-asking whole
+
+  Re-routing /TDO_R (net 63)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=44.20mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 184339 iterations, 56 segments
+    Re-routed main path: 56 segments, 4 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 1 (length=6.60mm) target=(124.60, 87.36)
+      Routed in 111269 iterations (0.03s)
+  Phase 3 routing complete: 1 edges, 76 total segments, 4 total vias
+    Re-routed 20 tap segments, 0 tap vias
+  #444 seam re-ask: /TDO_R tree replaced (64.9 -> 63.5 score)
+  Net total time: 0.30s, 251034 iterations
+
+/TDI (net 25):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [72/116] Routing MST edge: pad 1 -> pad 2 (length=4.07mm) target=(112.17, 98.53)
+      Routed in 1297 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 15 total segments, 2 total vias
+  Added 7 tap segments, 0 tap vias
+  Net total time: 0.04s, 8253 iterations
+
+VBUS (net 6):
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [73/116] Routing MST edge: pad 2 -> pad 1 (length=1.35mm) target=(116.80, 56.92)
+      Routed in 1 iterations (0.00s)
+    [74/116] Routing MST edge: pad 1 -> pad 3 (length=4.25mm) target=(121.05, 56.92)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 19310 iterations (0.04s)
+    [75/116] Routing MST edge: pad 3 -> pad 4 (length=1.35mm) target=(121.05, 58.27)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 10206 iterations (0.03s)
+    [76/116] Routing MST edge: pad 4 -> pad 5 (length=4.07mm) target=(121.30, 62.10)
+      Routed in 74822 iterations (0.24s)
+  Phase 3 routing complete: 4 edges, 106 total segments, 3 total vias
+  Added 68 tap segments, 1 tap vias
+  #444 seam re-ask: VBUS tree is 3.13x its MST bound -- re-asking whole
+
+  Re-routing VBUS (net 6)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=5.10mm)
+  Both directions stuck (forward=1, backward=2 < 5000)
+    forward cell (1117, 583, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: /USB_DM(2 track, 1 pad), /USB_CC1(1 pad)
+    backward cell (1168, 583, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: /USB_CC1(2 track), unconnected-(J1-PadA8)(1 pad), GND(1 pad)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+  Phase 1 routed in 36853 iterations, 27 segments
+    Re-routed main path: 27 segments, 0 vias
+  Multi-point net Phase 3: routing 4 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 3 (length=4.25mm) target=(121.05, 56.92)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 19361 iterations (0.04s)
+    [2/0] Routing MST edge: pad 3 -> pad 4 (length=1.35mm) target=(121.05, 58.27)
+      Wide power route blocked - routed short edge at 0.1750mm (down from 0.7000)
+      Routed in 10206 iterations (0.03s)
+    [3/0] Routing MST edge: pad 4 -> pad 5 (length=4.07mm) target=(121.30, 62.10)
+      Routed in 75157 iterations (0.25s)
+  Phase 3 routing complete: 3 edges, 98 total segments, 0 total vias
+    Re-routed 71 tap segments, 0 tap vias
+  #444 seam re-ask: VBUS tree replaced (55.7 -> 46.5 score)
+  Net total time: 0.89s, 169222 iterations
+
+/SWDIO_OE_N (net 75):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [77/116] Routing MST edge: pad 1 -> pad 0 (length=1.75mm) target=(110.60, 96.69)
+      Routed in 952 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 22 total segments, 0 total vias
+  Added 7 tap segments, 0 tap vias
+  Net total time: 0.04s, 9439 iterations
+
+/RXD_IN (net 67):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [78/116] Routing MST edge: pad 2 -> pad 1 (length=3.44mm) target=(122.41, 71.87)
+      Routed in 29858 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 40 total segments, 2 total vias
+  Added 6 tap segments, 0 tap vias
+  #444 seam re-ask: /RXD_IN tree is 1.32x its MST bound -- re-asking whole
+
+  Re-routing /RXD_IN (net 67)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=23.32mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 86304 iterations, 36 segments
+    Re-routed main path: 36 segments, 0 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 1 (length=3.44mm) target=(122.41, 71.87)
+      Routed in 29814 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 42 total segments, 0 total vias
+    Re-routed 6 tap segments, 0 tap vias
+  #444 seam re-ask: /RXD_IN tree replaced (32.9 -> 27.6 score)
+  Net total time: 0.19s, 112932 iterations
+
+/VPHY (net 29):
+  Multi-point net Phase 3: routing 2 remaining MST edges (longest first)
+    [79/116] Routing MST edge: pad 2 -> pad 0 (length=1.88mm) target=(102.37, 79.73)
+      Routed in 431 iterations (0.00s)
+    [80/116] Routing MST edge: pad 2 -> pad 1 (length=1.54mm) target=(104.02, 78.42)
+      Routed in 587 iterations (0.00s)
+  Phase 3 routing complete: 2 edges, 13 total segments, 0 total vias
+  Added 6 tap segments, 0 tap vias
+  Net total time: 0.04s, 6517 iterations
+
+/USB_CC1 (net 11):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [81/116] Routing MST edge: pad 1 -> pad 0 (length=3.85mm) target=(112.65, 62.12)
+      Routed in 2494 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 26 total segments, 0 total vias
+  Added 6 tap segments, 0 tap vias
+  Net total time: 0.04s, 74854 iterations
+
+/USB_CC2 (net 7):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [82/116] Routing MST edge: pad 1 -> pad 0 (length=3.69mm) target=(112.65, 60.47)
+      Routed in 66776 iterations (0.02s)
+  Phase 3 routing complete: 1 edges, 50 total segments, 2 total vias
+  Added 7 tap segments, 2 tap vias
+  #444 seam re-ask: /USB_CC2 tree is 4.75x its MST bound -- re-asking whole
+
+  Re-routing /USB_CC2 (net 7)...
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=4.87mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 138316 iterations, 37 segments
+    Re-routed main path: 37 segments, 0 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 0 (length=3.69mm) target=(112.65, 60.47)
+      Routed in 53341 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 44 total segments, 2 total vias
+    Re-routed 7 tap segments, 2 tap vias
+  #444 seam re-ask: /USB_CC2 tree replaced (37.6 -> 32.9 score)
+  Net total time: 0.23s, 215137 iterations
+
+/SWD_EN (net 22):
+  Multi-point net Phase 3: routing 5 remaining MST edges (longest first)
+    [83/116] Routing MST edge: pad 1 -> pad 2 (length=2.95mm) target=(112.17, 97.88)
+      Routed in 6041 iterations (0.00s)
+    [84/116] Routing MST edge: pad 2 -> pad 3 (length=5.27mm) target=(116.01, 96.45)
+      Routed in 6929 iterations (0.00s)
+    [85/116] Routing MST edge: pad 3 -> pad 4 (length=6.09mm) target=(122.02, 96.37)
+      Routed in 63282 iterations (0.02s)
+    [86/116] Routing MST edge: pad 4 -> pad 6 (length=6.38mm) target=(124.96, 92.92)
+      Routed in 21080 iterations (0.01s)
+    [87/116] Routing MST edge: pad 6 -> pad 5 (length=5.26mm) target=(124.60, 88.01)
+      Routed in 36660 iterations (0.01s)
+  Phase 3 routing complete: 5 edges, 71 total segments, 2 total vias
+  Added 53 tap segments, 2 tap vias
+  #444 seam re-ask: /SWD_EN tree is 1.86x its MST bound -- re-asking whole
+
+  Re-routing /SWD_EN (net 22)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=8.01mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 24718 iterations, 34 segments
+    Re-routed main path: 34 segments, 0 vias
+  Multi-point net Phase 3: routing 5 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 2 (length=2.95mm) target=(112.17, 97.88)
+      Routed in 6041 iterations (0.00s)
+    [2/0] Routing MST edge: pad 2 -> pad 3 (length=5.27mm) target=(116.01, 96.45)
+      Routed in 6418 iterations (0.00s)
+    [3/0] Routing MST edge: pad 3 -> pad 4 (length=6.09mm) target=(122.02, 96.37)
+      Routed in 61837 iterations (0.02s)
+    [4/0] Routing MST edge: pad 4 -> pad 6 (length=6.38mm) target=(124.96, 92.92)
+      Routed in 21133 iterations (0.01s)
+    [5/0] Routing MST edge: pad 6 -> pad 5 (length=5.26mm) target=(124.60, 88.01)
+      Routed in 36475 iterations (0.01s)
+  Phase 3 routing complete: 5 edges, 89 total segments, 2 total vias
+    Re-routed 55 tap segments, 2 tap vias
+  #444 seam re-ask: /SWD_EN tree replaced (58.0 -> 56.6 score)
+  Net total time: 0.28s, 168602 iterations
+
++5V (net 35):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [88/116] Routing MST edge: pad 1 -> pad 2 (length=1.74mm) target=(119.72, 62.10)
+      Routed in 1 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 54 total segments, 2 total vias
+  #444 seam re-ask: +5V tree is 6.43x its MST bound -- re-asking whole
+
+  Re-routing +5V (net 35)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=3.54mm)
+  forward stuck (1 < 5000), backward=5000
+    forward cell (1153, 626, layer=0): ok, 8/8 neighbors blocked (margin=5)
+      Blocking obstacles: /USB_DM(1 track), /USB_DP(1 track)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Wide power route blocked - routed short edge at 0.3500mm (down from 0.7000)
+  Phase 1 routed in 40623 iterations, 66 segments
+    Re-routed main path: 66 segments, 2 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+  Phase 3 routing complete: 0 edges, 66 total segments, 2 total vias
+  Net total time: 0.27s, 54238 iterations
+
+/SRST_N_R (net 60):
+  Multi-point net Phase 3: routing 3 remaining MST edges (longest first)
+    [89/116] Routing MST edge: pad 1 -> pad 0 (length=4.76mm) target=(137.20, 78.66)
+      Routed in 23988 iterations (0.01s)
+    [90/116] Routing MST edge: pad 0 -> pad 3 (length=1.94mm) target=(139.06, 78.74)
+      Routed in 3 iterations (0.00s)
+    [91/116] Routing MST edge: pad 3 -> pad 4 (length=3.56mm) target=(139.61, 81.75)
+      Routed in 6515 iterations (0.00s)
+  Phase 3 routing complete: 3 edges, 33 total segments, 0 total vias
+  Added 21 tap segments, 0 tap vias
+  #444 seam re-ask: /SRST_N_R tree is 1.53x its MST bound -- re-asking whole
+
+  Re-routing /SRST_N_R (net 60)...
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=6.11mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 18239 iterations, 12 segments
+    Re-routed main path: 12 segments, 0 vias
+  Multi-point net Phase 3: routing 3 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 0 (length=4.76mm) target=(137.20, 78.66)
+      Routed in 23988 iterations (0.01s)
+    [2/0] Routing MST edge: pad 0 -> pad 3 (length=1.94mm) target=(139.06, 78.74)
+      Routed in 3 iterations (0.00s)
+    [3/0] Routing MST edge: pad 3 -> pad 4 (length=3.56mm) target=(139.61, 81.75)
+      Routed in 6515 iterations (0.00s)
+  Phase 3 routing complete: 3 edges, 33 total segments, 0 total vias
+    Re-routed 21 tap segments, 0 tap vias
+  Net total time: 0.24s, 48745 iterations
+
+/OSCI (net 31):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [92/116] Routing MST edge: pad 0 -> pad 1 (length=1.80mm) target=(102.26, 74.87)
+      Routed in 387 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 12 total segments, 2 total vias
+  Added 2 tap segments, 0 tap vias
+  Net total time: 0.04s, 6797 iterations
+
+/OSCO (net 30):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [93/116] Routing MST edge: pad 2 -> pad 0 (length=1.88mm) target=(104.46, 73.17)
+      Routed in 423 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 13 total segments, 2 total vias
+  Added 2 tap segments, 0 tap vias
+  Net total time: 0.04s, 6617 iterations
+
+/TXD_TRGT (net 69):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [94/116] Routing MST edge: pad 1 -> pad 0 (length=5.31mm) target=(126.59, 94.03)
+      Routed in 8922 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 16 total segments, 1 total vias
+  Added 6 tap segments, 1 tap vias
+  Net total time: 0.05s, 24119 iterations
+
+/SRST_N_TRGT (net 37):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [95/116] Routing MST edge: pad 2 -> pad 1 (length=8.33mm) target=(139.61, 83.32)
+      Routed in 39665 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 26 total segments, 1 total vias
+  Added 21 tap segments, 0 tap vias
+  #444 seam re-ask: /SRST_N_TRGT tree is 1.34x its MST bound -- re-asking whole
+
+  Re-routing /SRST_N_TRGT (net 37)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=13.16mm)
+  Phase 1 routed in 4922 iterations, 15 segments
+    Re-routed main path: 15 segments, 1 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 1 (length=8.33mm) target=(139.61, 83.32)
+      Routed in 39844 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 36 total segments, 1 total vias
+    Re-routed 21 tap segments, 0 tap vias
+  Net total time: 0.25s, 55219 iterations
+
+/TDO_TRGT (net 39):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [96/116] Routing MST edge: pad 1 -> pad 0 (length=2.70mm) target=(127.87, 82.46)
+      Routed in 1547 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 16 total segments, 1 total vias
+  Added 7 tap segments, 0 tap vias
+  Net total time: 0.04s, 19451 iterations
+
+/TCK_TRGT (net 40):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [97/116] Routing MST edge: pad 1 -> pad 0 (length=3.55mm) target=(127.87, 78.32)
+      Routed in 1845 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 20 total segments, 1 total vias
+  Added 11 tap segments, 0 tap vias
+  Net total time: 0.04s, 19006 iterations
+
+/EE_CS (net 12):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [98/116] Routing MST edge: pad 2 -> pad 1 (length=5.49mm) target=(110.32, 65.86)
+      Routed in 19060 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 27 total segments, 2 total vias
+  Added 11 tap segments, 0 tap vias
+  #444 seam re-ask: /EE_CS tree is 1.48x its MST bound -- re-asking whole
+
+  Re-routing /EE_CS (net 12)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=8.01mm)
+  Phase 1 routed in 4742 iterations, 18 segments
+    Re-routed main path: 18 segments, 2 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 1 (length=5.49mm) target=(110.32, 65.86)
+      Routed in 18990 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 29 total segments, 2 total vias
+    Re-routed 11 tap segments, 0 tap vias
+  Net total time: 0.25s, 76700 iterations
+
+/TDI_TRGT (net 38):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [99/116] Routing MST edge: pad 1 -> pad 2 (length=4.52mm) target=(139.61, 94.91)
+      Routed in 29116 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 24 total segments, 2 total vias
+  Added 9 tap segments, 0 tap vias
+  #444 seam re-ask: /TDI_TRGT tree is 1.48x its MST bound -- re-asking whole
+
+  Re-routing /TDI_TRGT (net 38)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=19.51mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 22478 iterations, 28 segments
+    Re-routed main path: 28 segments, 2 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 2 (length=4.52mm) target=(139.61, 94.91)
+      Routed in 29186 iterations (0.01s)
+  Phase 3 routing complete: 1 edges, 37 total segments, 2 total vias
+    Re-routed 9 tap segments, 0 tap vias
+  Net total time: 0.26s, 59973 iterations
+
+/TMS_R (net 62):
+  Multi-point net Phase 3: routing 2 remaining MST edges (longest first)
+    [100/116] Routing MST edge: pad 2 -> pad 1 (length=8.46mm) target=(114.07, 96.23)
+      Routed in 119022 iterations (0.03s)
+    [101/116] Routing MST edge: pad 1 -> pad 0 (length=7.14mm) target=(109.30, 98.59)
+      Routed in 31216 iterations (0.01s)
+  Phase 3 routing complete: 2 edges, 43 total segments, 5 total vias
+  Added 33 tap segments, 3 tap vias
+  #444 seam re-ask: /TMS_R tree is 1.71x its MST bound -- re-asking whole
+
+  Re-routing /TMS_R (net 62)...
+  Multi-point net Phase 1: routing longest MST edge (pads 2 and 3, length=12.93mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 25331 iterations, 20 segments
+    Re-routed main path: 20 segments, 2 vias
+  Multi-point net Phase 3: routing 2 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 1 (length=8.46mm) target=(114.07, 96.23)
+      Routed in 118857 iterations (0.04s)
+    [2/0] Routing MST edge: pad 1 -> pad 0 (length=7.14mm) target=(109.30, 98.59)
+      Routed in 31201 iterations (0.01s)
+  Phase 3 routing complete: 2 edges, 53 total segments, 5 total vias
+    Re-routed 33 tap segments, 3 tap vias
+  Net total time: 0.39s, 171887 iterations
+
+/TMS_TRGT (net 41):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [102/116] Routing MST edge: pad 1 -> pad 0 (length=4.68mm) target=(127.70, 86.89)
+      Routed in 7415 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 24 total segments, 3 total vias
+  Added 8 tap segments, 1 tap vias
+  Net total time: 0.04s, 32618 iterations
+
+/SRST (net 74):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [103/116] Routing MST edge: pad 1 -> pad 2 (length=1.94mm) target=(135.20, 77.71)
+      Routed in 627 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 42 total segments, 2 total vias
+  Added 2 tap segments, 0 tap vias
+  #444 seam re-ask: /SRST tree is 1.54x its MST bound -- re-asking whole
+
+  Re-routing /SRST (net 74)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=32.94mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 44484 iterations, 59 segments
+    Re-routed main path: 59 segments, 2 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 2 (length=1.94mm) target=(135.20, 77.71)
+      Routed in 627 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 61 total segments, 2 total vias
+    Re-routed 2 tap segments, 0 tap vias
+  #444 seam re-ask: /SRST tree replaced (44.6 -> 43.9 score)
+  Net total time: 0.21s, 240647 iterations
+
+/VDRIVE_TRGT (net 73):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [104/116] Routing MST edge: pad 1 -> pad 0 (length=2.68mm) target=(130.52, 72.34)
+      Routed in 3017 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 31 total segments, 2 total vias
+  Added 6 tap segments, 0 tap vias
+  #444 seam re-ask: /VDRIVE_TRGT tree is 2.32x its MST bound -- re-asking whole
+
+  Re-routing /VDRIVE_TRGT (net 73)...
+  Multi-point net Phase 1: routing longest MST edge (pads 1 and 2, length=16.74mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 205614 iterations, 29 segments
+    Re-routed main path: 29 segments, 2 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 0 (length=2.68mm) target=(130.52, 72.34)
+      Routed in 3017 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 35 total segments, 2 total vias
+    Re-routed 6 tap segments, 0 tap vias
+  Net total time: 0.30s, 308038 iterations
+
+/TDO (net 24):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [105/116] Routing MST edge: pad 2 -> pad 1 (length=10.94mm) target=(120.12, 95.07)
+      Routed in 119476 iterations (0.04s)
+  Phase 3 routing complete: 1 edges, 66 total segments, 4 total vias
+  Added 23 tap segments, 2 tap vias
+  #444 seam re-ask: /TDO tree is 1.92x its MST bound -- re-asking whole
+
+  Re-routing /TDO (net 24)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 2, length=16.37mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  dynamic iterations (#529): search extended to 316151 (base 200000)
+  Phase 1 routed in 326151 iterations, 34 segments
+    Re-routed main path: 34 segments, 4 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 2 -> pad 1 (length=10.94mm) target=(120.12, 95.07)
+      Routed in 101886 iterations (0.03s)
+  Phase 3 routing complete: 1 edges, 59 total segments, 6 total vias
+    Re-routed 25 tap segments, 2 tap vias
+  #444 seam re-ask: /TDO tree replaced (50.5 -> 47.6 score)
+  Net total time: 0.35s, 345760 iterations
+
+/RXD_TRGT (net 68):
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [106/116] Routing MST edge: pad 1 -> pad 2 (length=11.36mm) target=(139.61, 92.93)
+      Routed in 1344 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 17 total segments, 2 total vias
+  Added 5 tap segments, 1 tap vias
+  #444 seam re-ask: /RXD_TRGT tree is 1.38x its MST bound -- re-asking whole
+
+  Re-routing /RXD_TRGT (net 68)...
+  Multi-point net Phase 1: routing longest MST edge (pads 0 and 1, length=28.08mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 58435 iterations, 13 segments
+    Re-routed main path: 13 segments, 1 vias
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 1 -> pad 2 (length=11.36mm) target=(139.61, 92.93)
+      Routed in 1344 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 18 total segments, 2 total vias
+    Re-routed 5 tap segments, 1 tap vias
+  Net total time: 0.27s, 58774 iterations
+
+Vdrive (net 34):
+  Multi-point net Phase 3: routing 10 remaining MST edges (longest first)
+    [107/116] Routing MST edge: pad 8 -> pad 9 (length=3.22mm) target=(127.04, 73.69)
+      Routed in 427 iterations (0.00s)
+    [108/116] Routing MST edge: pad 9 -> pad 5 (length=8.28mm) target=(122.42, 70.02)
+      Routed in 85225 iterations (0.09s)
+    [109/116] Routing MST edge: pad 9 -> pad 10 (length=6.39mm) target=(133.20, 73.92)
+      Routed in 77552 iterations (0.08s)
+    [110/116] Routing MST edge: pad 10 -> pad 11 (length=2.45mm) target=(135.64, 73.90)
+      Routed in 946 iterations (0.00s)
+    [111/116] Routing MST edge: pad 7 -> pad 6 (length=1.68mm) target=(123.12, 93.03)
+      Routed in 390 iterations (0.00s)
+    [112/116] Routing MST edge: pad 6 -> pad 4 (length=8.41mm) target=(115.61, 93.93)
+      Routed in 332815 iterations (0.37s)
+    [113/116] Routing MST edge: pad 4 -> pad 2 (length=2.54mm) target=(114.07, 94.93)
+      Routed in 352020 iterations (0.40s)
+    [114/116] Routing MST edge: pad 2 -> pad 3 (length=2.95mm) target=(114.07, 97.88)
+      Routed in 7016 iterations (0.01s)
+    [115/116] Routing MST edge: pad 3 -> pad 1 (length=4.19mm) target=(110.60, 98.59)
+      Routed in 38544 iterations (0.04s)
+    [116/116] Routing MST edge: pad 1 -> pad 0 (length=1.76mm) target=(110.39, 100.14)
+      Routed in 3 iterations (0.00s)
+  Phase 3 routing complete: 10 edges, 137 total segments, 14 total vias
+  Added 109 tap segments, 10 tap vias
+  #444 seam re-ask: Vdrive tree is 1.96x its MST bound -- re-asking whole
+
+  Re-routing Vdrive (net 34)...
+  Multi-point net Phase 1: routing longest MST edge (pads 7 and 8, length=18.36mm)
+  Probe: forward=5000, backward=5000 iters, trying forward with full iterations...
+  Phase 1 routed in 41892 iterations, 28 segments
+    Re-routed main path: 28 segments, 4 vias
+  Multi-point net Phase 3: routing 10 remaining MST edges (longest first)
+    [1/0] Routing MST edge: pad 8 -> pad 9 (length=3.22mm) target=(127.04, 73.69)
+      Routed in 603 iterations (0.00s)
+    [2/0] Routing MST edge: pad 9 -> pad 5 (length=8.28mm) target=(122.42, 70.02)
+      Routed in 85778 iterations (0.09s)
+    [3/0] Routing MST edge: pad 9 -> pad 10 (length=6.39mm) target=(133.20, 73.92)
+      Routed in 76964 iterations (0.07s)
+    [4/0] Routing MST edge: pad 10 -> pad 11 (length=2.45mm) target=(135.64, 73.90)
+      Routed in 946 iterations (0.00s)
+    [5/0] Routing MST edge: pad 7 -> pad 6 (length=1.68mm) target=(123.12, 93.03)
+      Routed in 361 iterations (0.00s)
+    [6/0] Routing MST edge: pad 6 -> pad 4 (length=8.41mm) target=(115.61, 93.93)
+      Routed in 332815 iterations (0.36s)
+    [7/0] Routing MST edge: pad 4 -> pad 2 (length=2.54mm) target=(114.07, 94.93)
+      Routed in 352020 iterations (0.38s)
+    [8/0] Routing MST edge: pad 2 -> pad 3 (length=2.95mm) target=(114.07, 97.88)
+      Routed in 7016 iterations (0.01s)
+    [9/0] Routing MST edge: pad 3 -> pad 1 (length=4.19mm) target=(110.60, 98.59)
+      Routed in 39689 iterations (0.04s)
+    [10/0] Routing MST edge: pad 1 -> pad 0 (length=1.76mm) target=(110.39, 100.14)
+      Routed in 3 iterations (0.00s)
+  Phase 3 routing complete: 10 edges, 137 total segments, 14 total vias
+    Re-routed 109 tap segments, 10 tap vias
+  Net total time: 2.55s, 953933 iterations
+Closed 2 stub gap(s) to same-net copper
+Graze prune: removed 1 grazing segment(s) across 1 net(s)
+Cycle prune: removed 95 redundant loop segment(s) across 36 net(s)
+Dead-end sweep: trimmed 4 dead-end segment(s) and 0 unsupported via(s)
+Octolinear smoothing: collapsed 146 staircase span(s) on 49 net(s), -81.91 mm of copper (#536)
+Bridged 1 same-net soft joint(s) with a tiny connector
+Merged 55 collinear joint(s) on 22 net(s): -55 redundant segment(s) (#811)
+
+WARNING: 1 stacked-copper finding(s) on the write model (same-net duplicates KiCad will not flag):
+  GND B.Cu: 2 duplicate segments stacked on (118.700, 86.000)-(119.100, 86.400)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  59/60 routed
+  Multi-point:   185/186 pads connected (1 FAILED)
+  Total vias:    146
+  Total time:    1.78s
+  Iterations:    3,429,867
+  Fragility refresh (#466): 170 windows, 5.70s total
+
+Failed multi-point connections:
+  GND: U8 pad ? at (112.17, 99.18) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  +5V: 1.12A max (0.350mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.12A)
+  /VPHY: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 0.60A max (0.150mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 0.60A)
+  VBUS: 0.68A max (0.175mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 0.68A)
+  Vdrive: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": ["/VPHY", "/PWR_LED_A", "/ACT_LED_K", "/RX_LED_K", "/TCK_R", "/SWD_EN_LED", "/TX_LED_K", "/RTS_N", "/VPLL", "+5V", "/TDI", "/SRST_N_R", "/USB_LED_K", "VBUS", "/OSCI", "/OSCO", "/TXD_R", "/SWDIO_OE_N", "/RESET_N", "/RX_LED_N", "/USB_CC1", "/EE_DO", "/TXD_TRGT", "/EE_DATA", "/EE_CLK", "/CTS_N", "/SRST_N_TRGT", "/TDO_TRGT", "/TCK_TRGT", "/RXD_IN", "/GPIO_A", "/EE_CS", "/USB_CC2", "/TDI_TRGT", "/TMS_R", "/ACT_LED_N", "/TXD", "/USB_LED_N", "/REF", "/RXD", "/RXD_R", "/TDI_R", "/TMS", "+1V8", "/TMS_TRGT", "/USB_DM", "/SRST", "/GPIO_B", "/SWD_EN", "/VDRIVE_TRGT", "/TX_LED_N", "/USB_DP", "/TDO", "/TCK", "/RXD_TRGT", "/GPIO_C", "/TDO_R", "Vdrive", "/GPIO_D"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "GND", "failed_pads": [{"component_ref": "U8", "pad_number": "?", "x": 112.1748, "y": 99.1829}]}], "multipoint_nets": 30, "multipoint_pads_connected": 185, "multipoint_pads_total": 186, "multipoint_edges_routed": 145, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 59, "failed": 1, "total_time": 1.78, "total_iterations": 3429867, "total_vias": 146, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 89, "nets": [1, 6, 33], "narrowed": [{"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.692, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6929, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.4894, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3998, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.4894, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3998, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 1, "net_name": null, "kind": "track_width", "requested": 0.5, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6812, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5442, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5442, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5397, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6838, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.664, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5226, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5226, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.2894, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3983, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6248, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5036, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5036, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.424, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5933, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.664, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.4838, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5158, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5158, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.696, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6105, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5336, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5336, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.536, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.536, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5397, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5696, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5696, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3983, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3983, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3102, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.634, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6554, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.5998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3998, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.127, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.2569, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.15, "delivered": 0.127, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 33, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.3756, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.4609, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6082, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6076, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6086, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.692, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6929, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6926, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.4609, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6082, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6076, "site": "terminal neck", "count": 1}, {"net": 6, "net_name": null, "kind": "track_width", "requested": 0.7, "delivered": 0.6086, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.127}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "advanced", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 2, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "stacked_copper": [{"category": "stacked-copper", "net": "GND", "layer": "B.Cu", "x": 118.7, "y": 86.0, "detail": "2 duplicate segments stacked on (118.700, 86.000)-(119.100, 86.400)", "size": 0.565685424949236}], "oracle_check": "disabled", "pad_pairs_connected": 189, "pad_pairs_total": 190, "pad_pairs_open": [{"net": "GND", "pairs_connected": 71, "pairs_total": 72, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 103.5}, {"net": "+5V", "bottleneck_width_mm": 0.35, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.12, "max_current_ipc2152_a": 1.12, "temp_rise_c": 10.0, "trace_length_mm": 28.8}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.6}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 9.8}, {"net": "GND", "bottleneck_width_mm": 0.15, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.6, "max_current_ipc2152_a": 0.6, "temp_rise_c": 10.0, "trace_length_mm": 112.3}, {"net": "VBUS", "bottleneck_width_mm": 0.175, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 0.68, "max_current_ipc2152_a": 0.68, "temp_rise_c": 10.0, "trace_length_mm": 43.0}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 89.5}], "scope": "run", "env_knobs": {"KICAD_ROUTE_TRACE": "1"}}
+
+Writing output to wk/gpm/12_steppenprobe/arms/C/s2.kicad_pcb...
+Removed 15 dead-end input segment(s) from the output
+Successfully wrote wk/gpm/12_steppenprobe/arms/C/s2.kicad_pcb
+
+Plane finalize (#562): repairing 2 zone net(s) in-run (rip authority over blockers): +3V3, GND
+  Plane finalize: snapped 1553 in-memory coordinate(s) onto the nm grid
+Board bounds: (100.00, 50.00) to (150.00, 110.00)
+Routing layers: F.Cu, B.Cu
+
+============================================================
+Routing disconnected plane regions
+============================================================
+  2 PROTECTED net(s) excluded from blocker rip-up (/USB_DM, /USB_DP)
+    fill-model: pad C13.1 reaches only a pinched fill island -- queued for repair
+    fill-model: pad U1.31 reaches only a pinched fill island -- queued for repair
+    1 geometrically-flagged pad(s) are already plane-connected per the fill-aware grader -- skipped (idempotent rerun, #513 item 8)
+    fill-model: pad U8.3 reaches only a pinched fill island -- queued for repair
+  (#517 ordering: net repair order = +3V3[2], GND[1])
+
+[+3V3] on F.Cu (clearances: F.Cu=0.15mm):
+    fill-model: pad C13.1 reaches only a pinched fill island -- queued for repair
+    fill-model: pad U1.31 reaches only a pinched fill island -- queued for repair
+  Pad repair: 2 pad(s) with no connection to the +3V3 plane:
+    Pad C13.1 (F.Cu)... (needs rip - deferred to phase 2)
+    Pad U1.31 (F.Cu)...   WARNING: plane tap U1.31: escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+           NOTE: --via-size cannot prevent this. The via is re-derived from min(pad.size_x, pad.size_y) floored at the fab ladder, so RAISING --via-size makes the clamp fire more readily, never less. A hard tier or --fab-overrides is what forbids the escalation.
+(needs rip - deferred to phase 2)
+    (#517 ordering: phase 2 -- 2 rip-requiring pad(s) [adaptive: immediate])
+    Pad C13.1 (F.Cu)... blocked by /GPIO_C - ripping... blocked by /GPIO_A - ripping... blocked by /SWD_EN - ripping... (restored 3/3 ripped net(s)) FAILED
+    Pad U1.31 (F.Cu)... blocked by /GPIO_C - ripping... blocked by /GPIO_A - ripping... blocked by /SWD_EN - ripping... (restored 3/3 ripped net(s)) FAILED
+  Building obstacle map... done
+  Region discovery from fill model: 3 region(s) (38 fill island(s), 0 off-fill anchor(s), 0 orphan island(s))
+  Found 3 disconnected regions (27 total anchors)
+  Joining 3 regions incrementally (closest components first, 2 join(s) needed)...
+    [1/2] Component 1 (1 region(s), 3 pts) <-> Component 2 (1 region(s), 2 pts)... budget-x5 narrow-map narrow-width 0.150 OK width=0.15mm, length=37.2mm, 47 seg(s), 2 layer(s), 6 via(s)
+    [2/2] Component 0 (1 region(s), 410 pts) <-> Component 1 (2 region(s), 53 pts) (seed 23x19)... OK width=0.20mm, length=0.4mm, 3 seg(s)
+  Result: All 2 route(s) succeeded
+
+[GND] on B.Cu (clearances: B.Cu=0.15mm):
+    1 geometrically-flagged pad(s) are already plane-connected per the fill-aware grader -- skipped (idempotent rerun, #513 item 8)
+    fill-model: pad U8.3 reaches only a pinched fill island -- queued for repair
+  Pad repair: 1 pad(s) with no connection to the GND plane:
+    (plane oracle: 5 floating same-net item(s) excluded as tap targets)
+    Pad U8.3 (F.Cu)... placed via at (111.40, 99.20), 9 trace segment(s)
+  Building obstacle map... done
+  Region discovery from fill model: 3 region(s) (17 fill island(s), 0 off-fill anchor(s), 1 orphan island(s))
+  Found 3 disconnected regions (58 total anchors)
+  Joining 3 regions incrementally (closest components first, 2 join(s) needed)...
+    [1/2] Component 0 (1 region(s), 439 pts) <-> Component 2 (1 region(s), 3 pts) (seed 23x3)... retry-full budget-x5 narrow-map narrow-width 0.150 FAILED
+    [2/2] Component 0 (1 region(s), 439 pts) <-> Component 1 (1 region(s), 4 pts) (seed 22x4)... OK width=0.20mm, length=3.7mm, 7 seg(s), 2 layer(s), 1 via(s)
+  Result: 1/2 join(s) succeeded, 1 attempt(s) failed
+  [GND] gate oracle: KiCad reports 0 unconnected link(s) for this net (0 total)
+  [GND] guaranteed-join gate: checker finds 2 component(s), but KiCad reports the net complete (fill-model quantization) -- skipping repair
+
+[GND] fill-aware re-check: pad(s) reported tapped but still floating (reached an island, not the plane) -- forcing a via:
+    Pad C20.2 (F.Cu)... STILL FLOATING
+    Pad D6.1 (F.Cu)...   WARNING: last-resort plane via for net 33 (0.25/0.15mm): escalated standard->advanced fab floor (0.25/0.15 via etc., more costly to fab); --fab-tier auto permitted it. Pass --fab-tier standard for a hard floor, or --fab-overrides to pin your own floor
+STILL FLOATING (forced via at (118.00, 95.10) reaches no plane copper - removed)
+  Graze prune: removed 2 grazing repair segment(s)
+
+============================================================
+SUMMARY
+============================================================
+  Zones processed: 2
+  Total routes added: 3
+  Total vias added: 8
+  Pad repair: 0/3 unconnected pad(s) reconnected
+  4 reported-unconnected pad(s) are CONNECTED per KiCad's exact fill (model quantization): C13.1 (+3V3), U1.31 (+3V3), C20.2 (GND), D6.1 (GND)
+  Pads still unconnected: none (all model-only; confirmed connected by the oracle)
+  Closed 1 soft joint(s) in repair copper
+
+Writing output to wk/gpm/12_steppenprobe/arms/C/s2.kicad_pcb...
+Output written to wk/gpm/12_steppenprobe/arms/C/s2.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+  [finalize timing] engine leg: 4.9s
+Plane Closed 2 stub gap(s) to same-net copper
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Plane Merged 7 collinear joint(s) on 1 net(s): -7 redundant segment(s) (#811)
+  [finalize timing] cleanup leg: 0.4s
+  Plane finalize cleanup: closed 2 stub gap(s), trimmed 8 dead-end segment(s)
+Copper-to-hole 0.25mm for NPTH holes (from the floor the board ORIGINALLY declared, which a later step's writeback relaxed in the project, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  [finalize timing] oracle leg: 2.3s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 0, "links_routed": 0, "links_failed": 0, "remaining": 0, "collapsed_duplicate_links": 0, "remaining_links": [], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+
+Final reconciliation: retrying 0 incomplete/custody net(s) against the finished board: 
+Loading wk/gpm/12_steppenprobe/arms/C/s2.kicad_pcb...
+Auto-read netclass track widths for 8 non-Default net(s) (#435 single-ended companion).
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.0x
+No BGA components detected - no exclusion zones needed
+
+Power net width assignments (8 nets):
+  0.3mm: /VPLL, /VPHY, Vdrive
+  0.5mm: +1V8
+  0.7mm: VBUS, +3V3, GND, +5V
+No valid nets to route!
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+
+Pour re-audit: re-auditing 2 zone net(s) KiCad verified complete before the final reconciliation: +3V3, GND
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  Pour re-audit: every verified pour is whole after the reconciliation (0 link(s) welded back)
+  KiCad-dangling joints (#1217, end of run): split 1 track(s) at the joint landing on them, on 1 net(s); copper unchanged
+  Strict collapse (#1063, end of run): removed 252 redundant segment(s) on 58 net(s)
+  Stacked copper (#162, end of run): removed 2 duplicate segment(s) on 1 net(s)
+
+  FAB NOTE (route): 79 via(s) in a pad or paste opening [C1.2 F.Paste (pad), C10.2 F.Paste (pad), C11.2 F.Paste (pad), C12.1 F.Paste (pad), C13.2 F.Paste (pad), C14.2 F.Paste (pad), C15.2 F.Paste (pad), C16.2 F.Paste (pad), +71 more] -- 0 stamped (capping yes) (filling yes), 0 already filled+capped, 77 NOT stampable (the file format cannot declare it per via: put it on the fab drawing), 79 shipped WITHOUT Type VII. via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel.
+VIA_IN_PAD_JSON: {"count": 79, "sites": ["C1.2 F.Paste (pad)", "C10.2 F.Paste (pad)", "C11.2 F.Paste (pad)", "C12.1 F.Paste (pad)", "C13.2 F.Paste (pad)", "C14.2 F.Paste (pad)", "C15.2 F.Paste (pad)", "C16.2 F.Paste (pad)", "C17.2 F.Paste (pad)", "C18.2 F.Paste (pad)", "C19.2 F.Paste (pad)", "C20.1 F.Paste (pad)", "C20.2 F.Paste (pad)", "C21.2 F.Paste (pad)", "C22.2 F.Paste (pad)", "C3.1 F.Paste (pad)", "C4.1 F.Paste (pad)", "C4.2 F.Paste (pad)", "C6.2 F.Paste (pad)", "C7.2 F.Paste (pad)", "D4.1 F.Paste (pad)", "D5.1 F.Paste (pad)", "FB1.1 F.Paste (pad)", "FB2.1 F.Paste (pad)", "J2.10 F.Paste (pad)", "J2.12 F.Paste (pad)", "J2.14 F.Paste (pad)", "J2.3 F.Paste (pad)", "J2.4 F.Paste (pad)", "J2.5 F.Paste (pad)", "J2.6 F.Paste (pad)", "J2.8 F.Paste (pad)", "Q1.2 F.Paste (pad)", "R1.1 F.Paste (pad)", "R1.2 F.Paste (pad)", "R10.1 F.Paste (pad)", "R11.1 F.Paste (pad)", "R14.2 F.Paste (pad)", "R15.2 F.Paste (pad)", "R19.1 F.Paste (pad)", "R19.2 F.Paste (pad)", "R20.1 F.Paste (pad)", "R20.2 F.Paste (pad)", "R22.1 F.Paste (pad)", "R24.2 F.Paste (pad)", "R3.2 F.Paste (pad)", "R4.1 F.Paste (pad)", "R4.2 F.Paste (pad)", "R5.1 F.Paste (pad)", "R5.2 F.Paste (pad)", "R6.1 F.Paste (pad)", "SW1.3 F.Paste (pad)", "SW2.2 F.Paste (pad)", "TP2.1", "U1.1 F.Paste (pad)", "U1.16 F.Paste (pad)", "U1.17 F.Paste (pad)", "U1.49 F.Paste (pad)", "U10.3 F.Paste (pad)", "U10.4 F.Paste (pad)", "U11.1 F.Paste (pad)", "U11.4 F.Paste (pad)", "U12.1 F.Paste (pad)", "U12.4 F.Paste (pad)", "U3.1 F.Paste (pad)", "U3.2 F.Paste (pad)", "U3.3 F.Paste (pad)", "U3.6 F.Paste (pad)", "U4.1 F.Paste (pad)", "U4.4 F.Paste (pad)", "U4.5 F.Paste (pad)", "U5.3 F.Paste (pad)", "U6.3 F.Paste (pad)", "U7.1 F.Paste (pad)", "U7.3 F.Paste (pad)", "U7.5 F.Paste (pad)", "U8.3 F.Paste (pad)", "U9.3 F.Paste (pad)", "Y1.4 F.Paste (pad)"], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 77, "site_created": 0, "unprotected": [{"site": "U3.1 F.Paste (pad)", "x": 110.8, "y": 60.5, "why": "at the spot of an input via, kept as the input had it"}, {"site": "U3.6 F.Paste (pad)", "x": 110.8, "y": 58.3, "why": "at the spot of an input via, kept as the input had it"}, {"site": "R10.1 F.Paste (pad)", "x": 120.0, "y": 74.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "D4.1 F.Paste (pad)", "x": 120.0, "y": 76.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U12.4 F.Paste (pad)", "x": 122.2, "y": 91.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R19.2 F.Paste (pad)", "x": 126.0, "y": 92.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R6.1 F.Paste (pad)", "x": 105.5, "y": 90.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R5.1 F.Paste (pad)", "x": 110.3, "y": 72.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U4.4 F.Paste (pad)", "x": 109.5, "y": 67.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "TP2.1", "x": 117.3, "y": 75.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R4.1 F.Paste (pad)", "x": 103.7, "y": 92.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U11.4 F.Paste (pad)", "x": 122.1, "y": 74.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R20.1 F.Paste (pad)", "x": 128.5, "y": 66.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "SW1.3 F.Paste (pad)", "x": 105.5, "y": 63.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U1.16 F.Paste (pad)", "x": 105.6, "y": 87.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "FB2.1 F.Paste (pad)", "x": 103.9, "y": 85.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R5.2 F.Paste (pad)", "x": 110.1, "y": 74.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U1.49 F.Paste (pad)", "x": 115.6, "y": 78.2, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C12.1 F.Paste (pad)", "x": 108.0, "y": 73.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "Q1.2 F.Paste (pad)", "x": 135.8, "y": 79.2, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "SW2.2 F.Paste (pad)", "x": 143.6, "y": 69.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.5 F.Paste (pad)", "x": 135.7, "y": 88.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C19.2 F.Paste (pad)", "x": 127.6, "y": 75.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R1.2 F.Paste (pad)", "x": 117.2, "y": 60.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C1.2 F.Paste (pad)", "x": 118.2, "y": 63.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U7.1 F.Paste (pad)", "x": 123.6, "y": 75.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U11.1 F.Paste (pad)", "x": 123.2, "y": 71.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "D5.1 F.Paste (pad)", "x": 117.2, "y": 67.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U3.2 F.Paste (pad)", "x": 111.7, "y": 59.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R3.2 F.Paste (pad)", "x": 111.9, "y": 65.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C15.2 F.Paste (pad)", "x": 113.3, "y": 69.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C14.2 F.Paste (pad)", "x": 112.8, "y": 72.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C10.2 F.Paste (pad)", "x": 113.8, "y": 75.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C4.2 F.Paste (pad)", "x": 105.6, "y": 74.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C7.2 F.Paste (pad)", "x": 118.7, "y": 86.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C16.2 F.Paste (pad)", "x": 121.3, "y": 80.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U5.3 F.Paste (pad)", "x": 124.4, "y": 86.4, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U12.1 F.Paste (pad)", "x": 123.3, "y": 89.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R22.1 F.Paste (pad)", "x": 125.0, "y": 91.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "Y1.4 F.Paste (pad)", "x": 102.3, "y": 73.2, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C18.2 F.Paste (pad)", "x": 100.9, "y": 70.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U4.5 F.Paste (pad)", "x": 104.9, "y": 67.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U1.1 F.Paste (pad)", "x": 105.9, "y": 79.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C6.2 F.Paste (pad)", "x": 104.0, "y": 81.4, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C11.2 F.Paste (pad)", "x": 102.4, "y": 88.2, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R4.2 F.Paste (pad)", "x": 104.1, "y": 90.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C21.2 F.Paste (pad)", "x": 121.6, "y": 93.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U6.3 F.Paste (pad)", "x": 122.0, "y": 95.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C20.2 F.Paste (pad)", "x": 117.2, "y": 94.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C22.2 F.Paste (pad)", "x": 120.0, "y": 99.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U9.3 F.Paste (pad)", "x": 112.2, "y": 96.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C13.2 F.Paste (pad)", "x": 113.2, "y": 90.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U10.3 F.Paste (pad)", "x": 109.2, "y": 96.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C17.2 F.Paste (pad)", "x": 108.8, "y": 100.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U8.3 F.Paste (pad)", "x": 112.2, "y": 99.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U7.3 F.Paste (pad)", "x": 123.6, "y": 76.8, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R15.2 F.Paste (pad)", "x": 125.8, "y": 82.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U1.17 F.Paste (pad)", "x": 107.7, "y": 88.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R1.1 F.Paste (pad)", "x": 115.6, "y": 60.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U3.3 F.Paste (pad)", "x": 112.8, "y": 61.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "FB1.1 F.Paste (pad)", "x": 120.3, "y": 61.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C3.1 F.Paste (pad)", "x": 102.7, "y": 76.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C4.1 F.Paste (pad)", "x": 106.3, "y": 73.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R19.1 F.Paste (pad)", "x": 127.2, "y": 94.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.12 F.Paste (pad)", "x": 138.3, "y": 91.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.8 F.Paste (pad)", "x": 138.3, "y": 89.1, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.6 F.Paste (pad)", "x": 139.6, "y": 87.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U4.1 F.Paste (pad)", "x": 111.2, "y": 71.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.10 F.Paste (pad)", "x": 140.0, "y": 90.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R14.2 F.Paste (pad)", "x": 125.6, "y": 86.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U10.4 F.Paste (pad)", "x": 109.0, "y": 99.0, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.4 F.Paste (pad)", "x": 138.3, "y": 86.6, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R24.2 F.Paste (pad)", "x": 133.4, "y": 77.3, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R11.1 F.Paste (pad)", "x": 133.6, "y": 72.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.3 F.Paste (pad)", "x": 134.4, "y": 86.9, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "R20.2 F.Paste (pad)", "x": 130.9, "y": 66.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "J2.14 F.Paste (pad)", "x": 140.8, "y": 93.4, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "U7.5 F.Paste (pad)", "x": 125.5, "y": 75.7, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}, {"site": "C20.1 F.Paste (pad)", "x": 115.5, "y": 94.5, "why": "file format 20211014 predates per-via capping/filling (KiCad 10)"}], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+Power widths: +1V8 15.7/100.8 mm under the requested 0.5 (min 0.15); VBUS 12.1/42.0 mm under the requested 0.7 (min 0.175); +3V3 37.3/37.3 mm under the requested 0.7 (min 0.15); GND 59.1/118.2 mm under the requested 0.7 (min 0.15); +5V 13.4/27.6 mm under the requested 0.7 (min 0.35) -- JSON_SUMMARY power_widths
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.15, "design_rules": {"escalation_policy": "fab", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 11, "nets": [1, 6, 32, 33, 35], "narrowed": [{"net": 32, "net_name": null, "kind": "via_diameter", "requested": 0.6, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 32, "net_name": null, "kind": "via_diameter", "requested": 0.6, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 32, "net_name": null, "kind": "via_diameter", "requested": 0.6, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 32, "net_name": null, "kind": "via_diameter", "requested": 0.6, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 32, "net_name": null, "kind": "via_diameter", "requested": 0.6, "delivered": 0.3, "site": "via-in-pad clamp", "count": 1}, {"net": 33, "net_name": null, "kind": "via_diameter", "requested": 0.6, "delivered": 0.25, "site": "last-resort plane via", "count": 1}, {"net": 1, "net_name": "+1V8", "kind": "track_width", "requested": 0.5, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 15.67}, {"net": 6, "net_name": "VBUS", "kind": "track_width", "requested": 0.7, "delivered": 0.175, "site": "power copper shipped under width", "count": 1, "length_mm": 12.05}, {"net": 32, "net_name": "+3V3", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 37.26}, {"net": 33, "net_name": "GND", "kind": "track_width", "requested": 0.7, "delivered": 0.15, "site": "power copper shipped under width", "count": 1, "length_mm": 59.14}, {"net": 35, "net_name": "+5V", "kind": "track_width", "requested": 0.7, "delivered": 0.35, "site": "power copper shipped under width", "count": 1, "length_mm": 13.45}], "min_delivered": {"via_diameter": 0.25, "track_width": 0.15}, "fab_tier_escalations": 6, "fab_tier_contexts": ["plane tap U1.31", "plane tap U1.31", "plane tap U1.31", "plane tap U1.31", "plane tap U1.31", "last-resort plane via for net 33 (0.25/0.15mm)"], "fab_tier_target": "advanced"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 61, "seconds": 0.27, "routed_single": ["/VPHY", "/PWR_LED_A", "/ACT_LED_K", "/RX_LED_K", "/TCK_R", "/SWD_EN_LED", "/TX_LED_K", "/RTS_N", "/VPLL", "+5V", "/TDI", "/SRST_N_R", "/USB_LED_K", "VBUS", "/OSCI", "/OSCO", "/TXD_R", "/SWDIO_OE_N", "/RESET_N", "/RX_LED_N", "/USB_CC1", "/EE_DO", "/TXD_TRGT", "/EE_DATA", "/EE_CLK", "/CTS_N", "/SRST_N_TRGT", "/TDO_TRGT", "/TCK_TRGT", "/RXD_IN", "/GPIO_A", "/EE_CS", "/USB_CC2", "/TDI_TRGT", "/TMS_R", "/ACT_LED_N", "/TXD", "/USB_LED_N", "/REF", "/RXD", "/RXD_R", "/TDI_R", "/TMS", "+1V8", "/TMS_TRGT", "/USB_DM", "/SRST", "/GPIO_B", "/SWD_EN", "/VDRIVE_TRGT", "/TX_LED_N", "/USB_DP", "/TDO", "/TCK", "/RXD_TRGT", "/GPIO_C", "/TDO_R", "Vdrive", "/GPIO_D"], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "GND", "failed_pads": [{"x": 117.1838, "y": 93.93, "component_ref": "C20", "pad_number": "?"}, {"x": 117.6651, "y": 95.5275, "component_ref": "D6", "pad_number": "?"}]}], "multipoint_pads_total": 194, "multipoint_pads_connected": 192, "successful": 59, "failed": 1, "unowned_broken": [], "recovered": [], "pad_pairs": {"GND": {"total": 72, "connected": 71, "copper": true}}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (61 net(s), 0.3s)
+============================================================
+  Single-ended:  59/60 routed
+  Multi-point:   192/194 pads connected (2 FAILED)
+  Ships broken: 1 net(s) -- the `failed` count, over every net the run owns
+  route summary written to wk/gpm/12_steppenprobe/arms/C/s2.json
+  Route trace written to wk/gpm/12_steppenprobe/arms/C/s2_routetrace.json (169 events)
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": ["+1V8", "+5V", "/ACT_LED_K", "/ACT_LED_N", "/CTS_N", "/EE_CLK", "/EE_CS", "/EE_DATA", "/EE_DO", "/GPIO_A", "/GPIO_B", "/GPIO_C", "/GPIO_D", "/OSCI", "/OSCO", "/PWR_LED_A", "/REF", "/RESET_N", "/RTS_N", "/RXD", "/RXD_IN", "/RXD_R", "/RXD_TRGT", "/RX_LED_K", "/RX_LED_N", "/SRST", "/SRST_N_R", "/SRST_N_TRGT", "/SWDIO_OE_N", "/SWD_EN", "/SWD_EN_LED", "/TCK", "/TCK_R", "/TCK_TRGT", "/TDI", "/TDI_R", "/TDI_TRGT", "/TDO", "/TDO_R", "/TDO_TRGT", "/TMS", "/TMS_R", "/TMS_TRGT", "/TXD", "/TXD_R", "/TXD_TRGT", "/TX_LED_K", "/TX_LED_N", "/USB_CC1", "/USB_CC2", "/USB_DM", "/USB_DP", "/USB_LED_K", "/USB_LED_N", "/VDRIVE_TRGT", "/VPHY", "/VPLL", "VBUS", "Vdrive"], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 176, "disconnected_pads_after": 2, "nets_compared": 61, "verdict": "accept"}
+  Design rules [--escalation fab, --fab-tier auto]: 11 feature(s) on 5 net(s) delivered below the requested size (smallest track width 0.15 mm, smallest via diameter 0.25 mm); 6 fab-tier escalation(s) to advanced. Details: JSON_SUMMARY design_rules.
+JSON_SUMMARY_MIN: {"escalations": 17, "failed": 1, "failed_single": [], "main_loop_time_s": 1.78, "min_clearance_used": 0.15, "multipoint_deficit": 2, "open_single": [], "pad_pairs_open": {"count": 1, "nets": ["GND"]}, "regraded_nets": 61, "routed": 59, "scope": "merged", "terminal_restores_broken": [], "vias": 146}
+  DRC settings already consistent (wk/gpm/12_steppenprobe/arms/C/s2.kicad_pro)
+  FAB FLOOR RELAXED -- the output project declares a smaller minimum than the board originally did:
+    copper-to-hole clearance: 0.15 mm, unchanged by this step but still below the board's ORIGINAL 0.25mm; the router holds it at NPTH walls only -- plated holes and vias sit at copper clearance, which re-routing does not change
+    Every checker (check_drc, board_score, KiCad's own DRC) grades against the NEW value, so this copper will read clean. Confirm your fab supports it; if the original number was a real process limit, re-route at that floor rather than shipping this project.
+EXIT=0

@@ -1,0 +1,150 @@
+def _elect_tethers(pcb_data, movable=None):
+    """[(cap, ic|None, distance|None)] in sorted cap order -- the ONE election.
+
+    Every decap (`decap_population`) against its owners, nearest wins: the
+    cap's pad centroid to each owner's pad bbox (`chip_bounds_of`).
+
+    **The radius never reaches here.** Callers prune the winner by distance
+    afterwards, so asking at two radii runs ONE election, and the wider
+    answer always contains the narrower one.
+
+    `ic is None` only when no owner has copper pads to measure.
+    """
+    pop = decap_population(pcb_data)
+    if movable is None:
+        movable = set(pcb_data.footprints)
+    fps = pcb_data.footprints or {}
+    bounds: Dict[str, object] = {}
+    out: List[Tuple[str, Optional[str], Optional[float]]] = []
+    for ref in sorted(movable):
+        hit = pop.get(ref)
+        if hit is None:
+            continue
+        cands = []
+        for ic in hit[1]:
+            if ic not in bounds:
+                bounds[ic] = chip_bounds_of(fps[ic])
+            if bounds[ic] is not None:
+                cands.append((ic, bounds[ic]))
+        best, best_d = nearest_chip(_centroid(fps[ref]), cands)
+        out.append((ref, best, best_d))
+    return out
+
+
+def _cap_power_nets(pcb_data, fp) -> Set[int]:
+    """The nets a cap is tethered ON. Match on the POWER net, not on ground. A
+    decoupling cap bridges a rail and GND, and GND is shared with nearly every
+    part on the board -- so matching on "shares a net" lets the nearest 4-pad
+    part win on ground alone. Measured, that tethered a rail decap to the
+    CRYSTAL and the flash's own C2 to the USB connector, and the reported
+    distance was then to the wrong part in both directions."""
+    from net_queries import is_ground_net_name
+    nets = {p.net_id for p in fp.pads if p.net_id > 0}
+    return {n for n in nets
+            if not is_ground_net_name(_net_name(pcb_data, n))} or nets
+
+
+def nearest_chip(pt, candidates) -> Tuple[Optional[str], Optional[float]]:
+    """`(ref, distance)` -- the election's argmin over `(ref, bounds)`
+    candidates in the order given (the first strict minimum wins), or
+    `(None, None)`. `_elect_tethers` calls it over the chips carrying a cap's
+    rail; the decap tether gate (`quench.TetherGateView`, which
+    `place_fanout_clearance --intent` runs) calls it over the same chips at
+    LIVE poses, so the pair it holds is the pair the grade will elect."""
+    best, best_d = None, None
+    for ref, bounds in candidates:
+        d = _point_to_bounds(pt, bounds)
+        if best_d is None or d < best_d:
+            best, best_d = ref, d
+    return best, best_d
+
+
+def rail_chips(pcb_data, cap: str) -> List[str]:
+    """The chips `_elect_tethers` considers for `cap`, in its order: its
+    owners (`decap_population`); none for a cap that is no decap.
+    Pose-invariant: the rule reads nets, pin types and roles, never a pose."""
+    hit = decap_population(pcb_data).get(cap)
+    return list(hit[1]) if hit is not None else []
+
+
+def _point_to_bounds(pt, bounds) -> float:
+    """The election's distance: a point to a chip's pad bbox (0 inside)."""
+    cx, cy = pt
+    x0, y0, x1, y1 = bounds
+    return math.hypot(max(x0 - cx, cx - x1, 0.0), max(y0 - cy, cy - y1, 0.0))
+
+
+def chip_bounds_of(fp):
+    """The bounds `_chip_list` gives this ONE footprint at the pose it holds,
+    or None when it has no pads. Through `build_chip_list` itself, so a
+    caller measuring a footprint the election has not seen (the tether gate,
+    at a pose it is only considering) reads the election's margin."""
+    from types import SimpleNamespace
+    from chip_boundary import build_chip_list
+    got = build_chip_list(SimpleNamespace(footprints={
+        '_': SimpleNamespace(pads=_pads(fp))}), min_pads=1)
+    return got[0].bounds if got else None
+
+
+def elect_live(cap_fp, candidates) -> Tuple[Optional[str], Optional[float]]:
+    """`_elect_tethers`' election for ONE cap with the footprints at whatever
+    poses they hold: the cap's pad centroid against `(ref, bounds)` of the
+    chips on its rail (`rail_chips`' order, bounds from `chip_bounds_of`),
+    nearest wins. The tether gate calls this per candidate pose, so
+    it holds the pair the GRADE will elect -- a cap that walks toward a
+    different chip on its rail is measured against that chip."""
+    return nearest_chip(_centroid(cap_fp), candidates)
+
+
+def decap_tethers(pcb_data, movable=None,
+                  radius: float = DECAP_RADIUS_MM
+                  ) -> Dict[str, List[Tuple[str, float]]]:
+    """{IC ref: [(cap ref, bbox distance mm)]} -- the decoupling tethers.
+
+    Nearest owner by bounding-box distance: a decap (`decap_population`) and
+    the chips with a supply pin on its rail. Proximity alone is not enough -- on ulx3s 13 of 70 caps sit near an IC
+    they have no electrical relationship with, and dragging those along would be
+    a wrong group.
+
+    A filter over `_elect_tethers`, the one election the decap grade
+    (`decap_populations`) also reads, so the block and the grade never
+    disagree about which IC a cap belongs to. `_from_decap` builds the
+    `decap` blocks from it (`--group-by decap`, on the CLI and the GUI).
+
+    `movable` restricts which caps are considered (None = every footprint), as
+    in `derive_groups`. Iteration is over a SORTED ref list: `movable` reaches
+    us as a set, and cap order within an IC's list would otherwise vary with
+    PYTHONHASHSEED.
+    """
+    out: Dict[str, List[Tuple[str, float]]] = {}
+    for cap, ic, d in _elect_tethers(pcb_data, movable):
+        if ic is not None and d <= radius:
+            out.setdefault(ic, []).append((cap, d))
+    return out
+
+
+def decap_populations(pcb_data, movable=None,
+                      radius: float = DECAP_RADIUS_MM):
+    """(near, beyond, orphans) -- the in-scope caps, PARTITIONED, from one pass.
+
+    * `near`    {ic: [(cap, d)]} -- byte-identical to `decap_tethers(radius)`;
+                the population `rule_decap_distance` grades.
+    * `beyond`  [(cap, ic, d)] cap-sorted -- elected, then pruned by the radius;
+                `rule_decap_ungraded` reports them.
+    * `orphans` [cap] -- in scope, but no owner has pads to measure. There is no
+                IC for them to be far from, so the grader ignores them.
+
+    The three sets partition the in-scope population, and `decap_census` emits
+    an `unaccounted` key whose only correct value is 0 so that stays a measured
+    fact rather than a claim.
+    """
+    near: Dict[str, List[Tuple[str, float]]] = {}
+    beyond: List[Tuple[str, str, float]] = []
+    orphans: List[str] = []
+    for cap, ic, d in _elect_tethers(pcb_data, movable):
+        if ic is None:
+            orphans.append(cap)
+        elif d <= radius:
+            near.setdefault(ic, []).append((cap, d))
+        else:
+            beyond.append((cap, ic, d))

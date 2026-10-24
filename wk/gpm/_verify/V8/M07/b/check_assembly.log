@@ -1,0 +1,63 @@
+CMD: Python -X utf8 py_tools/check_assembly.py wk/gpm/_verify/V8/M07/b/s9.kicad_pcb --baseline wk/gpm/_verify/V8/M07/b/fixed.kicad_pcb --intent wk/gpm/_verify/V8/M07/b/intent_run_pass2.json
+ENV KNOBS: none
+  grading at clearance 0.15mm  [board netclass]
+WARNING: 58 footprint block(s) share 1 reference(s) -- REF** x58. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 191 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+WARNING: reclassified 4 Edge.Cuts contour(s) mis-read as board cutout(s) -- each encloses pads, so it is an inner outline / keep-out, not a hole (as a cutout it would have marked the enclosed pads off-board). Kept as a milled edge for clearance.
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+WARNING: 58 footprint block(s) share 1 reference(s) -- REF** x58. Every block is kept; the later ones are keyed ~2, ~3 ... in file order, so this board parses as 191 parts. Legal in KiCad (a paired testpoint, a net tie), but rename them if they are meant to be distinct parts.
+Assembly audit of wk/gpm/_verify/V8/M07/b/s9.kicad_pcb (clearance 0.15):
+  DUPLICATE REFERENCES (advisory): 58 footprint block(s) share 1 reference(s) -- REF** x58
+    Every block is audited (191 parts): the later ones are keyed with an ordinal suffix, so `coincident_origins` above compares them. Legal in KiCad, but rename them if they are meant to be distinct parts -- two parts answering to one name cannot be told apart on a BOM, on a pick-and-place file, or by `--lock`.
+  blocking 0  advisory 0  waived 10  contained 0  courtyard_blocking 10  new-vs-baseline 0
+  baseline wk/gpm/_verify/V8/M07/b/fixed.kicad_pcb is a pile: its overlaps are staging, not a baseline (#1103), so every advisory pair counts as new
+    J31 <-> REF**~18  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J31 <-> REF**~20  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J31 <-> REF**~21  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J31 <-> REF**~22  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J33 <-> REF**~13  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J33 <-> REF**~14  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J33 <-> REF**~16  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J33 <-> REF**~17  courtyard  0.25mm2 side B  COURTYARD-BLOCKING
+    J34 <-> REF**~15  courtyard  0.25mm2 side F  COURTYARD-BLOCKING
+    J34 <-> REF**~12  courtyard  0.2287mm2 side F  COURTYARD-BLOCKING
+  above the 0.15mm floor: J31<->REF**~20 requires 0.25mm (NPTH hole), J31<->REF**~22 requires 0.25mm (NPTH hole), J33<->REF**~13 requires 0.25mm (NPTH hole), J33<->REF**~14 requires 0.25mm (NPTH hole), J33<->REF**~16 requires 0.25mm (NPTH hole), J33<->REF**~17 requires 0.25mm (NPTH hole) ... showing 6 of 7
+  pad/hole/oob echo: 0 pad pair(s), 7 hole conflict(s), 23 part(s) with pad copper off-board: REF**~23 (0.75mm), REF**~13 (0.6mm), REF**~17 (0.6mm), REF**~19 (0.6mm), REF**~20 (0.6mm), REF**~22 (0.6mm) ... showing 6 of 23
+    (part pad AABB -- pads PLUS NPTH drill circles, summed over the union rect's four sides -- against an outline inflated by the GRADING CLEARANCE. It moves when --clearance moves, so a hit here is not necessarily copper off the outline. The per-pad, margin-0 outline measure is render_placement's checklist.a_off_outline.pad_copper.)
+    pad copper genuinely off the outline (per-pad, margin 0): J31 (0.9605mm past the outline), J33 (0.8925mm past the outline) -- NOT BUILDABLE: a part not on the board cannot be assembled or routed
+  BODY COVERAGE: 109 of 191 part(s) draw a body the containment channel can judge (13 fab, 96 silk)
+    A silk body is the LAST resort and never gates: a library may draw an assembly outline there rather than the part (esp_prog's SOT89 draws corner brackets 5.2mm apart around a 4.5mm part). Such pairs are reported, with their source, and excluded from the blocking channels.
+    1 part(s) draw only a .Fab marking (under 2% of the pad box: a pin-1 dot, a single line; #1201), which is not their body: their drawn body is their silk where they draw one, and what they occupy is unchanged (their courtyard, else the marking united with their pads): P1
+    82 part(s) draw no usable body (no .Fab body, no usable silk), so the channel cannot judge them: J20, J21, J22, J23, J24, J25, J26, J27 ...
+  ASSEMBLY SIDES: F 164 / B 27 pad-bearing part(s) of 191 block(s); 2 reflow pass(es), 15 through-hole part(s)
+    Through-hole F 13 / B 2 (plated barrels only), counted and never folded in: a drilled part on the front needs wave, selective or hand soldering, not a second reflow pass.
+    Unsoldered F 58 / B 0: every pad an unplated hole -- mounting, tooling or alignment. No process attaches these, so they are in neither count above.
+    observed policy: sides=both -- counted per footprint BLOCK, verdict from the pad-bearing subset (parts_by_side_basis in --json has the rule in full)
+  COURTYARD BLOCKING (10): unwaived courtyard interpenetration past the floors (area >= 0.5mm2 OR >= 25% of the smaller courtyard, AND depth >= 0.3mm) -- 10 of 10 GATE (a member moved vs the baseline)
+    J31 <-> REF**~18  0.25mm2  depth 0.5mm  side B  GATES (moved: J31 REF**~18)
+    J31 <-> REF**~20  0.25mm2  depth 0.5mm  side B  GATES (moved: J31 REF**~20)
+    J31 <-> REF**~21  0.25mm2  depth 0.5mm  side B  GATES (moved: J31 REF**~21)
+    J31 <-> REF**~22  0.25mm2  depth 0.5mm  side B  GATES (moved: J31 REF**~22)
+    J33 <-> REF**~13  0.25mm2  depth 0.5mm  side B  GATES (moved: J33 REF**~13)
+    J33 <-> REF**~14  0.25mm2  depth 0.5mm  side B  GATES (moved: J33 REF**~14)
+    J33 <-> REF**~16  0.25mm2  depth 0.5mm  side B  GATES (moved: J33 REF**~16)
+    J33 <-> REF**~17  0.25mm2  depth 0.5mm  side B  GATES (moved: J33 REF**~17)
+    J34 <-> REF**~15  0.25mm2  depth 0.5mm  side F  GATES (moved: J34 REF**~15)
+    J34 <-> REF**~12  0.2287mm2  depth 0.4575mm  side F  GATES (moved: J34 REF**~12)
+    A deliberate overlap is accepted by naming the pair in the intent's `overlap_waivers`, where the acceptance is visible.
+  BODY-TO-EDGE BAND: 21 of 128 part(s) have a body within 2.5mm of the board edge [derived_default: JLCPCB's assembly rule, one assembler's -- REPORT-ONLY; declare assembly.body_edge_mm in the intent to gate]  new_in_band 21
+    J31 0.0mm (fab, side B)  MOVED
+    J33 0.0mm (fab, side B)  MOVED
+    J34 0.0mm (fab, side F)  MOVED
+    J26 0.23mm (courtyard, side F)  MOVED
+    J20 0.24mm (courtyard, side F)  MOVED
+    J25 0.24mm (courtyard, side F)  MOVED
+    J23 0.28mm (courtyard, side F)  MOVED
+    J27 0.28mm (courtyard, side F)  MOVED
+    J24 0.55mm (courtyard, side F)  MOVED
+    J21 0.63mm (courtyard, side F)  MOVED
+    J22 0.63mm (courtyard, side F)  MOVED
+    D8 0.692mm (silk, side F)  MOVED
+    ... +9 more (--json)
+    in the band but belonging at the edge, never counted (edge class, marker, or an edge the intent declares): P1 0.0mm [edge_receptacle], REF**~10 0.0mm [mount_hole], REF**~12 0.0mm [mount_hole], REF**~13 0.0mm [mount_hole], REF**~15 0.0mm [mount_hole], REF**~17 0.0mm [mount_hole], REF**~19 0.0mm [mount_hole], REF**~20 0.0mm [mount_hole] ...
+  VERDICT: NOT BUILDABLE
+EXIT=4

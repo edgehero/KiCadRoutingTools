@@ -1,0 +1,20 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.09
+  metric                               OURS         ORIGINAL
+  layers                                  4                4
+  segments                             3360             1709
+  vias                                  320              189
+  total length mm                    2872.3           2300.4
+  distinct track widths                  10               11
+  nets with copper                       95               95
+  ours widths:   {0.089: 1286, 0.11: 57, 0.113: 1, 0.131: 10, 0.152: 1683, 0.2: 175, 0.3: 20, 0.4: 88, 0.8: 38, 2.0: 2}
+  orig widths:   {0.152: 1392, 0.2: 5, 0.25: 24, 0.254: 70, 0.3: 20, 0.305: 8, 0.381: 8, 0.406: 21, 0.5: 20, 0.508: 140, 1.016: 1}
+  ours vias:     {'0.508/0.254': 219, '0.3/0.15': 32, '0.25/0.15': 53, '0.45/0.2': 12, '0.26/0.16': 4}
+  orig vias:     {'0.508/0.254': 189}
+
+  SUGGESTIONS:
+   - VIAS: we placed 320 vias vs original 189 (1.69x). Excess layer changes — consider stronger single-layer escape / planning to reduce via count.
+
+JSON_COMPARISON: {"design_clearance": 0.09, "ours": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 3360, "n_vias": 320, "total_length_mm": 2872.3, "length_by_layer": {"F.Cu": 791.6, "In1.Cu": 629.8, "In2.Cu": 765.7, "B.Cu": 685.3}, "width_count": {"0.152": 1683, "0.089": 1286, "0.113": 1, "0.8": 38, "0.2": 175, "0.4": 88, "0.11": 57, "0.131": 10, "2.0": 2, "0.3": 20}, "via_count": {"0.508/0.254": 219, "0.3/0.15": 32, "0.25/0.15": 53, "0.45/0.2": 12, "0.26/0.16": 4}, "distinct_widths": 10, "nets_with_copper": 95, "n_multi_pad_nets": 96, "n_nets": 98}, "original": {"layers": ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"], "n_segments": 1709, "n_vias": 189, "total_length_mm": 2300.4, "length_by_layer": {"F.Cu": 868.4, "B.Cu": 833.7, "In2.Cu": 575.9, "In1.Cu": 22.5}, "width_count": {"0.508": 140, "0.152": 1392, "0.406": 21, "0.381": 8, "0.25": 24, "0.5": 20, "0.254": 70, "0.2": 5, "1.016": 1, "0.305": 8, "0.3": 20}, "via_count": {"0.508/0.254": 189}, "distinct_widths": 11, "nets_with_copper": 95, "n_multi_pad_nets": 96, "n_nets": 98}, "suggestions": ["VIAS: we placed 320 vias vs original 189 (1.69x). Excess layer changes \u2014 consider stronger single-layer escape / planning to reduce via count."]}

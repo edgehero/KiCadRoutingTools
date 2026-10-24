@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=delivered.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              225              331
+  vias                                   20               27
+  total length mm                     375.7            654.5
+  distinct track widths                  13                2
+  nets with copper                       29               29
+  ours widths:   {0.127: 147, 0.162: 2, 0.175: 6, 0.196: 2, 0.231: 2, 0.242: 3, 0.265: 2, 0.3: 7, 0.356: 2, 0.471: 2, 0.572: 1, 0.585: 2, 0.7: 47}
+  orig widths:   {0.2: 14, 0.25: 317}
+  ours vias:     {'0.5/0.3': 17, '0.3/0.2': 3}
+  orig vias:     {'0.8/0.4': 27}
+
+  SUGGESTIONS:
+   - VIAS: 20 vs original 27 (0.74x) — comparable.
+   - LAYER BALANCE: ours 0.38 vs original 0.64 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 225, "n_vias": 20, "total_length_mm": 375.7, "length_by_layer": {"F.Cu": 273.0, "B.Cu": 102.7}, "width_count": {"0.127": 147, "0.572": 1, "0.7": 47, "0.585": 2, "0.356": 2, "0.3": 7, "0.231": 2, "0.162": 2, "0.265": 2, "0.471": 2, "0.196": 2, "0.242": 3, "0.175": 6}, "via_count": {"0.5/0.3": 17, "0.3/0.2": 3}, "distinct_widths": 13, "nets_with_copper": 29, "n_multi_pad_nets": 29, "n_nets": 50}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 331, "n_vias": 27, "total_length_mm": 654.5, "length_by_layer": {"F.Cu": 399.9, "B.Cu": 254.6}, "width_count": {"0.25": 317, "0.2": 14}, "via_count": {"0.8/0.4": 27}, "distinct_widths": 2, "nets_with_copper": 29, "n_multi_pad_nets": 29, "n_nets": 50}, "suggestions": ["VIAS: 20 vs original 27 (0.74x) \u2014 comparable.", "LAYER BALANCE: ours 0.38 vs original 0.64 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

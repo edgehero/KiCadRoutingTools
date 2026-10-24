@@ -1,0 +1,35 @@
+FIRST_CMD: 2026-10-23T15:43:07Z
+
+## Status (times are real, from file mtimes)
+- 15:43 start; 15:58 groups.json + templates U2/U6/U5 into intent_run.json; U1 edge entry (judgment: antenna)
+- 16:01 pass 1 placed (12 seeds, ~32 s each) -> REJECTED unjudged (U1 seated at north-notch depth, antenna under BAT1). old/pass1/
+- 16:05 pass 2 (U1 edge east) placed; 16:06 judged (jobs 2, ~30 s/seed): best seed 4 (fast: blocking 0, vias 221)
+- 16:06 final.kicad_pcb = s4 (sha 942bb9bd...), CHOSEN.json, placed_from/
+- 16:14 route try 1 (final_route_old1/): blocking 0; 16:18 spur trimmed -> first DONE (boards_kept/try1_done, vias 310, copper 2475.4, 212 via-in-paste, 9 vias below authored floors)
+- 16:21 route try 2 (final_route/, --escalation board --same-net-pad-clearance 0.1): 1 open (U2.7 MODE caged on B.Cu)
+- 16:25 MODE net routed with a via in pad (s7_mode); 16:30 fix_copper (spur trim + malformed 0.45/0.508 via deleted) -> s8_fix DONE: vias 253, copper 2699.4, segs 1865
+- BEST so far: boards_kept/try2_done.kicad_pcb (= final_route/s8_fix.kicad_pcb)
+- NEXT: approach 1 = template fix for U2 MODE/SS (R57 before C4) -> pass 3
+- 16:29 pass 3 placing (U2 template: C4/R57 radial under pins 8/7, R56/R52 under/left of pin 9); judge chain now carries --escalation board --same-net-pad-clearance 0.1; pass 2 archived in old/pass2 (placed_from too)
+- 16:36 pass 3 placed: judge 8,4,9,5,2,1; judging (log judge_pass3.log)
+- 16:38 pass 3 judge (strict chain): best s4 blocking 6 at quick 2; full try-2 chain on pass3 s4 in try3_route/ (log run.log)
+- 16:41 approach 1 (template fix -> pass 3) REJECTED: pass-3 s4 full route blocking 10 (U5.24 SDRV caged by routing, 9 DRC). Pass 3 -> old/pass3/; pass 2 seeds, judge files, placed_from and intent_run.json (sha 47b4cb61) restored to the folder root. BEST still boards_kept/try2_done (final_route/s8_fix).
+- 16:42 approach 2: try-2 chain with route.py --via-cost 150 in try4_route/
+- 16:42 approach 3 (parallel): PGND split on B.Cu instead of In2 in try5_route/
+- 16:49 approach 2 (via-cost 150) fixed = DONE vias 205 (try4_route/s7_fix) -> adopted; final_route (try 2) moved to final_route_old2; re-running the try-4 chain in final_route/ for a clean manifest
+- 16:49 approach 4 (parallel): via-cost 300 chain in try6_route/
+- 16:53 approach 4 via-cost 300 REJECTED (blocking 1). approach 5: try-4 chain on pass-2 seeds 11 and 8 (seed11_route/, seed8_route/)
+- 17:00 approach 5: seed 8 full route DONE vias 196 -> ADOPTED: final.kicad_pcb = s8, CHOSEN seed 8; final_route (seed 4, try-4 chain) -> final_route_old3; re-running chain in final_route/
+- 17:00 approach 6: chosen chain on pass-2 seeds 3 then 0 (seed3_route/, seed0_route/), one at a time
+- 17:08 approach 6 (seeds 3, 0) REJECTED. approach 7 (parallel, seed 8): opta = via-cost 200; optb = signal track 0.127
+- 17:14 approach 7a (seed 8, via-cost 200 + two-net rescue + fix_copper) DONE vias 183 -> ADOPTED; final_route (via-cost 150) -> final_route_old4; re-running in final_route/. In parallel approach 8: via-cost 250 (optc_route/)
+- 17:19 approach 8 (via-cost 250) DONE vias 182 (optc_route/s8_fix, boards_kept/optc_done) = current BEST (not yet re-run in final_route). Approaches 9 (via-cost 300, optd) and 10 (inner layer cost 6.0, opte) running
+- 17:24 approach 9 (via-cost 300) DONE vias 175 = BEST (optd_route/s8_fix). approach 10 (inner cost 6) REJECTED. via-cost 400 (optf) / 350 (optg) running
+- 17:28 via-cost 350 DONE vias 172 = BEST (optg_route/s8_fix); 400 rejected. Next: A11 seed 4 @ via 350 (opth), A12 seed 8 @ via 350 + max-ripup 10 (opti)
+- 17:32 approaches 11 (seed 4 @350) and 12 (max-ripup 10) no better -> optimisation STOPPED (plateau). Final recipe = via-cost 350 on seed 8. final_route (via 200) -> final_route_old5; re-running final chain in final_route/
+- 17:39 FINAL: routed.kicad_pcb (final_route/s8_fix) -> labelled (silk 409->407, kept) -> delivered.kicad_pcb (filled) + Type VII on 4 via-in-pads. delivered sha256 cb057b937a7aa6f8e9d0aa88de2bffb70b5e6febd0d8e3b5a04cbf4f7fc20db3. board_score blocking 0, vias 172, copper 2789.6; check_complete DONE. NEXT: verifier (call 1).
+- 18:00 verifier 1 FAIL (DC1 faces west + collides I2C2; Solarpower1, PWR_SW1 under BAT1; U3/R5/R63 under U1). Hand repair -> final.kicad_pcb (repair/r3); final_route (pre-repair) -> final_route_old6; re-routing in final_route/
+- 18:11 own check found I2C3 housing over U12 -> U12 moved (repair r4 = final.kicad_pcb); final_route -> final_route_old7; re-routing steps 0-4 in final_route/
+- 18:19 hand repairs 2-3 (U12; D7, R20, R18) -> final.kicad_pcb (repair/r6); final_route -> final_route_old8; re-routing steps 0-4
+- 18:26 delivered v3: sha 41fbfdfac0e3fd1ed36fa1ba7567352fa63f3faa981332f84ecf2f8d413306dc, DONE, vias 169, copper 2647.6, segs 1909. Verifier call 2 next.
+- 18:35 verifier 2 PASS. Ledger closed (--final, stop 1). DONE written. measure.py: wall 2:52:16. REPORT.md write refused by harness -> in final reply; no REPORT_DONE.

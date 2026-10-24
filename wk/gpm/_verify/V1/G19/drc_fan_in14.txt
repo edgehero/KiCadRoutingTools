@@ -1,0 +1,285 @@
+CMD: Python -X utf8 py_router/check_drc.py wk/gpm/_verify/V1/G19/fan_in14.kicad_pcb --clearance 0.1 --nets "*"
+ENV KNOBS: none
+Grading at clearance 0.1 mm (--clearance)
+Board-edge clearance 0.3 mm (from project min_copper_edge_clearance)
+Hole-to-hole clearance 0.25 mm (from project min_hole_to_hole)
+Copper-to-hole clearance 0.1 mm (from project min_hole_clearance)
+Copper-to-hole clearance 0.15 mm (from project fab_floor_origin.min_hole_clearance)
+  (copper-to-hole scope: tracks at 0.2 mm to NPTH holes and to plated holes whose copper ring does not cover the drill (#441); vias at 0.15 mm to NPTH holes only. Via drills and ordinary plated holes are not graded against it, unlike KiCad's hole_clearance)
+Loading wk/gpm/_verify/V1/G19/fan_in14.kicad_pcb...
+Found 460 segments and 35 vias
+Size floors (4-layer fab): track >= 0.0762mm, via dia >= 0.25mm, via drill >= 0.15mm; per-net board/rule minimums applied (#530)
+Filtering to nets matching: ['*']
+Building spatial index...
+Filtering to 249 matching nets
+
+Checking segment-to-segment clearances...
+Checking for same-net segment crossings...
+Checking for same-net soft joints (dangling free ends)...
+Checking via-to-segment clearances...
+Checking via-to-via clearances...
+Checking pad-to-segment clearances...
+Checking pad-to-via clearances...
+Checking pad-to-pad clearances...
+Checking via drill hole-to-hole clearances...
+Checking via drill to pad drill clearances...
+Checking copper-to-hole (track <-> NPTH drill) clearances...
+Checking board edge clearances (real Edge.Cuts outline)...
+Skipping pad-to-board-edge checks (--check-pad-edge is off; pads are edge-exempt by default because on a routed board the hits are usually pre-existing edge connectors). Pass it on a board whose PLACEMENT may have moved a part off the outline.
+Checking track widths and via/hole sizes...
+Vias in a solder-paste opening: 0 unprotected (violations), 0 filled+capped (accepted), 0 inherited from --baseline (accepted), 3 undeclarable in this file format (accepted; Type VII belongs on the fab drawing)
+Length rules (.kicad_dru, #1313): 2 rule(s); 0 net(s) graded, 0 out of range; 8 not measured (pads not joined by track copper): /DRAM/DRAM_DQ0, /DRAM/DRAM_DQ1, /DRAM/DRAM_DQ2, /DRAM/DRAM_DQ3, /DRAM/DRAM_DQ4, /DRAM/DRAM_DQ5 ...
+
+============================================================
+FOUND 2978 DRC VIOLATIONS:
+
+
+PAD-SEGMENT violations (4) -- 1 in CONTACT:
+----------------------------------------
+  Pad:GND (Y1.2) <-> Seg:/SOC Power/VDD_SOC_CAP
+    Layer: F.Cu, Overlap: 0.150mm
+    Pad: (88.03,144.93)
+    Seg: (88.63,145.31)-(89.03,145.71)
+  Pad:/Boot Config, Clock, Reset/BOOT_CFG1_7 (SW2.4) <-> Seg:/DRAM/DRAM_AD10
+    Layer: F.Cu, Overlap: 0.035mm
+    Pad: (84.79,145.61)
+    Seg: (85.43,146.11)-(85.03,146.51)
+  Pad:/SOC Power/VDD_SNVS_IN (C20.1) <-> Seg:/Boot Config, Clock, Reset/BOOT_CFG1_4
+    Layer: F.Cu, Overlap: 0.082mm
+    Pad: (90.62,139.12)
+    Seg: (90.23,138.91)-(90.63,138.51)
+  Pad:/Boot Config, Clock, Reset/BOOT_CFG1_7 (SW2.4) <-> Seg:/DRAM/DRAM_CKE
+    Layer: F.Cu, Overlap: 0.035mm
+    Pad: (84.79,145.61)
+    Seg: (84.63,146.11)-(84.23,146.51)
+
+PAD-VIA violations (2):
+----------------------------------------
+  Pad:GND (C19.2) <-> Via:/Boot Config, Clock, Reset/BOOT_CFG1_4
+    Overlap: 0.018mm
+    Pad: (90.75,139.12)
+    Via: (90.63,138.51)
+  Pad:/SOC Power/VDD_SNVS_IN (C20.1) <-> Via:/Boot Config, Clock, Reset/BOOT_CFG1_4
+    Overlap: 0.018mm
+    Pad: (90.62,139.12)
+    Via: (90.63,138.51)
+
+PAD-PAD violations (2477) -- 1723 in CONTACT:
+----------------------------------------
+  Pad:VMEM (C76.1) <-> Pad:+5V (J1.1)
+    Layer: F.Cu, Overlap: 0.043mm
+    Pad1: (87.29,140.79)
+    Pad2: (86.10,141.21)
+  Pad:VMEM (C76.1) <-> Pad:/SOC Power/V1P27_SW (L2.1) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.88,141.21)
+  Pad:VMEM (C76.1) <-> Pad:/SOC Power/V3P3_SW (L1.1) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.47,141.21)
+  Pad:VMEM (C76.1) <-> Pad:GND (C6.2) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.00,140.38)
+  Pad:VMEM (C76.1) <-> Pad:GND (U2.E2)
+    Layer: F.Cu, Overlap: 0.080mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.45,140.91)
+  Pad:VMEM (C76.1) <-> Pad:GND (U1.F6)
+    Layer: F.Cu, Overlap: 0.080mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.03,141.31)
+    Required clearance: 0.1200mm (local/netclass override; global 0.1000mm)
+  Pad:VMEM (C76.1) <-> Pad:+3V3 (U1.E7)
+    Layer: F.Cu, Overlap: 0.022mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.83,140.51)
+    Required clearance: 0.1200mm (local/netclass override; global 0.1000mm)
+  Pad:VMEM (C76.1) <-> Pad:/IO and Peripherals/QSPIA_CS_L (U1.E6) [SHORT]
+    Layer: F.Cu, Overlap: 0.120mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.03,140.51)
+    Required clearance: 0.1200mm (local/netclass override; global 0.1000mm)
+  Pad:VMEM (C76.1) <-> Pad:/SOC Power/VDD_ARM_SOC_IN (C63.1) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (87.29,140.79)
+    Pad2: (87.70,140.38)
+  Pad:VMEM (C76.1) <-> Pad:/Boot Config, Clock, Reset/JTAG_TDO (J2.6) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (87.29,140.79)
+    Pad2: (88.47,141.21)
+  Pad:VMEM (R10.1) <-> Pad:+3V3 (L1.2) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (90.17,141.21)
+    Pad2: (90.57,141.21)
+  Pad:VMEM (R10.1) <-> Pad:+3V3 (R2.2) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (90.17,141.21)
+    Pad2: (89.94,141.62)
+  Pad:VMEM (R10.1) <-> Pad:/SOC Power/VDD_HIGH_IN (FB2.2) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (90.17,141.21)
+    Pad2: (89.80,140.79)
+  Pad:VMEM (R10.1) <-> Pad:/SOC Power/VDD_ARM_SOC_IN (FB3.2) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (90.17,141.21)
+    Pad2: (90.22,140.79)
+  Pad:VMEM (R10.1) <-> Pad:+1V2 (L2.2) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (90.17,141.21)
+    Pad2: (90.98,141.21)
+  Pad:VMEM (R10.1) <-> Pad:GND (U1.F10) [SHORT]
+    Layer: F.Cu, Overlap: 0.120mm
+    Pad1: (90.17,141.21)
+    Pad2: (90.23,141.31)
+    Required clearance: 0.1200mm (local/netclass override; global 0.1000mm)
+  Pad:VMEM (R10.1) <-> Pad:/SOC Power/VMEM_FB (R11.1) [SHORT]
+    Layer: F.Cu, Overlap: 0.100mm
+    Pad1: (90.17,141.21)
+    Pad2: (90.59,141.21)
+  Pad:VMEM (U2.B2) <-> Pad:/Boot Config, Clock, Reset/JTAG_TMS (J2.2)
+    Layer: F.Cu, Overlap: 0.080mm
+    Pad1: (87.45,138.51)
+    Pad2: (88.47,138.67)
+  Pad:VMEM (U2.C1) <-> Pad: (J7.MP)
+    Layer: F.Cu, Overlap: 0.031mm
+    Pad1: (86.65,139.31)
+    Pad2: (85.80,140.01)
+  Pad:VMEM (U2.C1) <-> Pad:GND (C21.2)
+    Layer: F.Cu, Overlap: 0.080mm
+    Pad1: (86.65,139.31)
+    Pad2: (86.58,139.54)
+  ... and 2457 more (use --max-print 0 to show all)
+
+SEGMENT-BOARD-EDGE violations (460) -- 460 in CONTACT:
+----------------------------------------
+  /SDcard/SD1_D3 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (83.83,137.31)-(83.83,136.88)
+  /SDcard/SD1_D3 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (83.83,136.88)-(83.80,136.80)
+  /IO and Peripherals/QSPIA_D0 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (84.63,137.31)-(84.63,136.88)
+  /IO and Peripherals/QSPIA_D0 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (84.63,136.88)-(84.60,136.80)
+  /Boot Config, Clock, Reset/BOOT_CFG1_1 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (89.43,137.31)-(89.43,136.88)
+  /Boot Config, Clock, Reset/BOOT_CFG1_1 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (89.43,136.88)-(89.40,136.80)
+  /Boot Config, Clock, Reset/BOOT_CFG1_6 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (90.23,137.31)-(90.23,136.88)
+  /Boot Config, Clock, Reset/BOOT_CFG1_6 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (90.23,136.88)-(90.20,136.80)
+  /Boot Config, Clock, Reset/BOOT_CFG2_1 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (91.03,137.31)-(91.03,136.88)
+  /Boot Config, Clock, Reset/BOOT_CFG2_1 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (91.03,136.88)-(91.00,136.80)
+  /Boot Config, Clock, Reset/BOOT_CFG2_6 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (91.83,137.31)-(91.83,136.88)
+  /Boot Config, Clock, Reset/BOOT_CFG2_6 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (91.83,136.88)-(91.80,136.80)
+  /Boot Config, Clock, Reset/BOOT_CFG4_2 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (92.63,137.31)-(92.63,136.88)
+  /Boot Config, Clock, Reset/BOOT_CFG4_2 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (92.63,136.88)-(92.60,136.80)
+  /Boot Config, Clock, Reset/BOOT_CFG4_6 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.858mm
+    Seg: (93.43,137.31)-(93.43,136.88)
+  /Boot Config, Clock, Reset/BOOT_CFG4_6 off the board / in a cutout
+    Layer: F.Cu, Overlap: 8.433mm
+    Seg: (93.43,136.88)-(93.40,136.80)
+  /SDcard/SD1_D2 off the board / in a cutout
+    Layer: F.Cu, Overlap: 9.658mm
+    Seg: (83.03,138.11)-(82.61,138.11)
+  /SDcard/SD1_D2 off the board / in a cutout
+    Layer: F.Cu, Overlap: 9.658mm
+    Seg: (82.61,138.11)-(82.60,138.10)
+  /SDcard/SD1_CLK off the board / in a cutout
+    Layer: F.Cu, Overlap: 10.458mm
+    Seg: (83.03,138.91)-(82.61,138.91)
+  /SDcard/SD1_CLK off the board / in a cutout
+    Layer: F.Cu, Overlap: 10.458mm
+    Seg: (82.61,138.91)-(82.60,138.90)
+  ... and 440 more (use --max-print 0 to show all)
+
+VIA-BOARD-EDGE violations (35) -- 35 in CONTACT:
+----------------------------------------
+  Via:/SOC Power/VDD_SOC_CAP off the board / in a cutout
+    Overlap: 17.433mm
+    Via: (89.03,145.71)
+  Via:/SOC Power/VDD_SOC_CAP off the board / in a cutout
+    Overlap: 17.433mm
+    Via: (89.83,145.71)
+  Via:/SOC Power/VDD_SOC_CAP off the board / in a cutout
+    Overlap: 17.433mm
+    Via: (90.63,145.71)
+  Via:/DRAM/DRAM_RAS_L off the board / in a cutout
+    Overlap: 18.233mm
+    Via: (85.83,146.51)
+  Via:/Boot Config, Clock, Reset/BOOT_CFG4_3 off the board / in a cutout
+    Overlap: 11.833mm
+    Via: (93.83,140.11)
+  Via:/IO and Peripherals/UART1_TX off the board / in a cutout
+    Overlap: 15.833mm
+    Via: (93.83,144.11)
+  Via:/DRAM/DRAM_AD10 off the board / in a cutout
+    Overlap: 18.233mm
+    Via: (85.03,146.51)
+  Via:/Boot Config, Clock, Reset/JTAG_TCK off the board / in a cutout
+    Overlap: 17.433mm
+    Via: (93.83,145.71)
+  Via:/DRAM/DRAM_VREF off the board / in a cutout
+    Overlap: 19.033mm
+    Via: (85.83,147.31)
+  Via:/Boot Config, Clock, Reset/SOC_RST_L off the board / in a cutout
+    Overlap: 19.033mm
+    Via: (89.03,147.31)
+  Via:/Boot Config, Clock, Reset/JTAG_TMS off the board / in a cutout
+    Overlap: 19.033mm
+    Via: (93.83,147.31)
+  Via:/Boot Config, Clock, Reset/BOOT_CFG1_4 off the board / in a cutout
+    Overlap: 10.233mm
+    Via: (90.63,138.51)
+  Via:/Boot Config, Clock, Reset/BOOT_CFG4_4 off the board / in a cutout
+    Overlap: 10.233mm
+    Via: (93.83,138.51)
+  Via:/DRAM/DRAM_CKE off the board / in a cutout
+    Overlap: 18.233mm
+    Via: (84.23,146.51)
+  Via:/Boot Config, Clock, Reset/JTAG_TDO off the board / in a cutout
+    Overlap: 19.033mm
+    Via: (94.63,147.31)
+  Via:/DRAM/DRAM_DQ13 off the board / in a cutout
+    Overlap: 19.033mm
+    Via: (84.23,147.31)
+  Via:/SOC Power/VDD_HIGH_CAP off the board / in a cutout
+    Overlap: 20.633mm
+    Via: (93.83,148.91)
+  Via:/SOC Power/VDD_HIGH_CAP off the board / in a cutout
+    Overlap: 20.633mm
+    Via: (94.63,148.91)
+  Via:/SDcard/SD1_D1 off the board / in a cutout
+    Overlap: 9.433mm
+    Via: (83.43,137.71)
+  Via:/SDcard/SD1_D0 off the board / in a cutout
+    Overlap: 9.433mm
+    Via: (85.03,137.71)
+  ... and 15 more (use --max-print 0 to show all)
+
+LISTING: 66 of 2978 violation(s) shown TRUNCATED (use --max-print 0 to list all)
+============================================================
+EXIT=1

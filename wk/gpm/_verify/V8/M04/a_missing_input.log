@@ -1,0 +1,35 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V8/M04/does_not_exist.kicad_pcb wk/gpm/_verify/V8/M04/a_out.kicad_pcb --nets "*"
+ENV KNOBS: none
+--track-width not given; using the fallback 0.3mm.
+--via-size not given; using the fallback 0.5mm.
+--via-drill not given; using the fallback 0.3mm.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! NO .kicad_pro NEXT TO 'does_not_exist.kicad_pcb' (#441)
+!!
+!! The sibling project carries the board's DRC floor. Without it this
+!! step resolves clearances from the STOCK netclass, which can be LOOSER
+!! than the copper already on the board:
+!!   - KiCad will then report phantom sub-clearance DRC on correct copper
+!!   - CLI and GUI runs will route DIFFERENT copper from this same board
+!!
+!! If this board was copied or renamed, bring its .kicad_pro along:
+!!   python3 py_router/copy_board.py src.kicad_pcb dst.kicad_pcb
+!! (Ignore only if this is a pristine board that has never been routed.)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+--clearance not given; honoring net classes with base = the fallback clearance 0.25mm.
+--hole-to-hole-clearance not given; using 0.2mm [fixed default].
+--board-edge-clearance not given; using 0.0mm [fixed default].
+  WARNING: --board-edge-clearance 0.0 is below the physical fab floor 0.2 (the advanced rung, or your --fab-overrides); pinning up to 0.2. Pass --fab-overrides to declare a smaller fab capability, or raise the value to silence this.
+Loading wk/gpm/_verify/V8/M04/does_not_exist.kicad_pcb to expand net patterns...
+Traceback (most recent call last):
+  File "py_router/route.py", line 9606, in <module>
+    pcb_data = parse_kicad_pcb(args.input_file)
+  File "py_router/kicad_parser.py", line 7394, in parse_kicad_pcb
+    return _parse_kicad_pcb(filepath, guide_layer, keepout_layer)
+  File "py_router/kicad_parser.py", line 7403, in _parse_kicad_pcb
+    content = read_board_text(filepath)
+  File "py_router/kicad_parser.py", line 5105, in read_board_text
+    with open(path, 'r', encoding='utf-8') as f:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'wk/gpm/_verify/V8/M04/does_not_exist.kicad_pcb'
+EXIT=1

@@ -1,0 +1,21 @@
+
+==============================================================================
+COMPARE  ours=control.kicad_pcb  vs  orig=human.kicad_pcb
+  manufacturing floor (DRC grade clearance): 0.1
+  metric                               OURS         ORIGINAL
+  layers                                  2                2
+  segments                              277              364
+  vias                                   14                0
+  total length mm                    1185.0           1265.7
+  distinct track widths                   2                4
+  nets with copper                       50               50
+  ours widths:   {0.4: 225, 0.6: 52}
+  orig widths:   {0.4: 89, 0.432: 190, 0.6: 22, 0.61: 63}
+  ours vias:     {'1.651/0.6': 14}
+  orig vias:     {}
+
+  SUGGESTIONS:
+   - WIDTHS: original uses 4 track widths (up to 0.61mm, likely power/high-current) but we use only 2 ([0.4, 0.6]). We under-build power nets — add per-net width (wide traces for power/GND-return) instead of one uniform width.
+   - LAYER BALANCE: ours 0.03 vs original 0.15 (min/max layer length; nearer 1.0 = more balanced 2-layer usage).
+
+JSON_COMPARISON: {"design_clearance": 0.1, "ours": {"layers": ["F.Cu", "B.Cu"], "n_segments": 277, "n_vias": 14, "total_length_mm": 1185.0, "length_by_layer": {"F.Cu": 1145.0, "B.Cu": 40.0}, "width_count": {"0.4": 225, "0.6": 52}, "via_count": {"1.651/0.6": 14}, "distinct_widths": 2, "nets_with_copper": 50, "n_multi_pad_nets": 50, "n_nets": 53}, "original": {"layers": ["F.Cu", "B.Cu"], "n_segments": 364, "n_vias": 0, "total_length_mm": 1265.7, "length_by_layer": {"F.Cu": 168.4, "B.Cu": 1097.3}, "width_count": {"0.61": 63, "0.6": 22, "0.432": 190, "0.4": 89}, "via_count": {}, "distinct_widths": 4, "nets_with_copper": 50, "n_multi_pad_nets": 50, "n_nets": 53}, "suggestions": ["WIDTHS: original uses 4 track widths (up to 0.61mm, likely power/high-current) but we use only 2 ([0.4, 0.6]). We under-build power nets \u2014 add per-net width (wide traces for power/GND-return) instead of one uniform width.", "LAYER BALANCE: ours 0.03 vs original 0.15 (min/max layer length; nearer 1.0 = more balanced 2-layer usage)."]}

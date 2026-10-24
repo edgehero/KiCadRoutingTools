@@ -1,0 +1,9 @@
+paths traced: 1
+  J2 -> U1 22.0 mA via ['D2'] nets ['VCC', '/PWR_3,3-5V']
+
+sum of every CURRENT_SINK's rating (once each): 44.0 mA
+
+net | width | accumulated mA (bisected) | contributors: ref role rating x power-pads
+/PWR_3,3-5V | 0.3 | 22.0 | pin-sum 0 ; sinks-once 0 | 
+GND | 0.3 | 44.0 (GND: =max(net, total_sink)) | pin-sum 44 ; sinks-once 44 | U1 CURREN 22x1, U2 CURREN 22x1
+VCC | 0.5 | 66.0 | pin-sum 44 ; sinks-once 44 | U1 CURREN 22x1, U2 CURREN 22x1

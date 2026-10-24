@@ -1,0 +1,27 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/_verify/V8/M04/diff_in.kicad_pcb wk/gpm/_verify/V8/M04/b_out.kicad_pcb --nets GND --power-nets GND +3V3 --power-nets-widths 0.5
+ENV KNOBS: none
+--track-width not given; using the board Default net-class 0.15mm.
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+Loading wk/gpm/_verify/V8/M04/diff_in.kicad_pcb to expand net patterns...
+Routing 1 nets: ['GND']
+Netclass clearances for 8 net(s), honored in full (no --clearance-ceiling) (mm: [0.15]); cross-class max(A,B) respected.
+Loading wk/gpm/_verify/V8/M04/diff_in.kicad_pcb...
+Auto-read netclass track widths for 8 non-Default net(s) (#435 single-ended companion).
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=3.0x
+No BGA components detected - no exclusion zones needed
+Traceback (most recent call last):
+  File "py_router/route.py", line 9943, in <module>
+    _preview_out = batch_route(args.input_file,
+                "" if args.preview else args.output_file, net_names,
+    ...<89 lines>...
+                collect_stats=args.stats,
+                fix_drc_settings=not args.no_fix_drc_settings)
+  File "py_router/route.py", line 2962, in batch_route
+    raise ValueError(f"--power-nets ({len(power_nets)}) and --power-nets-widths ({len(power_nets_widths)}) must have same length")
+ValueError: --power-nets (2) and --power-nets-widths (1) must have same length
+EXIT=1

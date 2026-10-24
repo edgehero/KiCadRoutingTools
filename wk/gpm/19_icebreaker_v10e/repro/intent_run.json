@@ -1,0 +1,3339 @@
+{
+ "assembly": {
+  "sides": "both",
+  "why": "observed: 164 pad-bearing part(s) on F and 27 on B, 2 reflow pass(es). every footprint BLOCK (#726): blocks sharing one reference are keyed with an ordinal suffix and counted separately. `pad_bearing` restricts that to blocks carrying at least one pad that is not a paste/mask aperture (#1143), and it is the count the populated-side verdict is taken from -- a zero-pad graphic on the back does not make a board double-sided."
+ },
+ "blocks": [
+  {
+   "name": "region_main",
+   "refs": [
+    "C1",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14",
+    "C15",
+    "C16",
+    "C17",
+    "C18",
+    "C19",
+    "C2",
+    "C20",
+    "C21",
+    "C22",
+    "C23",
+    "C24",
+    "C25",
+    "C26",
+    "C27",
+    "C28",
+    "C29",
+    "C3",
+    "C30",
+    "C31",
+    "C32",
+    "C33",
+    "C34",
+    "C35",
+    "C36",
+    "C37",
+    "C38",
+    "C39",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "D1",
+    "D11",
+    "D2",
+    "D3",
+    "D4",
+    "D5",
+    "J1",
+    "J10",
+    "J11",
+    "J12",
+    "J13",
+    "J14",
+    "J15",
+    "J16",
+    "J17",
+    "J18",
+    "J19",
+    "J2",
+    "J28",
+    "J29",
+    "J3",
+    "J30",
+    "J31",
+    "J32",
+    "J33",
+    "J34",
+    "J4",
+    "J5",
+    "J6",
+    "J7",
+    "J8",
+    "J9",
+    "L1",
+    "L2",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "Q1",
+    "R1",
+    "R10",
+    "R11",
+    "R12",
+    "R13",
+    "R14",
+    "R15",
+    "R19",
+    "R2",
+    "R20",
+    "R21",
+    "R22",
+    "R23",
+    "R24",
+    "R25",
+    "R26",
+    "R27",
+    "R28",
+    "R29",
+    "R3",
+    "R4",
+    "R5",
+    "R6",
+    "R7",
+    "R8",
+    "R9",
+    "SW1",
+    "U1",
+    "U2",
+    "U3",
+    "U4",
+    "U5",
+    "U6",
+    "U7"
+   ],
+   "zone": [
+    30.0,
+    29.0,
+    80.0,
+    66.0
+   ],
+   "exclusive": false,
+   "why": "The outline is four electrically separate regions: the mouse-bite drill lines declared in mechanical.json (0.5 mm holes at 0.8 mm pitch at x=80/82, y 32-35.2 and 59.8-63; 1.0 mm pitch at x 86-88 and 96-98) leave no copper channel at the 0.25 mm hole clearance, and the breakaway joins the main board only by two 1.5 mm tabs (y 43-44.5, 50.5-52). Every part whose nets live on the main board (x 30-80) stays there; placement pass 1 put the 3.3V LDO U2 and its caps on a frame strip no copper can reach. The two self-contained adapters (/ET_*: J31 J32 Q1 R7 R27; /EB_*: J33 J34 R28 R29; each on its own ground, no net to the board) are placed here: they fit neither 6.2 mm frame strip (pass 2: J31/J33/J34 illegal in 12/12 seeds) nor the breakaway beside its own parts (passes 3-4: 1-6 breakaway parts illegal in every seed); their B-side 2x4 sockets share area with the main board F-side parts."
+  },
+  {
+   "name": "region_breakaway",
+   "refs": [
+    "D10",
+    "D6",
+    "D7",
+    "D8",
+    "D9",
+    "R16",
+    "R17",
+    "R18",
+    "SW2",
+    "SW3",
+    "SW4"
+   ],
+   "zone": [
+    82.0,
+    37.2,
+    103.0,
+    57.8
+   ],
+   "exclusive": false,
+   "why": "The outline is four electrically separate regions: the mouse-bite drill lines declared in mechanical.json (0.5 mm holes at 0.8 mm pitch at x=80/82, y 32-35.2 and 59.8-63; 1.0 mm pitch at x 86-88 and 96-98) leave no copper channel at the 0.25 mm hole clearance, and the breakaway joins the main board only by two 1.5 mm tabs (y 43-44.5, 50.5-52). The snap-off PMOD board (x 82-103, y 37.2-57.8) carries J24 and the parts on its /P2_*x nets: SW2-SW4, R16, D6-D10, R17, R18."
+  }
+ ],
+ "board": "icebreaker_v10e.kicad_pcb",
+ "context": {
+  "basis": {
+   "assembly.sides": "observed_baseline",
+   "decaps.max_distance_mm": "<the source board, withheld>",
+   "decaps.max_pin_distance_mm": "<the source board, withheld>",
+   "decaps.within_radius_mm": "derived_default",
+   "decaps.within_radius_refs": "<the source board, withheld>",
+   "defaults.zone_tolerance_mm": "derived_default",
+   "edge_connectors[SW1].edge": "declared",
+   "envelope.tolerance_mm": "derived_default"
+  },
+  "brief": {
+   "absent": [
+    "product.form_factor",
+    "product.primary_axis"
+   ],
+   "consequences": [],
+   "contradictions": [],
+   "counts": {
+    "fixed": 0,
+    "interfaces": 1,
+    "keepouts": 0
+   },
+   "declared": [
+    "interfaces[SW1].edge"
+   ],
+   "fixed": [],
+   "not_graded": [],
+   "path": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.design-brief.json",
+   "product": {},
+   "unknown": [
+    "interfaces[SW1].along_edge"
+   ],
+   "unmatched": [],
+   "unmatched_checked": true
+  },
+  "budget_withheld": {
+   "oob_count": "the board is a pile: its off-board count is staging, not a baseline (#1103)",
+   "overlap_area": "the board is a pile: its overlap is staging, not a baseline (#1103)"
+  },
+  "cutouts": [
+   [
+    [
+     80.0,
+     59.8
+    ],
+    [
+     80.0,
+     52.0
+    ],
+    [
+     82.0,
+     52.0
+    ],
+    [
+     82.0,
+     56.8
+    ],
+    [
+     82.005,
+     56.898
+    ],
+    [
+     82.019,
+     56.995
+    ],
+    [
+     82.043,
+     57.09
+    ],
+    [
+     82.076,
+     57.183
+    ],
+    [
+     82.118,
+     57.271
+    ],
+    [
+     82.169,
+     57.356
+    ],
+    [
+     82.227,
+     57.434
+    ],
+    [
+     82.293,
+     57.507
+    ],
+    [
+     82.366,
+     57.573
+    ],
+    [
+     82.444,
+     57.631
+    ],
+    [
+     82.529,
+     57.682
+    ],
+    [
+     82.617,
+     57.724
+    ],
+    [
+     82.71,
+     57.757
+    ],
+    [
+     82.805,
+     57.781
+    ],
+    [
+     82.902,
+     57.795
+    ],
+    [
+     83.0,
+     57.8
+    ],
+    [
+     86.0,
+     57.8
+    ],
+    [
+     86.0,
+     59.8
+    ],
+    [
+     82.0,
+     59.8
+    ]
+   ],
+   [
+    [
+     80.0,
+     43.0
+    ],
+    [
+     80.0,
+     35.2
+    ],
+    [
+     82.0,
+     35.2
+    ],
+    [
+     86.0,
+     35.2
+    ],
+    [
+     86.0,
+     37.2
+    ],
+    [
+     82.9,
+     37.2
+    ],
+    [
+     82.812,
+     37.204
+    ],
+    [
+     82.724,
+     37.217
+    ],
+    [
+     82.639,
+     37.239
+    ],
+    [
+     82.556,
+     37.269
+    ],
+    [
+     82.476,
+     37.306
+    ],
+    [
+     82.4,
+     37.352
+    ],
+    [
+     82.329,
+     37.404
+    ],
+    [
+     82.264,
+     37.464
+    ],
+    [
+     82.204,
+     37.529
+    ],
+    [
+     82.152,
+     37.6
+    ],
+    [
+     82.106,
+     37.676
+    ],
+    [
+     82.069,
+     37.756
+    ],
+    [
+     82.039,
+     37.839
+    ],
+    [
+     82.017,
+     37.924
+    ],
+    [
+     82.004,
+     38.012
+    ],
+    [
+     82.0,
+     38.1
+    ],
+    [
+     82.0,
+     43.0
+    ]
+   ],
+   [
+    [
+     82.0,
+     44.5
+    ],
+    [
+     82.0,
+     50.5
+    ],
+    [
+     80.0,
+     50.5
+    ],
+    [
+     80.0,
+     44.5
+    ]
+   ],
+   [
+    [
+     88.0,
+     59.8
+    ],
+    [
+     88.0,
+     57.8
+    ],
+    [
+     96.0,
+     57.8
+    ],
+    [
+     96.0,
+     59.8
+    ]
+   ],
+   [
+    [
+     96.0,
+     37.2
+    ],
+    [
+     96.0,
+     35.2
+    ],
+    [
+     88.0,
+     35.2
+    ],
+    [
+     88.0,
+     37.2
+    ]
+   ]
+  ],
+  "decap_census": {
+   "beyond_radius": 0,
+   "beyond_radius_refs": [],
+   "decap_ungraded_promoted": "per cap, for the 29 cap(s) the reference keeps within 5 mm of their chip; the 3 it keeps beyond (C29, C33, C34) stay warn; a cap the reference lacks, or carries under another footprint, stays warn",
+   "decaps_basis": "<the source board, withheld>",
+   "emitted_max_distance_mm": 4.9503,
+   "emitted_max_pin_distance_mm": 28.7368,
+   "ics": 3,
+   "max_mm": 4.594452700812153,
+   "max_mm_display": 4.5945,
+   "median_mm": 0.7121,
+   "metric": "cap footprint centroid to IC bounding box, clamped to 0 inside (placement.groups.decap_tethers)",
+   "no_rail_chip": 0,
+   "no_rail_chip_refs": [],
+   "population": 32,
+   "reference_beyond_radius_refs": [
+    "C29",
+    "C33",
+    "C34"
+   ],
+   "reference_board": "<the source board, withheld>",
+   "reference_board_sha256": "89ea1428c9bf8881ab08c88eb26fad7b8299edc00b48c7af11b5e7db29a1d8f8",
+   "reference_part_match": 1.0,
+   "reference_pin_census": {
+    "covered": 27,
+    "max_mm": 28.7368,
+    "max_raw": 28.736790443610783,
+    "pins": 27,
+    "uncovered": 0
+   },
+   "reference_tethers": 29,
+   "search_radius_mm": 5.0,
+   "source": "auto-tethers",
+   "tethers": 32,
+   "unaccounted": 0,
+   "worst_beyond_mm": null
+  },
+  "declared_pose_overlaps": {
+   "accepted": [],
+   "hard": []
+  },
+  "edge_contours": 0,
+  "file_locked": [],
+  "keepouts_note": "empty because a keep-out is a mechanical fact -- an enclosure rib, a standoff, a battery, a display window, an antenna clearance -- and none of those can be read off a board. \"[]\" here means NONE DECLARED, never \"not considered\". Declare them by hand; since #701 the seat search honours them, not only the grade.",
+  "mechanical": {
+   "anchored": [
+    "J20",
+    "J21",
+    "J22",
+    "J23",
+    "J24",
+    "J25",
+    "J26",
+    "J27",
+    "P1",
+    "REF**",
+    "REF**~10",
+    "REF**~11",
+    "REF**~12",
+    "REF**~13",
+    "REF**~14",
+    "REF**~15",
+    "REF**~16",
+    "REF**~17",
+    "REF**~18",
+    "REF**~19",
+    "REF**~2",
+    "REF**~20",
+    "REF**~21",
+    "REF**~22",
+    "REF**~23",
+    "REF**~24",
+    "REF**~25",
+    "REF**~26",
+    "REF**~27",
+    "REF**~28",
+    "REF**~29",
+    "REF**~3",
+    "REF**~30",
+    "REF**~31",
+    "REF**~32",
+    "REF**~33",
+    "REF**~34",
+    "REF**~35",
+    "REF**~36",
+    "REF**~37",
+    "REF**~38",
+    "REF**~39",
+    "REF**~4",
+    "REF**~40",
+    "REF**~41",
+    "REF**~42",
+    "REF**~43",
+    "REF**~44",
+    "REF**~45",
+    "REF**~46",
+    "REF**~47",
+    "REF**~48",
+    "REF**~49",
+    "REF**~5",
+    "REF**~50",
+    "REF**~51",
+    "REF**~52",
+    "REF**~53",
+    "REF**~54",
+    "REF**~55",
+    "REF**~56",
+    "REF**~57",
+    "REF**~58",
+    "REF**~6",
+    "REF**~7",
+    "REF**~8",
+    "REF**~9"
+   ],
+   "fixed_poses": [
+    "J20",
+    "J21",
+    "J22",
+    "J23",
+    "J24",
+    "J25",
+    "J26",
+    "J27",
+    "P1",
+    "REF**",
+    "REF**~10",
+    "REF**~11",
+    "REF**~12",
+    "REF**~13",
+    "REF**~14",
+    "REF**~15",
+    "REF**~16",
+    "REF**~17",
+    "REF**~18",
+    "REF**~19",
+    "REF**~2",
+    "REF**~20",
+    "REF**~21",
+    "REF**~22",
+    "REF**~23",
+    "REF**~24",
+    "REF**~25",
+    "REF**~26",
+    "REF**~27",
+    "REF**~28",
+    "REF**~29",
+    "REF**~3",
+    "REF**~30",
+    "REF**~31",
+    "REF**~32",
+    "REF**~33",
+    "REF**~34",
+    "REF**~35",
+    "REF**~36",
+    "REF**~37",
+    "REF**~38",
+    "REF**~39",
+    "REF**~4",
+    "REF**~40",
+    "REF**~41",
+    "REF**~42",
+    "REF**~43",
+    "REF**~44",
+    "REF**~45",
+    "REF**~46",
+    "REF**~47",
+    "REF**~48",
+    "REF**~49",
+    "REF**~5",
+    "REF**~50",
+    "REF**~51",
+    "REF**~52",
+    "REF**~53",
+    "REF**~54",
+    "REF**~55",
+    "REF**~56",
+    "REF**~57",
+    "REF**~58",
+    "REF**~6",
+    "REF**~7",
+    "REF**~8",
+    "REF**~9"
+   ],
+   "fixed_skipped": {},
+   "path": "<the source board, withheld>",
+   "sha256": "c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4",
+   "skipped": {}
+  },
+  "note": "read-only, describing the board as it is. The outline is not editable by this toolchain: size, cutouts and slots are mechanical decisions the user owns",
+  "pose_claims_withheld": {
+   "kept": "KiCad-locked parts; a brief / mechanical.json merged after this",
+   "reason": "the board is a pile (footprints span 10.0% of the board diagonal; 100% of footprints lie outside the board outline): staging poses are not claims",
+   "refs_off_board": [
+    "C1",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C14",
+    "C15",
+    "C16",
+    "C17",
+    "C18",
+    "C19",
+    "C2",
+    "C20",
+    "C21",
+    "C22",
+    "C23",
+    "C24",
+    "C25",
+    "C26",
+    "C27",
+    "C28",
+    "C29",
+    "C3",
+    "C30",
+    "C31",
+    "C32",
+    "C33",
+    "C34",
+    "C35",
+    "C36",
+    "C37",
+    "C38",
+    "C39",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "D1",
+    "D10",
+    "D11",
+    "D2",
+    "D3",
+    "D4",
+    "D5",
+    "D6",
+    "D7",
+    "D8",
+    "D9",
+    "J1",
+    "J10",
+    "J11",
+    "J12",
+    "J13",
+    "J14",
+    "J15",
+    "J16",
+    "J17",
+    "J18",
+    "J19",
+    "J2",
+    "J20",
+    "J21",
+    "J22",
+    "J23",
+    "J24",
+    "J25",
+    "J26",
+    "J27",
+    "J28",
+    "J29",
+    "J3",
+    "J30",
+    "J31",
+    "J32",
+    "J33",
+    "J34",
+    "J4",
+    "J5",
+    "J6",
+    "J7",
+    "J8",
+    "J9",
+    "L1",
+    "L2",
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "Q1",
+    "R1",
+    "R10",
+    "R11",
+    "R12",
+    "R13",
+    "R14",
+    "R15",
+    "R16",
+    "R17",
+    "R18",
+    "R19",
+    "R2",
+    "R20",
+    "R21",
+    "R22",
+    "R23",
+    "R24",
+    "R25",
+    "R26",
+    "R27",
+    "R28",
+    "R29",
+    "R3",
+    "R4",
+    "R5",
+    "R6",
+    "R7",
+    "R8",
+    "R9",
+    "REF**",
+    "REF**~10",
+    "REF**~11",
+    "REF**~12",
+    "REF**~13",
+    "REF**~14",
+    "REF**~15",
+    "REF**~16",
+    "REF**~17",
+    "REF**~18",
+    "REF**~19",
+    "REF**~2",
+    "REF**~20",
+    "REF**~21",
+    "REF**~22",
+    "REF**~23",
+    "REF**~24",
+    "REF**~25",
+    "REF**~26",
+    "REF**~27",
+    "REF**~28",
+    "REF**~29",
+    "REF**~3",
+    "REF**~30",
+    "REF**~31",
+    "REF**~32",
+    "REF**~33",
+    "REF**~34",
+    "REF**~35",
+    "REF**~36",
+    "REF**~37",
+    "REF**~38",
+    "REF**~39",
+    "REF**~4",
+    "REF**~40",
+    "REF**~41",
+    "REF**~42",
+    "REF**~43",
+    "REF**~44",
+    "REF**~45",
+    "REF**~46",
+    "REF**~47",
+    "REF**~48",
+    "REF**~49",
+    "REF**~5",
+    "REF**~50",
+    "REF**~51",
+    "REF**~52",
+    "REF**~53",
+    "REF**~54",
+    "REF**~55",
+    "REF**~56",
+    "REF**~57",
+    "REF**~58",
+    "REF**~6",
+    "REF**~7",
+    "REF**~8",
+    "REF**~9",
+    "SW1",
+    "SW2",
+    "SW3",
+    "SW4",
+    "U1",
+    "U2",
+    "U3",
+    "U4",
+    "U5",
+    "U6",
+    "U7"
+   ],
+   "withheld": [
+    "edge_connectors[].edge read off a pose",
+    "blocks[].zone",
+    "legality_budget.oob_count"
+   ]
+  },
+  "reconciliation": [
+   {
+    "field": "edge",
+    "id": "SW1:edge",
+    "kind": "drift",
+    "ref": "SW1",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": "south"
+     },
+     "brief": {
+      "authority": "declared",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.design-brief.json (sha256 f5e0852fbdfd5af87c60010bb6002f0306193ceabaf4d5832f1298b3db96bcc9)",
+      "value": "west"
+     }
+    },
+    "why": "the edge each channel puts this part on, read off the rect the edge-connector rule reads (`edge_seat_rect`)",
+    "winner": "brief"
+   },
+   {
+    "field": "pose",
+    "id": "J20:pose",
+    "kind": "drift",
+    "ref": "J20",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.2774,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       55.1,
+       64.01,
+       90.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J21:pose",
+    "kind": "drift",
+    "ref": "J21",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.7226,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       50.02,
+       33.53,
+       180.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J22:pose",
+    "kind": "drift",
+    "ref": "J22",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.1677,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       72.88,
+       33.53,
+       180.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J23:pose",
+    "kind": "drift",
+    "ref": "J23",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.6129,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       75.42,
+       53.85,
+       90.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J24:pose",
+    "kind": "drift",
+    "ref": "J24",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.0581,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       86.85,
+       53.85,
+       180.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J25:pose",
+    "kind": "drift",
+    "ref": "J25",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.5032,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       42.4,
+       64.01,
+       90.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J26:pose",
+    "kind": "drift",
+    "ref": "J26",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.9484,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       55.1,
+       33.53,
+       90.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "J27:pose",
+    "kind": "drift",
+    "ref": "J27",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       69.3935,
+       78.2506,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       75.42,
+       58.93,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "P1:pose",
+    "kind": "drift",
+    "ref": "P1",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.4968,
+       79.1409,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       31.5,
+       47.5,
+       180.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**:pose",
+    "kind": "drift",
+    "ref": "REF**",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.0581,
+       80.0313,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       77.0,
+       32.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~10:pose",
+    "kind": "drift",
+    "ref": "REF**~10",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.5032,
+       80.0313,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       88.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~11:pose",
+    "kind": "drift",
+    "ref": "REF**~11",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.9484,
+       80.0313,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       87.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~12:pose",
+    "kind": "drift",
+    "ref": "REF**~12",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       69.3935,
+       80.0313,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       96.0,
+       57.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~13:pose",
+    "kind": "drift",
+    "ref": "REF**~13",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       63.6065,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       98.0,
+       57.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~14:pose",
+    "kind": "drift",
+    "ref": "REF**~14",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.0516,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       97.0,
+       57.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~15:pose",
+    "kind": "drift",
+    "ref": "REF**~15",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.4968,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       96.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~16:pose",
+    "kind": "drift",
+    "ref": "REF**~16",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.9419,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       97.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~17:pose",
+    "kind": "drift",
+    "ref": "REF**~17",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.3871,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       98.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~18:pose",
+    "kind": "drift",
+    "ref": "REF**~18",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.8323,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       97.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~19:pose",
+    "kind": "drift",
+    "ref": "REF**~19",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.2774,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       96.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~2:pose",
+    "kind": "drift",
+    "ref": "REF**~2",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.7226,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       33.0,
+       63.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~20:pose",
+    "kind": "drift",
+    "ref": "REF**~20",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.1677,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       98.0,
+       37.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~21:pose",
+    "kind": "drift",
+    "ref": "REF**~21",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.6129,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       97.0,
+       37.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~22:pose",
+    "kind": "drift",
+    "ref": "REF**~22",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.0581,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       98.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~23:pose",
+    "kind": "drift",
+    "ref": "REF**~23",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.5032,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       96.0,
+       37.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~24:pose",
+    "kind": "drift",
+    "ref": "REF**~24",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.9484,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       87.0,
+       37.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~25:pose",
+    "kind": "drift",
+    "ref": "REF**~25",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       69.3935,
+       80.4764,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       88.0,
+       37.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~26:pose",
+    "kind": "drift",
+    "ref": "REF**~26",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       63.6065,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       86.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~27:pose",
+    "kind": "drift",
+    "ref": "REF**~27",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.0516,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       88.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~28:pose",
+    "kind": "drift",
+    "ref": "REF**~28",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.4968,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       86.0,
+       37.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~29:pose",
+    "kind": "drift",
+    "ref": "REF**~29",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.9419,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       87.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~3:pose",
+    "kind": "drift",
+    "ref": "REF**~3",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.3871,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       77.0,
+       63.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~30:pose",
+    "kind": "drift",
+    "ref": "REF**~30",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.8323,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~31:pose",
+    "kind": "drift",
+    "ref": "REF**~31",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.2774,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       32.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~32:pose",
+    "kind": "drift",
+    "ref": "REF**~32",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.7226,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       33.6,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~33:pose",
+    "kind": "drift",
+    "ref": "REF**~33",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.1677,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       33.6,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~34:pose",
+    "kind": "drift",
+    "ref": "REF**~34",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.6129,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       32.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~35:pose",
+    "kind": "drift",
+    "ref": "REF**~35",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.0581,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       35.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~36:pose",
+    "kind": "drift",
+    "ref": "REF**~36",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.5032,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       34.4,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~37:pose",
+    "kind": "drift",
+    "ref": "REF**~37",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.9484,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       32.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~38:pose",
+    "kind": "drift",
+    "ref": "REF**~38",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       69.3935,
+       80.9216,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       32.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~39:pose",
+    "kind": "drift",
+    "ref": "REF**~39",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       63.6065,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       34.4,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~4:pose",
+    "kind": "drift",
+    "ref": "REF**~4",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.0516,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       33.0,
+       32.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~40:pose",
+    "kind": "drift",
+    "ref": "REF**~40",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.4968,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       63.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~41:pose",
+    "kind": "drift",
+    "ref": "REF**~41",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.9419,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       62.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~42:pose",
+    "kind": "drift",
+    "ref": "REF**~42",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.3871,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       61.4,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~43:pose",
+    "kind": "drift",
+    "ref": "REF**~43",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.8323,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~44:pose",
+    "kind": "drift",
+    "ref": "REF**~44",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.2774,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       60.6,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~45:pose",
+    "kind": "drift",
+    "ref": "REF**~45",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.7226,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       63.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~46:pose",
+    "kind": "drift",
+    "ref": "REF**~46",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.1677,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       61.4,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~47:pose",
+    "kind": "drift",
+    "ref": "REF**~47",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.6129,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~48:pose",
+    "kind": "drift",
+    "ref": "REF**~48",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.0581,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       82.0,
+       60.6,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~49:pose",
+    "kind": "drift",
+    "ref": "REF**~49",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.5032,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.0,
+       62.2,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~5:pose",
+    "kind": "drift",
+    "ref": "REF**~5",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.9484,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       92.0,
+       55.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~50:pose",
+    "kind": "drift",
+    "ref": "REF**~50",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       69.3935,
+       81.3667,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       81.9,
+       52.1,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~51:pose",
+    "kind": "drift",
+    "ref": "REF**~51",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       63.6065,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.1,
+       52.1,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~52:pose",
+    "kind": "drift",
+    "ref": "REF**~52",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.0516,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.1,
+       50.4,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~53:pose",
+    "kind": "drift",
+    "ref": "REF**~53",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.4968,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       81.9,
+       50.4,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~54:pose",
+    "kind": "drift",
+    "ref": "REF**~54",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       64.9419,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       81.9,
+       44.6,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~55:pose",
+    "kind": "drift",
+    "ref": "REF**~55",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.3871,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.1,
+       44.6,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~56:pose",
+    "kind": "drift",
+    "ref": "REF**~56",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       65.8323,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       80.1,
+       42.9,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~57:pose",
+    "kind": "drift",
+    "ref": "REF**~57",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.2774,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       81.9,
+       42.9,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~58:pose",
+    "kind": "drift",
+    "ref": "REF**~58",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       66.7226,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       86.0,
+       59.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~6:pose",
+    "kind": "drift",
+    "ref": "REF**~6",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.1677,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       92.0,
+       40.0,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~7:pose",
+    "kind": "drift",
+    "ref": "REF**~7",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       67.6129,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       86.0,
+       57.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~8:pose",
+    "kind": "drift",
+    "ref": "REF**~8",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.0581,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       87.0,
+       57.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   },
+   {
+    "field": "pose",
+    "id": "REF**~9:pose",
+    "kind": "drift",
+    "ref": "REF**~9",
+    "values": {
+     "board": {
+      "authority": "inferred",
+      "source": "wk/gpm/19_icebreaker_v10e/icebreaker_v10e.kicad_pcb",
+      "value": [
+       68.5032,
+       81.8119,
+       0.0
+      ]
+     },
+     "mechanical": {
+      "authority": "recorded_fact",
+      "source": "<the source board, withheld> (sha256 c275b5352df05caa74c5c508e00aaf249aaa86bbe942dfbd03816c6740ee86d4)",
+      "value": [
+       88.0,
+       57.8,
+       0.0
+      ]
+     }
+    },
+    "why": "fa10-decl-v1: locked in the human board",
+    "winner": "mechanical"
+   }
+  ]
+ },
+ "decaps": {
+  "max_distance_mm": 4.9503,
+  "max_pin_distance_mm": 28.7368,
+  "within_radius_mm": 5.0,
+  "within_radius_refs": [
+   "C1",
+   "C10",
+   "C14",
+   "C15",
+   "C16",
+   "C17",
+   "C18",
+   "C19",
+   "C2",
+   "C20",
+   "C21",
+   "C22",
+   "C23",
+   "C24",
+   "C25",
+   "C26",
+   "C27",
+   "C28",
+   "C30",
+   "C31",
+   "C32",
+   "C35",
+   "C36",
+   "C37",
+   "C38",
+   "C4",
+   "C5",
+   "C7",
+   "C8"
+  ]
+ },
+ "defaults": {
+  "zone_tolerance_mm": 0.5
+ },
+ "edge_connectors": [
+  {
+   "context": {
+    "basis": {},
+    "brief_row": 0,
+    "compiled_from": {},
+    "why": "fa10-decl-v1: edge_actuator seated at the west edge in the source"
+   },
+   "edge": "west",
+   "ref": "SW1",
+   "source": "brief"
+  }
+ ],
+ "envelope": {
+  "rect": [
+   30.0,
+   29.0,
+   103.0,
+   66.0
+  ],
+  "tolerance_mm": 0.5
+ },
+ "fixed_poses": [
+  {
+   "basis": "mechanical",
+   "ref": "J20",
+   "rot": 90.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 55.1,
+   "y": 64.01
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J21",
+   "rot": 180.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 50.02,
+   "y": 33.53
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J22",
+   "rot": 180.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 72.88,
+   "y": 33.53
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J23",
+   "rot": 90.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 75.42,
+   "y": 53.85
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J24",
+   "rot": 180.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 86.85,
+   "y": 53.85
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J25",
+   "rot": 90.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 42.4,
+   "y": 64.01
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J26",
+   "rot": 90.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 55.1,
+   "y": 33.53
+  },
+  {
+   "basis": "mechanical",
+   "ref": "J27",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 75.42,
+   "y": 58.93
+  },
+  {
+   "basis": "mechanical",
+   "ref": "P1",
+   "rot": 180.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 31.5,
+   "y": 47.5
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 77.0,
+   "y": 32.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~10",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 88.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~11",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 87.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~12",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 96.0,
+   "y": 57.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~13",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 98.0,
+   "y": 57.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~14",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 97.0,
+   "y": 57.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~15",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 96.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~16",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 97.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~17",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 98.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~18",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 97.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~19",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 96.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~2",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 33.0,
+   "y": 63.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~20",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 98.0,
+   "y": 37.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~21",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 97.0,
+   "y": 37.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~22",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 98.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~23",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 96.0,
+   "y": 37.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~24",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 87.0,
+   "y": 37.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~25",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 88.0,
+   "y": 37.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~26",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 86.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~27",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 88.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~28",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 86.0,
+   "y": 37.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~29",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 87.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~3",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 77.0,
+   "y": 63.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~30",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~31",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 32.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~32",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 33.6
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~33",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 33.6
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~34",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 32.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~35",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 35.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~36",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 34.4
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~37",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 32.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~38",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 32.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~39",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 34.4
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~4",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 33.0,
+   "y": 32.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~40",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 63.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~41",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 62.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~42",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 61.4
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~43",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~44",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 60.6
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~45",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 63.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~46",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 61.4
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~47",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~48",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 82.0,
+   "y": 60.6
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~49",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.0,
+   "y": 62.2
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~5",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 92.0,
+   "y": 55.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~50",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 81.9,
+   "y": 52.1
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~51",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.1,
+   "y": 52.1
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~52",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.1,
+   "y": 50.4
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~53",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 81.9,
+   "y": 50.4
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~54",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 81.9,
+   "y": 44.6
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~55",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.1,
+   "y": 44.6
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~56",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 80.1,
+   "y": 42.9
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~57",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 81.9,
+   "y": 42.9
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~58",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 86.0,
+   "y": 59.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~6",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 92.0,
+   "y": 40.0
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~7",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 86.0,
+   "y": 57.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~8",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 87.0,
+   "y": 57.8
+  },
+  {
+   "basis": "mechanical",
+   "ref": "REF**~9",
+   "rot": 0.0,
+   "why": "mechanical.json: fa10-decl-v1: locked in the human board",
+   "x": 88.0,
+   "y": 57.8
+  }
+ ],
+ "keepouts": [],
+ "kind": "floorplan-intent",
+ "legality_budget": {},
+ "min_reader": 8,
+ "must_lock": [],
+ "schema": 1,
+ "units": "mm"
+}

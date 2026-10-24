@@ -1,0 +1,73 @@
+CMD: Python -X utf8 py_router/check_drc.py wk/gpm/_verify/V1/G35/r15.kicad_pcb --clearance 0.13 --clearance-margin 0
+ENV KNOBS: none
+Grading at clearance 0.13 mm (--clearance)
+Board-edge clearance 0.2 mm (from project min_copper_edge_clearance)
+Hole-to-hole clearance 0.24 mm (from project min_hole_to_hole)
+Loading wk/gpm/_verify/V1/G35/r15.kicad_pcb...
+Found 756 segments and 104 vias
+Size floors (4-layer fab): track >= 0.0762mm, via dia >= 0.25mm, via drill >= 0.15mm; per-net board/rule minimums applied (#530)
+Building spatial index...
+
+Checking segment-to-segment clearances...
+Checking for same-net segment crossings...
+Checking for same-net soft joints (dangling free ends)...
+Checking via-to-segment clearances...
+Checking via-to-via clearances...
+Checking pad-to-segment clearances...
+Checking pad-to-via clearances...
+Checking pad-to-pad clearances...
+Checking via drill hole-to-hole clearances...
+Checking via drill to pad drill clearances...
+Checking copper-to-hole (track <-> NPTH drill) clearances...
+Checking board edge clearances (real Edge.Cuts outline)...
+Skipping pad-to-board-edge checks (--check-pad-edge is off; pads are edge-exempt by default because on a routed board the hits are usually pre-existing edge connectors). Pass it on a board whose PLACEMENT may have moved a part off the outline.
+Checking track widths and via/hole sizes...
+Vias in a solder-paste opening: 0 unprotected (violations), 53 filled+capped (accepted), 0 inherited from --baseline (accepted), 0 undeclarable in this file format (accepted; Type VII belongs on the fab drawing)
+
+============================================================
+FOUND 7 DRC VIOLATIONS:
+
+
+SEGMENT-SEGMENT violations (3):
+----------------------------------------
+  FD6288_LIN2 <-> FD6288_LIN1
+    Layer: F.Cu, Overlap: 0.010mm
+    Seg1: (151.35,111.50)-(149.95,110.10)
+    Seg2: (155.35,111.75)-(150.90,111.75)
+  FD6288_LIN2 <-> FD6288_LIN1
+    Layer: F.Cu, Overlap: 0.010mm
+    Seg1: (155.05,111.25)-(154.80,111.50)
+    Seg2: (155.35,111.75)-(150.90,111.75)
+  FD6288_LIN2 <-> FD6288_LIN1
+    Layer: F.Cu, Overlap: 0.010mm
+    Seg1: (154.80,111.50)-(151.35,111.50)
+    Seg2: (155.35,111.75)-(150.90,111.75)
+
+VIA-SEGMENT violations (2):
+----------------------------------------
+  Via:COMP_INM_B <-> Seg:3.3v
+    Layer: B.Cu, Overlap: 0.005mm
+    Via: (153.85,109.40)
+    Seg: (154.35,104.75)-(154.35,113.10)
+  Via:FD6288_VS2 <-> Seg:FD6288_HIN1
+    Layer: B.Cu, Overlap: 0.020mm
+    Via: (152.95,116.20)
+    Seg: (152.65,116.60)-(158.25,116.60)
+
+PAD-SEGMENT violations (2):
+----------------------------------------
+  Pad:FD6288_VB3 (C25.1) <-> Seg:FD6288_LO1
+    Layer: F.Cu, Overlap: 0.001mm
+    Pad: (145.41,105.88)
+    Seg: (145.40,106.80)-(145.65,106.55)
+  Pad:FD6288_VB3 (C25.1) <-> Seg:FD6288_LO1
+    Layer: F.Cu, Overlap: 0.001mm
+    Pad: (145.41,105.88)
+    Seg: (145.65,106.55)-(146.40,106.55)
+
+LISTING: 7 of 7 violation(s) shown
+
+WARNINGS (1, not DRC failures):
+  same-net self-crossing: 1 (same-net copper overlap; permitted by KiCad DRC)
+============================================================
+EXIT=1

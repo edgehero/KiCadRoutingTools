@@ -1,0 +1,6125 @@
+{
+ "board": "daplink.kicad_pcb",
+ "bounds": [
+  100.0,
+  100.0,
+  150.003816,
+  120.0
+ ],
+ "copper_layers": [
+  "F.Cu",
+  "B.Cu"
+ ],
+ "diff_pairs": [
+  [
+   "/D+",
+   "/D-"
+  ]
+ ],
+ "emc_roles": {
+  "basis": "pad edge to pad edge: placement.legality.pad_rect + rect_gap, signed (negative = the pad boxes overlap) -- what rule_proximity measures for a declared row: each subject pad against the nearest partner pad on its own net",
+  "counts": {
+   "crystal": 1
+  },
+  "keep_away": [],
+  "keep_away_gap": {
+   "basis": "derived default, not a declaration: twice route.py's --keep-away-free (1.5 mm), so the band reaches past the radius around each net's own pads that the router leaves unpriced. It flags a crystal set beside a switch node, and no same-face pair on the human layouts this repo tracks. The datasheet or the designer decides the real gap",
+   "gap_mm": 3.0,
+   "source": "derived_default"
+  },
+  "keep_away_note": "PROPOSALS, not declarations (#1253). Each rule keeps the switch nodes read here away from ONE crystal's or oscillator's clock nets, in route.py's --keep-away syntax, at a derived-default gap. `measured` is check_floorplan's own keep_away reading of that rule on this board, pad edge to pad edge, plan view. To declare one, paste its `brief_row` into the design brief's `keep_away` list: check_floorplan then grades it on the placement and route.py, route_diff.py and the GUI price it on the tracks. A side read as `candidate` was read off the nets because the part's pins carry no function; which nets are noisy or sensitive is the author's to confirm.",
+  "keep_away_skipped": [],
+  "note": "REPORT ONLY: no intent key is written. Each row is in the shape `proximity[]` reads (`ref`, `near`, `pads`) with `max_mm` left null: the limit is the author's, from the datasheet, and copying the measured gap into it would bless the current pose (#902). Legs are reported, never a loop area, which a self-crossing pad polygon can shrink while every leg grows (#1254).",
+  "roles": [
+   {
+    "evidence": [
+     "Y1 is in the role table's crystal row: footprint name contains 'crystal'",
+     "U2 pad 5 is PD0",
+     "U2 pad 6 is PD1"
+    ],
+    "ic": "U2",
+    "part": "Y1",
+    "proximity": [
+     {
+      "legs": [
+       {
+        "from": {
+         "net": "/OSCIN",
+         "pad": "1",
+         "pin_function": "1",
+         "ref": "Y1",
+         "side": "F"
+        },
+        "gap_mm": null,
+        "leg": "crystal -> load pin",
+        "to": {
+         "net": "/OSCIN",
+         "pad": "5",
+         "pin_function": "PD0",
+         "ref": "U2",
+         "side": "F"
+        },
+        "withheld": "withheld: the board is a pile, so this pose is staging (#1353)"
+       },
+       {
+        "from": {
+         "net": "/OSCOUT",
+         "pad": "2",
+         "pin_function": "2",
+         "ref": "Y1",
+         "side": "F"
+        },
+        "gap_mm": null,
+        "leg": "crystal -> load pin",
+        "to": {
+         "net": "/OSCOUT",
+         "pad": "6",
+         "pin_function": "PD1",
+         "ref": "U2",
+         "side": "F"
+        },
+        "withheld": "withheld: the board is a pile, so this pose is staging (#1353)"
+       }
+      ],
+      "row": {
+       "max_mm": null,
+       "near": "U2",
+       "pads": {
+        "U2": [
+         "5",
+         "6"
+        ],
+        "Y1": [
+         "1",
+         "2"
+        ]
+       },
+       "ref": "Y1"
+      },
+      "worst_leg_mm": null
+     }
+    ],
+    "role": "crystal",
+    "unmeasured_legs": [],
+    "value": "8MHz"
+   }
+  ]
+ },
+ "floors": {
+  "clearance": 0.2,
+  "track_width": 0.25
+ },
+ "parts": [
+  {
+   "at": [
+    123.098,
+    127.58,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+5V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C2",
+       "P1",
+       "U1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C1",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '10nF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10nF"
+  },
+  {
+   "at": [
+    123.859,
+    127.58,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+5V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "P1",
+       "U1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C2",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '10uF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10uF"
+  },
+  {
+   "at": [
+    124.621,
+    127.58,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C3",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '10uF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10uF"
+  },
+  {
+   "at": [
+    125.383,
+    127.58,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/IF_RST",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "R2",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C4",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '10nF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10nF"
+  },
+  {
+   "at": [
+    126.144,
+    127.58,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/OSCIN",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "U2",
+       "Y1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "Y1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C5",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '20pF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "20pF"
+  },
+  {
+   "at": [
+    126.906,
+    127.58,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/OSCOUT",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "U2",
+       "Y1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "Y1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C6",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '20pF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "20pF"
+  },
+  {
+   "at": [
+    123.098,
+    128.342,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA11",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "R12",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R12",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C7",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '18pF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "18pF"
+  },
+  {
+   "at": [
+    123.859,
+    128.342,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/TGT_RST",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "J3",
+       "R11",
+       "RST1",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C8",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '10nF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10nF"
+  },
+  {
+   "at": [
+    124.621,
+    128.342,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Capacitor_SMD:C_0603_1608Metric_Pad1.08x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA12",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "R13",
+       "R15",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R13",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "C9",
+   "role": {
+    "evidence": [
+     "reference prefix 'C' (convention only)",
+     "value '18pF'"
+    ],
+    "role": "capacitor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "18pF"
+  },
+  {
+   "at": [
+    125.383,
+    128.342,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "LED_SMD:LED_0603_1608Metric_Pad1.05x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PB5",
+      "pad": "1",
+      "pinfunction": "K",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(D1-A)",
+      "pad": "2",
+      "pinfunction": "A",
+      "pintype": "passive",
+      "reaches": [
+       "R6"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "D1",
+   "role": {
+    "evidence": [
+     "reference prefix 'D' (convention only)",
+     "value 'LEDG'"
+    ],
+    "role": "diode",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "LEDG"
+  },
+  {
+   "at": [
+    126.144,
+    128.342,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "LED_SMD:LED_0603_1608Metric_Pad1.05x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PB6",
+      "pad": "1",
+      "pinfunction": "K",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(D2-A)",
+      "pad": "2",
+      "pinfunction": "A",
+      "pintype": "passive",
+      "reaches": [
+       "R7"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "D2",
+   "role": {
+    "evidence": [
+     "reference prefix 'D' (convention only)",
+     "value 'LEDB'"
+    ],
+    "role": "diode",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "LEDB"
+  },
+  {
+   "at": [
+    126.906,
+    128.342,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "LED_SMD:LED_0603_1608Metric_Pad1.05x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "GND",
+      "pad": "1",
+      "pinfunction": "K",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(D3-A)",
+      "pad": "2",
+      "pinfunction": "A",
+      "pintype": "passive",
+      "reaches": [
+       "R8"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "D3",
+   "role": {
+    "evidence": [
+     "reference prefix 'D' (convention only)",
+     "value 'LEDR'"
+    ],
+    "role": "diode",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "LEDR"
+  },
+  {
+   "at": [
+    123.098,
+    129.103,
+    0.0
+   ],
+   "body_mm": [
+    3.6,
+    11.2
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+   "locked": false,
+   "mating": null,
+   "pads": 4,
+   "pads_by_face": {
+    "east": [
+     {
+      "net": "/IF_SWDIO",
+      "pad": "2",
+      "pinfunction": "Pin_2",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "/IF_SWCLK",
+      "pad": "3",
+      "pinfunction": "Pin_3",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "4",
+      "pinfunction": "Pin_4",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ],
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "Pin_1",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": "connector_affinity",
+   "part_class_confidence": "low",
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 4
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "J1",
+   "role": {
+    "evidence": [
+     "footprint name contains 'pinheader'"
+    ],
+    "role": "pin header",
+    "source": "footprint"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "Conn_01x04"
+  },
+  {
+   "at": [
+    123.859,
+    129.103,
+    0.0
+   ],
+   "body_mm": [
+    14.56,
+    13.7
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Connector_Harwin:Harwin_M20-89005xx_1x05_P2.54mm_Horizontal",
+   "locked": false,
+   "mating": null,
+   "pads": 5,
+   "pads_by_face": {
+    "east": [
+     {
+      "net": "GND",
+      "pad": "1",
+      "pinfunction": "Pin_1",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "unconnected-(J2-Pin_2-Pad2)",
+      "pad": "2",
+      "pinfunction": "Pin_2",
+      "pintype": "passive",
+      "reaches": []
+     },
+     {
+      "net": "/TGT_RX",
+      "pad": "3",
+      "pinfunction": "Pin_3",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "/TGT_TX",
+      "pad": "4",
+      "pinfunction": "Pin_4",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     }
+    ],
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "5",
+      "pinfunction": "Pin_5",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": "connector_affinity",
+   "part_class_confidence": "low",
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 4
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "J2",
+   "role": {
+    "evidence": [
+     "reference prefix 'J' (convention only)",
+     "value 'Conn_01x05'"
+    ],
+    "role": "connector",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "B",
+   "value": "Conn_01x05"
+  },
+  {
+   "at": [
+    124.621,
+    129.103,
+    0.0
+   ],
+   "body_mm": [
+    14.56,
+    13.7
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Connector_Harwin:Harwin_M20-89005xx_1x05_P2.54mm_Horizontal",
+   "locked": false,
+   "mating": null,
+   "pads": 5,
+   "pads_by_face": {
+    "east": [
+     {
+      "net": "/TGT_SWDIO",
+      "pad": "2",
+      "pinfunction": "Pin_2",
+      "pintype": "passive",
+      "reaches": [
+       "R5",
+       "U2"
+      ]
+     },
+     {
+      "net": "/TGT_SWCLK",
+      "pad": "3",
+      "pinfunction": "Pin_3",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "/TGT_RST",
+      "pad": "4",
+      "pinfunction": "Pin_4",
+      "pintype": "passive",
+      "reaches": [
+       "C8",
+       "R11",
+       "RST1",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "5",
+      "pinfunction": "Pin_5",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ],
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "Pin_1",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": "connector_affinity",
+   "part_class_confidence": "low",
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 5
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "J3",
+   "role": {
+    "evidence": [
+     "reference prefix 'J' (convention only)",
+     "value 'Conn_01x05'"
+    ],
+    "role": "connector",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "Conn_01x05"
+  },
+  {
+   "at": [
+    125.383,
+    129.103,
+    0.0
+   ],
+   "body_mm": [
+    10.64,
+    8.94
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+   "locked": false,
+   "mating": null,
+   "pads": 22,
+   "pads_by_face": {
+    "east": [
+     {
+      "net": "GND",
+      "pad": "S1",
+      "pinfunction": "SHIELD",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "S1",
+      "pinfunction": "SHIELD",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ],
+    "interior": [
+     {
+      "net": "",
+      "pad": "",
+      "pinfunction": "",
+      "pintype": "",
+      "reaches": []
+     },
+     {
+      "net": "",
+      "pad": "",
+      "pinfunction": "",
+      "pintype": "",
+      "reaches": []
+     }
+    ],
+    "north": [
+     {
+      "net": "GND",
+      "pad": "A1",
+      "pinfunction": "GND",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "+5V",
+      "pad": "A4",
+      "pinfunction": "VBUS",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "U1"
+      ]
+     },
+     {
+      "net": "Net-(P1-CC1)",
+      "pad": "A5",
+      "pinfunction": "CC1",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R1"
+      ]
+     },
+     {
+      "net": "/D+",
+      "pad": "A6",
+      "pinfunction": "D+",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R13"
+      ]
+     },
+     {
+      "net": "/D-",
+      "pad": "A7",
+      "pinfunction": "D-",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R12"
+      ]
+     },
+     {
+      "net": "unconnected-(P1-SBU1-PadA8)",
+      "pad": "A8",
+      "pinfunction": "SBU1",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "+5V",
+      "pad": "A9",
+      "pinfunction": "VBUS",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "U1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "A12",
+      "pinfunction": "GND",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "B1",
+      "pinfunction": "GND",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "+5V",
+      "pad": "B4",
+      "pinfunction": "VBUS",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "U1"
+      ]
+     },
+     {
+      "net": "Net-(P1-CC2)",
+      "pad": "B5",
+      "pinfunction": "CC2",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R14"
+      ]
+     },
+     {
+      "net": "/D+",
+      "pad": "B6",
+      "pinfunction": "D+",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R13"
+      ]
+     },
+     {
+      "net": "/D-",
+      "pad": "B7",
+      "pinfunction": "D-",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R12"
+      ]
+     },
+     {
+      "net": "unconnected-(P1-SBU2-PadB8)",
+      "pad": "B8",
+      "pinfunction": "SBU2",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "+5V",
+      "pad": "B9",
+      "pinfunction": "VBUS",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "U1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "B12",
+      "pinfunction": "GND",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ],
+    "south": [
+     {
+      "net": "GND",
+      "pad": "S1",
+      "pinfunction": "SHIELD",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ],
+    "west": [
+     {
+      "net": "GND",
+      "pad": "S1",
+      "pinfunction": "SHIELD",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": "edge_receptacle",
+   "part_class_confidence": "high",
+   "partners": [
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R13",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R12",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "P1",
+   "role": {
+    "evidence": [
+     "placement.part_class says edge_receptacle"
+    ],
+    "role": "edge receptacle",
+    "source": "part_class"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "USB_C_Receptacle_USB2.0"
+  },
+  {
+   "at": [
+    126.144,
+    129.103,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "Net-(P1-CC1)",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "P1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "P1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R1",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '5K1'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "5K1"
+  },
+  {
+   "at": [
+    126.906,
+    129.103,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA0",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "R9",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R10",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '4K7'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "4K7"
+  },
+  {
+   "at": [
+    123.098,
+    129.865,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "/TGT_RST",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C8",
+       "J3",
+       "RST1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R11",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '10K'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10K"
+  },
+  {
+   "at": [
+    123.859,
+    129.865,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA11",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C7",
+       "U2"
+      ]
+     },
+     {
+      "net": "/D-",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "P1"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R12",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '33'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "33"
+  },
+  {
+   "at": [
+    124.621,
+    129.865,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA12",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C9",
+       "R15",
+       "U2"
+      ]
+     },
+     {
+      "net": "/D+",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "P1"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R13",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '33'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "33"
+  },
+  {
+   "at": [
+    125.383,
+    129.865,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "Net-(P1-CC2)",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "P1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R3",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "P1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R14",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '5K1'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "5K1"
+  },
+  {
+   "at": [
+    126.144,
+    129.865,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA12",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C9",
+       "R13",
+       "U2"
+      ]
+     },
+     {
+      "net": "+3.3V",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R13",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R15",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '1K5'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "1K5"
+  },
+  {
+   "at": [
+    126.906,
+    129.865,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R6",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "/IF_RST",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C4",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R2",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '10K'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10K"
+  },
+  {
+   "at": [
+    123.098,
+    130.626,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "GND",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R4",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(U2-BOOT0)",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R3",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '10K'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10K"
+  },
+  {
+   "at": [
+    123.859,
+    130.626,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "GND",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "RST1",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(U2-PC13)",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R4",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '10K'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "10K"
+  },
+  {
+   "at": [
+    124.621,
+    130.626,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/TGT_SWDIO",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "J3",
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(U2-PB12)",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R5",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '100'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "100"
+  },
+  {
+   "at": [
+    125.383,
+    130.626,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R7",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(D1-A)",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "D1"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R6",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '1K5'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "1K5"
+  },
+  {
+   "at": [
+    126.144,
+    130.626,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R9",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(D2-A)",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "D2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R7",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '1K5'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "1K5"
+  },
+  {
+   "at": [
+    126.906,
+    130.626,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/PA9",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "U2"
+      ]
+     },
+     {
+      "net": "Net-(D3-A)",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "D3"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R8",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '470'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "470"
+  },
+  {
+   "at": [
+    123.098,
+    131.388,
+    0.0
+   ],
+   "body_mm": [
+    3.3,
+    1.46
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "U1",
+       "U2"
+      ]
+     },
+     {
+      "net": "/PA0",
+      "pad": "2",
+      "pinfunction": "",
+      "pintype": "passive",
+      "reaches": [
+       "R10",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "R9",
+   "role": {
+    "evidence": [
+     "reference prefix 'R' (convention only)",
+     "value '4K7'"
+    ],
+    "role": "resistor",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "4K7"
+  },
+  {
+   "at": [
+    123.859,
+    131.388,
+    0.0
+   ],
+   "body_mm": [
+    5.5,
+    3.4
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Button_Switch_SMD:SW_Push_SPST_NO_Alps_SKRK",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/TGT_RST",
+      "pad": "1",
+      "pinfunction": "1",
+      "pintype": "passive",
+      "reaches": [
+       "C8",
+       "J3",
+       "R11",
+       "U2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "2",
+      "pinfunction": "2",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "U1",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": "edge_actuator",
+   "part_class_confidence": "medium",
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "RST1",
+   "role": {
+    "evidence": [
+     "placement.part_class says edge_actuator"
+    ],
+    "role": "edge actuator",
+    "source": "part_class"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "RST"
+  },
+  {
+   "at": [
+    124.621,
+    131.388,
+    0.0
+   ],
+   "body_mm": [
+    8.8,
+    7.2
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Package_TO_SOT_SMD:SOT-223-3_TabPin2",
+   "locked": false,
+   "mating": null,
+   "pads": 4,
+   "pads_by_face": {
+    "east": [
+     {
+      "net": "+3.3V",
+      "pad": "2",
+      "pinfunction": "VO",
+      "pintype": "power_out",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U2"
+      ]
+     }
+    ],
+    "north": [
+     {
+      "net": "GND",
+      "pad": "1",
+      "pinfunction": "GND",
+      "pintype": "power_in",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U2"
+      ]
+     }
+    ],
+    "south": [
+     {
+      "net": "+5V",
+      "pad": "3",
+      "pinfunction": "VI",
+      "pintype": "power_in",
+      "reaches": [
+       "C1",
+       "C2",
+       "P1"
+      ]
+     }
+    ],
+    "west": [
+     {
+      "net": "+3.3V",
+      "pad": "2",
+      "pinfunction": "VO",
+      "pintype": "power_out",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "U1",
+   "role": {
+    "evidence": [
+     "footprint name contains 'sot223'",
+     "pad 2 typed power_out"
+    ],
+    "role": "regulator",
+    "source": "footprint"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "AMS1117-3.3"
+  },
+  {
+   "at": [
+    125.383,
+    131.388,
+    0.0
+   ],
+   "body_mm": [
+    10.3,
+    10.3
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Package_QFP:LQFP-48_7x7mm_P0.5mm",
+   "locked": false,
+   "mating": null,
+   "pads": 48,
+   "pads_by_face": {
+    "east": [
+     {
+      "net": "Net-(U2-PB12)",
+      "pad": "25",
+      "pinfunction": "PB12",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R5"
+      ]
+     },
+     {
+      "net": "/TGT_SWCLK",
+      "pad": "26",
+      "pinfunction": "PB13",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J3"
+      ]
+     },
+     {
+      "net": "/TGT_SWDIO",
+      "pad": "27",
+      "pinfunction": "PB14",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J3",
+       "R5"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PB15-Pad28)",
+      "pad": "28",
+      "pinfunction": "PB15",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PA8-Pad29)",
+      "pad": "29",
+      "pinfunction": "PA8",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "/PA9",
+      "pad": "30",
+      "pinfunction": "PA9",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R8"
+      ]
+     },
+     {
+      "net": "/TGT_SW0",
+      "pad": "31",
+      "pinfunction": "PA10",
+      "pintype": "bidirectional",
+      "reaches": []
+     },
+     {
+      "net": "/PA11",
+      "pad": "32",
+      "pinfunction": "PA11",
+      "pintype": "bidirectional",
+      "reaches": [
+       "C7",
+       "R12"
+      ]
+     },
+     {
+      "net": "/PA12",
+      "pad": "33",
+      "pinfunction": "PA12",
+      "pintype": "bidirectional",
+      "reaches": [
+       "C9",
+       "R13",
+       "R15"
+      ]
+     },
+     {
+      "net": "/IF_SWDIO",
+      "pad": "34",
+      "pinfunction": "PA13",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J1"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "35",
+      "pinfunction": "VSS",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1"
+      ]
+     },
+     {
+      "net": "+3.3V",
+      "pad": "36",
+      "pinfunction": "VDD",
+      "pintype": "power_in",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1"
+      ]
+     }
+    ],
+    "north": [
+     {
+      "net": "/IF_SWCLK",
+      "pad": "37",
+      "pinfunction": "PA14",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J1"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PA15-Pad38)",
+      "pad": "38",
+      "pinfunction": "PA15",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PB3-Pad39)",
+      "pad": "39",
+      "pinfunction": "PB3",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PB4-Pad40)",
+      "pad": "40",
+      "pinfunction": "PB4",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "/PB5",
+      "pad": "41",
+      "pinfunction": "PB5",
+      "pintype": "bidirectional",
+      "reaches": [
+       "D1"
+      ]
+     },
+     {
+      "net": "/PB6",
+      "pad": "42",
+      "pinfunction": "PB6",
+      "pintype": "bidirectional",
+      "reaches": [
+       "D2"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PB7-Pad43)",
+      "pad": "43",
+      "pinfunction": "PB7",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "Net-(U2-BOOT0)",
+      "pad": "44",
+      "pinfunction": "BOOT0",
+      "pintype": "input",
+      "reaches": [
+       "R3"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PB8-Pad45)",
+      "pad": "45",
+      "pinfunction": "PB8",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PB9-Pad46)",
+      "pad": "46",
+      "pinfunction": "PB9",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "GND",
+      "pad": "47",
+      "pinfunction": "VSS",
+      "pintype": "passive",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1"
+      ]
+     },
+     {
+      "net": "+3.3V",
+      "pad": "48",
+      "pinfunction": "VDD",
+      "pintype": "power_in",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1"
+      ]
+     }
+    ],
+    "south": [
+     {
+      "net": "/TGT_TX",
+      "pad": "13",
+      "pinfunction": "PA3",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J2"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PA4-Pad14)",
+      "pad": "14",
+      "pinfunction": "PA4",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "/TGT_SWCLK",
+      "pad": "15",
+      "pinfunction": "PA5",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J3"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PA6-Pad16)",
+      "pad": "16",
+      "pinfunction": "PA6",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PA7-Pad17)",
+      "pad": "17",
+      "pinfunction": "PA7",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "/TGT_RST",
+      "pad": "18",
+      "pinfunction": "PB0",
+      "pintype": "bidirectional",
+      "reaches": [
+       "C8",
+       "J3",
+       "R11",
+       "RST1"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PB1-Pad19)",
+      "pad": "19",
+      "pinfunction": "PB1",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "GND",
+      "pad": "20",
+      "pinfunction": "PB2",
+      "pintype": "bidirectional",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PB10-Pad21)",
+      "pad": "21",
+      "pinfunction": "PB10",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PB11-Pad22)",
+      "pad": "22",
+      "pinfunction": "PB11",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "GND",
+      "pad": "23",
+      "pinfunction": "VSS",
+      "pintype": "power_in",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1"
+      ]
+     },
+     {
+      "net": "+3.3V",
+      "pad": "24",
+      "pinfunction": "VDD",
+      "pintype": "power_in",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1"
+      ]
+     }
+    ],
+    "west": [
+     {
+      "net": "+3.3V",
+      "pad": "1",
+      "pinfunction": "VBAT",
+      "pintype": "power_in",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1"
+      ]
+     },
+     {
+      "net": "Net-(U2-PC13)",
+      "pad": "2",
+      "pinfunction": "PC13",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R4"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PC14-Pad3)",
+      "pad": "3",
+      "pinfunction": "PC14",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "unconnected-(U2-PC15-Pad4)",
+      "pad": "4",
+      "pinfunction": "PC15",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "/OSCIN",
+      "pad": "5",
+      "pinfunction": "PD0",
+      "pintype": "bidirectional",
+      "reaches": [
+       "C5",
+       "Y1"
+      ]
+     },
+     {
+      "net": "/OSCOUT",
+      "pad": "6",
+      "pinfunction": "PD1",
+      "pintype": "bidirectional",
+      "reaches": [
+       "C6",
+       "Y1"
+      ]
+     },
+     {
+      "net": "/IF_RST",
+      "pad": "7",
+      "pinfunction": "NRST",
+      "pintype": "input",
+      "reaches": [
+       "C4",
+       "R2"
+      ]
+     },
+     {
+      "net": "GND",
+      "pad": "8",
+      "pinfunction": "VSSA",
+      "pintype": "power_in",
+      "reaches": [
+       "C1",
+       "C2",
+       "C3",
+       "C4",
+       "C5",
+       "C6",
+       "C7",
+       "C8",
+       "C9",
+       "D3",
+       "J1",
+       "J2",
+       "J3",
+       "P1",
+       "R1",
+       "R10",
+       "R14",
+       "R3",
+       "R4",
+       "RST1",
+       "U1"
+      ]
+     },
+     {
+      "net": "+3.3V",
+      "pad": "9",
+      "pinfunction": "VDDA",
+      "pintype": "power_in",
+      "reaches": [
+       "C3",
+       "J1",
+       "J2",
+       "J3",
+       "R11",
+       "R15",
+       "R2",
+       "R6",
+       "R7",
+       "R9",
+       "U1"
+      ]
+     },
+     {
+      "net": "/PA0",
+      "pad": "10",
+      "pinfunction": "PA0",
+      "pintype": "bidirectional",
+      "reaches": [
+       "R10",
+       "R9"
+      ]
+     },
+     {
+      "net": "unconnected-(U2-PA1-Pad11)",
+      "pad": "11",
+      "pinfunction": "PA1",
+      "pintype": "bidirectional+no_connect",
+      "reaches": []
+     },
+     {
+      "net": "/TGT_RX",
+      "pad": "12",
+      "pinfunction": "PA2",
+      "pintype": "bidirectional",
+      "reaches": [
+       "J2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "J3",
+     "shared_nets": 5
+    },
+    {
+     "ref": "J2",
+     "shared_nets": 4
+    },
+    {
+     "ref": "J1",
+     "shared_nets": 4
+    },
+    {
+     "ref": "Y1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "U1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "RST1",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R9",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R5",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R4",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R15",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R11",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R10",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C9",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C8",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C7",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C4",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C3",
+     "shared_nets": 2
+    },
+    {
+     "ref": "R8",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R7",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R14",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R13",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R12",
+     "shared_nets": 1
+    },
+    {
+     "ref": "R1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "P1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D3",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "D1",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C2",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C1",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "U2",
+   "role": {
+    "evidence": [
+     "reference prefix 'U' (convention only)",
+     "value 'STM32F103CBTx'"
+    ],
+    "role": "integrated circuit",
+    "source": "ref_prefix"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "STM32F103CBTx"
+  },
+  {
+   "at": [
+    126.144,
+    131.388,
+    0.0
+   ],
+   "body_mm": [
+    6.2,
+    3.8
+   ],
+   "body_source": "courtyard",
+   "dnp": false,
+   "drawn_body_source": "fab",
+   "footprint": "Crystal:Crystal_SMD_5032-2Pin_5.0x3.2mm",
+   "locked": false,
+   "mating": null,
+   "pads": 2,
+   "pads_by_face": {
+    "north": [
+     {
+      "net": "/OSCIN",
+      "pad": "1",
+      "pinfunction": "1",
+      "pintype": "passive",
+      "reaches": [
+       "C5",
+       "U2"
+      ]
+     },
+     {
+      "net": "/OSCOUT",
+      "pad": "2",
+      "pinfunction": "2",
+      "pintype": "passive",
+      "reaches": [
+       "C6",
+       "U2"
+      ]
+     }
+    ]
+   },
+   "part_class": null,
+   "part_class_confidence": null,
+   "partners": [
+    {
+     "ref": "U2",
+     "shared_nets": 2
+    },
+    {
+     "ref": "C6",
+     "shared_nets": 1
+    },
+    {
+     "ref": "C5",
+     "shared_nets": 1
+    }
+   ],
+   "ref": "Y1",
+   "role": {
+    "evidence": [
+     "footprint name contains 'crystal'"
+    ],
+    "role": "crystal",
+    "source": "footprint"
+   },
+   "serves": null,
+   "side": "F",
+   "value": "8MHz"
+  }
+ ],
+ "pile": {
+  "locked": [],
+  "reasons": [
+   "footprints span 10.0% of the board diagonal",
+   "100% of footprints lie outside the board outline"
+  ],
+  "withheld": {
+   "emc_roles legs": 2,
+   "parts[].mating": [
+    "J1",
+    "J2",
+    "J3",
+    "P1",
+    "RST1"
+   ],
+   "parts[].serves": [
+    "C1",
+    "C2",
+    "C3"
+   ],
+   "pin_order.rows": 43
+  }
+ },
+ "pin_order": {
+  "error": null,
+  "pairs": {
+   "composed": [],
+   "direct": [],
+   "found": [
+    [
+     "/D+",
+     "/D-"
+    ]
+   ],
+   "not_measured": [
+    {
+     "carried_whole_by": [
+      "P1"
+     ],
+     "pair": "/D+//D-",
+     "why": "carried whole by P1 only, and no series part joins it end to end to another detected pair"
+    }
+   ],
+   "xnet_warnings": [],
+   "xnets_not_chained": []
+  },
+  "rows": []
+ },
+ "pours": {
+  "keepout_areas": 0,
+  "pours": [],
+  "teardrop_areas": 0
+ },
+ "schema": 1,
+ "sources": {
+  "body_mm / body_source": "placement.body.board_bodies (#896)",
+  "diff_pairs": "list_nets.find_differential_pairs (rejects 2-terminal resonators)",
+  "emc_roles": "placement.emc_roles (#1254): roles read off PIN FUNCTIONS (SW/LX, VIN, PGND/GND; I/O or CH lines) and the role table (crystals); every leg pad edge to pad edge (legality.pad_rect + rect_gap), never a loop area; `unknown` where the pins carry no function; rows carry max_mm null -- the limit is the author's. `keep_away`: PROPOSED design-brief rules (#1253), each clock part's nets against the switch nodes, in route.py's --keep-away syntax (parsed and resolved by keep_away), at a derived default gap, measured by check_floorplan's own keep_away grade",
+  "mating": "which parts count as connectors: render_placement.connector_edge_facts. `edge` is the edge the mating face points at when the body names one (placement.mating, #1155), else the nearest, and `dist_mm` / `overhang_mm` measure to THAT edge; `nearest_*` always to the nearest. Both from the placement.body occupancy rect, because connector_edge_facts reads the placement state pad-box ladder and would put two geometries on one sheet",
+  "pads_by_face": "placement.escape.assign_faces (#850)",
+  "part_class": "placement.part_class.classify_part",
+  "pin_order": "placement.pair_order.pair_metrics; a pair through per-leg series parts (#1251): the junctions of diff_xnet.find_ac_coupled_xnets, judged by pair_order.composed_pair_metrics",
+  "pours": "board_brief.pour_census (the brief's own `pours`)",
+  "role": "placement.roles.infer_role, from footprint name, pins (pintype / pin function) and reference prefix; the board carries no datasheet or 3D-model field to cite",
+  "serves": "placement.groups tether election: the nearest cap owner on the cap's rail -- an IC (4+ copper pads, not a row) or a supply owner such as a 3-pad regulator (#1249)"
+ }
+}

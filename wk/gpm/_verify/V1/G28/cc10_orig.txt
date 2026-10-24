@@ -1,0 +1,5 @@
+CMD: Python -X utf8 check_complete.py wk/gpm/_verify/V1/G28/del10.kicad_pcb --authored-from wk/gpm/_verify/V1/G28/orig10.kicad_pcb
+ENV KNOBS: none
+VERDICT: UNSOUND -- this board carries copper below floors its project once declared (track width 0.15 -> 0.0889, via diameter 0.4 -> 0.25, hole diameter 0.2 -> 0.15). Every checker grades against the NEW value, so a clean report here means the rule moved, not the copper. Confirm the fab supports it before calling it done.. DECLARED, AND BROKEN BY THE REFERENCE TOO, at least as badly (reported, not counted against this board): copper-to-hole clearance 0.25 (this board 0.1402 over 199, the reference 0.0 over 199). UNEXAMINED, and not passed: assembly.courtyard_gating, diff_pairs, floorplan, impedance, length, net_widths -- nothing graded them (no spec was given, or nothing they name is measurable yet), so they are unknown rather than clean
+EXIT=5
+EXIT=5

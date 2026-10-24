@@ -1,0 +1,1454 @@
+CMD: Python -X utf8 py_router/route.py wk/gpm/12_steppenprobe/repro/P2_p2.kicad_pcb wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb --nets +3V3 GND --power-nets GND +3V3 VBUS +5V +1V8 /VPLL /VPHY Vdrive --power-nets-widths 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 --clearance-ceiling 0.15 --layer-costs 1.0 1.5 --same-net-pad-clearance 0.1 --no-fix-drc-settings --track-width 0.3 --escalation board
+ENV KNOBS: none
+--via-size not given; using the board Default net-class 0.6mm.
+--via-drill not given; using the board Default net-class 0.3mm.
+--clearance not given; honoring net classes with base = the board Default net-class clearance 0.15mm.
+--clearance-ceiling 0.15: every net class is capped at it and the output project's classes are clamped down to it (#439).
+--hole-to-hole-clearance not given; using 0.25mm [board constraint].
+--board-edge-clearance not given; using 0.3mm [board constraint].
+  --escalation board, project writeback off: clearance descents stop at 0.15 mm, the clearance KiCad grades the unchanged project's Default nets at (was unset; #1262)
+Loading wk/gpm/12_steppenprobe/repro/P2_p2.kicad_pcb to expand net patterns...
+Routing 2 nets: ['+3V3', 'GND']
+Netclass clearances for 8 net(s), capped at --clearance-ceiling 0.15 (mm: [0.15]); cross-class max(A,B) respected.
+Loading wk/gpm/12_steppenprobe/repro/P2_p2.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Skipping 1 already-routed net(s): Already fully connected
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+WARNING: Could not find pads for both stub groups in +3V3 (found 1 pads)
+MPS Round 1: 1 units: +3V3
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+57 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+Base obstacle map built in 0.04s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.07s (61 nets)
+Plane fragility: exact-fill geometry (6 filled island(s) from KiCad refill)
+Plane fragility field: 335048 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing +3V3 (id=32)
+  Detected multi-point net with 30 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +58 region-laddered target(s) across 2 component(s) (phase 1)
+  Existing copper joins 30 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 5 and 10, length=5.37mm)
+  Phase 1 edge (pads 5,10) failed after 5071 iterations
+  Phase 1 exhausted from the pads; deferring 1 edge(s) to Phase 3's island-copper sources (base component: 29 terminal(s))
+  SUCCESS: 0 segments, 0 vias, 5071 iterations, length=29.08mm (stubs=29.08mm) (0.10s)
+
+Sync pcb_data: 979 -> 979 (kept stubs) -> 979 (after adding 0)
+
+============================================================
+Multi-point Phase 3: Routing 1 tap connections
+============================================================
+
++3V3 (net 32):
+  POUR-LAUNCH v3: +58 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (283 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/1] Routing MST edge: pad 5 -> pad 10 (length=5.37mm) target=(126.71, 86.96)
+      backward stuck (75 < 5000), forward=5000
+        backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: /ACT_LED_N(1 pad)
+      Failed to route MST edge after 5075 iterations (0.00s)
+    Fallback: attempting orphaned pad 10 directly from connected copper
+    [2/1] (1 failed) Routing MST edge: pad 5 -> pad 10 (length=5.37mm) target=(126.71, 86.96)
+      backward stuck (75 < 5000), forward=5000
+        backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: /ACT_LED_N(1 pad)
+      Failed to route MST edge after 5075 iterations (0.00s)
+  Warning: 1 pad(s) not connected (1 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    Ripping /TMS (net 23) to retry tap route...
+      PRE-EXISTING rip: '/TMS' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  POUR-LAUNCH v3: +58 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (283 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/1] (1 failed) Routing MST edge: pad 5 -> pad 10 (length=5.37mm) target=(126.71, 86.96)
+      Routed in 6316 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 8 total segments, 2 total vias
+    +3V3: Retry SUCCESS (N=1): 1 -> 0 failed edges
+    Adding 8 tap segments, 2 tap vias to obstacles before re-routing...
+    Re-routing 1 ripped net(s)...
+
+  Re-routing /TMS (net 23)...
+backward stuck (14 < 5000), forward=5000
+  backward cell (1267, 865, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: /TDO(1 track, 1 pad), +3V3(1 pad)
+No route found after 5014 iterations (both directions)
+    Failed to re-route
+    +3V3: tap rip-up lost 2 pad(s) to gain 1 (/TMS); abandoning tap, re-routing victim(s)
+
+  Re-routing /TMS (net 23)...
+backward stuck (14 < 5000), forward=5000
+  backward cell (1267, 865, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: /TDO(1 track, 1 pad), +3V3(1 pad)
+No route found after 5014 iterations (both directions)
+    Failed to re-route
+    RIP-RESTORE (#468): /TMS back on its pre-rip copper (connected)
+  NOT CONNECTED (so far): +3V3 - U1 pad 20 at (126.71, 86.96) - may still be recovered; final verdict in the end-of-run summary
+  Net total time: 0.23s, 15221 iterations
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing +3V3 (partial, 2 disconnected parts)
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+    bare-ball escape: R6.2 dogbone (11 seg(s), 1 via(s)) (#666)
+    bare-ball escape: FB2.2 dogbone (11 seg(s), 1 via(s)) (#666)
+    bare-ball escape: C16.1 dogbone (15 seg(s), 1 via(s)) (#666)
+    bare-ball escape: C22.1 dogbone (11 seg(s), 1 via(s)) (#666)
+backward stuck (295 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 0/8 neighbors blocked
+No route found after 5295 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 8/8 neighbors blocked (margin=6)
+    Blocking obstacles: /TMS(1 track, 1 pad), /ACT_LED_N(1 pad)
+backward stuck (2208 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 0/8 neighbors blocked
+No route found after 12209 iterations (both directions)
+    improved (2 -> 2 parts, 4.1s)
+Rescue pass: 0 recovered, 1 improved, 0 unchanged (4.1s)
+
+Terminal geometry escalation (better than shipping opens): 1 candidate net(s)
+  terminal escalation: +3V3 at track 0.225 via 0.6/0.3 (rung 1/2)
+backward stuck (60 < 5000), forward=5000
+  backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+    Blocking obstacles: /ACT_LED_N(1 pad)
+No route found after 5060 iterations (both directions)
+  terminal escalation: +3V3 at track 0.15 via 0.6/0.3 (rung 2/2)
+backward stuck (71 < 5000), forward=5000
+  backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+No route found after 5071 iterations (both directions)
+    terminal escalation: +3V3 unrecovered (0.1s)
+Terminal escalation: 0 recovered, 1 unrecovered (0.1s)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/TMS' (was blocking '+3V3'): original copper restored
+Bridged 1 same-net soft joint(s) with a tiny connector
+Merged 30 collinear joint(s) on 1 net(s): -30 redundant segment(s) (#811)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed
+  Multi-point:   26/27 pads connected (1 FAILED)
+  Total vias:    4
+  Total time:    0.10s
+  Iterations:    5,071
+  Fragility refresh (#466): 2 windows, 0.06s total
+  History congestion (#590): 1 contest + 1 rip + 2 blocked-frontier event(s) over 774 cell(s), peak 0.23mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed multi-point connections:
+  +3V3: U1 pad ? at (126.71, 86.96) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "+3V3", "failed_pads": [{"component_ref": "U1", "pad_number": "?", "x": 126.7125, "y": 86.9599}]}], "multipoint_nets": 1, "multipoint_pads_connected": 26, "multipoint_pads_total": 27, "multipoint_edges_routed": 0, "multipoint_edges_failed": 1, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.1, "total_iterations": 5071, "total_vias": 4, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 2, "nets": [32], "narrowed": [{"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.15, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.1998, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.15}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 6, "refill_status": "ok", "why": "the KiCad refill succeeded", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": ["+3V3"], "unchanged": [], "pads_reconnected": 0, "widths": {"+3V3": {"requested_mm": 0.3, "delivered_mm": 0.3, "rescue_min_mm": 0.3, "rescue_max_mm": 0.3, "rescue_segments_emitted": 48, "rescue_by_width": {"0.3": 48}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 4.09}, "terminal_escalations": {"+3V3": "unrecovered"}, "preexisting_rips": {"/TMS": "original copper restored [was blocking '+3V3']"}, "terminal_restores": {"/TMS": "full"}, "oracle_check": "disabled", "blockers": [{"net": "+3V3", "stage": "phase3", "blocked_by": [{"net": "/TMS", "blocked_count": 19, "unique_cells": 19, "track_cells": 18, "via_cells": 7, "near_target_cells": 19, "near_source_cells": 0}, {"net": "/TDI", "blocked_count": 28, "unique_cells": 26, "track_cells": 28, "via_cells": 0, "near_target_cells": 28, "near_source_cells": 0}, {"net": "/ACT_LED_N", "blocked_count": 21, "unique_cells": 19, "track_cells": 21, "via_cells": 6, "near_target_cells": 21, "near_source_cells": 0}]}], "pad_pairs_connected": 26, "pad_pairs_total": 27, "pad_pairs_open": [{"net": "+3V3", "pairs_connected": 25, "pairs_total": 26, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 37.2}, {"net": "+3V3", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 35.3}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 19.9}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 218.7}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 21.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 39.5}], "scope": "run", "env_knobs": {}}
+
+Writing output to wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb...
+Successfully wrote wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb
+
+Plane finalize (#562): repairing 1 zone net(s) in-run (rip authority over blockers): +3V3
+  Plane finalize: snapped 24 in-memory coordinate(s) onto the nm grid
+Board bounds: (100.00, 50.00) to (150.00, 110.00)
+  Same-net pad via clearance 0.1mm (#581): repair vias stay off same-net pads
+Routing layers: F.Cu, B.Cu
+
+============================================================
+Routing disconnected plane regions
+============================================================
+    fill-model: pad U1.20 reaches only a pinched fill island -- queued for repair
+  (#517 ordering: net repair order = +3V3[1])
+
+[+3V3] on F.Cu (clearances: F.Cu=0.15mm):
+    fill-model: pad U1.20 reaches only a pinched fill island -- queued for repair
+  Pad repair: 1 pad(s) with no connection to the +3V3 plane:
+    Pad U1.20 (F.Cu)... (needs rip - deferred to phase 2)
+    (#517 ordering: phase 2 -- 1 rip-requiring pad(s) [adaptive: immediate])
+    Pad U1.20 (F.Cu)... blocked by /TMS - ripping... blocked by /SWD_EN - ripping... blocked by /ACT_LED_N - ripping... (restored 3/3 ripped net(s)) FAILED
+  Building obstacle map... done
+  Region discovery from fill model: 7 region(s) (63 fill island(s), 0 off-fill anchor(s), 4 orphan island(s))
+  Found 7 disconnected regions (37 total anchors)
+  Joining 7 regions incrementally (closest components first, 6 join(s) needed)...
+    [1/6] Component 0 (1 region(s), 424 pts) <-> Component 1 (1 region(s), 7 pts) (seed 24x7)... OK width=0.80mm, length=2.4mm, 4 seg(s)
+    [2/6] Component 0 (2 region(s), 436 pts) <-> Component 2 (1 region(s), 1 pts) (seed 26x1)... retry-full budget-x5 FAILED
+  Result: 1/6 join(s) succeeded, 1 attempt(s) failed
+  [+3V3] gate oracle: KiCad reports 1 unconnected link(s) for this net (2 total)
+
+[+3V3] guaranteed-join gate: authoritative check finds 2 component(s) after repair -- routing the remaining gaps as a multipoint net:
+    group 12: 27 pad(s): C2(127.8,69.4), C14(124.7,92.8), C15(138.0,96.8)
+    group 304: 1 pad(s): U1(126.7,87.0)
+Using provided PCB data...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+WARNING: Could not find pads for both stub groups in +3V3 (found 1 pads)
+MPS Round 1: 1 units: +3V3
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+57 unprotected pre-existing net(s) registered as main-pass rip candidates (<=30 seg/<=6 via, custody-backed; KICAD_RIP_PREEXISTING=0 disables)
+Base obstacle map built in 0.01s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.03s (61 nets)
+Plane fragility: exact-fill geometry (6 filled island(s) from KiCad refill)
+Plane fragility field: 335048 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing +3V3 (id=32)
+  Detected multi-point net with 30 pads (Phase 1: main route only)
+  POUR-LAUNCH v3: +55 region-laddered target(s) across 2 component(s) (phase 1)
+  Existing copper joins 30 terminals into 2 group(s)
+  Multi-point net Phase 1: routing longest MST edge (pads 5 and 11, length=5.37mm)
+  Phase 1 edge (pads 5,11) failed after 5067 iterations
+  Phase 1 exhausted from the pads; deferring 1 edge(s) to Phase 3's island-copper sources (base component: 29 terminal(s))
+  SUCCESS: 0 segments, 0 vias, 5067 iterations, length=37.62mm (stubs=37.62mm) (0.05s)
+
+Sync pcb_data: 1002 -> 1002 (kept stubs) -> 1002 (after adding 0)
+
+============================================================
+Multi-point Phase 3: Routing 1 tap connections
+============================================================
+
++3V3 (net 32):
+  POUR-LAUNCH v3: +55 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (332 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/1] Routing MST edge: pad 5 -> pad 11 (length=5.37mm) target=(126.71, 86.96)
+      backward stuck (70 < 5000), forward=5000
+        backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: /ACT_LED_N(1 pad)
+      Failed to route MST edge after 5070 iterations (0.00s)
+    Fallback: attempting orphaned pad 11 directly from connected copper
+    [2/1] (1 failed) Routing MST edge: pad 5 -> pad 11 (length=5.37mm) target=(126.71, 86.96)
+      backward stuck (70 < 5000), forward=5000
+        backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+          Blocking obstacles: /ACT_LED_N(1 pad)
+      Failed to route MST edge after 5070 iterations (0.00s)
+  Warning: 1 pad(s) not connected (1 MST edge(s) failed)
+  Phase 3 routing complete: 0 edges, 0 total segments, 0 total vias
+    Ripping /TMS (net 23) to retry tap route...
+      PRE-EXISTING rip: '/TMS' (earlier-step copper) removed -- queued for reroute this run; original restored if the reroute fails
+  POUR-LAUNCH v3: +55 region-laddered target(s) across 2 component(s) (phase 3)
+  Seeding tap sources from the base island's existing copper (332 cell(s) across 2 island(s))
+  Multi-point net Phase 3: routing 1 remaining MST edges (longest first)
+    [1/1] (1 failed) Routing MST edge: pad 5 -> pad 11 (length=5.37mm) target=(126.71, 86.96)
+      Routed in 6311 iterations (0.00s)
+  Phase 3 routing complete: 1 edges, 8 total segments, 2 total vias
+    +3V3: Retry SUCCESS (N=1): 1 -> 0 failed edges
+    Adding 8 tap segments, 2 tap vias to obstacles before re-routing...
+    Re-routing 1 ripped net(s)...
+
+  Re-routing /TMS (net 23)...
+backward stuck (14 < 5000), forward=5000
+  backward cell (1267, 865, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: /TDO(1 track, 1 pad), +3V3(1 pad)
+No route found after 5014 iterations (both directions)
+    Failed to re-route
+    +3V3: tap rip-up lost 2 pad(s) to gain 1 (/TMS); abandoning tap, re-routing victim(s)
+
+  Re-routing /TMS (net 23)...
+backward stuck (14 < 5000), forward=5000
+  backward cell (1267, 865, layer=0): ok, 6/8 neighbors blocked
+    Blocking obstacles: /TDO(1 track, 1 pad), +3V3(1 pad)
+No route found after 5014 iterations (both directions)
+    Failed to re-route
+    RIP-RESTORE (#468): /TMS back on its pre-rip copper (connected)
+  NOT CONNECTED (so far): +3V3 - U1 pad 20 at (126.71, 86.96) - may still be recovered; final verdict in the end-of-run summary
+  Net total time: 0.19s, 15207 iterations
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing +3V3 (partial, 2 disconnected parts)
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+    bare-ball escape: D1.2 dogbone (10 seg(s), 1 via(s)) (#666)
+    bare-ball escape: R23.2 dogbone (11 seg(s), 1 via(s)) (#666)
+    bare-ball escape: U2.2 dogbone (10 seg(s), 1 via(s)) (#666)
+    bare-ball escape: D4.2 dogbone (10 seg(s), 1 via(s)) (#666)
+backward stuck (295 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 0/8 neighbors blocked
+No route found after 5295 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 8/8 neighbors blocked (margin=6)
+    Blocking obstacles: /TMS(1 track, 1 pad), /ACT_LED_N(1 pad)
+backward stuck (2208 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 0/8 neighbors blocked
+No route found after 12209 iterations (both directions)
+    improved (2 -> 2 parts, 4.0s)
+Rescue pass: 0 recovered, 1 improved, 0 unchanged (4.0s)
+
+Terminal geometry escalation (better than shipping opens): 1 candidate net(s)
+  terminal escalation: +3V3 at track 0.225 via 0.6/0.3 (rung 1/2)
+backward stuck (60 < 5000), forward=5000
+  backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+    Blocking obstacles: /ACT_LED_N(1 pad)
+No route found after 5060 iterations (both directions)
+  terminal escalation: +3V3 at track 0.15 via 0.6/0.3 (rung 2/2)
+backward stuck (71 < 5000), forward=5000
+  backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+No route found after 5071 iterations (both directions)
+    terminal escalation: +3V3 unrecovered (0.1s)
+Terminal escalation: 0 recovered, 1 unrecovered (0.1s)
+
+Pre-existing rip outcome(s) (1 net(s)):
+  '/TMS' (was blocking '+3V3'): original copper restored
+Bridged 2 same-net soft joint(s) with a tiny connector
+Merged 17 collinear joint(s) on 1 net(s): -17 redundant segment(s) (#811)
+
+WARNING: 4 stacked-copper finding(s) on the write model (same-net duplicates KiCad will not flag):
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.300, 77.200)-(117.300, 77.900)
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.300, 77.900)-(117.800, 78.400)
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.400, 79.200)-(117.800, 78.800)
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.800, 78.400)-(117.800, 78.800)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed
+  Multi-point:   26/27 pads connected (1 FAILED)
+  Total vias:    4
+  Total time:    0.05s
+  Iterations:    5,067
+  Fragility refresh (#466): 3 windows, 0.12s total
+  History congestion (#590): 1 contest + 1 rip + 2 blocked-frontier event(s) over 772 cell(s), peak 0.23mm-equiv (inc 0.1mm, cap 0.5, escalate 0.0, rip weight 1.0, frontier weight 0.25), 0.00s of field upkeep
+
+Failed multi-point connections:
+  +3V3: U1 pad ? at (126.71, 86.96) not connected
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": [], "open_single": [], "failed_multipoint": [{"net_name": "+3V3", "failed_pads": [{"component_ref": "U1", "pad_number": "?", "x": 126.7125, "y": 86.9599}]}], "multipoint_nets": 1, "multipoint_pads_connected": 26, "multipoint_pads_total": 27, "multipoint_edges_routed": 0, "multipoint_edges_failed": 1, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.05, "total_iterations": 5067, "total_vias": 4, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 4, "nets": [32], "narrowed": [{"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.15, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.1998, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.15, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.1998, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.15}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 6, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": ["+3V3"], "unchanged": [], "pads_reconnected": 0, "widths": {"+3V3": {"requested_mm": 0.3, "delivered_mm": 0.3, "rescue_min_mm": 0.3, "rescue_max_mm": 0.3, "rescue_segments_emitted": 41, "rescue_by_width": {"0.3": 41}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 3.98}, "terminal_escalations": {"+3V3": "unrecovered"}, "preexisting_rips": {"/TMS": "original copper restored [was blocking '+3V3']"}, "terminal_restores": {"/TMS": "full"}, "stacked_copper": [{"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.3, "y": 77.2, "detail": "2 duplicate segments stacked on (117.300, 77.200)-(117.300, 77.900)", "size": 0.7000000000000028}, {"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.3, "y": 77.9, "detail": "2 duplicate segments stacked on (117.300, 77.900)-(117.800, 78.400)", "size": 0.7071067811865476}, {"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.4, "y": 79.2, "detail": "2 duplicate segments stacked on (117.400, 79.200)-(117.800, 78.800)", "size": 0.565685424949236}, {"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.8, "y": 78.4, "detail": "2 duplicate segments stacked on (117.800, 78.400)-(117.800, 78.800)", "size": 0.3999999999999915}], "oracle_check": "skipped (in-memory board)", "blockers": [{"net": "+3V3", "stage": "phase3", "blocked_by": [{"net": "/TMS", "blocked_count": 19, "unique_cells": 19, "track_cells": 18, "via_cells": 7, "near_target_cells": 19, "near_source_cells": 0}, {"net": "/TDI", "blocked_count": 28, "unique_cells": 26, "track_cells": 28, "via_cells": 0, "near_target_cells": 28, "near_source_cells": 0}, {"net": "/ACT_LED_N", "blocked_count": 19, "unique_cells": 17, "track_cells": 19, "via_cells": 6, "near_target_cells": 19, "near_source_cells": 0}]}], "pad_pairs_connected": 26, "pad_pairs_total": 27, "pad_pairs_open": [{"net": "+3V3", "pairs_connected": 25, "pairs_total": 26, "outcome": "open", "open_subtype": "partial"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 37.2}, {"net": "+3V3", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 43.3}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 19.9}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 218.7}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 21.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 39.5}], "scope": "reconciliation-subset", "board_scoped_keys": ["stacked_copper", "power_trace_ampacity", "min_clearance_used"], "env_knobs": {}}
+  [+3V3] guaranteed-join gate: 1 pad(s) still disconnected -- ships incomplete
+
+[+3V3] fill-aware re-check: pad(s) reported tapped but still floating (reached an island, not the plane) -- forcing a via:
+    Pad U1.20 (F.Cu)... STILL FLOATING
+
+============================================================
+SUMMARY
+============================================================
+  Zones processed: 1
+  Total routes added: 1
+  Pad repair: 0/1 unconnected pad(s) reconnected
+  1 reported-unconnected pad(s) are CONNECTED per KiCad's exact fill (model quantization): U1.20 (+3V3)
+  Pads still unconnected: none (all model-only; confirmed connected by the oracle)
+  Closed 6 soft joint(s) in repair copper
+
+Writing output to wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb...
+Output written to wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb
+Note: Open in KiCad and press 'B' to refill zones
+  [finalize timing] engine leg: 8.5s
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  [finalize timing] cleanup leg: 0.1s
+Copper-to-hole 0.25mm for NPTH holes (from the board's own min_hole_clearance, above the 0.2mm fab floor); plated holes and vias: copper clearance
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck round 1: KiCad reports 1 missing link(s) on processed nets
+Route found in 9 iterations, path length: 9
+    +3V3: weld escalation REJECTED (emitted copper outside the link corridor -- #570 false-claim guard)
+  KiCad-oracle recheck: fetching exact fill islands (pcbnew refill)...
+    exact fill: 6 island(s) across 2 zone-layer(s)
+    +3V3: exact-fill tier: strapping nearest approach (127.76,85.88)<->(128.16,85.64) [F.Cu]
+forward stuck (611 < 5000), backward=5000
+  forward cell (5091, 3476, layer=0): ok, 5/8 neighbors blocked
+    Blocking obstacles: /ACT_LED_N(1 track), /TMS(1 pad)
+No route found after 5611 iterations (both directions)
+forward stuck (2 < 5000), backward=5000
+  forward cell (5091, 3476, layer=0): ok, 8/8 neighbors blocked (margin=6)
+    Blocking obstacles: /ACT_LED_N(1 track, 1 pad), /TMS(1 pad)
+forward stuck (1247 < 5000), backward=5000
+  forward cell (5091, 3476, layer=0): ok, 0/8 neighbors blocked
+No route found after 11249 iterations (both directions)
+    +3V3: (127.71,85.86)<->(127.83,85.31)  FAILED (exact-fill strap unroutable)
+  KiCad-oracle recheck: 1 link(s) still unconnected per KiCad after 1 round(s)
+  [finalize timing] oracle leg: 2.4s
+JSON_ORACLE: {"available": true, "reason": "ok", "why": "the oracle ran", "rounds": 1, "links_routed": 0, "links_failed": 1, "remaining": 1, "collapsed_duplicate_links": 0, "remaining_links": [["+3V3", [127.711998, 85.861556, "F.Cu", "pad"], [127.827733, 85.308828, "F.Cu", "zone"]]], "cross_board": 0, "removed_segments": [], "removed_vias": []}
+  Plane finalize: 1 oracle link(s) unroutable without rip authority on +3V3 -- joining the final reconciliation
+
+Final reconciliation: retrying 1 incomplete/custody net(s) against the finished board: +3V3
+Loading wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb...
+Using 2 routing layers: ['F.Cu', 'B.Cu']
+  Layer costs: F.Cu=1.0x, B.Cu=1.5x
+No BGA components detected - no exclusion zones needed
+Same-net pad via clearance 0.1mm (from flag, #581): vias stay off same-net pads
+
+Power net width assignments (8 nets):
+  0.3mm: 8 nets (+1V8, VBUS, /VPLL...)
+  +3V3: exact-fill verdict OPEN -- bypassing the model-credit already-routed skip (#572)
+
+Analyzing layer swaps for 1 multi-point net(s) spanning layers...
+
+Using MPS ordering strategy...
+MPS: Using segment intersection method (no nets on BGA chips)
+MPS: 1 nets with 0 crossing conflicts detected
+WARNING: Could not find pads for both stub groups in +3V3 (found 1 pads)
+MPS Round 1: 1 units: +3V3
+
+Routing 1 single-ended net(s)...
+============================================================
+Building base obstacle map...
+Base obstacle map built in 0.02s
+Found 61 unrouted nets in PCB for stub proximity
+Pre-computing net obstacle cache...
+Net obstacle cache built in 0.02s (61 nets)
+  Oracle forced links (#572): 1 exact-fill link(s) on +3V3 -- routing the oracle's own endpoints, not derived ones
+Plane fragility: exact-fill geometry (6 filled island(s) from KiCad refill)
+Plane fragility field: 335474 cells near the edges of 2 pour(s) (KICAD_PLANE_FRAGILITY_COST=2.0mm-equiv, DYNAMIC #466 (=0 via KICAD_PLANE_FRAGILITY_DYNAMIC reverts))
+History congestion (#590) armed: +0.1mm-equiv per contest, cap 0.5, escalate 0.0, rip weight 1.0 (radius +0.25mm), frontier weight 0.25
+
+[1/1] Routing +3V3 (id=32)
+  Routing 1 exact-fill oracle link(s) (#572 forced edges)
+    forced oracle link: (127.712,85.862)[F.Cu] <-> (127.828,85.309)[F.Cu]
+Both directions stuck (forward=1, backward=1 < 5000)
+  forward cell (1277, 859, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: /TDI(2 track, 1 pad), /TDO(1 pad)
+  backward cell (1278, 853, layer=0): ok, 8/8 neighbors blocked
+    Blocking obstacles: /TDI(2 track, 1 pad)
+No route found after 2 iterations (both directions)
+  FAILED: Could not find route (0.02s)
+  ROUTE FAILED - no rippable blockers found
+  Hint: search exhausted after only 2 iterations with no rippable blockers - the start/target pads are boxed in by static obstacles (neighboring pads + clearance), not by congestion. For fine-pitch parts try a finer grid and/or smaller clearance/track, e.g. --grid-step 0.05 --clearance 0.15 --track-width 0.15 (current: grid 0.1, clearance 0.15, track 0.3 mm)
+  Hint: the blocking copper belongs to 1 pre-existing net(s) committed by an earlier run/step; 1 of them this run may not rip. Retry with --rip-existing-nets '/TDI' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+
+Per-net fine-parameter rescue (#331/#371): 1 candidate net(s)
+  Rescuing +3V3 (failed, 2 disconnected parts)
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+  WARNING: plane web under U1 (0.5mm pitch; +3V3, GND poured at clearance 0.15, min width 0.15): no via on the fab ladder lets the plane pass between its vias -- its drops there may be islands; lower the pour's clearance
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/5 inner balls got a gap via site (5 via-in-pad fallback)
+  Dog-bone escape: 0/5 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 5 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Escape priority (issue #129): single pass dropped 5 ball(s) and 1 multi-ball net(s) have 4 extra ball(s) -- retrying with one escape per net first, extra escapes second
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/1 inner balls got a gap via site (1 via-in-pad fallback)
+  Dog-bone escape: 0/1 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 1 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+BGA Grid Analysis for U1:
+  Pitch: 0.50 x 0.50 mm
+  Grid: 18 rows x 18 columns
+  Center: (132.39, 89.21)
+  Boundary: X[126.46, 138.31], Y[83.28, 95.13]
+  Under-pad: WARNING via 0.60mm is large for 0.50mm pitch (track 0.30, clearance 0.15); expect drops. No via fits: the smallest the fab ladder reaches is 0.6mm. A narrower track or clearance, or a via-less escape, is the lever.
+  Dog-bone: 0/4 inner balls got a gap via site (4 via-in-pad fallback)
+  Dog-bone escape: 0/4 signals escaped, 0 vias, 10 plane balls skipped, 22 already-fanned skipped, 4 failed
+  Dog-bone: 0 single-ended run(s) started at a gap via (0 gap sites assigned)
+  Under-pad shrink rescue @ track 0.1500mm / via 0.60mm / clearance 0.1500mm (nominal 0.3000/0.60/0.1500): rescued 0 of 5 dropped ball(s)
+  Escape priority did not improve (1 vs 1 net(s) with no escape, 5 vs 5 bare ball(s)) - keeping the single-pass result
+  Dropped ball(s) on U1, and what crowds each (#1217):
+    U1.20 +3V3: no room for a 0.6mm via at the ball (/TMS track on F.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: /TMS track 0.39mm; B.Cu: clear within 0.50mm
+    U1.31 +3V3: no room for a 0.6mm via at the ball (/RTS_N track on B.Cu overlapping, /RTS_N track on B.Cu overlapping); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /RTS_N track 0.18mm, /RTS_N track 0.18mm
+    U1.42 +3V3: no room for a 0.6mm via at the ball (+1V8 track on B.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: /CTS_N track 0.46mm; B.Cu: +1V8 track 0.36mm
+    U1.50 +3V3: no room for a 0.6mm via at the ball (GND track on F.Cu 0.05mm from it, GND track on F.Cu 0.06mm from it); nearest foreign copper (edge to ball centre): F.Cu: GND track 0.35mm, GND track 0.36mm; B.Cu: /EE_CS track 0.39mm
+    U1.56 +3V3: no room for a 0.6mm via at the ball (/EE_CS track on B.Cu 0.09mm from it); nearest foreign copper (edge to ball centre): F.Cu: clear within 0.50mm; B.Cu: /EE_CS track 0.39mm
+    bare-ball escape: U11.5 dogbone (9 seg(s), 1 via(s)) (#666)
+backward stuck (295 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 0/8 neighbors blocked
+No route found after 5295 iterations (both directions)
+backward stuck (1 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 8/8 neighbors blocked (margin=6)
+    Blocking obstacles: /TMS(1 track, 1 pad), /ACT_LED_N(1 pad)
+backward stuck (2208 < 5000), forward=5000
+  backward cell (5068, 3478, layer=0): ok, 0/8 neighbors blocked
+No route found after 12209 iterations (both directions)
+    improved (2 -> 2 parts, 3.9s)
+Rescue pass: 0 recovered, 1 improved, 0 unchanged (3.9s)
+
+Terminal geometry escalation (better than shipping opens): 1 candidate net(s)
+  terminal escalation: +3V3 at track 0.225 via 0.6/0.3 (rung 1/2)
+backward stuck (60 < 5000), forward=5000
+  backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+    Blocking obstacles: /ACT_LED_N(1 pad)
+No route found after 5060 iterations (both directions)
+  terminal escalation: +3V3 at track 0.15 via 0.6/0.3 (rung 2/2)
+backward stuck (71 < 5000), forward=5000
+  backward cell (1267, 870, layer=0): ok, 3/8 neighbors blocked
+No route found after 5071 iterations (both directions)
+    terminal escalation: +3V3 unrecovered (0.1s)
+Terminal escalation: 0 recovered, 1 unrecovered (0.1s)
+Bridged 1 same-net soft joint(s) with a tiny connector
+
+WARNING: 4 stacked-copper finding(s) on the write model (same-net duplicates KiCad will not flag):
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.300, 77.200)-(117.300, 77.900)
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.300, 77.900)-(117.800, 78.400)
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.400, 79.200)-(117.800, 78.800)
+  +3V3 B.Cu: 2 duplicate segments stacked on (117.800, 78.400)-(117.800, 78.800)
+
+============================================================
+Routing complete
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Total vias:    1
+  Total time:    0.02s
+  Iterations:    2
+
+Failed single-ended nets:
+  +3V3
+
+Failed multi-point connections:
+  +3V3: U1 pad ? at (126.71, 86.96) not connected
+
+============================================================
+FAILED NET HISTORIES
+============================================================
+
++3V3:
+  [0] Re-route FAILED: no rippable blockers found
+  [0] Boxed in at this geometry after 2 iteration(s) (grid 0.1, clearance 0.15, track 0.3 mm)
+  [0] Blocked by pre-existing copper: /TDI
+         Hint: the blocking copper belongs to 1 pre-existing net(s) committed by an earlier run/step; 1 of them this run may not rip. Retry with --rip-existing-nets '/TDI' to rip and re-route them in this run (issue #103) -- the decisive blocker may be any of them, so start with the full set (each ripped net is re-routed and the run reports honestly if one cannot be), then bisect if you want a minimal rip.
+  [0] rescue_succeeded
+  [0] terminal_escalation_failed
+
+Power trace ampacity (bottleneck segment, IPC-2152):
+  +1V8: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +3V3: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  +5V: 1.00A max (0.300mm on F.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPHY: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  /VPLL: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  GND: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  VBUS: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+  Vdrive: 1.00A max (0.300mm on B.Cu (1 oz copper, 10°C rise), IPC-2221: 1.00A)
+JSON_SUMMARY: {"routed_single": [], "failed_single": ["+3V3"], "open_single": [], "failed_multipoint": [{"net_name": "+3V3", "failed_pads": [{"component_ref": "U1", "pad_number": "?", "x": 126.7125, "y": 86.9599}]}], "multipoint_nets": 0, "multipoint_pads_connected": 0, "multipoint_pads_total": 0, "multipoint_edges_routed": 0, "multipoint_edges_failed": 0, "ripup_success_pairs": [], "rerouted_pairs": [], "single_ended_target_swaps": [], "layer_swaps": 0, "successful": 0, "failed": 1, "total_time": 0.02, "total_iterations": 2, "total_vias": 1, "cleanup_disconnected": [], "min_clearance_used": 0.15, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 4, "nets": [32], "narrowed": [{"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.15, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.1998, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.15, "site": "terminal neck", "count": 1}, {"net": 32, "net_name": null, "kind": "track_width", "requested": 0.3, "delivered": 0.1998, "site": "terminal neck", "count": 1}], "min_delivered": {"track_width": 0.15}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors", "unsupported_rules": []}, "plane_fragility": {"source": "kicad_refill", "islands": 6, "refill_status": "ok", "why": "the KiCad refill succeeded (memo hit)", "machine_dependent": false}, "rescue": {"attempted": 1, "recovered": [], "improved": ["+3V3"], "unchanged": [], "pads_reconnected": 0, "widths": {"+3V3": {"requested_mm": 0.3, "delivered_mm": 0.3, "rescue_min_mm": 0.3, "rescue_max_mm": 0.3, "rescue_segments_emitted": 9, "rescue_by_width": {"0.3": 9}, "scope": "THIS RESCUE ONLY -- not the net. Counts are as EMITTED, before cycle-prune drops redundant loop segments, so the board can carry fewer. For the net's whole width profile, measure the board."}}, "time": 3.89}, "terminal_escalations": {"+3V3": "unrecovered"}, "stacked_copper": [{"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.3, "y": 77.2, "detail": "2 duplicate segments stacked on (117.300, 77.200)-(117.300, 77.900)", "size": 0.7000000000000028}, {"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.3, "y": 77.9, "detail": "2 duplicate segments stacked on (117.300, 77.900)-(117.800, 78.400)", "size": 0.7071067811865476}, {"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.4, "y": 79.2, "detail": "2 duplicate segments stacked on (117.400, 79.200)-(117.800, 78.800)", "size": 0.565685424949236}, {"category": "stacked-copper", "net": "+3V3", "layer": "B.Cu", "x": 117.8, "y": 78.4, "detail": "2 duplicate segments stacked on (117.800, 78.400)-(117.800, 78.800)", "size": 0.3999999999999915}], "oracle_check": "skipped", "blockers": [{"net": "+3V3", "stage": "preexisting", "blocked_by": [{"net": "/TDI", "preexisting": true}]}], "boxed_in": [{"verdict": "boxed_in_static", "iterations": 2, "geometry": {"grid_step": 0.1, "clearance": 0.15, "track_width": 0.3, "via_diameter": null}, "net": "+3V3"}], "pad_pairs_connected": 25, "pad_pairs_total": 26, "pad_pairs_open": [{"net": "+3V3", "pairs_connected": 25, "pairs_total": 26, "outcome": "open", "open_subtype": "unrouted"}], "power_trace_ampacity": [{"net": "+1V8", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 38.3}, {"net": "+3V3", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 45.0}, {"net": "+5V", "bottleneck_width_mm": 0.3, "bottleneck_layer": "F.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 5.1}, {"net": "/VPHY", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 19.9}, {"net": "/VPLL", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 8.6}, {"net": "GND", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 218.7}, {"net": "VBUS", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 21.6}, {"net": "Vdrive", "bottleneck_width_mm": 0.3, "bottleneck_layer": "B.Cu", "copper_oz": 1.0000000000000002, "max_current_a": 1.0, "max_current_ipc2152_a": 1.0, "temp_rise_c": 10.0, "trace_length_mm": 40.4}], "scope": "reconciliation-subset", "board_scoped_keys": ["stacked_copper", "power_trace_ampacity", "min_clearance_used"], "env_knobs": {}}
+
+Writing output to wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb...
+Successfully wrote wk/gpm/12_steppenprobe/repro/out/p2b.kicad_pcb
+Note: the JSON_SUMMARY above covers only the reconciliation subset (it carries scope="reconciliation-subset"). The run's tally is the final re-grade of the shipped board (JSON_REGRADE, folded into JSON_SUMMARY_MIN and --json-out). Never scrape the LAST JSON_SUMMARY of a route log.
+
+Pour re-audit: re-auditing 1 zone net(s) KiCad verified complete before the final reconciliation: GND
+  KiCad-oracle recheck: deterministic exact-fill link source (pcbnew refill)
+  KiCad-oracle recheck: KiCad reports all processed nets complete
+  Pour re-audit: every verified pour is whole after the reconciliation (0 link(s) welded back)
+  Strict collapse (#1063, end of run): removed 6 redundant segment(s) on 6 net(s)
+  Dangling vias (#1166, end of run): removed 9 via(s) joining fewer than two layers and 0 segment(s) of the branches they ended, on 1 net(s)
+  Stacked copper (#162, end of run): removed 4 duplicate segment(s) on 1 net(s)
+VIA_IN_PAD_JSON: {"count": 0, "sites": [], "stamped": 0, "restored": 0, "protected": 0, "unstampable": 0, "site_created": 0, "unprotected": [], "note": "via-in-pad requires IPC-4761 Type VII (filled + capped + plated); state it on the fab drawing or solder wicks into the barrel"}
+JSON_SHIPPED_RULES: {"min_clearance_used": 0.15, "design_rules": {"escalation_policy": "board", "fab_tier": "auto", "board_floors": {"track_width": 0.15, "via_diameter": 0.6, "via_drill": 0.3, "hole_to_hole": 0.25, "annular": 0.049999999999999996, "board_edge": 0.3, "clearance": 0.15}, "count": 0, "nets": [], "narrowed": [], "min_delivered": {}, "fab_tier_escalations": 0, "fab_tier_contexts": [], "fab_tier_target": "board_floors"}}
+JSON_REGRADE: {"board": "file", "graded_nets": 2, "seconds": 0.1, "routed_single": [], "failed_single": ["+3V3"], "open_single": [], "failed_multipoint": [], "multipoint_pads_total": 0, "multipoint_pads_connected": 0, "successful": 0, "failed": 1, "unowned_broken": [], "recovered": [], "pad_pairs": {"+3V3": {"total": 26, "connected": 25, "copper": true}}, "broken_by_run": []}
+
+============================================================
+Run complete -- whole run, re-graded on the written board (2 net(s), 0.1s)
+============================================================
+  Single-ended:  0/1 routed (1 FAILED)
+  Ships broken: 1 net(s) -- the `failed` count, over every net the run owns
+JSON_IMPROVEMENT_GATE: {"lost": [], "gained": [], "lost_zone": [], "gained_zone": [], "worsened": [], "disconnected_pads_before": 1, "disconnected_pads_after": 1, "nets_compared": 61, "verdict": "accept"}
+JSON_SUMMARY_MIN: {"escalations": 0, "failed": 1, "failed_single": ["+3V3"], "main_loop_time_s": 0.17, "min_clearance_used": 0.15, "multipoint_deficit": 0, "open_single": [], "pad_pairs_open": {"count": 1, "nets": ["+3V3"]}, "regraded_nets": 2, "routed": 0, "scope": "merged", "terminal_restores_broken": [], "vias": 9}
+EXIT=0

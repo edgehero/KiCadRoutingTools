@@ -1,0 +1,184 @@
+{
+ "schema": 1,
+ "groups": [
+  {
+   "name": "cm5_core",
+   "role": "core",
+   "refs": [
+    "Module301",
+    "Module302",
+    "R102",
+    "R103",
+    "R104",
+    "CN1",
+    "TP103",
+    "TP104",
+    "TP105",
+    "TP106",
+    "C101",
+    "C102"
+   ],
+   "anchor": "Module301",
+   "why": "the CM5's two board-to-board connectors (declared poses, one origin) with their strap parts: R102/R103 select GPIO_VREF (0R to +3V3 or +1V8), R104 pulls EEPROM_nWP down, CN1 is the RTC battery (+BATT to Module301 pin 76); the +3V3_PI and GND test points probe the module's rails; C101/C102 (100n on +5V) decouple the module's +5V input pins (Module301 77-87)"
+  },
+  {
+   "name": "power_in",
+   "role": "power",
+   "refs": [
+    "J101",
+    "D101",
+    "R101",
+    "TP101",
+    "TP102"
+   ],
+   "anchor": "J101",
+   "near": [
+    "cm5_core",
+    "usb_host"
+   ],
+   "why": "USB-C power input J101 (VBUS = +5V, also the CM5's USB2 OTG/boot port via /USB_C.D) with its ESD clamp D101, the +5V bleeder R101 and the VBUS/+5V test points"
+  },
+  {
+   "name": "ethernet",
+   "role": "interface",
+   "refs": [
+    "J1",
+    "U401",
+    "U402",
+    "R401",
+    "R402",
+    "R403",
+    "C401"
+   ],
+   "anchor": "J1",
+   "near": [
+    "cm5_core"
+   ],
+   "why": "RJ45 with magnetics J1 (mid-mount, in the west notch), its two ESD arrays U401/U402 on the TRD pairs, the LED resistors R401/R402, the shield 0R R403 and the magnetics centre-tap cap C401"
+  },
+  {
+   "name": "usb_host",
+   "role": "interface",
+   "refs": [
+    "USB701",
+    "D701",
+    "R702",
+    "R703",
+    "U701",
+    "R701",
+    "C701",
+    "C702",
+    "C703"
+   ],
+   "anchor": "USB701",
+   "near": [
+    "power_in"
+   ],
+   "why": "USB-C host port USB701: ESD D701 on D+/D-, CC source pull-ups R702/R703, the VBUS current-limit switch U701 with its ILIM resistor R701, its input cap C701 and the VBUS bulk/output caps C702/C703"
+  },
+  {
+   "name": "hdmi",
+   "role": "interface",
+   "refs": [
+    "J501",
+    "D401",
+    "D402",
+    "D403",
+    "U405",
+    "C501",
+    "C502"
+   ],
+   "anchor": "J501",
+   "near": [
+    "cm5_core"
+   ],
+   "why": "HDMI0 receptacle J501 with its three ESD arrays (TMDS D401/D402, DDC/CEC/HPD D403 on the back) and the HDMI +5V power switch U405 with its input/output caps C501/C502"
+  },
+  {
+   "name": "m2",
+   "role": "power",
+   "refs": [
+    "J701",
+    "M701",
+    "M702",
+    "U702",
+    "L701",
+    "C704",
+    "C705",
+    "C706",
+    "C707",
+    "R704",
+    "R705",
+    "R706",
+    "C708",
+    "C709",
+    "C710",
+    "C711",
+    "C712",
+    "U703",
+    "D702",
+    "R707"
+   ],
+   "anchor": "J701",
+   "templates": [
+    {
+     "chip": "U702",
+     "kind": "switching stage",
+     "why": "AP3441 1 MHz synchronous buck, +5V to M2_3V3 for the M.2 card; datasheet has no layout figure, the Diodes AP3441/L EVB user guide board view is the layout"
+    }
+   ],
+   "why": "M.2 M-key socket J701 (declared, with its 2230/2242 standoffs) and its 3.3 V supply: the AP3441 buck U702 with CIN C704/C705/C706, inductor L701, COUT C708-C711 + C712, feedback divider R705/R706 with feed-forward C707, EN pull-down R704; the 32.768 kHz SUSCLK oscillator U703 and the activity LED D702/R707"
+  },
+  {
+   "name": "camera",
+   "role": "interface",
+   "refs": [
+    "J802"
+   ],
+   "anchor": "J802",
+   "near": [
+    "cm5_core"
+   ],
+   "why": "22-pin 0.5 mm FPC camera connector J802 (CSI DPHY0 from Module302)"
+  },
+  {
+   "name": "io",
+   "role": "interface",
+   "refs": [
+    "J502",
+    "J503",
+    "J601",
+    "U1",
+    "R107",
+    "R108",
+    "R501",
+    "R502",
+    "D502",
+    "C503",
+    "C601"
+   ],
+   "near": [
+    "cm5_core"
+   ],
+   "why": "the user I/O connectors: Qwiic I2C J502 with its ESD D502 and pull-ups R501/R502, the LIS3DH accelerometer U1 on that bus (on the back) with its strap resistors R107/R108 and decap C503, the SPI display connector J503 and its 3V3 bulk C601, and the fan connector J601"
+  },
+  {
+   "name": "ui",
+   "role": "ui",
+   "refs": [
+    "SW501",
+    "SW101",
+    "D605",
+    "D606",
+    "R605",
+    "R606",
+    "U602"
+   ],
+   "edge": "E",
+   "near": [
+    "cm5_core"
+   ],
+   "why": "power button SW501, boot button SW101 (back), the power LED D605 with its inverter U602 and resistor R605, and the activity LED D606/R606; the source put the buttons 4-5 mm from the east edge, near the module's PWR_BUT/nRPIBOOT pins"
+  }
+ ]
+}

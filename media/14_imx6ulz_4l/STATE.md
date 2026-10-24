@@ -1,0 +1,50 @@
+FIRST_CMD: 2026-10-23T09:06:37Z
+- 09:10Z read TASK/README/skill. fixed.kicad_pcb = copy_board of input. brief.json, ctx.json, context.md written.
+- 09:16Z groups.json v1 (9 groups), intent_run.json = intent.json + 3 TLV62568 templates (U4/U5/U6, SLVSD89B Fig 20). check_groups 0 errors, 4 expected warns.
+- 09:17Z PASS 1 place_simple (12 seeds, --jobs 4) launched in background; log wk/gpm/14_imx6ulz_4l/place_pass1.log
+- 09:20Z pass1 rejected (U1 P12 decap err 11/12 seeds) -> old/pass1; groups v2 (U8/C19/C20 -> core). PASS 2 place_simple launched; log place_pass2.log
+- 09:24Z pass2 rejected (same P12/U8 decap err 11/12) -> old/pass2; intent_run.json +proximity U8.2->U1.P12 max 7mm. PASS 3 launched; log place_pass3.log
+- 09:26Z pass3 done: clean seeds 1,3,6,7,9,11; judge 6,11,9,7,3,1
+- 09:29Z calibration: judge_seeds on a copy of s6 in analysis/t6 (chain draft judge_chain.txt)
+- 09:31Z calibration s6: blocking 2 joins 2 vias 404 in 84 s. Launch judge_seeds pass3 (6,11,9,7,3,1) --jobs 2; log judge_pass3.log
+- 09:37Z judged pass3: best s6 (blocking 2, joins 2, vias 404); final.kicad_pcb=copy of s6 sha 9ea8981c...; CHOSEN.json written. Next: §3.8 full route in final_route/
+- 09:37Z final route arm A launched: bash final_route/imx6ulz_4l_plan.sh (route_plan_check exit 0); logs final_route/s*.log
+- 09:37Z exploratory arm B: awx/route_bus.py joint on a copy of final_route/s1_planes in analysis/busB (log bus.log)
+- 09:38Z arm A run 1 died at route_diff (--json-out not a route_diff flag) -> final_route_old1; re-launched fixed plan
+- 09:45Z-10:45Z STALL: orchestrator restart after ~1 h of no activity (last activity 11:45 local). Resumed 10:45Z.
+- State at resume: arm A (final_route/) finished: s8_iter2 blocking 17 = broken 1 (BOOT_CFG4_0) + DRC 16 (6 pad-seg + 4 pad-via contacts from dog-bone vias on boot resistors/caps stuck under U1 by place_fanout_clearance; 6 DRAM_LDQ length-out-of-range). Ledger row 10 = first routed board.
+  arm B (analysis/busB, awx/route_bus joint): finished EXIT 0, 39/39 lanes, 1841 s.
+- Next: hand-move the 14 boot resistors under U1 (B side) out east (place_pose --near), re-route; DQ length tuning laps.
+- 10:48Z arm B rejected (bus lanes locked, DQ0/3/4/5/7 15-28 mm over window, and its output lost the .kicad_dru). Hand-moved 14 boot R out from under U1 (analysis/repair/f.kicad_pcb, buildable, floorplan 0 err); arm A2 = same chain on it in analysis/a2
+- 10:53Z A2 (14 R moved): blocking 15 (broken VDD_ARM_CAP; DRC 9 pad items all at C13 + 5 length). C13 hand-moved to (86.4,111.4) rot 180 -> f2; arm A3 in analysis/a3
+- 10:56Z A3 (C13 moved): blocking 8 (broken 0; DRC 2 pad-via C23/C48 + 1 via-drill-hole + 5 length). C23 -> (88.0,117.6) and C48 -> (87.2,103.0) out of the ball field (f3); arm A4 in analysis/a4
+- 11:33Z DQ length window: routing order search (helpers/dq_sequence_search.py) on p4 = planes of repair/f4 (R2 moved out of DDR corridor to (77.2,113.0), C33 out of field)
+- 11:59Z DQ order found: 46m|25m|37m|01m (amp 0.5 tol 0.8) puts DQ0-7 all in window on the poured board. Arm A5 (analysis/a5) = planes -> 4 DQ steps -> fanouts --check-for-previous -> caps -> diff -> route x3, on repair/f4
+- 12:03Z A5: blocking 7 (0 length! broken DDRCTL_ZQ; 6 DRC: U2 fanout vias of DQ8/DQM0 on the pre-routed DQ7 lane). A6 = A5 + U2 fanout excludes DQ8, DQM0
+- 12:07Z A6: BLOCKING 0 (vias 460, copper 2490). Next: adopt repair/f4 as final.kicad_pcb, re-run A6 plan in final_route/
+- 12:10Z adopted repair/f4 as final.kicad_pcb (CHOSEN.after = 19 set ops), ledger row; final_route_old2 = arm A run; re-running A6 plan in final_route/
+- 12:14Z final_route/s8_iter2: BLOCKING 0, vias 460, copper 2490 (ledger completion row). check_complete INCOMPLETE on 5 check_weird items (2 dangling ends +3V3/VMEM, 3 narrow pad joints GND U1.F8, VREF C39.1, NVCC_PLL_OUT C9.1). Next: check_join fixes
+- 12:17Z FIRST DONE: routed.kicad_pcb sha 0426ea9e73122342bb90d5edc82620476123a4fb5dbe5f3d018bebf08c5a234b (blocking 0, vias 461, copper 2488.31; check_complete DONE). Next §3.9 labels+fill, verifier
+- 12:17Z post-DONE optimisation arms from final_route/s5_diff: opt1 (--via-cost 150 on the 3 route steps), opt2 (Step 2c env stack)
+- 12:22Z opt1 (vias 423, blocking 1 DQ15) and opt2 (vias 466, blocking 1) rejected; keep routed.kicad_pcb. Next §3.9
+- 12:25Z DONE set #1 saved to old/done1 (delivered blocking 0 after stamp_type_vii; KiCad DRC: 17 courtyards_overlap errors from my hand moves). Trying a cleaner hand placement of the 14 boot R (block east of U1) + C33/R2 nudges
+- 12:26Z repair2/g.kicad_pcb: s6 + 19 moves in a courtyard-clean layout (0 advisory pairs). Arm A7 in analysis/a7
+- 12:32Z A7 (courtyard-clean blocks): broken WE_L, rejected. A8 = blocks + f4's C13/C33-ish/R2 112.85 (repair2/g8)
+- 12:36Z A7/A8 rejected (blocking 1 each). Shipping done1 (delivered.kicad_pcb in folder). Next: kicad_drc_compare, verifier
+- 12:37Z verifier call 1 launched on delivered.kicad_pcb sha e9774a68...
+- 12:43Z grade.py done:true; measure.py written (measure_output.txt); REPORT.md write refused by harness (will go in the final reply); datasheets -> old/datasheets. Waiting for verifier 1.
+- 12:47Z VERIFIER 1: FAIL (spec lens): declared diff pairs ungraded; DQS1 0 mm coupled, skew 15.47; CLK0 skew 4.24. connectivity/drc PASS. Fixing: route the pairs before the fanout
+- 12:47Z arm A9 (analysis/a9): pairs routed coupled before fanout (test: 3/3 coupled, skew <=0.42 mm), fanouts exclude pair nets, old s5 route_diff dropped
+- 12:53Z A9: pairs coupled, vias 395, but VMEM U2.C1 walled in by DQ1/DQ6 lanes (plane drop failed) -> blocking 1; rip lap no help. A10 = pairs AFTER the fanouts (pair balls excluded from fanout), before the cap pass
+- 12:56Z A10 rejected (DQS0 single-ended, worse skews). A11 = early route_diff for CLK0+DQS1 only; DQS0 by the post-fanout route_diff (as A6)
+- 13:01Z A11 rejected (broken 3). A12 = A9 with the early pair step at In2 cost 6.0 (test: 3/3 coupled, deltas 0.02/0.0/0.03 mm, C1 left free)
+- 13:08Z A12 rejected (broken 4, iterations plateau). A13 = A9 with DQS0 routed in its own early step at In2 cost 6.0 (CLK0+DQS1 at 2.5 as in A9)
+- 13:11Z A13: blocking 0, vias 420, but CLK0+DQS1 fell back single-ended (DQS1 skew 6.28). A14 (DQS0 first at 6.0, then CLK0+DQS1 at 2.5) and A15 (all 3 early at In2 4.0) running
+- 13:18Z A16 = A9 + a check_join VMEM via-in-pad at U2.C1 (73.6,107.8) placed after the DQ steps, before the pair step
+- 13:23Z A16: pairs good, blocking 1 (DQ13 U1.P3 boxed). A17 = A16 + check_join DQ13 dog-bone via (82.4,105.0) before the fanouts
+- 13:26Z A17: BLOCKING 0, vias 378, copper 2497.6, pairs skew 0.42/0.31/0.02 mm, DRC 0 (DQ window held). Adopting as the shipped chain: final_route -> final_route_old3
+- 13:31Z DONE #2 routed.kicad_pcb (blocking 0, vias 377). labels/silk graded
+- 13:31Z delivered #2 sha 51268e00..., blocking 0, check_complete DONE (+authored), kicad_drc_compare CONSISTENT; verifier call 2 next
+- 13:35Z VERIFIER 2: PASS (connectivity/drc/spec) on delivered sha 51268e00...be40. grade.py done:true (blocking 0, vias 377, copper 2496.77, segments 2361)
+- 13:36Z ledger closed (--final --stop-condition 1, verdict_2 lens files); DELIVERED.sha256 + DONE written; measure.py re-run (wall 4:30:13 incl. the ~1 h orchestrator stall 09:45-10:45Z)
+- 13:45Z TOOL_GAPS.md updated to 17 entries (new: pairs ungraded / early pairs wall balls / route_diff no rip / check_join unrecorded). REPORT.md refused by harness -> full text in the final reply; no REPORT_DONE
