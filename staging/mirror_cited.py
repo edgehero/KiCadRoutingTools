@@ -30,7 +30,7 @@ for s in sources:
     if os.path.isfile(s):
         for m in re.finditer(r'wk/gpm/[A-Za-z0-9_.+\-/]+', open(s, encoding='utf-8', errors='replace').read()):
             # boards 11 and 12 were re-run: what the findings cite is their first run (AUDIT.md)
-            cited.add(re.sub(r'^wk/gpm/(1[12]_(?:daplink|steppenprobe))/', r'wk/gpm/_superseded/\1/',
+            cited.add(re.sub(r'^wk/gpm/(1[12]_(?:daplink|steppenprobe)|17_environment_sensor)/', r'wk/gpm/_superseded/\1/',
                              m.group(0).rstrip('.,;:)/')))
 
 

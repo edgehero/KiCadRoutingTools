@@ -4,7 +4,7 @@ Each cluster of `FINDINGS_CLUSTERED.md` (G01-G47) was re-run at the pin by a sep
 **41 clusters verified: 24 confirmed, 16 confirmed in part, 1 not a bug as claimed, 0 not reproducible.**
 Six clusters equal gp14 issues already re-checked in Phase 4 and are not repeated here: G13 = #1318, G22 = #1343, G24 = #1359, G27 = #1349, G37 = #1311, G43 = #1320 (see `old_issues/OLD_ISSUES.md`).
 Sixteen of the minor and environment items (M01-M16, `_verify/minor.md`) were verified the same way in batches V8-V9: **11 confirmed, 5 confirmed in part, 0 not a bug, 0 not reproducible.**
-Boards 11 (daplink) and 12 (steppenprobe) were re-run after the start-state audit (`AUDIT.md`); the findings cite their first runs, whose files are in `wk/gpm/_superseded/`.
+Boards 11 (daplink) and 12 (steppenprobe) were re-run after the start-state audit (`AUDIT.md`), and board 17 (environment_sensor) after the mounting-hole audit; the findings cite their first runs, whose files are in `wk/gpm/_superseded/`.
 
 <!-- batch V1 -->
 ### G01 -- VERDICT: CONFIRMED
@@ -1073,7 +1073,7 @@ V6: CONFIRMED 5, PARTIAL 2, NOT A BUG 0, NOT REPRODUCIBLE 0
   **route.py lays tracks 2 µm inside the board-edge floor at Edge.Cuts arcs; KiCad reports 5 errors, and kicad_drc_compare subtracts them as "#408 intentional edge"**
   - environment_sensor: KiCad reports 5 copper_edge_clearance ERRORS. They are GND and I2C tracks 0.1976-0.1978 mm from the L-slot and notch arcs, against 0.2000.
   - check_drc reports 0 and kicad_drc_compare reports CONSISTENT, labelling them `[#408: -5 kicad / -5 check_drc intentional edge]`.
-  - Repro: copy `wk/gpm/17_environment_sensor/repro/edgearc_routed.kicad_pcb` with `copy_board.py`, then run `check_drc.py <copy> --json x.json` (5 items, `accepted: quantization-margin`), `kicad_drc_compare.py <copy>` and `kicad-cli pcb drc <copy> --refill-zones`.
+  - Repro: copy `wk/gpm/_superseded/17_environment_sensor/repro/edgearc_routed.kicad_pcb` with `copy_board.py`, then run `check_drc.py <copy> --json x.json` (5 items, `accepted: quantization-margin`), `kicad_drc_compare.py <copy>` and `kicad-cli pcb drc <copy> --refill-zones`.
   - These are not pad-covered edge items; they are sub-margin grazes. `check_drc --clearance-margin 0` reports all 5.
   - kicad_drc_compare drops every KiCad edge error that matches any accepted edge item (`kicad_drc_compare.py:523-550`, `:1064`), so a real KiCad error ships under the #408 label.
   - Router cause, likely: arcs linearised at a 5 µm sagitta (`kicad_parser.py:2406`). The workaround `--board-edge-clearance 0.22` gives KiCad 0 errors at the same 101 vias.
@@ -1097,7 +1097,7 @@ V6: CONFIRMED 5, PARTIAL 2, NOT A BUG 0, NOT REPRODUCIBLE 0
   **A multi-pad `unconnected-*` net (a JST-SH's two MP tabs) is never routed and every DONE grader passes it, while KiCad reports it unconnected**
   - environment_sensor: J2 and J3 each carry two `MP` pads on `unconnected-(Jn-PadMP)`. KiCad DRC reports 2 unconnected items.
   - check_connected prints `ALL NETS FULLY CONNECTED!` (exit 0) with only a WARNING; board_score blocking 0; check_complete DONE.
-  - Repro: copy `wk/gpm/17_environment_sensor/repro/mptabs_routed.kicad_pcb` with `copy_board.py`, then run `check_connected.py <copy>`, `check_complete.py <copy>` and `kicad-cli pcb drc <copy>`.
+  - Repro: copy `wk/gpm/_superseded/17_environment_sensor/repro/mptabs_routed.kicad_pcb` with `copy_board.py`, then run `check_connected.py <copy>`, `check_complete.py <copy>` and `kicad-cli pcb drc <copy>`.
   - The human reference joins both pairs and grades 0 unconnected, which is the disambiguation the #513 warning asks for.
   - Cause: `check_connected.py:2109-2124` skips auto-named no-connect nets with no copper (#479). `net_queries.py:1155` removes them from `--nets '*'`, so the router never tries.
   - Expected: follow KiCad's rule. Join, or count as open, every multi-pad `unconnected-*` net, unless the footprint declares its same-number pads as jumpers.

@@ -70,7 +70,7 @@ for f in $OI/B[0-9].md $OI/batches.tsv $OI/verifier_prompt.md; do [ -f "$f" ] &&
 [ -d $G/_issues ] && { mkdir -p "$A/issues"; for f in $G/_issues/*.md $G/_issues/*.tsv; do [ -f "$f" ] && scrub "$f" "$A/issues/$(basename "$f")"; done; }
 # the verifier reports and the clusters describe boards 11/12's FIRST runs, which live in _superseded/ (AUDIT.md)
 for f in "$A"/verify/V*.md "$A/FINDINGS_CLUSTERED.md"; do
-  [ -f "$f" ] && sed -i '' -E 's#wk/gpm/(1[12]_(daplink|steppenprobe))/#wk/gpm/_superseded/\1/#g' "$f"
+  [ -f "$f" ] && sed -i '' -E 's#wk/gpm/(1[12]_(daplink|steppenprobe)|17_environment_sensor)/#wk/gpm/_superseded/\1/#g' "$f"
 done
 $PY $G/_staging/mirror_cited.py "$A"
 # nothing local may survive the scrub
